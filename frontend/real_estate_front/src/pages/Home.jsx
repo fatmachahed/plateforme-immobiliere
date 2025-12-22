@@ -383,6 +383,7 @@ const HomePage = () => {
           margin-bottom: 20px;
           line-height: 1.2;
           animation: fadeInUp 1s ease;
+          color:white;
         }
 
         .highlight {

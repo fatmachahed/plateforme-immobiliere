@@ -12,6 +12,8 @@ import Compte from "./pages/Compte";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Logout from "./pages/Logout";
+import "leaflet/dist/leaflet.css";
+
 
 function App() {
   const user = null; // ou l'objet user réel
