@@ -1,0 +1,69 @@
+.header-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+  background-color: #f8f9fa;
+}
+
+.nav-left a,
+.nav-right a {
+  margin: 0 15px;
+  text-decoration: none;
+  color: #717981;
+  font-weight: bold;
+}
+
+/* Menu mobile */
+.mobile-toggle {
+  display: none;
+}
+
+/* Hamburger invisible par défaut */
+.hamburger {
+  display: none;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 25px;
+  height: 20px;
+  cursor: pointer;
+}
+
+/* Les barres */
+.hamburger span {
+  display: block;
+  height: 3px;
+  background-color: #BD2138; /* couleur du hamburger */
+  border-radius: 2px;
+}
+
+/* Afficher seulement en mobile */
+@media (max-width: 768px) {
+  .hamburger {
+    display: flex;
+  }
+
+  .nav-left,
+  .nav-right {
+    display: none; /* cacher les menus desktop */
+  }
+}
+
+
+@media (max-width: 768px) {
+  .nav-left,
+  .nav-right {
+    display: none;
+  }
+
+  .mobile-toggle {
+    display: block;
+    position: absolute;
+    top: 60px;
+    left: 0;
+    width: 100%;
+    background: #fff;
+    z-index: 999;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  }
+}
