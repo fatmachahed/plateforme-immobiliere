@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { Search, Users, Home, Map, Star, TrendingUp, Shield, Clock, CheckCircle, ArrowRight, MapPin, Bed, Bath, Maximize } from "lucide-react";
 import Layout from "../components/Layout";
+import logoconseil from "../assets/conseil2.png";
+import femmel from "../assets/femme.png";
+
+const logocon=logoconseil;
+const femmelogo=femmel;
 
 
 const HomePage = () => {
@@ -114,32 +119,45 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* Types de propriétés */}
-      <section className="property-types-section">
-        <div className="container">
-          <div className="section-header">
-            <h2>Explorez Par Type</h2>
-            <p>Découvrez nos différentes catégories de biens immobiliers</p>
+{/* Types de propriétés */}
+<section className="property-types-section">
+  <div className="container">
+    <div className="section-header">
+      <h2>Explorez Par Type</h2>
+      <p>Découvrez nos différentes catégories de biens immobiliers et trouvez rapidement votre logement idéal</p>
+    </div>
+
+    <div className="property-types-wrapper">
+
+
+      {/* Grid des cartes */}
+      <div className="property-types-grid">
+        {propertyTypes.map((type, index) => (
+          <div
+            key={index}
+            className="property-type-card"
+            style={{
+              animationDelay: `${index * 0.2}s`,
+              borderTop: `4px solid ${type.color}`,
+            }}
+          >
+            <div className="property-type-icon">{type.icon}</div>
+            <h3>{type.title}</h3>
+            <p className="property-count">{type.count}</p>
+            <a href="/recherche_annonce" className="explore-link">
+              Explorer <ArrowRight size={16} />
+            </a>
           </div>
-          
-          <div className="property-types-grid">
-            {propertyTypes.map((type, index) => (
-              <div
-                key={index}
-                className="property-type-card"
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                <div className="property-type-icon">{type.icon}</div>
-                <h3>{type.title}</h3>
-                <p className="property-count">{type.count}</p>
-                <a href="/recherche_annonce" className="explore-link">
-                  Explorer <ArrowRight size={16} />
-                </a>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+        ))}
+      </div>
+            {/* Image d'une femme qui montre les types */}
+      <div className="property-types-image">
+        <img src={femmelogo} alt="Présentation des types" />
+      </div>
+    </div>
+  </div>
+</section>
+
 
       {/* Statistiques */}
       <section className="stats-section">
@@ -269,8 +287,13 @@ const HomePage = () => {
                 </div>
               </div>
             </div>
-            
             <div className="features-image">
+                 {/* L'image de l'homme */}
+              <img 
+                src={logocon}
+                alt="Conseil immobilier" 
+                className="advising-image"
+              />
               <div className="floating-card card-1">
                 <Home size={32} />
                 <span>5 Annonces Gratuites</span>
@@ -364,7 +387,7 @@ const HomePage = () => {
 
         .highlight {
           color: #75c9c8;
-          text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+          text-shadow: 2px 2px 4px rgba(0,0,0,0.4);
         }
 
         .hero-subtitle {
@@ -548,6 +571,7 @@ const HomePage = () => {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
           gap: 40px;
+          margin-left:80px;
         }
 
         .property-type-card {
@@ -1102,6 +1126,63 @@ const HomePage = () => {
             font-size: 60px;
           }
         }
+
+        .features-image {
+        position: relative;
+        display: flex;
+        justify-content: flex-end; /* image à droite */
+        align-items: center;
+        gap: 20px; /* espace entre l'image et les cartes */
+      }
+
+      .advising-image {
+        max-width: 400px; /* ajustable selon la taille désirée */
+        height: auto;
+        object-fit: contain;
+        margin-top:250px;
+        margin-right:115px;
+      }
+
+      .property-types-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 40px;
+        flex-wrap: wrap;
+      }
+
+      .property-types-image img {
+        max-width: 400px;
+        height: 280px;
+        border-radius: 16px;
+        // box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        // animation: float 3s ease-in-out infinite;
+        margin-left:70px;
+      }
+
+      @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-10px); }
+      }
+
+      .property-type-card {
+        background: white;
+        padding: 20px;
+        border-radius: 16px;
+        text-align: center;
+        transition: transform 0.3s, box-shadow 0.3s;
+      }
+
+      .property-type-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 15px 40px rgba(0,0,0,0.2);
+      }
+
+      .property-type-icon {
+        font-size: 48px;
+        margin-bottom: 15px;
+      }
+
+
       `}</style>
     </div>
     </Layout>

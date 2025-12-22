@@ -72,7 +72,7 @@ const Footer = ({ logo }) => {
               </div>
               <div className="contact-item">
                 <Phone size={18} className="contact-icon" />
-                <span>+216 XX XXX XXX</span>
+                <span>+216 22 300 992</span>
               </div>
               <div className="contact-item">
                 <Clock size={18} className="contact-icon" />

@@ -71,7 +71,7 @@ const Header = ({ user, logo }) => {
         {!isMobile && (
           <nav className="nav-left">
             <a href="/recherche_annonce">Acheter</a>
-            <a href="#">Louer</a>
+            <a href="/creer_annonce">Louer</a>
             <a href="/creer_annonce">Vendre</a>
           </nav>
         )}
@@ -232,7 +232,7 @@ const Header = ({ user, logo }) => {
 
         /* Top bar */
         .top-bar {
-          background-color: #BD2138;
+          background-color: #4d8f8e;
           color: white;
         }
 
@@ -258,7 +258,7 @@ const Header = ({ user, logo }) => {
           gap: 6px;
           padding: 6px 14px;
           background: white;
-          color: #BD2138;
+          color: #4d8f8e;
           border-radius: 20px;
           cursor: pointer;
           font-size: 13px;
@@ -293,7 +293,7 @@ const Header = ({ user, logo }) => {
 
         .language-dropdown a:hover {
           background: #f5f5f5;
-          color: #BD2138;
+          color: #4d8f8e;
         }
 
         .language-dropdown a:not(:last-child) {
@@ -304,7 +304,7 @@ const Header = ({ user, logo }) => {
           border: none;
           border-radius: 20px;
           padding: 6px 12px;
-          color: #BD2138;
+          color: #4d8f8e;
           background: white;
           cursor: pointer;
           font-size: 13px;
@@ -338,7 +338,7 @@ const Header = ({ user, logo }) => {
 
         .nav-left a:hover,
         .nav-right a:hover {
-          color: #BD2138;
+          color: #4d8f8e;
         }
 
         .logo {
@@ -350,7 +350,7 @@ const Header = ({ user, logo }) => {
         .logo-placeholder {
           width: 60px;
           height: 60px;
-          background: #BD2138;
+          background: #4d8f8e;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -513,7 +513,7 @@ const Header = ({ user, logo }) => {
 
           .mobile-nav a:hover {
             background: #f8f9fa;
-            color: #BD2138;
+            color: #4d8f8e;
           }
 
           .separator {
@@ -534,7 +534,7 @@ const Header = ({ user, logo }) => {
 
           .mobile-boost span {
             font-weight: bold;
-            color: #BD2138;
+            color: #4d8f8e;
           }
         }
 
