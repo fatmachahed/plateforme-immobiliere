@@ -7,6 +7,7 @@ import Accueil from "./pages/Accueil";
 import Apropos from "./pages/Apropos";
 import Contact from "./pages/Contact";
 import RechercheAnnonce from "./pages/RechercheAnnonce";
+import RechercheAnnonceCarte from "./pages/RechercheAnnonceCarte"
 import CreerAnnonce from "./pages/CreerAnnonce";
 import Compte from "./pages/Compte";
 import Login from "./pages/Login";
@@ -26,6 +27,7 @@ function App() {
         <Route path="/apropos" element={<Apropos />} />
         <Route path="/contact" element={<Contact />} />
         <Route path="/recherche_annonce" element={<RechercheAnnonce />} />
+        <Route path="/recherche_annonce_carte" element={<RechercheAnnonceCarte />} />
         <Route path="/creer_annonce" element={<CreerAnnonce />} />
         <Route path="/compte" element={<Compte />} />
         <Route path="/login" element={<Login />} />
