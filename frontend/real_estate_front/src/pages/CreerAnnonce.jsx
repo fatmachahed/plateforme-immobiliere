@@ -805,6 +805,7 @@ const CreateListingForm = () => {
                       className="form-input"
                       placeholder="Ex: Magnifique villa moderne avec piscine"
                       value={formData.titre}
+                      style={{width:"95%"}}
                       onChange={(e) => handleInputChange('titre', e.target.value)}
                     />
                     <button 
@@ -1982,6 +1983,58 @@ const CreateListingForm = () => {
            p{
    color:#80a1d4;
    }
+
+   @media (max-width: 768px) {
+  .form-navigation {
+    position: sticky;
+    bottom: 0;
+    background: white;
+    padding: 12px 0;
+    margin-top: 20px;
+    border-top: 1px solid #eee;
+    z-index: 50;
+  }
+}
+@media (max-width: 768px) {
+  .create-listing-container {
+    padding-bottom: 100px;
+  }
+
+  .form-navigation {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    padding: 15px;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+  }
+
+  .form-navigation .nav-btn {
+    width: 100%;
+  }
+}
+  
+@media (max-width: 768px) {
+  .form-navigation {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .nav-btn {
+    width: 100%;
+    justify-content: center;
+    font-size: 16px;
+    padding: 14px;
+  }
+}
+
+
+.form-wrapper {
+  padding-bottom: 120px;
+}
+
         `}</style>
       </div>
     </Layout>

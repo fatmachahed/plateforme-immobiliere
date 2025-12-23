@@ -15,6 +15,7 @@ const AIDescriptionModal = ({
   const [selectedTone, setSelectedTone] = useState('professional');
   const [copied, setCopied] = useState(false);
   const [applied, setApplied] = useState(false);
+  const [aiModalOpen, setAiModalOpen] = useState(false); 
   const chatContainerRef = useRef(null);
   const previewRef = useRef(null);
 
@@ -313,7 +314,7 @@ const AIDescriptionModal = ({
               <Bot size={24} />
               <div>
                 <h3>Assistant IA Description</h3>
-                <p className="subtitle">Génération optimisée pour l'immobilier</p>
+                <p style={{color:"#666"}} className="subtitle">Génération optimisée pour l'immobilier</p>
               </div>
             </div>
             <div className="ai-stats">
@@ -407,7 +408,7 @@ const AIDescriptionModal = ({
                         <span></span>
                         <span></span>
                       </div>
-                      <p>Rédaction en cours...</p>
+                      <p style={{color:"#666"}}>Rédaction en cours...</p>
                     </div>
                   </div>
                 )}
@@ -501,7 +502,7 @@ const AIDescriptionModal = ({
                 <div className="preview-placeholder">
                   <Sparkles size={48} />
                   <h4>Description en attente</h4>
-                  <p>Votre description générée par IA apparaîtra ici</p>
+                  <p style={{color:"#666"}}>Votre description générée par IA apparaîtra ici</p>
                   <small>L'IA analyse votre bien pour créer un contenu optimisé</small>
                 </div>
               )}
@@ -538,6 +539,7 @@ const AIDescriptionModal = ({
       
       {/* Styles */}
       <style jsx>{`
+      
         .modal-overlay {
           position: fixed;
           top: 0;
@@ -1100,6 +1102,7 @@ const AIDescriptionModal = ({
           margin: 6px 0;
           padding-left: 8px;
           position: relative;
+          color:#666;
         }
 
         .preview-list-item:before {

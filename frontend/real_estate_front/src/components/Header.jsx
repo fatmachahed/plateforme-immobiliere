@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Menu, X, User, BarChart3, LogOut, LogIn, UserPlus, Globe } from "lucide-react";
-import logoLocalizi from "../assets/logo_vert1.png";
+import logoLocalizi from "../assets/logo_vert_new.png";
 
 
 
@@ -91,7 +91,7 @@ const Header = ({ user, logo }) => {
         <div className="logo">
           <a href="/">
             {logo ? (
-              <img src={logo} alt="Logo" style={{ height: "250px" }} />
+              <img src={logo} alt="Logo" style={{ height: "70px" }} />
             ) : (
               <div className="logo-placeholder">LOGO</div>
             )}
@@ -453,7 +453,63 @@ const Header = ({ user, logo }) => {
         }
 
         /* Mobile styles */
+
+    @media (max-width: 768px) {
+
+    
+    .property-types-grid {
+        grid-template-columns: 1fr;
+        gap: 25px;
+        margin: auto !important;
+        width:95% !important;
+    }
+        .property-types-image{
+        display:none; }
+        .floating-card{
+        width:100px;
+        height:100px;}
+
+.floating-card span {
+  font-size: 10px; /* Taille du texte plus petite */
+  font-weight: 400; /* Optionnel : texte légèrement plus léger */
+  margin:auto;
+}
+.floating-card{
+padding:0px;
+}
+.floating-card svg {
+display:none;
+}
+
+.card-2 {
+    margin-right: 50px;}
+
+
+    .features-image {
+  position: relative; /* Nécessaire si les cartes sont positionnées au-dessus de l'image */
+  margin-left: 10px;
+}
+
+.card-3 {
+  margin-left: 90px;
+}
+
+.floating-card {
+  position: absolute; /* Les cartes flottent sur l'image */
+  top: 10px;          /* Ajuste la hauteur */
+  left: 10px;         /* Ajuste la distance depuis la gauche */
+}
+      }
+
+
+
         @media (max-width: 768px) {
+            .property-types-grid {
+        grid-template-columns: repeat(1, 1fr);
+        width: 100%;
+        margin:auto;
+    }
+
           .header-main {
             padding: 15px 20px;
           }
@@ -553,7 +609,8 @@ const Header = ({ user, logo }) => {
           .nav-right a {
             font-size: 14px;
           }
-        }
+   
+              }
 
         /* Très petits écrans */
         @media (max-width: 480px) {
@@ -576,7 +633,13 @@ const Header = ({ user, logo }) => {
             width: 35px;
             height: 35px;
           }
+                 .logo img {
+          height: 40px !important;
+          object-fit: contain;
+        }  
         }
+
+
       `}</style>
     </header>
   );
