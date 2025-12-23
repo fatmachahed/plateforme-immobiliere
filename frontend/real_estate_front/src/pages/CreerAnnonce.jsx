@@ -722,6 +722,7 @@ const CreateListingForm = () => {
                     <input
                       type="text"
                       className="form-input"
+                      style={{width:"80%"}}
                       placeholder="Ex: 15 Avenue Habib Bourguiba, Tunis"
                       value={formData.address}
                       onChange={(e) => handleInputChange('address', e.target.value)}
@@ -2015,7 +2016,7 @@ const CreateListingForm = () => {
     width: 100%;
   }
 }
-  
+
 @media (max-width: 768px) {
   .form-navigation {
     flex-direction: column;

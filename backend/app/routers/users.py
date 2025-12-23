@@ -98,3 +98,29 @@ def delete_user(
         raise HTTPException(status_code=404, detail="User not found")
     return {"detail": "User deleted"}
 
+
+
+from fastapi.security import OAuth2PasswordRequestForm
+from app.utils.auth import create_access_token
+from passlib.context import CryptContext
+
+@router.post("/login")
+def login(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db)
+):
+    user = crud.get_user_by_email(db, form_data.username)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    if not pwd_context.verify(form_data.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    access_token = create_access_token(
+        data={"sub": str(user.id)}
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer"
+    }

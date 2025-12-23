@@ -24,6 +24,7 @@
     "lucide-react": "^0.562.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-feather": "^2.0.10",
     "react-router-dom": "^6.30.2"
   }
 }
