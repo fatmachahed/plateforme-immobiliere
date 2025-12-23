@@ -162,3 +162,12 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     email: Optional[str] = None
+    
+
+
+from enum import Enum
+
+class EnumResponse(BaseModel):
+    value: str
+    label: str
+
