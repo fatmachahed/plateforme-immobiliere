@@ -182,9 +182,16 @@ const HomePage = () => {
       </section>
 
       {/* Propriétés récentes */}
+          <section className="recent-properties-section">
+      <div className="container">
+        <div className="section-header">
+          <h2>Propriétés Récentes</h2>
+          <p>Découvrez nos dernières annonces</p>
+        </div>
          <RecentProperties properties={recentProperties} />
 
-
+        </div>
+    </section>
 
 
       {/* CTA Section */}

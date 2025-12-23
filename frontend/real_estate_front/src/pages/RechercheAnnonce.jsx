@@ -1,7 +1,9 @@
 import React from "react";
 import Layout from "../components/Layout";
 import RecentProperties from "../components/RecentProperties";
-import "./css/HomePage.css"; 
+import "./css/RechercheAnnonce.css"
+import SearchFilters from "../components/SearchFilters";
+
 
 // Exemple de données à afficher
 const recentProperties = [
@@ -34,16 +36,35 @@ const recentProperties = [
     baths: null,
     area: 500,
     image: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=500"
+  },
+    {
+    id: 4,
+    title: "Terrain Résidentiel",
+    price: "180 000",
+    location: "Sousse",
+    beds: null,
+    baths: null,
+    area: 500,
+    image: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=500"
   }
 ];
+
+
+
 
 export default function RechercheAnnonce() {
   return (
     <Layout>
-      <h1>Acheter / Recherche Annonce</h1>
+      {/* 🔍 Barre de recherche + filtres */}
+      <SearchFilters />
 
-      {/* Affichage des propriétés récentes via le composant réutilisable */}
-      <RecentProperties properties={recentProperties} />
+      {/* 🏠 Résultats */}
+    <section className="properties-section">
+      <div className="containerRecherche">
+        <RecentProperties properties={recentProperties} />
+      </div>
+    </section>
     </Layout>
   );
 }
+

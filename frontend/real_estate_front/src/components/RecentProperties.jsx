@@ -4,13 +4,7 @@ import { MapPin, Bed, Bath, Maximize, ArrowRight } from "lucide-react";
 
 const RecentProperties = ({ properties }) => {
   return (
-    <section className="recent-properties-section">
-      <div className="container">
-        <div className="section-header">
-          <h2>Propriétés Récentes</h2>
-          <p>Découvrez nos dernières annonces</p>
-        </div>
-        
+    <>
         <div className="properties-grid">
           {properties.map((property) => (
             <div key={property.id} className="property-card">
@@ -42,8 +36,8 @@ const RecentProperties = ({ properties }) => {
             Voir toutes les propriétés <ArrowRight size={20} />
           </a>
         </div>
-      </div>
-    </section>
+        </>
+ 
   );
 };
 
