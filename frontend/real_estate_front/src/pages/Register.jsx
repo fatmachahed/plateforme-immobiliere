@@ -1,7 +1,7 @@
 import { useState } from "react";
 import API from "../api/axios";
 import { useNavigate } from "react-router-dom";
-import "./css/Login.css"; // on réutilise le même style
+import "./css/Login.css";
 import Layout from "../components/Layout";
 import { Eye, EyeOff } from "react-feather";
 
@@ -17,6 +17,7 @@ export default function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
 
     if (password !== confirmPassword) {
       setError("Les mots de passe ne correspondent pas");
@@ -24,15 +25,17 @@ export default function Register() {
     }
 
     try {
-      const res = await API.post("/users", {
-        username,
-        email,
-        password,
-      });
-      localStorage.setItem("token", res.data.access_token); // si le backend renvoie token
-      navigate("/dashboard");
+      // POST vers /users/ (avec / final)
+      const res = await API.post("/users/", { username, email, password });
+      
+      // Si le backend ne renvoie pas de token automatiquement, tu peux rediriger
+      navigate("/recherche_annonce");
     } catch (err) {
-      setError("Erreur lors de l'inscription. Vérifiez vos informations");
+      if (err.response && err.response.status === 400) {
+        setError(err.response.data.detail || "Email déjà utilisé");
+      } else {
+        setError("Erreur lors de l'inscription. Vérifiez vos informations");
+      }
     }
   };
 
@@ -60,7 +63,7 @@ export default function Register() {
 
           <div className="password-wrapper">
             <input
-              type={showPassword ? "text" : "password"}
+              type={showPassword ? "text" : "password"} // 🔄 inversé
               placeholder="Mot de passe"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -71,13 +74,13 @@ export default function Register() {
               className="toggle-password"
               onClick={() => setShowPassword(!showPassword)}
             >
-              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              {showPassword ? <Eye size={20} /> : <EyeOff size={20} />}
             </span>
           </div>
 
           <div className="password-wrapper">
             <input
-              type={showConfirm ? "text" : "password"}
+              type={showConfirm ? "text" : "password"} // 🔄 inversé
               placeholder="Confirmer le mot de passe"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
@@ -88,7 +91,7 @@ export default function Register() {
               className="toggle-password"
               onClick={() => setShowConfirm(!showConfirm)}
             >
-              {showConfirm ? <EyeOff size={20} /> : <Eye size={20} />}
+              {showConfirm ? <Eye size={20} /> : <EyeOff size={20} />}
             </span>
           </div>
 

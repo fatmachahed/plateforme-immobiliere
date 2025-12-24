@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { Search, Home, SlidersHorizontal, MapPin, DollarSign, Maximize2, Bed, Bath, X, ChevronDown, Filter, ChevronRight, CheckCircle2, Handshake } from "lucide-react";
 import "./css/SearchFilters.css";
+import useLocalisation from "../hooks/useLocalisation";
+
 
 export default function SearchFilters() {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
@@ -11,7 +13,8 @@ export default function SearchFilters() {
     localite: ""
   });
 
-  const toggleAdvanced = () => setIsAdvancedOpen(!isAdvancedOpen);
+const { gouvernorats, delegations, localites } = useLocalisation(hierarchy);
+const toggleAdvanced = () => setIsAdvancedOpen(!isAdvancedOpen);
 
   const propertyTypes = [
     { value: "", label: "Tous", icon: "🏠" },
@@ -28,67 +31,6 @@ export default function SearchFilters() {
     { value: "location", label: "À louer" }
   ];
 
-  // Données hiérarchiques
-  const gouvernorats = [
-    { value: "", label: "Tous les gouvernorats", icon: "🏙️" },
-    { value: "tunis", label: "Tunis", icon: "🏙️" },
-    { value: "ariana", label: "Ariana", icon: "🌆" },
-    { value: "ben_arous", label: "Ben Arous", icon: "🏘️" },
-    { value: "manouba", label: "Manouba", icon: "🏡" },
-    { value: "nabeul", label: "Nabeul", icon: "🌊" },
-    { value: "sousse", label: "Sousse", icon: "🏖️" },
-    { value: "monastir", label: "Monastir", icon: "⛵" }
-  ];
-
-  const delegations = {
-    tunis: [
-      { value: "", label: "Toutes les délégations" },
-      { value: "bab_bhar", label: "Bab Bhar" },
-      { value: "cite_olympique", label: "Cité Olympique" },
-      { value: "el_menzah", label: "El Menzah" },
-      { value: "lafayette", label: "Lafayette" },
-      { value: "berges_du_lac", label: "Berges du Lac" }
-    ],
-    ariana: [
-      { value: "", label: "Toutes les délégations" },
-      { value: "ariana_ville", label: "Ariana Ville" },
-      { value: "en_nasr", label: "Ennasr" },
-      { value: "raoued", label: "Raoued" }
-    ],
-    ben_arous: [
-      { value: "", label: "Toutes les délégations" },
-      { value: "ben_arous_ville", label: "Ben Arous Ville" },
-      { value: "rades", label: "Radès" },
-      { value: "megrine", label: "Megrine" }
-    ],
-    manouba: [
-      { value: "", label: "Toutes les délégations" },
-      { value: "manouba_ville", label: "Manouba Ville" },
-      { value: "denden", label: "Den Den" },
-      { value: "mornag", label: "Mornag" }
-    ]
-  };
-
-  const localites = {
-    bab_bhar: [
-      { value: "", label: "Toutes les localités" },
-      { value: "rue_kasbah", label: "Rue de la Kasbah" },
-      { value: "place_gouvernement", label: "Place du Gouvernement" },
-      { value: "rue_ezzitouna", label: "Rue Jamaa Ezzitouna" }
-    ],
-    el_menzah: [
-      { value: "", label: "Toutes les localités" },
-      { value: "rue_menzah", label: "Rue El Menzah" },
-      { value: "av_bourguiba", label: "Avenue Habib Bourguiba" },
-      { value: "rue_liberte", label: "Rue de la Liberté" }
-    ],
-    berges_du_lac: [
-      { value: "", label: "Toutes les localités" },
-      { value: "rue_du_lac", label: "Rue du Lac" },
-      { value: "av_de_rome", label: "Avenue de Rome" },
-      { value: "rue_des_olympiades", label: "Rue des Olympiades" }
-    ]
-  };
 
   const [addressFilter, setAddressFilter] = useState("");
 
@@ -109,15 +51,6 @@ export default function SearchFilters() {
     setHierarchy(newHierarchy);
   };
 
-  const getCurrentDelegations = () => {
-    if (!hierarchy.gouvernorat) return [{ value: "", label: "Sélectionnez d'abord un gouvernorat" }];
-    return delegations[hierarchy.gouvernorat] || [{ value: "", label: "Aucune délégation disponible" }];
-  };
-
-  const getCurrentLocalites = () => {
-    if (!hierarchy.delegation) return [{ value: "", label: "Sélectionnez d'abord une délégation" }];
-    return localites[hierarchy.delegation] || [{ value: "", label: "Aucune localité disponible" }];
-  };
 
   return (
     <div className="search-hero">
@@ -159,77 +92,89 @@ export default function SearchFilters() {
             </div>
             <div className="card-content">
               <label className="card-label">Localisation</label>
-              
-              {/* Filtre hiérarchique à 3 niveaux */}
-              <div className="hierarchy-filters">
-                {/* Gouvernorat */}
-              {/* Exemple de filtre dynamique sur Gouvernorat */}
-                <div className="hierarchy-level">
-                <select
-                    className="hierarchy-select"
-                    value={hierarchy.gouvernorat}
-                    onChange={(e) => handleHierarchyChange("gouvernorat", e.target.value)}
-                >
-                    {gouvernorats
-                    .filter(gov =>
-                        gov.label.toLowerCase().includes(addressFilter.toLowerCase())
-                    )
-                    .map(gov => (
-                        <option key={gov.value} value={gov.value}>
-                        {gov.icon} {gov.label}
-                        </option>
-                    ))}
-                </select>
-                <ChevronRight size={16} className="hierarchy-arrow" />
-                </div>
+               {/* Filtre hiérarchique à 3 niveaux */}
+<div className="hierarchy-filters">
+  {/* Gouvernorat */}
+  <div className="hierarchy-level">
+    <select
+      className="hierarchy-select"
+      value={hierarchy.gouvernorat}
+      onChange={(e) => handleHierarchyChange("gouvernorat", e.target.value)}
+    >
+      {(gouvernorats || []).filter(gov =>
+        (gov.label || "").toLowerCase().includes((addressFilter || "").toLowerCase())
+      ).map(gov => (
+        <option key={gov.value} value={gov.value}>
+          {gov.icon} {gov.label}
+        </option>
+      ))}
+    </select>
+    <ChevronRight size={16} className="hierarchy-arrow" />
+  </div>
 
-                {/* Délégation */}
-                <div className="hierarchy-level">
-                  <select
-                    className="hierarchy-select"
-                    value={hierarchy.delegation}
-                    onChange={(e) => handleHierarchyChange("delegation", e.target.value)}
-                    disabled={!hierarchy.gouvernorat}
-                  >
-                    {getCurrentDelegations().map(del => (
-                      <option key={del.value} value={del.value}>
-                        {del.label}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronRight size={16} className="hierarchy-arrow" />
-                </div>
+  {/* Délégation */}
+  <div className="hierarchy-level">
+    <select
+      className="hierarchy-select"
+      value={hierarchy.delegation}
+      onChange={(e) => handleHierarchyChange("delegation", e.target.value)}
+      disabled={!hierarchy.gouvernorat}
+    >
+      <option value="">
+        {hierarchy.gouvernorat
+          ? "Toutes les délégations"
+          : "Sélectionnez d'abord un gouvernorat"}
+      </option>
+      {(delegations || []).map((del) => (
+        <option key={del.id} value={del.id}>
+          {del.nom || ""}
+        </option>
+      ))}
+    </select>
+    <ChevronRight size={16} className="hierarchy-arrow" />
+  </div>
 
-                {/* Localité */}
-                <div className="hierarchy-level">
-                  <select
-                    className="hierarchy-select"
-                    value={hierarchy.localite}
-                    onChange={(e) => handleHierarchyChange("localite", e.target.value)}
-                    disabled={!hierarchy.delegation}
-                  >
-                    {getCurrentLocalites().map(loc => (
-                      <option key={loc.value} value={loc.value}>
-                        {loc.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                
-              </div>
+  {/* Localité */}
+  <div className="hierarchy-level">
+    <select
+      className="hierarchy-select"
+      value={hierarchy.localite}
+      onChange={(e) => handleHierarchyChange("localite", e.target.value)}
+      disabled={!hierarchy.delegation}
+    >
+      <option value="">
+        {hierarchy.delegation
+          ? "Toutes les localités"
+          : "Sélectionnez d'abord une délégation"}
+      </option>
+      {(localites || []).map((loc) => (
+        <option key={loc.id} value={loc.id}>
+          {loc.nom || ""}
+        </option>
+      ))}
+    </select>
+  </div>
+</div>
 
-              {/* Recherche d'adresse libre */}
-              <div className="address-search">
-                      <label className="card-label">Addresse</label>
-                <input
-                  type="text"
-                  placeholder="Ou recherchez par adresse exacte..."
-                  className="address-input"
-                />
-              </div>
+{/* Recherche d'adresse libre */}
+<div className="address-search">
+  <label className="card-label">Adresse</label>
+  <input
+    type="text"
+    placeholder="Ou recherchez par adresse exacte..."
+    className="address-input"
+  />
+</div>
+
+     
+         
             </div>
           </div>
         </div>
+
+
+
+        
 
         {/* Colonne droite : Transaction + Type + Prix */}
         <div className="search-column right-column">

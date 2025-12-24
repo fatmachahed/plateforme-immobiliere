@@ -7,6 +7,7 @@ import {
 import Layout from "../components/Layout"
 import MapView from "../components/MapView";
 import AIDescriptionModal from '../components/AIDescriptionModal';
+import useLocalisation from "../hooks/useLocalisation";
 
 const CreateListingForm = () => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -18,7 +19,14 @@ const CreateListingForm = () => {
   const [isGeolocating, setIsGeolocating] = useState(false);
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
   const [isAILoading, setIsAILoading] = useState(false);
-
+  const [hierarchy, setHierarchy] = useState({
+      gouvernorat: "",
+      delegation: "",
+      localite: ""
+    });
+  
+  const { gouvernorats, delegations, localites } = useLocalisation(hierarchy);
+  
   const [formData, setFormData] = useState({
     // Step 1
     type_bien: "",
@@ -96,15 +104,6 @@ const CreateListingForm = () => {
     { value: "renover", label: "À rénover" }
   ];
 
-  const gouvernoratOptions = [
-    { value: "", label: "Sélectionner..." },
-    { value: "tunis", label: "Tunis" },
-    { value: "ariana", label: "Ariana" },
-    { value: "ben_arous", label: "Ben Arous" },
-    { value: "manouba", label: "Manouba" },
-    { value: "nabeul", label: "Nabeul" },
-    { value: "sousse", label: "Sousse" }
-  ];
 
   // Fonction pour générer une description rapide avec IA
   const generateQuickAIDescription = async () => {
@@ -179,6 +178,27 @@ const CreateListingForm = () => {
       setIsAILoading(false);
     }, 2000);
   };
+
+     const [addressFilter, setAddressFilter] = useState("");
+
+    const handleHierarchyChange = (level, value) => {
+    const newHierarchy = { ...hierarchy };
+    
+    if (level === "gouvernorat") {
+      newHierarchy.gouvernorat = value;
+      newHierarchy.delegation = "";
+      newHierarchy.localite = "";
+    } else if (level === "delegation") {
+      newHierarchy.delegation = value;
+      newHierarchy.localite = "";
+    } else {
+      newHierarchy[level] = value;
+    }
+    
+    setHierarchy(newHierarchy);
+  };
+
+
 
   // Fonction appelée quand la position sur la carte change
   const handleMapLocationChange = async (newLocation) => {
@@ -364,11 +384,58 @@ const CreateListingForm = () => {
     }
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log("Form submitted:", formData);
+const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  try {
+    const token = localStorage.getItem("token");
+
+    const form = new FormData();
+
+    // Ajouter les champs classiques
+    Object.keys(formData).forEach(key => {
+      if (key === "images" || key === "image_principale") return; // fichiers gérés séparément
+      if (formData[key] !== null) {
+        form.append(key, formData[key]);
+      }
+    });
+
+    // Ajouter l'image principale
+    if (formData.image_principale) {
+      form.append("image_principale", formData.image_principale);
+    }
+
+    // Ajouter les autres images
+    formData.images.forEach((file, index) => {
+      form.append("images", file);
+    });
+
+    const response = await fetch("http://localhost:8000/annonces/", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`
+        // ne pas mettre Content-Type, fetch le définit automatiquement pour FormData
+      },
+      body: form
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Erreur création annonce:", errorData);
+      alert("Erreur : " + (errorData.detail || "Impossible de créer l'annonce"));
+      return;
+    }
+
+    const data = await response.json();
+    console.log("Annonce créée :", data);
     alert("Annonce créée avec succès !");
-  };
+  } catch (err) {
+    console.error("Erreur fetch:", err);
+    alert("Erreur réseau ou serveur");
+  }
+};
+
+
 
   const handleAIConfirm = (aiDescription) => {
     setFormData(prev => ({
@@ -670,47 +737,65 @@ const CreateListingForm = () => {
                     <label className="form-label">
                       Gouvernorat <span className="required">*</span>
                     </label>
-                    <select
-                      className="form-select"
-                      value={formData.gouvernorat}
-                      onChange={(e) => handleInputChange('gouvernorat', e.target.value)}
-                    >
-                      {gouvernoratOptions.map(opt => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
+                       <select
+                          className="form-select"
+                          value={hierarchy.gouvernorat}
+                          onChange={(e) => handleHierarchyChange("gouvernorat", e.target.value)}
+                        >
+                          {(gouvernorats || []).filter(gov =>
+                            (gov.label || "").toLowerCase().includes((addressFilter || "").toLowerCase())
+                          ).map(gov => (
+                            <option key={gov.value} value={gov.value}>
+                              {gov.icon} {gov.label}
+                            </option>
+                          ))}
+                        </select>
                   </div>
 
                   <div className="form-group">
                     <label className="form-label">
                       Délégation <span className="required">*</span>
                     </label>
-                    <select 
-                      className="form-select"
-                      value={formData.delegation}
-                      onChange={(e) => handleInputChange('delegation', e.target.value)}
-                    >
-                      <option value="">Sélectionner...</option>
-                      <option value="centre_ville">Centre-ville</option>
-                      <option value="lac">Lac</option>
-                      <option value="nord">Nord</option>
-                    </select>
+                       <select
+                          className="form-select"
+                          value={hierarchy.delegation}
+                          onChange={(e) => handleHierarchyChange("delegation", e.target.value)}
+                          disabled={!hierarchy.gouvernorat}
+                        >
+                          <option value="">
+                            {hierarchy.gouvernorat
+                              ? "Toutes les délégations"
+                              : "Sélectionnez d'abord un gouvernorat"}
+                          </option>
+                          {(delegations || []).map((del) => (
+                            <option key={del.id} value={del.id}>
+                              {del.nom || ""}
+                            </option>
+                          ))}
+                        </select>
                   </div>
 
                   <div className="form-group">
                     <label className="form-label">
                       Localité <span className="required">*</span>
                     </label>
-                    <select 
-                      className="form-select"
-                      value={formData.localite}
-                      onChange={(e) => handleInputChange('localite', e.target.value)}
-                    >
-                      <option value="">Sélectionner...</option>
-                      <option value="centre">Centre</option>
-                      <option value="banlieue">Banlieue</option>
-                      <option value="zones_residentielles">Zones résidentielles</option>
-                    </select>
+                     <select
+                        className="form-select"
+                        value={hierarchy.localite}
+                        onChange={(e) => handleHierarchyChange("localite", e.target.value)}
+                        disabled={!hierarchy.delegation}
+                      >
+                        <option value="">
+                          {hierarchy.delegation
+                            ? "Toutes les localités"
+                            : "Sélectionnez d'abord une délégation"}
+                        </option>
+                        {(localites || []).map((loc) => (
+                          <option key={loc.id} value={loc.id}>
+                            {loc.nom || ""}
+                          </option>
+                        ))}
+                      </select>
                   </div>
                 </div>
 
