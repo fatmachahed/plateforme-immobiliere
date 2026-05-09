@@ -1,9 +1,9 @@
 # main.py - Version CORS FORCÉ pour dev
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
-from fastapi.requests import Request
-import uvicorn
+import uvicorn, os
 
 app = FastAPI(title="Real Estate Platform")
 
@@ -16,41 +16,27 @@ app.add_middleware(
     allow_headers=["*"],       # tous les headers
 )
 
-# 2. Middleware HTTP supplémentaire pour forcer les headers CORS
-@app.middleware("http")
-async def add_cors_headers(request: Request, call_next):
-    response = await call_next(request)
-    
-    # Forcer les headers CORS
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    response.headers["Access-Control-Allow-Credentials"] = "true"
-    
-    # Gestion OPTIONS preflight
-    if request.method == "OPTIONS":
-        return JSONResponse(
-            content={"message": "Preflight OK"},
-            status_code=200,
-            headers=dict(response.headers)
-        )
-    
-    return response
-
-# 3. Imports après CORS
+# 2. Imports après CORS
 from sqlalchemy.orm import Session
 from app.database import Base, engine, get_db
-from app.routers import users, annonces, properties, localisation, catalogue
+from app.routers import users, annonces, properties, localisation, catalogue, upload, admin
 
 # Créer les tables si elles n'existent pas
 Base.metadata.create_all(bind=engine)
 
-# 4. Monter les routeurs (sans changer les chemins existants)
-app.include_router(users.router, tags=["Users"])
-app.include_router(annonces.router, tags=["Annonces"])
-app.include_router(properties.router, tags=["Properties"])
-app.include_router(localisation.router, tags=["Localisation"])
-app.include_router(catalogue.router,tags=['Catalogue'])
+# Servir les images uploadées
+UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "uploads")
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+
+# 4. Monter les routeurs
+app.include_router(users.router,       tags=["Users"])
+app.include_router(annonces.router,    tags=["Annonces"])
+app.include_router(properties.router,  tags=["Properties"])
+app.include_router(localisation.router,tags=["Localisation"])
+app.include_router(catalogue.router,   tags=["Catalogue"])
+app.include_router(upload.router,      tags=["Upload"])
+app.include_router(admin.router,       tags=["Admin"])
 
 # 5. Routes de test CORS
 @app.get("/")

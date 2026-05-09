@@ -1,1360 +1,585 @@
-import { useState, useEffect, useRef } from 'react';
-import { X, Send, Bot, User, Sparkles, Check, RotateCcw, Zap, Clock, TrendingUp, Copy, MessageSquare, FileText, CheckCircle } from 'lucide-react';
+import { useState, useRef, useEffect } from "react";
+import { X, Sparkles, Check, RotateCcw, Copy, Wand2, Loader2 } from "lucide-react";
 
-const AIDescriptionModal = ({ 
-  isOpen, 
-  onClose, 
-  onConfirm, 
-  initialData,
-  currentDescription 
-}) => {
-  const [messages, setMessages] = useState([]);
-  const [userInput, setUserInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [aiSuggestion, setAiSuggestion] = useState('');
-  const [selectedTone, setSelectedTone] = useState('professional');
-  const [copied, setCopied] = useState(false);
-  const [applied, setApplied] = useState(false);
-  const [aiModalOpen, setAiModalOpen] = useState(false); 
-  const chatContainerRef = useRef(null);
-  const previewRef = useRef(null);
+/* ── Chips de suggestions ── */
+const CHIPS = [
+  "Vue sur mer",
+  "Lumineux",
+  "Quartier calme",
+  "Résidence sécurisée",
+  "Idéal famille",
+  "Bon investissement",
+  "Moderne & standing",
+  "Proche commodités",
+  "Jardin verdoyant",
+  "Vue dégagée",
+];
 
-  const tones = [
-    { id: 'professional', label: 'Professionnel', emoji: '💼' },
-    { id: 'friendly', label: 'Convivial', emoji: '😊' },
-    { id: 'luxury', label: 'Luxe', emoji: '✨' },
-    { id: 'urgent', label: 'Urgent', emoji: '⚡' },
-    { id: 'detailed', label: 'Détaillé', emoji: '📋' }
-  ];
+/* ── Icône par type de bien ── */
+const TYPE_ICO = {
+  appartement: "🏢", villa: "🏡", terrain: "🌿", bureau: "🏢",
+  ferme: "🌾", local_commercial: "🏪", maison: "🏠", bord_eau: "🌊",
+};
 
-  // Initialisation de la conversation
-  useEffect(() => {
-    if (isOpen) {
-      const initialMessages = [
-        {
-          id: 1,
-          role: 'bot',
-          content: '👋 Bonjour ! Je suis votre assistant IA spécialisé en immobilier.',
-          timestamp: new Date()
-        },
-        {
-          id: 2,
-          role: 'bot',
-          content: "Je vais analyser votre bien et vous proposer une description qui attire l'attention et convertit plus d'acheteurs.",
-          timestamp: new Date()
-        },
-        {
-          id: 3,
-          role: 'bot',
-          content: "En fonction de vos informations, je peux adapter le ton de la description pour maximiser son impact.",
-          timestamp: new Date()
-        }
-      ];
+/* ═══════════════════════════════════════════════════════
+   Générateur de description — basé uniquement sur les
+   données réelles du formulaire + souhaits utilisateur.
+   Aucune hallucination : si un champ est absent, on ne
+   l'invente pas.
+═══════════════════════════════════════════════════════ */
+function genDescription(initialData, wishes) {
+  const d = initialData || {};
+  const w = (wishes || "").toLowerCase();
 
-      setMessages(initialMessages);
-      generateAISuggestion();
+  const typeLabels = {
+    appartement: "appartement", villa: "villa", terrain: "terrain",
+    bureau: "bureau", ferme: "ferme", local_commercial: "local commercial",
+    maison: "maison", bord_eau: "bien en bord de mer",
+  };
+  const typeFr  = typeLabels[d.type_bien] || d.type_bien || "bien immobilier";
+  const det     = ["appartement","bureau"].includes(d.type_bien) ? "cet" : "ce";
+  const offreFr = d.categorie === "location"  ? "à louer"
+                : d.categorie === "vacances"  ? "en location saisonnière"
+                : "à vendre";
+
+  /* Contexte utilisateur */
+  const ctx = {
+    calme:       /calme|tranquil|paisible|silencieux/i.test(w),
+    lumineux:    /lumineux|luminosité|ensoleillé|clair/i.test(w),
+    moderne:     /moderne|contemporain|design|standing|luxe/i.test(w),
+    famille:     /famille|familial|enfant|scolaire/i.test(w),
+    vue:         /vue|panorama|horizon|paysage/i.test(w),
+    central:     /centre|central|proche|commodités|accès|quartier/i.test(w),
+    sécurisé:    /sécuris|gardien|résidence fermée|surveillance/i.test(w),
+    invest:      /invest|rentabilité|rendement|locatif/i.test(w),
+    verdoyant:   /jardin|vert|verdoyant|nature/i.test(w),
+  };
+
+  /* Localisation */
+  const loc = d.delegation
+    ? `${d.delegation}${d.gouvernorat ? `, ${d.gouvernorat}` : ""}`
+    : d.gouvernorat || "";
+
+  const paragraphs = [];
+
+  /* ── §1 Introduction ── */
+  let intro = `Nous vous proposons ${det} ${typeFr} ${offreFr}`;
+  if (loc)    intro += `, idéalement situé${d.type_bien === "appartement" ? "e" : ""} à ${loc}`;
+  if (d.address && d.address !== "Tunis, Tunisie") intro += ` (${d.address})`;
+
+  const qualifiers = [];
+  if (ctx.calme)    qualifiers.push("dans un cadre calme et résidentiel");
+  if (ctx.central)  qualifiers.push("à proximité immédiate de toutes les commodités");
+  if (ctx.sécurisé) qualifiers.push("au sein d'une résidence sécurisée");
+  if (ctx.famille)  qualifiers.push("dans un environnement idéal pour les familles");
+  if (qualifiers.length) intro += ", " + qualifiers.join(" et ");
+  intro += ".";
+  paragraphs.push(intro);
+
+  /* ── §2 Composition ── */
+  const compo = [];
+  if (d.superficie)     compo.push(`une superficie de ${d.superficie} m²`);
+  if (d.type_bien !== "terrain") {
+    if (d.nb_pieces     > 0) compo.push(`${d.nb_pieces} pièce${d.nb_pieces > 1 ? "s" : ""}`);
+    if (d.nb_chambres   > 0) compo.push(`${d.nb_chambres} chambre${d.nb_chambres > 1 ? "s" : ""}`);
+    if (d.nb_salles_bain > 0) compo.push(`${d.nb_salles_bain} salle${d.nb_salles_bain > 1 ? "s" : ""} de bain`);
+  }
+  if (d.type_appartement) compo.push(`type ${d.type_appartement.toUpperCase()}`);
+  if (d.etage !== undefined && d.etage !== "") {
+    compo.push(String(d.etage) === "0" ? "situé au rez-de-chaussée" : `au ${d.etage}e étage`);
+  }
+
+  if (compo.length > 0) {
+    let p2 = `Ce bien ${ctx.lumineux ? "lumineux et agréable " : ""}dispose de ${compo.join(", ")}`;
+    const etatMap = {
+      nouveau:            ctx.moderne
+        ? ". Livré en état neuf avec des finitions haut de gamme et un design contemporain soigné"
+        : ". Livré en état neuf, il est prêt à l'emménagement dès sa remise des clés",
+      bon_etat:           ". En excellent état général, il ne nécessite aucun travaux et peut être habité immédiatement",
+      a_renover:          ". Nécessitant des travaux de rénovation, il représente une belle opportunité de valorisation à fort potentiel",
+      cours_construction: ". Actuellement en cours de construction, la livraison est prévue prochainement",
+    };
+    p2 += etatMap[d.etat_bien] || "";
+    p2 += ".";
+    paragraphs.push(p2);
+  }
+
+  /* ── §3 Équipements ── */
+  const equip = [
+    d.vue_mer         && (ctx.vue ? "une vue sur mer époustouflante" : "vue sur mer"),
+    d.vue_montagne    && "vue dégagée sur la montagne",
+    d.vue_foret       && "vue sur la forêt",
+    d.jardin          && (ctx.verdoyant ? "un grand jardin verdoyant et arborisé" : "un jardin privatif"),
+    d.terrasse        && "une terrasse",
+    d.balcon          && "un balcon",
+    d.ascenseur       && "un ascenseur",
+    d.garage          && "un garage individuel",
+    d.parking         && "une place de parking privative",
+    d.meuble          && "un mobilier de qualité inclus",
+    d.cuisine_equipee && "une cuisine entièrement équipée",
+    d.climatisation   && "une climatisation intégrée",
+    d.cellier         && "un cellier",
+  ].filter(Boolean);
+
+  if (equip.length > 0) {
+    const list = equip.length === 1
+      ? equip[0]
+      : equip.slice(0, -1).join(", ") + " et " + equip.at(-1);
+    paragraphs.push(`Parmi ses atouts, ${det} ${typeFr} bénéficie de : ${list}.`);
+  }
+
+  /* ── §4 Terrain spécifique ── */
+  if (d.type_bien === "terrain" && d.type_terrain) {
+    const tl = {
+      agricole: "à vocation agricole", nu: "nu constructible",
+      zone_verte: "en zone verte", lotissement: "en lotissement",
+      commercial: "à vocation commerciale", industriel: "à vocation industrielle",
+    };
+    let tp = `Il s'agit d'un terrain ${tl[d.type_terrain] || d.type_terrain}`;
+    if (d.titre_foncier === "1")      tp += ", disposant d'un titre foncier en bonne et due forme";
+    else if (d.titre_foncier === "0") tp += ", sans titre foncier";
+    tp += ".";
+    paragraphs.push(tp);
+  }
+
+  /* ── §5 Points forts (souhaits utilisateur) — intégrés naturellement ── */
+  if (wishes && wishes.trim().length > 5) {
+    const pts = wishes.trim()
+      .split(/[.,;!?\n]+/)
+      .map(s => s.trim())
+      .filter(s => s.length > 3);
+
+    if (pts.length > 0) {
+      let pf = "";
+      if (ctx.invest) {
+        pf = `Du point de vue de l'investissement, ${pts[0].charAt(0).toLowerCase() + pts[0].slice(1)}`;
+        if (pts.length > 1) pf += `. ${pts.slice(1).join(". ")}`;
+        pf += ".";
+      } else if (ctx.famille) {
+        pf = `Idéal pour une famille, ${pts[0].charAt(0).toLowerCase() + pts[0].slice(1)}`;
+        if (pts.length > 1) pf += `. ${pts.slice(1).join(". ")}`;
+        pf += ".";
+      } else {
+        pf = pts.join(". ") + ".";
+      }
+      paragraphs.push(pf);
     }
+  }
+
+  /* ── §6 Prix + contact ── */
+  let closing = "";
+  if (d.prix) closing += `Affiché au prix de ${Number(d.prix).toLocaleString("fr-TN")} ${d.devise || "TND"}, `;
+  closing += ctx.invest
+    ? "ce bien représente une opportunité d'investissement à ne pas manquer. Contactez-nous dès aujourd'hui pour plus d'informations ou pour convenir d'une visite."
+    : "ce bien constitue une opportunité rare sur le marché. N'hésitez pas à nous contacter pour toute information complémentaire ou pour organiser une visite.";
+  paragraphs.push(closing);
+
+  return paragraphs.join("\n\n");
+}
+
+/* ═══════════════════════════════════════════════════════ */
+
+const AIDescriptionModal = ({ isOpen, onClose, onConfirm, initialData, currentDescription }) => {
+  const [wishes,    setWishes]    = useState("");
+  const [result,    setResult]    = useState(currentDescription || "");
+  const [loading,   setLoading]   = useState(false);
+  const [copied,    setCopied]    = useState(false);
+  const wishRef   = useRef(null);
+  const resultRef = useRef(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setWishes("");
+    setResult(currentDescription || "");
   }, [isOpen]);
 
-  // Faire défiler vers le bas quand de nouveaux messages arrivent
+  /* Focus textarea on open */
   useEffect(() => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-    }
-  }, [messages]);
+    if (isOpen) setTimeout(() => wishRef.current?.focus(), 80);
+  }, [isOpen]);
 
-  // Faire défiler la prévisualisation
-  useEffect(() => {
-    if (previewRef.current && aiSuggestion) {
-      previewRef.current.scrollTop = 0;
-    }
-  }, [aiSuggestion]);
-
-  // Générer une suggestion IA
-  const generateAISuggestion = () => {
-    setIsLoading(true);
-    
+  /* Générer */
+  const handleGenerate = () => {
+    setLoading(true);
     setTimeout(() => {
-      const { 
-        type_bien = 'bien',
-        titre = '',
-        superficie = '',
-        nb_pieces = 0,
-        nb_chambres = 0,
-        gouvernorat = '',
-        address = '',
-        prix = '',
-        devise = 'TND',
-        etat_bien = ''
-      } = initialData || {};
-
-      const characteristics = [];
-      if (initialData?.vue_mer) characteristics.push('vue sur mer panoramique');
-      if (initialData?.vue_montagne) characteristics.push('vue montagne');
-      if (initialData?.jardin) characteristics.push('jardin privatif');
-      if (initialData?.terrasse) characteristics.push('grande terrasse');
-      if (initialData?.balcon) characteristics.push('balcon');
-      if (initialData?.ascenseur) characteristics.push('ascenseur');
-      if (initialData?.garage) characteristics.push('garage');
-      if (initialData?.climatisation) characteristics.push('climatisation réversible');
-      if (initialData?.meuble) characteristics.push('entièrement meublé');
-      if (initialData?.cuisine_equipee) characteristics.push('cuisine équipée haut de gamme');
-
-      let suggestion = '';
-      
-      // Adaptation du ton
-      const toneConfig = {
-        professional: {
-          intro: `🏢 **EXCLUSIF - ${titre.toUpperCase() || `${type_bien?.toUpperCase() || 'BIEN'} À VENDRE`}**\n\n`,
-          style: 'formel et détaillé'
-        },
-        friendly: {
-          intro: `🏡 **Coup de cœur ! ${titre || `Super ${type_bien || 'bien'}`}**\n\n`,
-          style: 'chaleureux et accueillant'
-        },
-        luxury: {
-          intro: `✨ **PRESTIGE - ${titre || `${type_bien || 'bien'} d'exception`}**\n\n`,
-          style: 'luxueux et exclusif'
-        },
-        urgent: {
-          intro: `⚡ **OPPORTUNITÉ EXCEPTIONNELLE ! ${titre || type_bien || 'bien'}**\n\n`,
-          style: 'dynamique et urgent'
-        },
-        detailed: {
-          intro: `📋 **DESCRIPTION COMPLÈTE - ${titre || type_bien || 'bien'}**\n\n`,
-          style: 'technique et complet'
-        }
-      };
-
-      const tone = toneConfig[selectedTone];
-      suggestion += tone.intro;
-
-      // Caractéristiques principales
-      const mainFeatures = [];
-      if (superficie) mainFeatures.push(`${superficie} m²`);
-      if (nb_pieces) mainFeatures.push(`${nb_pieces} pièce${nb_pieces > 1 ? 's' : ''}`);
-      if (nb_chambres) mainFeatures.push(`${nb_chambres} chambre${nb_chambres > 1 ? 's' : ''}`);
-      
-      if (mainFeatures.length > 0) {
-        suggestion += `**Caractéristiques :** ${mainFeatures.join(' • ')}\n\n`;
-      }
-
-      // Description détaillée
-      suggestion += `**📝 Description :**\n`;
-      
-      switch (selectedTone) {
-        case 'professional':
-          suggestion += `Nous avons le plaisir de vous présenter ce ${type_bien || 'bien'} situé ${address || `à ${gouvernorat || 'une localisation privilégiée'}`}. `;
-          suggestion += `Ce bien ${etat_bien === 'neuf' ? 'neuf' : 'en excellent état'} `;
-          break;
-        case 'friendly':
-          suggestion += `Découvrez ce charmant ${type_bien || 'bien'} situé ${address || `dans le quartier de ${gouvernorat || 'cette belle région'}`}. `;
-          suggestion += `Un véritable coup de cœur ${etat_bien === 'neuf' ? 'tout neuf' : 'bien entretenu'} `;
-          break;
-        case 'luxury':
-          suggestion += `Pour les amateurs de prestige, ce ${type_bien || 'bien'} d'exception situé ${address || `à ${gouvernorat || 'un emplacement prestigieux'}`}. `;
-          suggestion += `Une réalisation ${etat_bien === 'neuf' ? 'haute gamme' : 'de caractère'} `;
-          break;
-        case 'urgent':
-          suggestion += `NE MANQUEZ PAS CETTE OCCASION ! ${type_bien || 'Bien'} rare ${address || `à ${gouvernorat || 'cette adresse exclusive'}`}. `;
-          suggestion += `Disponible ${etat_bien === 'neuf' ? 'immédiatement' : 'rapidement'} `;
-          break;
-        case 'detailed':
-          suggestion += `Présentation détaillée de ce ${type_bien || 'bien'} situé ${address || `dans la région de ${gouvernorat || 'cette zone recherchée'}`}. `;
-          suggestion += `État du bien : ${etat_bien || 'excellent'}. `;
-          break;
-      }
-
-      if (characteristics.length > 0) {
-        suggestion += `avec ${characteristics.slice(0, 3).join(', ')}`;
-        if (characteristics.length > 3) suggestion += `, et plus encore`;
-        suggestion += `. `;
-      }
-
-      suggestion += `\n\n**🎯 Points forts :**\n`;
-      suggestion += `• Situation ${address ? 'privilégiée' : 'idéale'} ${address ? `(${address.split(',')[0]})` : ''}\n`;
-      if (superficie) suggestion += `• Surface spacieuse de ${superficie} m²\n`;
-      if (characteristics.length > 0) {
-        suggestion += `• Équipements premium : ${characteristics.slice(0, 4).join(', ')}\n`;
-      }
-      suggestion += `• ${etat_bien === 'neuf' ? 'Livraison immédiate' : 'Prêt à emménager'}\n`;
-
-      if (prix) {
-        suggestion += `\n**💰 Prix : ${parseInt(prix || 0).toLocaleString()} ${devise}**\n`;
-      }
-
-      suggestion += `\n**📞 Contact :**\n`;
-      suggestion += `Pour plus d'informations ou organiser une visite, n'hésitez pas à nous contacter. Cette opportunité ne restera pas disponible longtemps !`;
-
-      const newMessage = {
-        id: messages.length + 1,
-        role: 'bot',
-        content: `**Nouvelle description générée (Ton: ${selectedTone}) :**\n\n${suggestion}`,
-        timestamp: new Date()
-      };
-
-      setMessages(prev => [...prev, newMessage]);
-      setAiSuggestion(suggestion);
-      setIsLoading(false);
-    }, 1500);
+      setResult(genDescription(initialData, wishes));
+      setLoading(false);
+      setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 50);
+    }, 750);
   };
 
-  // Envoyer un message utilisateur
-  const handleSendMessage = () => {
-    if (!userInput.trim() || isLoading) return;
-
-    const userMessage = {
-      id: messages.length + 1,
-      role: 'user',
-      content: userInput,
-      timestamp: new Date()
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setUserInput('');
-
-    setIsLoading(true);
-    setTimeout(() => {
-      const responses = [
-        "J'ai bien pris en compte vos précisions. Voici la description ajustée :",
-        "Excellent point ! J'ai intégré vos suggestions :",
-        "Très bonne idée. Voici une version améliorée :",
-        "J'ai personnalisé la description selon votre demande :"
-      ];
-      
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-      const improvedSuggestion = `${aiSuggestion}\n\n**Personnalisation :** ${userInput}`;
-
-      const botMessage = {
-        id: messages.length + 2,
-        role: 'bot',
-        content: `${randomResponse}\n\n${improvedSuggestion}`,
-        timestamp: new Date()
-      };
-
-      setMessages(prev => [...prev, botMessage]);
-      setAiSuggestion(improvedSuggestion);
-      setIsLoading(false);
-    }, 1200);
+  /* Chip click — ajoute au texte */
+  const addChip = (chip) => {
+    setWishes(prev => prev ? `${prev}, ${chip.toLowerCase()}` : chip.toLowerCase());
+    wishRef.current?.focus();
   };
 
-  // Changer le ton
-  const handleToneChange = (toneId) => {
-    setSelectedTone(toneId);
-    const tone = tones.find(t => t.id === toneId);
-    const toneMessage = {
-      id: messages.length + 1,
-      role: 'bot',
-      content: `🔄 Changement de ton : **${tone.label}** ${tone.emoji}\nJe regénère la description avec ce style...`,
-      timestamp: new Date()
-    };
-    setMessages(prev => [...prev, toneMessage]);
-    setIsLoading(true);
-    
-    setTimeout(() => {
-      generateAISuggestion();
-    }, 800);
-  };
-
-  // Régénérer la description
-  const handleRegenerate = () => {
-    const regenerateMessage = {
-      id: messages.length + 1,
-      role: 'bot',
-      content: '🔄 Régénération en cours avec les mêmes paramètres...',
-      timestamp: new Date()
-    };
-    setMessages(prev => [...prev, regenerateMessage]);
-    setIsLoading(true);
-    
-    setTimeout(() => {
-      generateAISuggestion();
-    }, 800);
-  };
-
-  // Copier la description
+  /* Copier */
   const handleCopy = () => {
-    navigator.clipboard.writeText(aiSuggestion);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  // Appliquer la description au formulaire principal
-  const handleApply = () => {
-    if (!aiSuggestion) return;
-    
-    onConfirm(aiSuggestion);
-    setApplied(true);
-    
-    // Fermer automatiquement après 2 secondes
-    setTimeout(() => {
-      onClose();
-      setApplied(false);
-    }, 2000);
-  };
-
-  // Gérer la touche Entrée
-  const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
+    if (!result) return;
+    navigator.clipboard.writeText(result).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   };
 
   if (!isOpen) return null;
 
+  /* Contexte bien (affiché en haut du modal) */
+  const d = initialData || {};
+  const ctxParts = [
+    d.type_bien && `${TYPE_ICO[d.type_bien] || "🏠"} ${d.type_bien.charAt(0).toUpperCase() + d.type_bien.slice(1)}`,
+    d.categorie && d.categorie.charAt(0).toUpperCase() + d.categorie.slice(1),
+    d.gouvernorat || "",
+    d.superficie  && `${d.superficie} m²`,
+  ].filter(Boolean);
+
+  const wordCount = result.split(/\s+/).filter(Boolean).length;
+
   return (
-    <div className="modal-overlay">
-      <div className="ai-modal">
-        {/* En-tête */}
-        <div className="modal-header">
-            
-          <div className="modal-title">
-            <div className="title-content">
-              <Bot size={24} />
+    <div className="aim-overlay" onClick={onClose}>
+      <div className="aim-modal" onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="aim-header">
+          <div className="aim-header__dot"/>
+          <div className="aim-header__inner">
+            <div className="aim-header__left">
+              <div className="aim-header__ico"><Wand2 size={18}/></div>
               <div>
-                <h3>Assistant IA Description</h3>
-                <p style={{color:"#666"}} className="subtitle">Génération optimisée pour l'immobilier</p>
+                <div className="aim-header__title">Rédiger avec l'IA</div>
+                <div className="aim-header__sub">Description professionnelle en quelques secondes</div>
               </div>
             </div>
-            <div className="ai-stats">
-              <div className="stat">
-                <Zap size={14} />
-                <span>IA Powered</span>
-              </div>
-              <div className="stat">
-                <TrendingUp size={14} />
-                <span>+47% d'engagement</span>
-              </div>
-            </div>
+            <button className="aim-close" onClick={onClose}><X size={16}/></button>
           </div>
-          <button className="close-btn" onClick={onClose}>
-            <X size={20} />
-          </button>
         </div>
 
-        {/* Corps de la modale - DIVISÉ EN DEUX PARTIES */}
-        <div className="modal-body">
-          {/* Partie gauche : Discussion avec l'IA */}
-          <div className="chat-side">
-            {/* Sélecteur de ton */}
-            <div className="tone-selector">
-              <div className="tone-header">
-                <Sparkles size={18} />
-                <span>Sélectionnez le ton</span>
-              </div>
-              <div className="tone-buttons">
-                {tones.map(tone => (
-                  <button
-                    key={tone.id}
-                    className={`tone-btn ${selectedTone === tone.id ? 'active' : ''}`}
-                    onClick={() => handleToneChange(tone.id)}
-                    disabled={isLoading}
-                  >
-                    <span className="tone-emoji">{tone.emoji}</span>
-                    <span className="tone-label">{tone.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+        {/* Contexte du bien */}
+        {ctxParts.length > 0 && (
+          <div className="aim-context">
+            {ctxParts.map((p, i) => (
+              <span key={i} className="aim-context__pill">{p}</span>
+            ))}
+          </div>
+        )}
 
-            {/* Zone de chat */}
-            <div className="chat-container-wrapper">
-              <div className="chat-container" ref={chatContainerRef}>
-                {messages.map((message) => (
-                  <div 
-                    key={message.id} 
-                    className={`message ${message.role}`}
-                  >
-                    <div className="message-header">
-                      {message.role === 'bot' ? (
-                        <>
-                          <div className="message-avatar bot">
-                            <Bot size={14} />
-                          </div>
-                          <span className="message-author">Assistant IA</span>
-                        </>
-                      ) : (
-                        <>
-                          <div className="message-avatar user">
-                            <User size={14} />
-                          </div>
-                          <span className="message-author">Vous</span>
-                        </>
-                      )}
-                      <span className="message-time">
-                        {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                    <div className="message-content">
-                      {message.content.split('\n').map((line, i) => (
-                        <p key={i}>{line}</p>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+        {/* Corps */}
+        <div className="aim-body">
 
-                {isLoading && (
-                  <div className="message bot">
-                    <div className="message-header">
-                      <div className="message-avatar bot">
-                        <Bot size={14} />
-                      </div>
-                      <span className="message-author">Assistant IA</span>
-                    </div>
-                    <div className="loading-message">
-                      <div className="typing-indicator">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                      </div>
-                      <p style={{color:"#666"}}>Rédaction en cours...</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+          {/* Zone souhaits */}
+          <div className="aim-section">
+            <label className="aim-label">
+              Vos souhaits pour cette annonce
+              <span className="aim-label__hint">optionnel — l'IA utilise déjà les données de votre formulaire</span>
+            </label>
+            <textarea
+              ref={wishRef}
+              className="aim-wishes"
+              rows={3}
+              placeholder="Ex : vue mer, quartier calme et résidentiel, idéal pour une famille…"
+              value={wishes}
+              onChange={e => setWishes(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && e.ctrlKey) handleGenerate(); }}
+            />
 
-            {/* Zone de saisie */}
-            <div className="input-container">
-              <div className="input-wrapper">
-                <textarea
-                  value={userInput}
-                  onChange={(e) => setUserInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Personnalisez la description (ex: 'Ajoutez une mention sur la proximité des écoles', 'Mettez en avant les rénovations récentes'...)"
-                  rows={2}
-                  disabled={isLoading}
-                />
-                <button 
-                  className="send-btn"
-                  onClick={handleSendMessage}
-                  disabled={!userInput.trim() || isLoading}
+            {/* Chips */}
+            <div className="aim-chips">
+              {CHIPS.map((c, i) => (
+                <button
+                  key={i} type="button"
+                  className={`aim-chip${wishes.toLowerCase().includes(c.toLowerCase()) ? " aim-chip--on" : ""}`}
+                  onClick={() => addChip(c)}
                 >
-                  <Send size={18} />
+                  {c}
                 </button>
-              </div>
-              <div className="input-hint">
-                <MessageSquare size={12} />
-                <span>Appuyez sur Entrée pour envoyer</span>
-              </div>
+              ))}
             </div>
           </div>
 
-          {/* Partie droite : Prévisualisation */}
-          <div className="preview-side">
-            <div className="preview-header">
-              <div className="preview-title">
-                <FileText size={20} />
-                <h4>Prévisualisation</h4>
-              </div>
-              <div className="preview-actions-top">
-                     <div className="stat-item">
-                <span>{(aiSuggestion?.split(' ')?.length || 0)} mots</span>
-              </div>
-                <button 
-                  className="copy-btn"
-                  onClick={handleCopy}
-                  disabled={!aiSuggestion || isLoading}
-                >
-                  {copied ? (
-                    <>
-                      <Check size={16} />
-                      Copié !
-                    </>
-                  ) : (
-                    <>
-                      <Copy size={16} />
-                      Copier
-                    </>
-                  )}
-                </button>
-                <button 
-                  className="regenerate-btn"
-                  onClick={handleRegenerate}
-                  disabled={isLoading}
-                >
-                  <RotateCcw size={16} />
-                  Régénérer
-                </button>
-              </div>
-            </div>
+          {/* Bouton générer */}
+          <button
+            className="aim-gen-btn"
+            type="button"
+            onClick={handleGenerate}
+            disabled={loading}
+          >
+            {loading
+              ? <><Loader2 size={16} className="aim-spin"/> Génération en cours…</>
+              : <><Sparkles size={16}/> {result ? "Régénérer" : "Générer la description"}</>
+            }
+          </button>
 
-      
-            
-            {/* Contenu de la prévisualisation */}
-            <div className="preview-content" ref={previewRef}>
-              {aiSuggestion ? (
-                <div className="preview-text">
-                  {aiSuggestion.split('\n').map((line, i) => {
-                    if (line.includes('**') && line.includes('**')) {
-                      return <h3 key={i} className="preview-heading">{line.replace(/\*\*/g, '')}</h3>;
-                    } else if (line.includes('•') || line.includes('◦')) {
-                      return <p key={i} className="preview-list-item">{line}</p>;
-                    } else if (line.trim() === '') {
-                      return <br key={i} />;
-                    } else {
-                      return <p key={i}>{line}</p>;
-                    }
-                  })}
+          {/* Résultat */}
+          {(result || loading) && (
+            <div className="aim-result" ref={resultRef}>
+              <div className="aim-result__head">
+                <span className="aim-result__title">Description générée</span>
+                <div className="aim-result__actions">
+                  <button className="aim-icon-btn" type="button" onClick={() => { setLoading(true); setTimeout(() => { setResult(genDescription(initialData, wishes)); setLoading(false); }, 600); }} disabled={loading} title="Régénérer">
+                    <RotateCcw size={13}/>
+                  </button>
+                  <button className="aim-icon-btn" type="button" onClick={handleCopy} disabled={!result} title="Copier">
+                    {copied ? <Check size={13}/> : <Copy size={13}/>}
+                  </button>
+                </div>
+              </div>
+
+              {loading ? (
+                <div className="aim-result__skeleton">
+                  <div className="aim-sk"/><div className="aim-sk aim-sk--w80"/><div className="aim-sk aim-sk--w90"/>
+                  <div className="aim-sk aim-sk--w70"/><div className="aim-sk"/><div className="aim-sk aim-sk--w60"/>
                 </div>
               ) : (
-                <div className="preview-placeholder">
-                  <Sparkles size={48} />
-                  <h4>Description en attente</h4>
-                  <p style={{color:"#666"}}>Votre description générée par IA apparaîtra ici</p>
-                  <small>L'IA analyse votre bien pour créer un contenu optimisé</small>
-                </div>
+                <>
+                  <textarea
+                    className="aim-result__text"
+                    value={result}
+                    onChange={e => setResult(e.target.value)}
+                    rows={10}
+                  />
+                  <div className="aim-result__stats">
+                    <span>{wordCount} mots</span>
+                    <span>·</span>
+                    <span>{result.length} caractères</span>
+                    {result.length >= 200 && <span className="aim-result__badge">✓ Score +100 pts</span>}
+                  </div>
+                </>
               )}
             </div>
-            
-   
-                  {/* Pied de la modale */}
-        <div className="modal-footer">
-          <button className="cancel-btn" onClick={onClose}>
-            Annuler
-          </button>
-          <button 
-            className="confirm-btn"
-            onClick={handleApply}
-            disabled={!aiSuggestion || isLoading || applied}
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="aim-footer">
+          <button className="aim-footer__cancel" type="button" onClick={onClose}>Annuler</button>
+          <button
+            className="aim-footer__confirm"
+            type="button"
+            onClick={() => onConfirm(result)}
+            disabled={!result || loading}
           >
-            {applied ? (
-              <>
-                <CheckCircle size={18} />
-                Description appliquée !
-              </>
-            ) : (
-              <>
-                <Check size={18} />
-                Utiliser cette description
-              </>
-            )}
+            <Check size={14}/> Utiliser cette description
           </button>
         </div>
       </div>
-        </div>        </div>
 
-
-      
-      {/* Styles */}
-      <style jsx>{`
-      
-        .modal-overlay {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: rgba(0, 0, 0, 0.8);
-          backdrop-filter: blur(8px);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1000;
-          padding: 20px;
-          animation: fadeIn 0.3s ease;
+      <style>{`
+        .aim-overlay {
+          position: fixed; inset: 0;
+          background: rgba(2,6,23,.6);
+          backdrop-filter: blur(5px);
+          z-index: 9000;
+          display: flex; align-items: center; justify-content: center;
+          padding: 16px;
+          animation: aimFade .18s ease;
         }
+        @keyframes aimFade { from{opacity:0} to{opacity:1} }
 
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-
-        .ai-modal {
-          background: white;
+        .aim-modal {
+          background: #fff;
           border-radius: 20px;
-          width: 100%;
-          max-width: 1200px;
-          max-height: 85vh;
-          display: flex;
-          flex-direction: column;
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-          animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+          width: 100%; max-width: 620px;
+          max-height: 90vh;
+          display: flex; flex-direction: column;
+          box-shadow: 0 24px 80px rgba(0,0,0,.28);
+          animation: aimUp .28s cubic-bezier(.16,1,.3,1);
           overflow: hidden;
+          font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
         }
+        @keyframes aimUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:none} }
 
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateY(30px) scale(0.95);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
+        /* Header */
+        .aim-header {
+          position: relative; overflow: hidden;
+          background: linear-gradient(135deg, #0f172a 0%, #312e81 100%);
+          flex-shrink: 0;
         }
-
-        .modal-header {
-          padding: 20px 30px;
-          background: linear-gradient(135deg, #80a1d4 0%, #75c9c8 100%);
-          color: white;
-          position: relative;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        .aim-header__dot {
+          position: absolute; inset: 0; opacity: .05;
+          background-image: radial-gradient(circle at 1px 1px, #fff 1px, transparent 0);
+          background-size: 20px 20px;
         }
-
-        .modal-title {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          position: relative;
-          z-index: 1;
+        .aim-header__inner {
+          position: relative; z-index: 1;
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 18px 22px;
         }
-
-        .title-content {
-          display: flex;
-          align-items: center;
-          gap: 12px;
+        .aim-header__left { display: flex; align-items: center; gap: 12px; }
+        .aim-header__ico {
+          width: 40px; height: 40px; border-radius: 11px; flex-shrink: 0;
+          background: linear-gradient(135deg,#6366f1,#818cf8);
+          display: flex; align-items: center; justify-content: center; color: #fff;
+          box-shadow: 0 4px 14px rgba(99,102,241,.45);
         }
-
-        .title-content h3 {
-          margin: 0;
-          font-size: 20px;
-          font-weight: 700;
+        .aim-header__title { font-size: 15px; font-weight: 800; color: #fff; }
+        .aim-header__sub   { font-size: 11.5px; color: #a5b4fc; margin-top: 2px; }
+        .aim-close {
+          width: 30px; height: 30px; border-radius: 8px; border: none;
+          background: rgba(255,255,255,.1); color: #94a3b8;
+          display: flex; align-items: center; justify-content: center;
+          cursor: pointer; transition: all .15s;
         }
+        .aim-close:hover { background: rgba(255,255,255,.18); color: #fff; }
 
-        .subtitle {
-          margin: 2px 0 0;
-          font-size: 13px;
-          opacity: 0.9;
-        }
-
-        .ai-stats {
-          display: flex;
-          gap: 12px;
-        }
-
-        .stat {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 12px;
-          background: rgba(255, 255, 255, 0.15);
-          padding: 5px 10px;
-          border-radius: 16px;
-          backdrop-filter: blur(10px);
-        }
-
-        .close-btn {
-          position: absolute;
-          top: 20px;
-          right: 20px;
-          background: rgba(255, 255, 255, 0.15);
-          border: none;
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          color: white;
-          transition: all 0.2s;
-          z-index: 2;
-        }
-
-        .close-btn:hover {
-          background: rgba(255, 255, 255, 0.25);
-          transform: rotate(90deg);
-        }
-
-        /* Corps de la modale divisé */
-        .modal-body {
-          flex: 1;
-          overflow: hidden;
-          display: flex;
-          padding: 0;
-          min-height: 500px;
-        }
-
-        /* Partie gauche : Discussion */
-        .chat-side {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          min-width: 0;
-          border-right: 1px solid #e5e7eb;
-          background: #f8f9fa;
-        }
-
-        /* Partie droite : Prévisualisation */
-        .preview-side {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          min-width: 0;
-          background: white;
-        }
-
-        /* Sélecteur de ton */
-        .tone-selector {
-          padding: 15px 20px;
-          background: white;
+        /* Contexte */
+        .aim-context {
+          display: flex; flex-wrap: wrap; gap: 6px;
+          padding: 12px 22px;
+          background: #f8fafc;
           border-bottom: 1px solid #e5e7eb;
-        }
-
-        .tone-header {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-bottom: 12px;
-          color: #333;
-          font-size: 14px;
-          font-weight: 600;
-        }
-
-        .tone-buttons {
-          display: flex;
-          gap: 8px;
-          overflow-x: auto;
-          padding-bottom: 4px;
-        }
-
-        .tone-btn {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 8px 12px;
-          background: white;
-          border: 1px solid #d1d5db;
-          border-radius: 8px;
-          cursor: pointer;
-          transition: all 0.2s;
-          font-size: 13px;
-          white-space: nowrap;
           flex-shrink: 0;
         }
-
-        .tone-btn:hover:not(:disabled) {
-          border-color: #75c9c8;
-          background: #f8f9fa;
+        .aim-context__pill {
+          font-size: 11.5px; font-weight: 600; color: #4f46e5;
+          background: #eef2ff; border: 1px solid #c7d2fe;
+          padding: 3px 10px; border-radius: 20px;
         }
 
-        .tone-btn.active {
-          background: linear-gradient(135deg, #80a1d4, #75c9c8);
-          border-color: #75c9c8;
-          color: white;
+        /* Corps */
+        .aim-body {
+          flex: 1; overflow-y: auto;
+          padding: 22px 22px 8px;
+          display: flex; flex-direction: column; gap: 16px;
         }
 
-        .tone-btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
+        /* Section souhaits */
+        .aim-section { display: flex; flex-direction: column; gap: 10px; }
+        .aim-label {
+          font-size: 13px; font-weight: 700; color: #0f172a;
+          display: flex; flex-direction: column; gap: 2px;
+        }
+        .aim-label__hint {
+          font-size: 11px; font-weight: 400; color: #94a3b8;
+        }
+        .aim-wishes {
+          width: 100%; resize: vertical; min-height: 72px;
+          border: 1.5px solid #e5e7eb; border-radius: 10px;
+          padding: 10px 13px; font-size: 13px; font-family: inherit;
+          color: #1e293b; background: #f9fafb; outline: none;
+          line-height: 1.55; transition: border-color .15s, background .15s;
+          box-sizing: border-box;
+        }
+        .aim-wishes:focus { border-color: #6366f1; background: #fff; }
+        .aim-wishes::placeholder { color: #94a3b8; }
+
+        /* Chips */
+        .aim-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+        .aim-chip {
+          padding: 5px 12px; border-radius: 20px;
+          border: 1.5px solid #e2e8f0; background: #fff;
+          font-size: 11.5px; font-weight: 600; color: #374151;
+          cursor: pointer; transition: all .15s; font-family: inherit;
+        }
+        .aim-chip:hover {
+          border-color: #6366f1; color: #4f46e5;
+          background: #eef2ff; transform: translateY(-1px);
+        }
+        .aim-chip--on {
+          border-color: #6366f1; background: #eef2ff; color: #4f46e5;
         }
 
-        .tone-emoji {
-          font-size: 16px;
+        /* Bouton générer */
+        .aim-gen-btn {
+          display: flex; align-items: center; justify-content: center; gap: 8px;
+          width: 100%; padding: 12px;
+          background: linear-gradient(135deg, #0f172a, #312e81);
+          color: #fff; font-size: 14px; font-weight: 700;
+          border: none; border-radius: 12px; cursor: pointer;
+          font-family: inherit; transition: opacity .15s, transform .15s;
+          box-shadow: 0 4px 16px rgba(15,23,42,.2);
         }
+        .aim-gen-btn:hover:not(:disabled) { opacity: .88; transform: translateY(-1px); }
+        .aim-gen-btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+        .aim-spin { animation: aimSpin .8s linear infinite; }
+        @keyframes aimSpin { to { transform: rotate(360deg); } }
 
-        /* Zone de chat */
-        .chat-container-wrapper {
-          flex: 1;
+        /* Résultat */
+        .aim-result {
+          border: 1.5px solid #e2e8f0; border-radius: 12px;
           overflow: hidden;
-          position: relative;
-          
+        }
+        .aim-result__head {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 10px 14px;
+          background: #f8fafc; border-bottom: 1px solid #e5e7eb;
+        }
+        .aim-result__title { font-size: 12px; font-weight: 700; color: #0f172a; }
+        .aim-result__actions { display: flex; gap: 6px; }
+        .aim-icon-btn {
+          width: 28px; height: 28px; border-radius: 7px;
+          border: 1px solid #e5e7eb; background: #fff; color: #64748b;
+          display: flex; align-items: center; justify-content: center;
+          cursor: pointer; transition: all .15s;
+        }
+        .aim-icon-btn:hover:not(:disabled) { border-color: #6366f1; color: #4f46e5; background: #eef2ff; }
+        .aim-icon-btn:disabled { opacity: .35; cursor: not-allowed; }
 
+        /* Textarea résultat éditable */
+        .aim-result__text {
+          width: 100%; resize: none; border: none; outline: none;
+          padding: 14px 16px; font-size: 13.5px; font-family: inherit;
+          color: #1e293b; line-height: 1.8; background: #fff;
+          box-sizing: border-box;
         }
 
-        .chat-container {
-          height: 100%;
-          overflow-y: auto;
-          padding: 20px;
-          background: #f8f9fa;
+        .aim-result__stats {
+          display: flex; align-items: center; gap: 6px;
+          padding: 8px 14px;
+          background: #f8fafc; border-top: 1px solid #f1f5f9;
+          font-size: 11px; color: #94a3b8;
         }
-
-        .message {
-          margin-bottom: 16px;
-          animation: messageAppear 0.3s ease;
-        }
-
-        @keyframes messageAppear {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .message-header {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-bottom: 6px;
-        }
-
-        .message-avatar {
-          width: 24px;
-          height: 24px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-
-        .message-avatar.bot {
-          background: linear-gradient(135deg, #80a1d4, #75C9C8);
-          color: white;
-        }
-
-        .message-avatar.user {
-          background: linear-gradient(135deg, #80a1d4, #75c9c8);
-          color: white;
-        }
-
-        .message-author {
-          font-size: 12px;
-          font-weight: 600;
-          color: #4b5563;
-        }
-
-        .message-time {
+        .aim-result__badge {
           margin-left: auto;
-          font-size: 11px;
-          color: #9ca3af;
+          font-size: 11px; font-weight: 700; color: #16a34a;
+          background: #f0fdf4; border: 1px solid #bbf7d0;
+          padding: 2px 8px; border-radius: 20px;
         }
 
-        .message-content {
-          background: white;
-          padding: 12px 16px;
-          border-radius: 12px;
-          font-size: 13px;
-          line-height: 1.5;
-          border: 1px solid #e5e7eb;
-          margin-left: 8px;
+        /* Skeleton loading */
+        .aim-result__skeleton { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+        .aim-sk {
+          height: 12px; border-radius: 6px; width: 100%;
+          background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+          background-size: 200% 100%;
+          animation: aimShimmer 1.4s infinite;
         }
+        .aim-sk--w60 { width: 60%; }
+        .aim-sk--w70 { width: 70%; }
+        .aim-sk--w80 { width: 80%; }
+        .aim-sk--w90 { width: 90%; }
+        @keyframes aimShimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 
-        .message.bot .message-content {
-          background: white;
-          border-left: 3px solid #75c9c8;
+        /* Footer */
+        .aim-footer {
+          display: flex; justify-content: flex-end; align-items: center; gap: 10px;
+          padding: 14px 22px;
+          background: #f8fafc; border-top: 1px solid #e5e7eb; flex-shrink: 0;
         }
-
-        .message.user .message-content {
-          background: #f0fdf4;
-          border-left: 3px solid #10b981;
+        .aim-footer__cancel {
+          padding: 9px 18px; border-radius: 10px; border: 1.5px solid #e5e7eb;
+          background: #fff; color: #374151; font-size: 13px; font-weight: 600;
+          cursor: pointer; font-family: inherit; transition: all .15s;
         }
-
-        .message-content p {
-          margin: 6px 0;
-          color: #4b5563;
+        .aim-footer__cancel:hover { background: #f3f4f6; }
+        .aim-footer__confirm {
+          display: inline-flex; align-items: center; gap: 7px;
+          padding: 9px 20px; border-radius: 10px; border: none;
+          background: linear-gradient(135deg,#0f172a,#312e81);
+          color: #fff; font-size: 13px; font-weight: 700;
+          cursor: pointer; font-family: inherit;
+          box-shadow: 0 4px 12px rgba(15,23,42,.2);
+          transition: opacity .15s, transform .15s;
         }
+        .aim-footer__confirm:hover:not(:disabled) { opacity: .88; transform: translateY(-1px); }
+        .aim-footer__confirm:disabled { opacity: .35; cursor: not-allowed; box-shadow: none; transform: none; }
 
-        .message-content p:first-child {
-          margin-top: 0;
+        @media (max-width: 640px) {
+          .aim-modal { max-width: 100%; border-radius: 16px; }
+          .aim-body { padding: 16px 16px 8px; }
+          .aim-header__inner { padding: 14px 16px; }
+          .aim-footer { padding: 12px 16px; }
         }
-
-        .message-content p:last-child {
-          margin-bottom: 0;
-        }
-
-        .loading-message {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding: 8px 0;
-        }
-
-        .typing-indicator {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
-
-        .typing-indicator span {
-          width: 6px;
-          height: 6px;
-          background: #667eea;
-          border-radius: 50%;
-          animation: typing 1.4s infinite ease-in-out;
-        }
-
-        .typing-indicator span:nth-child(2) {
-          animation-delay: 0.2s;
-        }
-
-        .typing-indicator span:nth-child(3) {
-          animation-delay: 0.4s;
-        }
-
-        @keyframes typing {
-          0%, 60%, 100% {
-            transform: translateY(0);
-          }
-          30% {
-            transform: translateY(-4px);
-          }
-        }
-
-        /* Zone de saisie */
-        .input-container {
-          padding: 15px 20px;
-          background: white;
-          border-top: 1px solid #e5e7eb;
-        }
-
-        .input-wrapper {
-          display: flex;
-          gap: 10px;
-        }
-
-        .input-wrapper textarea {
-          flex: 1;
-          padding: 12px 14px;
-          border: 1px solid #d1d5db;
-          border-radius: 10px;
-          font-size: 13px;
-          font-family: inherit;
-          resize: none;
-          outline: none;
-          transition: all 0.2s;
-          background: #f9fafb;
-          color: #374151;
-          line-height: 1.5;
-        }
-
-        .input-wrapper textarea:focus {
-          border-color: #667eea;
-          background: white;
-          box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-
-        .input-wrapper textarea:disabled {
-          background: #f3f4f6;
-          cursor: not-allowed;
-        }
-
-        .send-btn {
-          background: linear-gradient(135deg, #80a1d4, #75c9c8);
-          color: white;
-          border: none;
-          border-radius: 10px;
-          width:60px;
-          height: 60px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          transition: all 0.2s;
-          flex-shrink: 0;
-        }
-
-        .send-btn:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-        }
-
-        .send-btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        .input-hint {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 11px;
-          color: #9ca3af;
-          margin-top: 6px;
-          padding-left: 4px;
-        }
-
-        /* Prévisualisation */
-        .preview-header {
-          padding: 15px 20px;
-          background: white;
-          border-bottom: 1px solid #e5e7eb;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        }
-
-        .preview-title {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          color: #333;
-        }
-
-        .preview-title h4 {
-          margin: 0;
-          font-size: 16px;
-          font-weight: 600;
-        }
-
-        .preview-title svg {
-          color: #667eea;
-        }
-
-        .preview-actions-top {
-          display: flex;
-          gap: 8px;
-        }
-
-        .copy-btn {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 8px 12px;
-          background: #f3f4f6;
-          color: #374151;
-          border: 1px solid #d1d5db;
-          border-radius: 8px;
-          font-size: 13px;
-          cursor: pointer;
-          transition: all 0.2s;
-          min-width: 80px;
-          justify-content: center;
-        }
-
-        .copy-btn:hover:not(:disabled) {
-          background: #e5e7eb;
-        }
-
-        .copy-btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        .copy-btn svg {
-          color: #667eea;
-        }
-
-        .regenerate-btn {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 8px 12px;
-          background: #f3f4f6;
-          color: #374151;
-          border: 1px solid #d1d5db;
-          border-radius: 8px;
-          font-size: 13px;
-          cursor: pointer;
-          transition: all 0.2s;
-          min-width: 100px;
-          justify-content: center;
-        }
-
-        .regenerate-btn:hover:not(:disabled) {
-          background: #e5e7eb;
-        }
-
-        .regenerate-btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        .regenerate-btn svg {
-          color: #667eea;
-        }
-
-        /* Statistiques */
-        .preview-stats {
-          display: flex;
-          gap: 12px;
-          padding: 12px 20px;
-          background: #f8f9fa;
-          border-bottom: 1px solid #e5e7eb;
-        }
-
-        .stat-item {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 12px;
-          color: #6b7280;
-          background: white;
-          padding: 6px 10px;
-          border-radius: 6px;
-        //   border: 1px solid #e5e7eb;
-          flex: 1;
-          justify-content: center;
-        }
-
-        /* Contenu de la prévisualisation */
-        .preview-content {
-          flex: 1;
-          overflow-y: auto;
-          padding: 20px;
-          background: white;
-        }
-
-        .preview-text {
-          font-size: 14px;
-          line-height: 1.6;
-          color: #374151;
-        }
-
-        .preview-text p {
-          margin: 12px 0;
-        }
-
-        .preview-heading {
-          margin: 16px 0 12px;
-          color: #1f2937;
-          font-size: 16px;
-          font-weight: 700;
-        }
-
-        .preview-list-item {
-          margin: 6px 0;
-          padding-left: 8px;
-          position: relative;
-          color:#666;
-        }
-
-        .preview-list-item:before {
-          content: "•";
-          position: absolute;
-          left: 0;
-          color: #667eea;
-        }
-
-        .preview-placeholder {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          padding: 40px 20px;
-          color: #9ca3af;
-          text-align: center;
-          height: 100%;
-        }
-
-        .preview-placeholder svg {
-          margin-bottom: 16px;
-          color: #d1d5db;
-          opacity: 0.5;
-        }
-
-        .preview-placeholder h4 {
-          margin: 0 0 8px;
-          font-size: 16px;
-          color: #6b7280;
-        }
-
-        .preview-placeholder p {
-          margin: 0 0 4px;
-          font-size: 14px;
-        }
-
-        .preview-placeholder small {
-          font-size: 12px;
-        }
-
-        /* Conseils */
-        .preview-tips {
-          padding: 15px 20px;
-          background: #f0f9ff;
-          border-top: 1px solid #e0f2fe;
-        }
-
-        .tip {
-          display: flex;
-          align-items: flex-start;
-          gap: 10px;
-        }
-
-        .tip span {
-          font-size: 16px;
-          margin-top: 2px;
-        }
-
-        .tip p {
-          margin: 0;
-          font-size: 13px;
-          color: #0c4a6e;
-          line-height: 1.5;
-        }
-
-        /* Pied de la modale */
-        .modal-footer {
-          padding: 15px 20px;
-          background: white;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          border-top: 1px solid #e5e7eb;
-              }
-
-        .cancel-btn {
-          padding: 10px 20px;
-          background: #E32D45;
-          color: white;
-          border: none;
-          border-radius: 10px;
-          font-size: 14px;
-          font-weight: 500;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .cancel-btn:hover {
-          background: #e5e7eb;
-          
-        }
-
-        .footer-info small {
-          color: #9ca3af;
-          font-size: 12px;
-        }
-
-        .confirm-btn {
-          padding: 10px 20px;
-          background: linear-gradient(135deg, #10b981, #059669);
-          color: white;
-          border: none;
-          border-radius: 10px;
-          font-size: 14px;
-          font-weight: 500;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          cursor: pointer;
-          transition: all 0.2s;
-          min-width: 180px;
-          justify-content: center;
-        }
-
-        .confirm-btn:hover:not(:disabled) {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-        }
-
-        .confirm-btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        /* Animation pour le bouton appliqué */
-        @keyframes successPulse {
-          0% { transform: scale(1); }
-          50% { transform: scale(1.05); }
-          100% { transform: scale(1); }
-        }
-
-        .confirm-btn:not(:disabled) {
-          animation: ${applied ? 'successPulse 0.5s ease-in-out' : 'none'};
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-          .ai-modal {
-            max-height: 100vh;
-            border-radius: 0;
-          }
-
-          .modal-body {
-            flex-direction: column;
-          }
-
-          .chat-side {
-            flex: 1;
-            min-height: 300px;
-            border-right: none;
-            border-bottom: 1px solid #e5e7eb;
-          }
-
-          .preview-side {
-            flex: 1;
-            min-height: 300px;
-          }
-
-          .modal-header {
-            padding: 16px;
-          }
-
-          .modal-title {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 10px;
-          }
-
-          .ai-stats {
-            width: 100%;
-            justify-content: flex-start;
-          }
-
-          .tone-selector,
-          .chat-container,
-          .input-container,
-          .preview-header,
-          .preview-content,
-          .modal-footer {
-            padding: 16px;
-          }
-
-          .preview-stats {
-            padding: 12px 16px;
-            flex-direction: column;
-            gap: 8px;
-          }
-
-          .stat-item {
-            width: 100%;
-          }
-
-          .preview-tips {
-            padding: 12px 16px;
-          }
-
-          .tone-buttons {
-            overflow-x: auto;
-            padding-bottom: 4px;
-          }
-
-          .tone-btn {
-            white-space: nowrap;
-          }
-
-          .preview-header {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 12px;
-          }
-
-          .preview-actions-top {
-            width: 100%;
-          }
-
-          .copy-btn,
-          .regenerate-btn {
-            flex: 1;
-            justify-content: center;
-          }
-
-          .modal-footer {
-            flex-direction: column;
-            gap: 10px;
-          }
-
-          .cancel-btn,
-          .confirm-btn {
-            width: 100%;
-            justify-content: center;
-          }
-        }
-.tone-btn {
-  color: #666;              /* par défaut (non cliqué) */
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.tone-btn.active {
-  color: #fff;              /* cliqué → blanc */
-  background-color: #1f2937; /* optionnel mais conseillé */
-}
-
-.tone-btn .tone-label {
-  color: inherit;           /* hérite de la couleur du bouton */
-}
-
-
-
       `}</style>
     </div>
   );

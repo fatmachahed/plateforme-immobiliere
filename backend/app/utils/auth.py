@@ -11,7 +11,7 @@ from app.utils.security import verify_password
 from app.config import SECRET_KEY  # import depuis config.py
 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 jours
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")  # endpoint FastAPI pour login
 
@@ -43,14 +43,18 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
+        sub: str = payload.get("sub")
+        if sub is None:
             raise credentials_exception
     except ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expiré")
     except JWTError:
         raise credentials_exception
-    user = db.query(models.User).filter(models.User.email == email).first()
+    # sub can be either the user ID (int as string) or email — handle both
+    try:
+        user = db.query(models.User).filter(models.User.id == int(sub)).first()
+    except (ValueError, TypeError):
+        user = db.query(models.User).filter(models.User.email == sub).first()
     if user is None:
         raise credentials_exception
     return user

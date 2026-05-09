@@ -1,631 +1,381 @@
-// ==================== PAGE COMPTE ====================
-// pages/Compte.jsx
-import React, { useState } from "react";
+﻿import React, { useState, useRef } from "react";
+import API_URL from '../config';
+import { Link } from "react-router-dom";
 import Layout from "../components/Layout";
-import { User, Home, BarChart3, Settings, LogOut, Edit, Eye, Heart, MessageCircle } from "lucide-react";
+import { User, Home, Heart, LogOut, Edit, Camera, Phone, Mail, Save, X } from "lucide-react";
+import { useToast } from "../components/Toast";
+
 
 export default function Compte() {
-  const [activeTab, setActiveTab] = useState('profile');
+  const toast = useToast();
+
+  const storedUser = (() => {
+    try { return JSON.parse(localStorage.getItem("user")); } catch { return null; }
+  })();
+  const token = localStorage.getItem("token");
+
+  const [editing, setEditing] = useState(false);
+  const [saving,  setSaving]  = useState(false);
   const [profile, setProfile] = useState({
-    nom: "Ben Ali",
-    prenom: "Ahmed",
-    email: "ahmed.benali@email.com",
-    telephone: "+216 98 765 432",
-    adresse: "Tunis, Tunisie"
+    username:        storedUser?.username        || "",
+    email:           storedUser?.email           || "",
+    phone_number:    storedUser?.phone_number    || "",
+    profile_picture: storedUser?.profile_picture || "",
   });
+  const [avatarPreview, setAvatarPreview] = useState(storedUser?.profile_picture || "");
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef(null);
 
-  const myListings = [
-    { id: 1, title: "Villa Moderne à La Marsa", status: "Publié", views: 156, likes: 23 },
-    { id: 2, title: "Appartement Centre-Ville", status: "En attente", views: 89, likes: 12 },
-    { id: 3, title: "Terrain Résidentiel Sousse", status: "Publié", views: 234, likes: 45 }
-  ];
+  if (!storedUser) {
+    return (
+      <Layout>
+        <div style={{ textAlign:"center", padding:"80px 20px", fontFamily:"'Inter',system-ui,sans-serif" }}>
+          <p style={{ marginBottom:16, color:"#64748b" }}>Vous n'êtes pas connecté.</p>
+          <Link to="/login" style={{ color:"#4f46e5", fontWeight:700 }}>Se connecter</Link>
+        </div>
+      </Layout>
+    );
+  }
 
-  const activities = [
-    { action: "Publication d'une annonce", date: "Il y a 2 jours", icon: <Home /> },
-    { action: "Message reçu de Salma M.", date: "Il y a 3 jours", icon: <MessageCircle /> },
-    { action: "Annonce vue 50 fois", date: "Il y a 5 jours", icon: <Eye /> }
-  ];
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    toast("Déconnexion réussie.");
+    setTimeout(() => { window.location.href = "/"; }, 800);
+  };
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { toast("Image trop lourde (max 5 MB).", "error"); return; }
+
+    /* Local preview immediately */
+    const localUrl = URL.createObjectURL(file);
+    setAvatarPreview(localUrl);
+
+    /* Upload to backend */
+    setUploadingAvatar(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch(`\/users/me/avatar`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      const newPic = data.profile_picture;
+      setAvatarPreview(newPic);
+      setProfile(p => ({ ...p, profile_picture: newPic }));
+      const updated = { ...storedUser, profile_picture: newPic };
+      localStorage.setItem("user", JSON.stringify(updated));
+      toast("Photo de profil mise à jour !");
+    } catch {
+      toast("Erreur lors de l'upload.", "error");
+      setAvatarPreview(profile.profile_picture);
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`\/users/me`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username:     profile.username     || undefined,
+          phone_number: profile.phone_number || undefined,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      const updated = await res.json();
+      const newUser = { ...storedUser, ...updated };
+      localStorage.setItem("user", JSON.stringify(newUser));
+      setEditing(false);
+      toast("Profil mis à jour !");
+    } catch {
+      toast("Erreur lors de la sauvegarde.", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const initials = (profile.username || "?")[0].toUpperCase();
 
   return (
     <Layout>
-      <div className="compte-page">
-        {/* Profile Hero */}
-        <section className="compte-hero">
-          <div className="compte-container">
-            <div className="compte-profile-header">
-              <div className="compte-profile-avatar-large">
-                <User size={48} />
+      <div className="cpt-page">
+        {/* Hero banner */}
+        <div className="cpt-hero">
+          <div className="cpt-hero__inner">
+            {/* Avatar with upload button */}
+            <div className="cpt-avatar-wrap">
+              <div className="cpt-avatar">
+                {avatarPreview
+                  ? <img src={avatarPreview} alt="avatar"/>
+                  : <span className="cpt-avatar__init">{initials}</span>
+                }
+                {uploadingAvatar && <div className="cpt-avatar__spinner"/>}
               </div>
-              <div className="compte-profile-info">
-                <h1>{profile.prenom} {profile.nom}</h1>
-                <p className="compte-profile-subtitle">Membre depuis janvier 2024</p>
-              </div>
+              <button
+                className="cpt-avatar__cam"
+                onClick={() => fileInputRef.current?.click()}
+                title="Changer la photo"
+                disabled={uploadingAvatar}
+              >
+                <Camera size={14}/>
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display:"none" }}
+                onChange={handleAvatarChange}
+              />
             </div>
-          </div>
-        </section>
 
-        <div className="compte-container">
-          <div className="compte-profile-layout">
-            {/* Sidebar */}
-            <aside className="compte-sidebar">
-              <nav className="compte-nav">
-                <button 
-                  className={`compte-nav-item ${activeTab === 'profile' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('profile')}
-                >
-                  <User size={20} />
-                  Mon Profil
-                </button>
-                <button 
-                  className={`compte-nav-item ${activeTab === 'listings' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('listings')}
-                >
-                  <Home size={20} />
-                  Mes Annonces
-                </button>
-                <button 
-                  className={`compte-nav-item ${activeTab === 'activity' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('activity')}
-                >
-                  <BarChart3 size={20} />
-                  Activité
-                </button>
-                <button 
-                  className={`compte-nav-item ${activeTab === 'settings' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('settings')}
-                >
-                  <Settings size={20} />
-                  Paramètres
-                </button>
-                <button className="compte-nav-item compte-logout">
-                  <LogOut size={20} />
-                  Déconnexion
-                </button>
-              </nav>
-            </aside>
-
-            {/* Main Content */}
-            <main className="compte-content">
-              {activeTab === 'profile' && (
-                <div className="compte-content-card">
-                  <div className="compte-card-header">
-                    <h2>Informations Personnelles</h2>
-                    <button className="compte-btn-icon">
-                      <Edit size={18} />
-                    </button>
-                  </div>
-                  <div className="compte-info-grid">
-                    <div className="compte-info-item">
-                      <label>Prénom</label>
-                      <input type="text" value={profile.prenom} className="compte-form-input" readOnly />
-                    </div>
-                    <div className="compte-info-item">
-                      <label>Nom</label>
-                      <input type="text" value={profile.nom} className="compte-form-input" readOnly />
-                    </div>
-                    <div className="compte-info-item">
-                      <label>Email</label>
-                      <input type="email" value={profile.email} className="compte-form-input" readOnly />
-                    </div>
-                    <div className="compte-info-item">
-                      <label>Téléphone</label>
-                      <input type="tel" value={profile.telephone} className="compte-form-input" readOnly />
-                    </div>
-                    <div className="compte-info-item compte-full-width">
-                      <label>Adresse</label>
-                      <input type="text" value={profile.adresse} className="compte-form-input" readOnly />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'listings' && (
-                <div className="compte-content-card">
-                  <div className="compte-card-header">
-                    <h2>Mes Annonces ({myListings.length})</h2>
-                    <button className="compte-btn-primary">
-                      <Home size={18} />
-                      Nouvelle annonce
-                    </button>
-                  </div>
-                  <div className="compte-listings-list">
-                    {myListings.map(listing => (
-                      <div key={listing.id} className="compte-listing-item">
-                        <div className="compte-listing-info">
-                          <h3>{listing.title}</h3>
-                          <span className={`compte-status-badge ${listing.status === 'Publié' ? 'published' : 'pending'}`}>
-                            {listing.status}
-                          </span>
-                        </div>
-                        <div className="compte-listing-stats">
-                          <span><Eye size={16} /> {listing.views}</span>
-                          <span><Heart size={16} /> {listing.likes}</span>
-                        </div>
-                        <div className="compte-listing-actions">
-                          <button className="compte-btn-icon"><Eye size={18} /></button>
-                          <button className="compte-btn-icon"><Edit size={18} /></button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'activity' && (
-                <div className="compte-content-card">
-                  <div className="compte-card-header">
-                    <h2>Activité Récente</h2>
-                  </div>
-                  <div className="compte-activity-list">
-                    {activities.map((activity, index) => (
-                      <div key={index} className="compte-activity-item">
-                        <div className="compte-activity-icon">{activity.icon}</div>
-                        <div className="compte-activity-content">
-                          <p>{activity.action}</p>
-                          <span className="compte-activity-date">{activity.date}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'settings' && (
-                <div className="compte-content-card">
-                  <div className="compte-card-header">
-                    <h2>Paramètres</h2>
-                  </div>
-                  <div className="compte-settings-section">
-                    <div className="compte-setting-item">
-                      <div>
-                        <h4>Notifications par email</h4>
-                        <p>Recevoir des notifications pour les nouvelles annonces</p>
-                      </div>
-                      <label className="compte-switch">
-                        <input type="checkbox" defaultChecked />
-                        <span className="compte-slider"></span>
-                      </label>
-                    </div>
-                    <div className="compte-setting-item">
-                      <div>
-                        <h4>Notifications push</h4>
-                        <p>Recevoir des notifications sur votre appareil</p>
-                      </div>
-                      <label className="compte-switch">
-                        <input type="checkbox" />
-                        <span className="compte-slider"></span>
-                      </label>
-                    </div>
-                    <div className="compte-setting-item">
-                      <div>
-                        <h4>Profil public</h4>
-                        <p>Rendre votre profil visible aux autres utilisateurs</p>
-                      </div>
-                      <label className="compte-switch">
-                        <input type="checkbox" defaultChecked />
-                        <span className="compte-slider"></span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </main>
+            <div>
+              <h1 className="cpt-hero__name">{profile.username}</h1>
+              <p className="cpt-hero__email">{profile.email}</p>
+            </div>
           </div>
         </div>
 
-        <style jsx>{`
-          .compte-page {
-            width: 100%;
-            background: #f8f9fa;
-            min-height: 100vh;
+        <div className="cpt-body">
+          {/* Sidebar */}
+          <aside className="cpt-sidebar">
+            <Link to="/dashboard" className="cpt-nav-item">
+              <Home size={17}/> Mes annonces
+            </Link>
+            <Link to="/favoris" className="cpt-nav-item">
+              <Heart size={17}/> Mes favoris
+            </Link>
+            <button className="cpt-nav-item cpt-nav-item--active">
+              <User size={17}/> Mon profil
+            </button>
+            <button className="cpt-nav-item cpt-nav-item--danger" onClick={handleLogout}>
+              <LogOut size={17}/> Déconnexion
+            </button>
+          </aside>
+
+          {/* Main */}
+          <main className="cpt-main">
+            {/* Profile card */}
+            <div className="cpt-card">
+              <div className="cpt-card__head">
+                <h2>Informations personnelles</h2>
+                {!editing
+                  ? <button className="cpt-btn-sec" onClick={() => setEditing(true)}>
+                      <Edit size={14}/> Modifier
+                    </button>
+                  : <button className="cpt-btn-sec" onClick={() => setEditing(false)}>
+                      <X size={14}/> Annuler
+                    </button>
+                }
+              </div>
+
+              <div className="cpt-grid">
+                <div className="cpt-field">
+                  <label><User size={12}/> Nom d'utilisateur</label>
+                  <input
+                    className={`cpt-input${editing ? " cpt-input--edit" : ""}`}
+                    value={profile.username}
+                    readOnly={!editing}
+                    onChange={e => setProfile(p => ({...p, username: e.target.value}))}
+                  />
+                </div>
+                <div className="cpt-field">
+                  <label><Mail size={12}/> Adresse e-mail</label>
+                  <input className="cpt-input" value={profile.email} readOnly/>
+                </div>
+                <div className="cpt-field">
+                  <label><Phone size={12}/> Téléphone</label>
+                  <input
+                    className={`cpt-input${editing ? " cpt-input--edit" : ""}`}
+                    value={profile.phone_number || ""}
+                    placeholder="Non renseigné"
+                    readOnly={!editing}
+                    onChange={e => setProfile(p => ({...p, phone_number: e.target.value}))}
+                  />
+                </div>
+                <div className="cpt-field">
+                  <label><Camera size={12}/> Photo de profil</label>
+                  <div className="cpt-avatar-mini-row">
+                    {avatarPreview
+                      ? <img className="cpt-avatar-mini" src={avatarPreview} alt=""/>
+                      : <div className="cpt-avatar-mini cpt-avatar-mini--init">{initials}</div>
+                    }
+                    <button
+                      className="cpt-btn-upload"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingAvatar}
+                    >
+                      {uploadingAvatar ? "Upload…" : "Changer la photo"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {editing && (
+                <button
+                  className="cpt-save-btn"
+                  onClick={handleSaveProfile}
+                  disabled={saving}
+                >
+                  <Save size={15}/> {saving ? "Sauvegarde…" : "Enregistrer les modifications"}
+                </button>
+              )}
+            </div>
+
+            {/* Mes annonces shortcut */}
+            <div className="cpt-shortcut">
+              <Home size={20} style={{color:"#6366f1", flexShrink:0}}/>
+              <div className="cpt-shortcut__text">
+                <p className="cpt-shortcut__title">Gérer mes annonces</p>
+                <p className="cpt-shortcut__sub">Voir, modifier et supprimer vos publications</p>
+              </div>
+              <Link to="/dashboard" className="cpt-shortcut__btn">Accéder →</Link>
+            </div>
+          </main>
+        </div>
+
+        <style>{`
+          .cpt-page { min-height:100vh; background:#f8fafc; font-family:'Inter',system-ui,sans-serif; }
+
+          /* Hero */
+          .cpt-hero { background:linear-gradient(135deg,#0f172a 0%,#312e81 100%); padding:40px 24px; }
+          .cpt-hero__inner { max-width:1100px; margin:0 auto; display:flex; align-items:center; gap:24px; }
+          .cpt-avatar-wrap { position:relative; flex-shrink:0; }
+          .cpt-avatar {
+            width:76px; height:76px; border-radius:50%; overflow:hidden;
+            background:#fff; display:flex; align-items:center; justify-content:center;
+            box-shadow:0 4px 20px rgba(0,0,0,.3); position:relative;
           }
-
-          .compte-hero {
-            background: linear-gradient(135deg, #80a1d4, #75c9c8);
-            padding: 40px 20px;
+          .cpt-avatar img { width:100%; height:100%; object-fit:cover; }
+          .cpt-avatar__init { font-size:28px; font-weight:800; color:#0f172a; }
+          .cpt-avatar__spinner {
+            position:absolute; inset:0; background:rgba(0,0,0,.4);
+            border-radius:50%; display:flex; align-items:center; justify-content:center;
           }
-
-          .compte-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 20px;
+          .cpt-avatar__spinner::after {
+            content:""; width:24px; height:24px; border:3px solid transparent;
+            border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite;
           }
-
-          .compte-profile-header {
-            display: flex;
-            align-items: center;
-            gap: 30px;
+          .cpt-avatar__cam {
+            position:absolute; bottom:0; right:0;
+            width:26px; height:26px; border-radius:50%;
+            background:#6366f1; border:2px solid #fff; color:#fff;
+            display:flex; align-items:center; justify-content:center;
+            cursor:pointer; transition:background .15s;
           }
+          .cpt-avatar__cam:hover { background:#4f46e5; }
+          .cpt-hero__name  { font-size:22px; font-weight:800; color:#fff; }
+          .cpt-hero__email { font-size:14px; color:rgba(255,255,255,.7); margin-top:3px; }
 
-          .compte-profile-avatar-large {
-            width: 120px;
-            height: 120px;
-            background: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #80a1d4;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+          /* Body layout */
+          .cpt-body { max-width:1100px; margin:0 auto; padding:32px 24px; display:grid; grid-template-columns:210px 1fr; gap:22px; }
+
+          /* Sidebar */
+          .cpt-sidebar {
+            background:#fff; border:1px solid #e5e7eb; border-radius:14px;
+            padding:10px; height:fit-content; position:sticky; top:20px;
+            display:flex; flex-direction:column; gap:3px;
           }
-
-          .compte-profile-info h1 {
-            color: white;
-            font-size: 32px;
-            margin-bottom: 5px;
-            font-weight: 700;
+          .cpt-nav-item {
+            display:flex; align-items:center; gap:10px; padding:11px 13px;
+            border-radius:9px; border:none; background:transparent;
+            font-size:14px; font-weight:500; color:#64748b; cursor:pointer;
+            text-decoration:none; transition:all .15s; text-align:left; width:100%;
+            font-family:inherit;
           }
+          .cpt-nav-item:hover { background:#f1f5f9; color:#0f172a; }
+          .cpt-nav-item--active { background:#eef2ff; color:#4f46e5; font-weight:700; }
+          .cpt-nav-item--danger { color:#dc2626; margin-top:8px; border-top:1px solid #f1f5f9; padding-top:12px; }
+          .cpt-nav-item--danger:hover { background:#fef2f2; }
 
-          .compte-profile-subtitle {
-            color: rgba(255, 255, 255, 0.9);
-            font-size: 16px;
+          /* Main */
+          .cpt-main { display:flex; flex-direction:column; gap:16px; }
+
+          /* Card */
+          .cpt-card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:26px; }
+          .cpt-card__head { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; }
+          .cpt-card__head h2 { font-size:17px; font-weight:700; color:#0f172a; }
+          .cpt-btn-sec {
+            display:flex; align-items:center; gap:6px; padding:8px 14px;
+            border-radius:8px; border:1px solid #e5e7eb; background:#fff;
+            font-size:13px; font-weight:600; color:#374151; cursor:pointer;
+            font-family:inherit; transition:all .15s;
           }
+          .cpt-btn-sec:hover { border-color:#6366f1; color:#4f46e5; background:#eef2ff; }
 
-          .compte-profile-layout {
-            display: grid;
-            grid-template-columns: 280px 1fr;
-            gap: 30px;
-            padding: 40px 0;
+          /* Form grid */
+          .cpt-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+          .cpt-field { display:flex; flex-direction:column; gap:6px; }
+          .cpt-field label {
+            font-size:11px; font-weight:700; color:#64748b; display:flex;
+            align-items:center; gap:5px; text-transform:uppercase; letter-spacing:.04em;
           }
-
-          .compte-sidebar {
-            background: white;
-            border-radius: 16px;
-            padding: 20px;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
-            height: fit-content;
-            position: sticky;
-            top: 20px;
+          .cpt-input {
+            padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9px;
+            font-size:14px; color:#0f172a; background:#f8fafc;
+            font-family:inherit; outline:none; transition:border-color .15s;
           }
+          .cpt-input--edit { background:#fff; border-color:#c7d2fe; }
+          .cpt-input--edit:focus { border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,.1); }
+          .cpt-input[readonly] { cursor:default; }
 
-          .compte-nav {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
+          /* Avatar upload mini */
+          .cpt-avatar-mini-row { display:flex; align-items:center; gap:12px; padding:6px 0; }
+          .cpt-avatar-mini {
+            width:40px; height:40px; border-radius:50%; object-fit:cover;
+            border:2px solid #e5e7eb;
           }
-
-          .compte-nav-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 14px 16px;
-            background: transparent;
-            border: none;
-            border-radius: 10px;
-            font-size: 15px;
-            color: #666;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-align: left;
-            width: 100%;
-            font-weight: 500;
+          .cpt-avatar-mini--init {
+            background:#eef2ff; display:flex; align-items:center; justify-content:center;
+            font-size:16px; font-weight:800; color:#4f46e5;
           }
-
-          .compte-nav-item:hover {
-            background: #f8f9fa;
+          .cpt-btn-upload {
+            padding:7px 14px; border-radius:8px; border:1.5px solid #c7d2fe;
+            background:#eef2ff; color:#4f46e5; font-size:13px; font-weight:600;
+            cursor:pointer; font-family:inherit; transition:all .15s;
           }
+          .cpt-btn-upload:hover { background:#e0e7ff; }
+          .cpt-btn-upload:disabled { opacity:.6; cursor:not-allowed; }
 
-          .compte-nav-item.active {
-            background: linear-gradient(135deg, #80a1d4, #75c9c8);
-            color: white;
+          /* Save button */
+          .cpt-save-btn {
+            display:flex; align-items:center; gap:7px;
+            margin-top:22px; padding:11px 24px; background:#0f172a; color:#fff;
+            border:none; border-radius:10px; font-size:14px; font-weight:700;
+            cursor:pointer; font-family:inherit; transition:background .15s;
           }
+          .cpt-save-btn:hover { background:#1e293b; }
+          .cpt-save-btn:disabled { opacity:.6; cursor:not-allowed; }
 
-          .compte-nav-item.compte-logout {
-            color: #e74c3c;
-            margin-top: 20px;
-            border-top: 1px solid #eee;
-            padding-top: 20px;
+          /* Shortcut */
+          .cpt-shortcut {
+            background:#fff; border:1px solid #e5e7eb; border-radius:14px;
+            padding:20px 24px; display:flex; align-items:center; gap:16px;
           }
-
-          .compte-content {
-            min-height: 400px;
+          .cpt-shortcut__text { flex:1; }
+          .cpt-shortcut__title { font-weight:700; color:#0f172a; font-size:15px; }
+          .cpt-shortcut__sub   { font-size:13px; color:#94a3b8; margin-top:3px; }
+          .cpt-shortcut__btn {
+            padding:9px 18px; background:#0f172a; color:#fff;
+            border-radius:9px; font-size:14px; font-weight:700; text-decoration:none;
+            white-space:nowrap; transition:background .15s;
           }
+          .cpt-shortcut__btn:hover { background:#1e293b; }
 
-          .compte-content-card {
-            background: white;
-            border-radius: 16px;
-            padding: 30px;
-            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
-          }
+          @keyframes spin { to { transform:rotate(360deg); } }
 
-          .compte-card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #f0f0f0;
-          }
-
-          .compte-card-header h2 {
-            font-size: 24px;
-            color: #333;
-            font-weight: 700;
-          }
-
-          .compte-btn-icon {
-            width: 40px;
-            height: 40px;
-            border: none;
-            background: #f8f9fa;
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-          }
-
-          .compte-btn-icon:hover {
-            background: linear-gradient(135deg, #80a1d4, #75c9c8);
-            color: white;
-          }
-
-          .compte-btn-primary {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 12px 24px;
-            background: linear-gradient(135deg, #80a1d4, #75c9c8);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-          }
-
-          .compte-btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(128, 161, 212, 0.3);
-          }
-
-          .compte-info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-          }
-
-          .compte-info-item {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-          }
-
-          .compte-info-item.compte-full-width {
-            grid-column: 1 / -1;
-          }
-
-          .compte-info-item label {
-            font-weight: 600;
-            color: #333;
-            font-size: 14px;
-          }
-
-          .compte-form-input {
-            padding: 12px 16px;
-            border: 2px solid #e9ecef;
-            border-radius: 10px;
-            font-size: 15px;
-            outline: none;
-            transition: border-color 0.3s ease;
-            background: #f8f9fa;
-          }
-
-          .compte-listings-list {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-          }
-
-          .compte-listing-item {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 12px;
-            transition: all 0.3s ease;
-          }
-
-          .compte-listing-item:hover {
-            background: #e9f5ff;
-          }
-
-          .compte-listing-info {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-          }
-
-          .compte-listing-info h3 {
-            font-size: 16px;
-            color: #333;
-            font-weight: 600;
-          }
-
-          .compte-status-badge {
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-          }
-
-          .compte-status-badge.published {
-            background: #d4edda;
-            color: #155724;
-          }
-
-          .compte-status-badge.pending {
-            background: #fff3cd;
-            color: #856404;
-          }
-
-          .compte-listing-stats {
-            display: flex;
-            gap: 20px;
-            color: #666;
-            font-size: 14px;
-          }
-
-          .compte-listing-stats span {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-          }
-
-          .compte-listing-actions {
-            display: flex;
-            gap: 10px;
-          }
-
-          .compte-activity-list {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-          }
-
-          .compte-activity-item {
-            display: flex;
-            gap: 15px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 12px;
-          }
-
-          .compte-activity-icon {
-            width: 50px;
-            height: 50px;
-            background: linear-gradient(135deg, #80a1d4, #75c9c8);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            flex-shrink: 0;
-          }
-
-          .compte-activity-content p {
-            font-weight: 500;
-            color: #333;
-            margin-bottom: 5px;
-          }
-
-          .compte-activity-date {
-            font-size: 13px;
-            color: #999;
-          }
-
-          .compte-settings-section {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-          }
-
-          .compte-setting-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 12px;
-          }
-
-          .compte-setting-item h4 {
-            font-size: 16px;
-            color: #333;
-            margin-bottom: 5px;
-            font-weight: 600;
-          }
-
-          .compte-setting-item p {
-            font-size: 14px;
-            color: #666;
-          }
-
-          .compte-switch {
-            position: relative;
-            display: inline-block;
-            width: 50px;
-            height: 28px;
-          }
-
-          .compte-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-          }
-
-          .compte-slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #ccc;
-            transition: 0.4s;
-            border-radius: 28px;
-          }
-
-          .compte-slider:before {
-            position: absolute;
-            content: "";
-            height: 20px;
-            width: 20px;
-            left: 4px;
-            bottom: 4px;
-            background-color: white;
-            transition: 0.4s;
-            border-radius: 50%;
-          }
-
-          input:checked + .compte-slider {
-            background: linear-gradient(135deg, #80a1d4, #75c9c8);
-          }
-
-          input:checked + .compte-slider:before {
-            transform: translateX(22px);
-          }
-
-          @media (max-width: 1024px) {
-            .compte-profile-layout {
-              grid-template-columns: 1fr;
-            }
-
-            .compte-sidebar {
-              position: static;
-            }
-          }
-
-          @media (max-width: 768px) {
-            .compte-profile-header {
-              flex-direction: column;
-              text-align: center;
-            }
-
-            .compte-profile-info h1 {
-              font-size: 24px;
-            }
-
-            .compte-info-grid {
-              grid-template-columns: 1fr;
-            }
-
-            .compte-listing-item {
-              flex-direction: column;
-              align-items: flex-start;
-            }
-
-            .compte-listing-actions {
-              width: 100%;
-              justify-content: flex-end;
-            }
-
-            .compte-content-card {
-              padding: 20px;
-            }
+          @media (max-width:768px) {
+            .cpt-body { grid-template-columns:1fr; }
+            .cpt-sidebar { position:static; }
+            .cpt-grid { grid-template-columns:1fr; }
           }
         `}</style>
       </div>

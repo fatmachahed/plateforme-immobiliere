@@ -1,7 +1,7 @@
-# backend/app/routers/properties.py
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from app import schemas, crud, database
+from app import schemas, crud, database, models
+from app.utils.auth import get_current_user
 
 router = APIRouter(
     prefix="/properties",
@@ -40,10 +40,19 @@ def read_property(property_id: int, db: Session = Depends(get_db)):
 # UPDATE PROPERTY
 # ===============================
 @router.put("/{property_id}", response_model=schemas.PropertyRead)
-def update_property(property_id: int, update_data: dict, db: Session = Depends(get_db)):
-    updated = crud.update_property(db, property_id, update_data)
-    if not updated:
+def update_property(
+    property_id: int,
+    update_data: schemas.PropertyUpdate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    prop = crud.get_property(db, property_id)
+    if not prop:
         raise HTTPException(status_code=404, detail="Property not found")
+    annonce = db.query(models.Annonce).filter(models.Annonce.id == prop.annonce_id).first()
+    if annonce and annonce.utilisateur_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Action interdite")
+    updated = crud.update_property(db, property_id, update_data.dict(exclude_unset=True))
     return updated
 
 # ===============================

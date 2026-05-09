@@ -1,5 +1,10 @@
-// pages/Logout.jsx
-import Layout from "../components/Layout";
+import { useEffect } from "react";
+
 export default function Logout() {
-  return <Layout><h1>Logout</h1></Layout>;
+  useEffect(() => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    window.location.href = "/";
+  }, []);
+  return null;
 }

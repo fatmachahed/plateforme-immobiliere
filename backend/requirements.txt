@@ -8,3 +8,5 @@ python-jose==3.5.0
 python-dotenv==1.2.1
 pydantic==2.12.5
 python-jose[cryptography]
+python-multipart==0.0.20
+aiofiles==24.1.0

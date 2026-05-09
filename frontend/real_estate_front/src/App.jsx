@@ -1,41 +1,65 @@
 import React from "react";
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
-import Header from "./components/Header";
-import Footer from "./components/Footer";
-import Home from "./pages/Home";
-import Accueil from "./pages/Accueil";
-import Apropos from "./pages/Apropos";
-import Contact from "./pages/Contact";
-import RechercheAnnonce from "./pages/RechercheAnnonce";
-import RechercheAnnonceCarte from "./pages/RechercheAnnonceCarte"
-import CreerAnnonce from "./pages/CreerAnnonce";
-import Compte from "./pages/Compte";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Logout from "./pages/Logout";
 import "leaflet/dist/leaflet.css";
+import { ToastProvider } from "./components/Toast";
+import { LanguageProvider } from "./contexts/LanguageContext";
 
+/* Pages */
+import Home             from "./pages/Home";
+import CartePage        from "./pages/CartePage";
+import Abonnements      from "./pages/Abonnements";
+import AnnonceDetail    from "./pages/AnnonceDetail";
+import RechercheAnnonce from "./pages/RechercheAnnonce";
+import CreerAnnonce     from "./pages/CreerAnnonce";
+import Compte           from "./pages/Compte";
+import Dashboard        from "./pages/Dashboard";
+import Login            from "./pages/Login";
+import Register         from "./pages/Register";
+import Logout           from "./pages/Logout";
+import Apropos          from "./pages/Apropos";
+import Contact          from "./pages/Contact";
+import AdminDashboard   from "./pages/AdminDashboard";
+import Favoris          from "./pages/Favoris";
+import EditAnnonce      from "./pages/EditAnnonce";
+import BoosterPage      from "./pages/BoosterPage";
 
 function App() {
-  const user = null; // ou l'objet user réel
   return (
-    <Router>
-      {/* <Header user={user} /> */}
-      <Routes>
-        <Route path="/" element={<Home />} />
-        {/* <Route path="/" element={<Accueil />} /> */}
-        <Route path="/apropos" element={<Apropos />} />
-        <Route path="/contact" element={<Contact />} />
-        <Route path="/recherche_annonce" element={<RechercheAnnonce />} />
-        <Route path="/recherche_annonce_carte" element={<RechercheAnnonceCarte />} />
-        <Route path="/creer_annonce" element={<CreerAnnonce />} />
-        <Route path="/compte" element={<Compte />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/logout" element={<Logout />} />
-      </Routes>
-      {/* <Footer /> */}
-    </Router>
+    <LanguageProvider>
+    <ToastProvider>
+      <Router>
+        <Routes>
+          {/* Principales */}
+          <Route path="/"              element={<Home />} />
+          <Route path="/carte"         element={<CartePage />} />
+          <Route path="/abonnements"   element={<Abonnements />} />
+
+          {/* Recherche / annonces */}
+          <Route path="/recherche_annonce"       element={<RechercheAnnonce />} />
+          <Route path="/recherche_annonce_carte" element={<CartePage />} />
+          <Route path="/annonce/:id"             element={<AnnonceDetail />} />
+          <Route path="/creer_annonce"           element={<CreerAnnonce />} />
+          <Route path="/modifier_annonce/:id"    element={<EditAnnonce />} />
+          <Route path="/booster"                element={<BoosterPage />} />
+
+          {/* Compte */}
+          <Route path="/compte"    element={<Compte />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/favoris"   element={<Favoris />} />
+          <Route path="/login"     element={<Login />} />
+          <Route path="/register"  element={<Register />} />
+          <Route path="/logout"    element={<Logout />} />
+
+          {/* Admin */}
+          <Route path="/admin" element={<AdminDashboard />} />
+
+          {/* Info */}
+          <Route path="/apropos"  element={<Apropos />} />
+          <Route path="/contact"  element={<Contact />} />
+        </Routes>
+      </Router>
+    </ToastProvider>
+    </LanguageProvider>
   );
 }
 

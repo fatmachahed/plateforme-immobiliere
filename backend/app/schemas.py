@@ -79,6 +79,11 @@ class AnnonceCreate(AnnonceBase):
     etat_bien: Optional[str] = None
     etage: Optional[int] = None
     type_option_villa: Optional[str] = None
+    nb_pieces: Optional[int] = None
+    nb_chambres: Optional[int] = None
+    nb_salles_bain: Optional[int] = None
+    telephone: Optional[str] = None
+    annee_construction: Optional[int] = None
 
 
 class AnnonceUpdate(BaseModel):
@@ -99,9 +104,14 @@ class AnnonceUpdate(BaseModel):
     etat_bien: Optional[str] = None
     etage: Optional[int] = None
     type_option_villa: Optional[str] = None
+    nb_pieces: Optional[int] = None
+    nb_chambres: Optional[int] = None
+    nb_salles_bain: Optional[int] = None
+    telephone: Optional[str] = None
+    annee_construction: Optional[int] = None
 
     class Config:
-        from_attributes = True  # ⚡ pour Pydantic v2 (remplace orm_mode)
+        from_attributes = True
 
 class PropertyRead(BaseModel):
     id: int
@@ -118,7 +128,46 @@ class AnnonceRead(AnnonceBase):
     id: int
     date_creation: datetime
     date_mise_a_jour: datetime
+    boost_level: int = 0
+    views_count: int = 0
     properties: List[PropertyRead] = []
+
+    class Config:
+        orm_mode = True
+
+class AnnoncePublic(BaseModel):
+    """Données publiques pour l'affichage liste/carte."""
+    id: int
+    titre: str
+    prix: float
+    devise: str
+    superficie: float
+    categorie: str
+    type_bien: str
+    boost_level: int = 0
+    views_count: int = 0
+    date_creation: datetime
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    image_principale: Optional[str] = None
+    gouvernorat: Optional[str] = None
+    delegation: Optional[str] = None
+    nb_pieces: Optional[int] = None
+    nb_chambres: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+class MapPin(BaseModel):
+    """Données légères pour les punaises de carte."""
+    id: int
+    titre: str
+    prix: float
+    devise: str
+    type_bien: str
+    boost_level: int = 0
+    latitude: float
+    longitude: float
 
     class Config:
         orm_mode = True
@@ -135,6 +184,15 @@ class PropertyBase(BaseModel):
 
 class PropertyCreate(PropertyBase):
     pass
+
+class PropertyUpdate(BaseModel):
+    address: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    image_principale: Optional[str] = None
+
+    class Config:
+        from_attributes = True
 
 class PropertyRead(PropertyBase):
     id: int

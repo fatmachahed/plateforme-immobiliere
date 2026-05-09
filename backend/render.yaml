@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: localizi-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false   # à saisir dans le dashboard Render
+      - key: SECRET_KEY
+        sync: false   # à saisir dans le dashboard Render
