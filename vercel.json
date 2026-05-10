@@ -1,0 +1,5 @@
+{
+  "buildCommand": "cd frontend/real_estate_front && npm install && npm run build",
+  "outputDirectory": "frontend/real_estate_front/dist",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
