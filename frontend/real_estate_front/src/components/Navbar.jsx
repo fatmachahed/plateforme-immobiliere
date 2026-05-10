@@ -476,12 +476,14 @@ export default function Navbar() {
 
         /* ── Hamburger (mobile only) ── */
         .lz-nav__hamburger {
-          display: none; align-items: center; justify-content: center;
-          width: 40px; height: 40px; border-radius: var(--r-sm);
-          color: var(--text-secondary); transition: background .15s;
+          display: none;
+          align-items: center; justify-content: center;
+          width: 40px; height: 40px; border-radius: 8px;
+          color: #475569; background: none; border: none;
+          cursor: pointer; transition: background .15s;
           flex-shrink: 0;
         }
-        .lz-nav__hamburger:hover { background: var(--bg); color: var(--primary); }
+        .lz-nav__hamburger:hover { background: #f1f5f9; color: #6366f1; }
 
         /* ════════════════════════════════════════
            MOBILE DRAWER
@@ -600,14 +602,15 @@ export default function Navbar() {
         }
 
         /* ── Responsive breakpoints ── */
-        @media (max-width: 900px) {
-          .lz-nav__links      { display: none; }
-          .lz-nav__hamburger  { display: flex; }
+        @media (max-width: 1100px) {
+          .lz-nav__links        { display: none !important; }
+          .lz-nav__hamburger    { display: flex !important; }
           .lz-nav__desktop-only { display: none !important; }
         }
-        @media (min-width: 901px) {
-          .lz-mob-drawer   { display: none; }
-          .lz-mob-backdrop { display: none; }
+        @media (min-width: 1101px) {
+          .lz-nav__hamburger { display: none !important; }
+          .lz-mob-drawer     { display: none !important; }
+          .lz-mob-backdrop   { display: none !important; }
         }
 
         /* Animation */
