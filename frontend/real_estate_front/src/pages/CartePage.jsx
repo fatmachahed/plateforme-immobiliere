@@ -1325,25 +1325,34 @@ export default function CartePage() {
         ══════════════════════════════════════ */
 
         @media (max-width: 860px) {
-          /* Sur mobile : carte plein écran, liste cachée */
-          .cp-layout { flex-direction: column; }
-          .cp-map    { flex: 1; }
-          .cp-list   { display: none !important; }
+          .cp-layout   { flex-direction: column; }
+          .cp-map      { flex: 1; }
+          .cp-list     { display: none !important; }
           .cp-listonly { grid-template-columns: 1fr 1fr; padding: 12px; }
-          .fp { padding: 8px 12px; }
-          .fp__row1 { gap: 6px; }
-          .fp__loc-row { margin-top: 6px; gap: 6px; }
-          .cp-bar { padding: 4px 10px; min-height: 32px; }
-        }
-        @media (max-width: 640px) {
-          .fp__pill-group     { display: none; }
+          .cp-bar      { padding: 4px 10px; min-height: 32px; }
+
+          /* ── Panneau filtres : tout empilé verticalement ── */
+          .fp          { padding: 10px 12px 12px; }
+
+          /* Ligne 1 : barre de recherche + boutons Filtres/Rechercher */
+          .fp__row1    { flex-direction: column; gap: 8px; align-items: stretch; }
+          .fp__search  { min-width: 0; }
+          .fp__pill-group { display: none; }          /* cachées sur mobile */
+          .fp__row1 > div:last-child { flex-direction: row; justify-content: flex-end; gap: 8px; margin-left: 0; }
+
+          /* Ligne 2 : localisation — chaque select sur sa propre ligne */
+          .fp__loc-row        { flex-direction: column; align-items: stretch; gap: 6px; margin-top: 8px; }
+          .loc-cascade        { flex-direction: column; gap: 6px; width: 100%; }
           .loc-cascade__arrow { display: none; }
-          .cp-listonly        { grid-template-columns: 1fr; }
-          /* Localisation + POI toujours visibles, scroll horizontal si besoin */
-          .fp__loc-row        { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; gap: 6px; }
-          .loc-cascade        { flex-wrap: nowrap; flex-shrink: 0; }
-          .loc-cascade__field { min-width: 90px; flex: none; }
-          .fp__poi-group      { flex-shrink: 0; }
+          .loc-cascade__field { width: 100%; flex: none; min-width: 0; }
+
+          /* Boutons POI (Écoles / Mosquées / Facultés) — même ligne */
+          .fp__poi-group      { display: flex; flex-direction: row; gap: 6px; flex-wrap: nowrap; width: 100%; }
+          .fp__poi-btn        { flex: 1; justify-content: center; }
+        }
+
+        @media (max-width: 640px) {
+          .cp-listonly { grid-template-columns: 1fr; }
         }
       `}</style>
     </div>
