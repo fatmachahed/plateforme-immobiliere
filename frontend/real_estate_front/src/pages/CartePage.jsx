@@ -900,18 +900,46 @@ export default function CartePage() {
         </div>
       ) : (
         <div className="cp-layout">
-          <PropertyMap
-            properties={results}
-            activeId={active}
-            selectedGov={filters.govNom}
-            onPinClick={handlePin}
-            showSchools={showSchools}
-            showMosques={showMosques}
-            showFaculties={showFaculties}
-            liveSchools={livePOIs.schools}
-            liveMosques={livePOIs.mosques}
-            liveFaculties={livePOIs.faculties}
-          />
+          {/* Carte — occupe tout l'espace restant */}
+          <div className="cp-map">
+            <PropertyMap
+              properties={results}
+              activeId={active}
+              selectedGov={filters.govNom}
+              onPinClick={handlePin}
+              showSchools={showSchools}
+              showMosques={showMosques}
+              showFaculties={showFaculties}
+              liveSchools={livePOIs.schools}
+              liveMosques={livePOIs.mosques}
+              liveFaculties={livePOIs.faculties}
+            />
+          </div>
+
+          {/* Liste à droite — desktop uniquement */}
+          <div className="cp-list">
+            {results.length === 0
+              ? <div className="cp-empty">
+                  <MapPin size={36} style={{color:"#d1d5db",margin:"0 auto 14px"}}/>
+                  <p style={{fontWeight:600,color:"#374151",marginBottom:6}}>Aucun résultat</p>
+                  <p style={{fontSize:13,color:"#9ca3af",marginBottom:16}}>Essayez d'élargir vos filtres</p>
+                  <button className="fp__reset" onClick={()=>setFilters(INIT_F)}>
+                    <X size={12}/> Effacer les filtres
+                  </button>
+                </div>
+              : results.map((p) => (
+                  <div id={`card-${p.id}`} key={p.id}>
+                    <PropCard p={p} active={active===p.id}
+                      onHover={setActive}
+                      onClick={(id)=>{
+                        const realId = String(id).startsWith("api_") ? String(id).replace("api_","") : id;
+                        navigate(`/annonce/${realId}`);
+                      }}
+                    />
+                  </div>
+                ))
+            }
+          </div>
         </div>
       )}
 
@@ -1133,11 +1161,17 @@ export default function CartePage() {
         .cp-toggle-btn:hover { background: #6366f1; color: #fff; }
 
         /* ══════════════════════════════════════
-           LAYOUT CARTE — plein écran
+           LAYOUT CARTE + LISTE
         ══════════════════════════════════════ */
-        .cp-layout {
-          flex: 1; display: block;
-          width: 100%; height: 100%;
+        .cp-layout { flex: 1; display: flex; overflow: hidden; }
+        .cp-map    { flex: 1; min-width: 0; }
+
+        /* Liste desktop — visible uniquement sur grand écran */
+        .cp-list {
+          width: 400px; min-width: 290px;
+          overflow-y: auto; background: #f8fafc;
+          border-left: 1px solid #e2e8f0;
+          padding: 10px; display: flex; flex-direction: column; gap: 10px;
         }
 
         /* ══════════════════════════════════════
@@ -1291,6 +1325,10 @@ export default function CartePage() {
         ══════════════════════════════════════ */
 
         @media (max-width: 860px) {
+          /* Sur mobile : carte plein écran, liste cachée */
+          .cp-layout { flex-direction: column; }
+          .cp-map    { flex: 1; }
+          .cp-list   { display: none !important; }
           .cp-listonly { grid-template-columns: 1fr 1fr; padding: 12px; }
           .fp { padding: 8px 12px; }
           .fp__row1 { gap: 6px; }
