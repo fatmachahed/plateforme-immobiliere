@@ -19,9 +19,7 @@ export default function Navbar() {
   const [profileOpen,   setProfileOpen]   = useState(false);
   const [searchOpen,    setSearchOpen]    = useState(false);
   const [searchVal,     setSearchVal]     = useState("");
-  const [mobNavOpen,    setMobNavOpen]    = useState(true);   // accordion: Navigation
-  const [mobAccOpen,    setMobAccOpen]    = useState(false);  // accordion: Mon compte
-  const [mobSearchVal,  setMobSearchVal]  = useState("");
+  const [mobAccOpen,    setMobAccOpen]    = useState(false);  // sous-menu profil
   const profileRef = useRef(null);
   const location   = useLocation();
   const { lang, toggleLang, t } = useLanguage();
@@ -216,154 +214,65 @@ export default function Navbar() {
       </header>
 
       {/* ════════════════════════════════════════
-          MOBILE DRAWER
+          MOBILE DRAWER — menu plat simple
       ════════════════════════════════════════ */}
       {mobileOpen && (
         <div className="lz-mob-drawer animate-slideUp">
 
-          {/* User greeting if logged in */}
-          {user && (
-            <div className="lz-mob-user-card">
-              <div className="lz-mob-user-avatar">
-                {user.profile_picture
-                  ? <img src={user.profile_picture} alt="profil" />
-                  : <User size={20} />
-                }
-              </div>
-              <div>
-                <p className="lz-mob-user-name">{user.username}</p>
-                <p className="lz-mob-user-email">{user.email}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Mobile search */}
-          <div className="lz-mob-search">
-            <Search size={16} className="lz-mob-search-ico" />
-            <input
-              type="text"
-              placeholder={t("nav_search_ph") || "Rechercher une ville, un bien…"}
-              value={mobSearchVal}
-              onChange={(e) => setMobSearchVal(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && mobSearchVal.trim()) {
-                  window.location.href = `/carte?q=${encodeURIComponent(mobSearchVal)}`;
-                }
-              }}
-              className="lz-mob-search-inp"
-            />
-          </div>
-
-          {/* ── Accordion: Navigation ── */}
-          <div className="lz-mob-section">
-            <button
-              className="lz-mob-section__header"
-              onClick={() => setMobNavOpen(!mobNavOpen)}
-            >
-              <span className="lz-mob-section__title">Navigation</span>
-              <ChevronDown
-                size={18}
-                className={`lz-mob-section__chevron${mobNavOpen ? " lz-mob-section__chevron--open" : ""}`}
-              />
-            </button>
-
-            {mobNavOpen && (
-              <div className="lz-mob-section__body">
-                {NAV_LINK_KEYS.map((n) => (
-                  <Link
-                    key={n.key}
-                    to={n.href}
-                    className={`lz-mob-item${isActive(n.href) ? " lz-mob-item--active" : ""}`}
-                  >
-                    <ChevronRight size={14} className="lz-mob-item__arrow" />
-                    {t(n.key)}
-                  </Link>
-                ))}
-                <Link to="/carte" className="lz-mob-item">
-                  <ChevronRight size={14} className="lz-mob-item__arrow" />
-                  <Map size={15} /> {t("nav_map") || "Carte"}
-                </Link>
-                <Link to="/abonnements" className="lz-mob-item lz-mob-item--gold">
-                  <ChevronRight size={14} className="lz-mob-item__arrow" />
-                  <Zap size={15} /> {t("nav_boost") || "Boost"}
-                </Link>
-              </div>
-            )}
-          </div>
-
-          {/* ── Accordion: Mon compte ── */}
-          <div className="lz-mob-section">
-            <button
-              className="lz-mob-section__header"
-              onClick={() => setMobAccOpen(!mobAccOpen)}
-            >
-              <span className="lz-mob-section__title">
-                {user ? (t("nav_profile") || "Mon compte") : "Connexion / Inscription"}
-              </span>
-              <ChevronDown
-                size={18}
-                className={`lz-mob-section__chevron${mobAccOpen ? " lz-mob-section__chevron--open" : ""}`}
-              />
-            </button>
-
-            {mobAccOpen && (
-              <div className="lz-mob-section__body">
-                {user ? (
-                  <>
-                    <Link to="/compte"      className="lz-mob-item">
-                      <ChevronRight size={14} className="lz-mob-item__arrow" />
-                      <User size={15} /> {t("nav_profile") || "Mon profil"}
-                    </Link>
-                    <Link to="/dashboard"   className="lz-mob-item">
-                      <ChevronRight size={14} className="lz-mob-item__arrow" />
-                      <LayoutDashboard size={15} /> {t("nav_listings") || "Mes annonces"}
-                    </Link>
-                    <Link to="/favoris"     className="lz-mob-item">
-                      <ChevronRight size={14} className="lz-mob-item__arrow" />
-                      <Heart size={15} /> {t("nav_favorites") || "Favoris"}
-                    </Link>
-                    <Link to="/abonnements" className="lz-mob-item lz-mob-item--gold">
-                      <ChevronRight size={14} className="lz-mob-item__arrow" />
-                      <Zap size={15} /> {t("nav_boost") || "Boost"}
-                    </Link>
-                    {user?.role === "admin" && (
-                      <Link to="/admin" className="lz-mob-item lz-mob-item--admin">
-                        <ChevronRight size={14} className="lz-mob-item__arrow" />
-                        <LayoutDashboard size={15} /> {t("nav_admin") || "Admin"}
-                      </Link>
-                    )}
-                    <Link to="/logout" className="lz-mob-item lz-mob-item--danger">
-                      <ChevronRight size={14} className="lz-mob-item__arrow" />
-                      <LogOut size={15} /> {t("nav_logout") || "Déconnexion"}
-                    </Link>
-                  </>
-                ) : (
-                  <>
-                    <Link to="/login"    className="lz-mob-item">
-                      <ChevronRight size={14} className="lz-mob-item__arrow" />
-                      <LogIn size={15} /> {t("nav_login") || "Se connecter"}
-                    </Link>
-                    <Link to="/register" className="lz-mob-item">
-                      <ChevronRight size={14} className="lz-mob-item__arrow" />
-                      <UserPlus size={15} /> {t("nav_register") || "Créer un compte"}
-                    </Link>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* ── Language toggle ── */}
-          <button className="lz-mob-lang" onClick={toggleLang}>
-            <Globe size={16} />
-            <span>{lang === "fr" ? "Switch to English" : "Passer en français"}</span>
-          </button>
-
-          {/* ── Publish CTA ── */}
+          {/* CTA en haut */}
           <div className="lz-mob-cta">
             <Link to="/creer_annonce" className="btn btn-primary btn-full">
               + {t("nav_publish") || "Publier une annonce"}
             </Link>
+          </div>
+
+          <div className="lz-mob-list">
+            {/* Navigation principale */}
+            {NAV_LINK_KEYS.map((n) => (
+              <Link key={n.key} to={n.href}
+                className={`lz-mob-row${isActive(n.href) ? " lz-mob-row--active" : ""}`}>
+                {t(n.key)}
+              </Link>
+            ))}
+            <Link to="/carte"       className="lz-mob-row"><Map size={15}/> {t("nav_map") || "Carte"}</Link>
+            <Link to="/abonnements" className="lz-mob-row lz-mob-row--gold"><Zap size={15}/> {t("nav_boost") || "Boost"}</Link>
+
+            <div className="lz-mob-sep"/>
+
+            {/* Profil — ligne cliquable qui ouvre les sous-éléments */}
+            {user ? (
+              <>
+                <button className="lz-mob-row lz-mob-row--profile" onClick={() => setMobAccOpen(v => !v)}>
+                  <span className="lz-mob-row__left">
+                    <User size={15}/> {user.username}
+                  </span>
+                  <ChevronDown size={15} style={{ transform: mobAccOpen ? "rotate(180deg)" : "none", transition: "transform .2s", flexShrink: 0 }}/>
+                </button>
+                {mobAccOpen && (
+                  <div className="lz-mob-submenu">
+                    <Link to="/compte"      className="lz-mob-subrow"><User size={14}/> {t("nav_profile") || "Mon profil"}</Link>
+                    <Link to="/dashboard"   className="lz-mob-subrow"><LayoutDashboard size={14}/> {t("nav_listings") || "Mes annonces"}</Link>
+                    <Link to="/favoris"     className="lz-mob-subrow"><Heart size={14}/> {t("nav_favorites") || "Favoris"}</Link>
+                    {user?.role === "admin" && (
+                      <Link to="/admin"     className="lz-mob-subrow lz-mob-subrow--admin"><LayoutDashboard size={14}/> {t("nav_admin") || "Admin"}</Link>
+                    )}
+                    <Link to="/logout"      className="lz-mob-subrow lz-mob-subrow--danger"><LogOut size={14}/> {t("nav_logout") || "Déconnexion"}</Link>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <Link to="/login"    className="lz-mob-row"><LogIn size={15}/> {t("nav_login") || "Se connecter"}</Link>
+                <Link to="/register" className="lz-mob-row"><UserPlus size={15}/> {t("nav_register") || "Créer un compte"}</Link>
+              </>
+            )}
+
+            <div className="lz-mob-sep"/>
+
+            {/* Langue */}
+            <button className="lz-mob-row" onClick={toggleLang}>
+              <Globe size={15}/> {lang === "fr" ? "English" : "Français"}
+            </button>
           </div>
         </div>
       )}
@@ -486,114 +395,54 @@ export default function Navbar() {
         .lz-nav__hamburger:hover { background: #f1f5f9; color: #6366f1; }
 
         /* ════════════════════════════════════════
-           MOBILE DRAWER
+           MOBILE DRAWER — simple flat
         ════════════════════════════════════════ */
         .lz-mob-drawer {
           position: fixed; inset: 64px 0 0 0;
-          background: var(--surface, #fff); z-index: calc(var(--z-nav, 1000) + 10);
+          background: #fff; z-index: calc(var(--z-nav, 1000) + 10);
           overflow-y: auto; display: flex; flex-direction: column;
-          padding: 0 0 32px 0;
-          box-shadow: 0 8px 32px rgba(0,0,0,.15);
+          padding-bottom: 32px;
         }
 
-        /* User card at top */
-        .lz-mob-user-card {
-          display: flex; align-items: center; gap: 12px;
-          padding: 16px 20px; background: var(--primary-light, #eef2ff);
-          border-bottom: 1px solid var(--border, #e2e8f0);
-        }
-        .lz-mob-user-avatar {
-          width: 44px; height: 44px; border-radius: 50%;
-          background: var(--primary, #6366f1); color: white;
-          display: flex; align-items: center; justify-content: center;
-          overflow: hidden; flex-shrink: 0;
-        }
-        .lz-mob-user-avatar img { width: 100%; height: 100%; object-fit: cover; }
-        .lz-mob-user-name  { font-weight: 700; font-size: 15px; color: var(--text-primary, #0f172a); }
-        .lz-mob-user-email { font-size: 12px; color: var(--text-muted, #94a3b8); margin-top: 1px; }
+        /* CTA top */
+        .lz-mob-cta { padding: 14px 16px 8px; }
+        .lz-mob-cta .btn { border-radius: 12px; padding: 14px; font-size: 15px; font-weight: 700; }
 
-        /* Mobile search */
-        .lz-mob-search {
-          position: relative; margin: 14px 16px 6px;
-        }
-        .lz-mob-search-ico {
-          position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
-          color: var(--text-muted, #94a3b8); pointer-events: none;
-        }
-        .lz-mob-search-inp {
-          width: 100%; padding: 11px 14px 11px 38px;
-          border: 1.5px solid var(--border, #e2e8f0);
-          border-radius: 50px; font-size: 14px; font-family: inherit;
-          outline: none; background: var(--bg, #f8fafc);
-          transition: border-color .15s; box-sizing: border-box;
-        }
-        .lz-mob-search-inp:focus { border-color: var(--primary, #6366f1); background: #fff; }
+        /* Flat list */
+        .lz-mob-list { display: flex; flex-direction: column; padding: 0 8px; }
 
-        /* Accordion section */
-        .lz-mob-section {
-          margin: 6px 16px 0;
-          border: 1px solid var(--border, #e2e8f0);
-          border-radius: 12px; overflow: hidden;
-        }
-        .lz-mob-section__header {
-          width: 100%; display: flex; align-items: center; justify-content: space-between;
-          padding: 14px 16px; background: var(--bg, #f8fafc);
-          border: none; cursor: pointer; font-family: inherit;
-          transition: background .15s;
-        }
-        .lz-mob-section__header:hover { background: var(--primary-light, #eef2ff); }
-        .lz-mob-section__title {
-          font-size: 14px; font-weight: 700; color: var(--text-primary, #0f172a);
-          letter-spacing: .2px; text-transform: uppercase;
-        }
-        .lz-mob-section__chevron {
-          color: var(--text-muted, #94a3b8);
-          transition: transform .25s ease;
-        }
-        .lz-mob-section__chevron--open { transform: rotate(180deg); }
-
-        .lz-mob-section__body {
-          padding: 6px 10px 10px;
-          border-top: 1px solid var(--border, #e2e8f0);
-          background: var(--surface, #fff);
-        }
-
-        /* Individual menu item */
-        .lz-mob-item {
+        /* Each row */
+        .lz-mob-row {
           display: flex; align-items: center; gap: 10px;
-          padding: 12px 10px; border-radius: 8px;
+          padding: 14px 12px; border-radius: 10px;
           font-size: 15px; font-weight: 600;
-          color: var(--text-secondary, #475569);
-          transition: background .15s, color .15s;
+          color: #334155; transition: background .12s, color .12s;
+          border: none; background: none; cursor: pointer;
+          font-family: inherit; text-decoration: none; width: 100%;
         }
-        .lz-mob-item:hover, .lz-mob-item--active {
-          background: var(--primary-light, #eef2ff);
-          color: var(--primary, #6366f1);
-        }
-        .lz-mob-item--active .lz-mob-item__arrow { color: var(--primary, #6366f1); }
-        .lz-mob-item__arrow { color: var(--border, #cbd5e1); flex-shrink: 0; }
-        .lz-mob-item--gold  { color: var(--gold, #b45309); }
-        .lz-mob-item--gold:hover  { background: #fef9ec; color: #92400e; }
-        .lz-mob-item--danger { color: var(--danger, #ef4444); }
-        .lz-mob-item--danger:hover { background: #fef2f2; }
-        .lz-mob-item--admin  { color: var(--primary, #6366f1); }
+        .lz-mob-row:hover       { background: #f1f5f9; color: #6366f1; }
+        .lz-mob-row--active     { color: #6366f1; background: #eef2ff; }
+        .lz-mob-row--gold       { color: #b45309; }
+        .lz-mob-row--gold:hover { background: #fef9ec; color: #92400e; }
+        .lz-mob-row--profile    { justify-content: space-between; }
+        .lz-mob-row__left       { display: flex; align-items: center; gap: 10px; }
 
-        /* Language toggle (mobile) */
-        .lz-mob-lang {
-          display: flex; align-items: center; gap: 10px;
-          margin: 12px 16px 0; padding: 13px 16px;
-          border-radius: 12px; border: 1.5px solid var(--border, #e2e8f0);
-          background: var(--bg, #f8fafc); cursor: pointer;
-          font-size: 14px; font-weight: 600; color: var(--text-secondary, #475569);
-          font-family: inherit; transition: all .15s; width: calc(100% - 32px);
-        }
-        .lz-mob-lang:hover { border-color: var(--primary, #6366f1); color: var(--primary, #6366f1); background: var(--primary-light, #eef2ff); }
+        /* Separator */
+        .lz-mob-sep { height: 1px; background: #e2e8f0; margin: 6px 12px; }
 
-        /* CTA publish */
-        .lz-mob-cta {
-          margin: 14px 16px 0; padding: 0;
+        /* Sub-rows (profil sous-menu) */
+        .lz-mob-submenu { padding-left: 16px; border-left: 2px solid #e2e8f0; margin: 0 12px 4px 20px; }
+        .lz-mob-subrow {
+          display: flex; align-items: center; gap: 9px;
+          padding: 11px 10px; border-radius: 8px;
+          font-size: 14px; font-weight: 500; color: #475569;
+          transition: background .12s, color .12s;
         }
-        .lz-mob-cta .btn { border-radius: 12px; padding: 14px 20px; font-size: 15px; font-weight: 700; }
+        .lz-mob-subrow:hover             { background: #f1f5f9; color: #334155; }
+        .lz-mob-subrow--danger           { color: #ef4444; }
+        .lz-mob-subrow--danger:hover     { background: #fef2f2; }
+        .lz-mob-subrow--admin            { color: #6366f1; font-weight: 700; }
+        .lz-mob-subrow--admin:hover      { background: #eef2ff; }
 
         /* Backdrop */
         .lz-mob-backdrop {
