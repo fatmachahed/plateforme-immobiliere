@@ -1,4 +1,4 @@
-﻿const API_URL = `${API_URL}";
+﻿const API_URL = `${API_URL}`;
 
 export const getTypeBien = async () => {
   const res = await fetch(`${API_URL}/catalogue/types-bien`);

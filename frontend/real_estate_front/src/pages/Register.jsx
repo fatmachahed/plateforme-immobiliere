@@ -27,7 +27,7 @@ export default function Register() {
     }
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/users/", {
+      const res = await fetch(`${API_URL}/users/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, email, password }),
@@ -43,7 +43,7 @@ export default function Register() {
       const body = new URLSearchParams();
       body.append("username", email);
       body.append("password", password);
-      const loginRes = await fetch(`${API_URL}/users/login", {
+      const loginRes = await fetch(`${API_URL}/users/login`, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: body.toString(),

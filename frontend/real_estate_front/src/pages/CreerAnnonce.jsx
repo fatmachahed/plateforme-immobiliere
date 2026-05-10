@@ -476,7 +476,7 @@ const CreateListingForm = () => {
         nb_salles_bain:    formData.nb_salles_bain || null,
       };
 
-      const annonceRes = await handleRes(await fetch(`${API_URL}/annonces/", {
+      const annonceRes = await handleRes(await fetch(`${API_URL}/annonces/`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -500,7 +500,7 @@ const CreateListingForm = () => {
         try {
           const imgForm = new FormData();
           imgForm.append("file", allImages[0]);
-          const imgRes = await fetch(`${API_URL}/upload/image", {
+          const imgRes = await fetch(`${API_URL}/upload/image`, {
             method: "POST",
             headers: { "Authorization": `Bearer ${token}` },
             body: imgForm,
@@ -513,7 +513,7 @@ const CreateListingForm = () => {
       }
 
       /* ── 3. Créer la propriété (localisation + image) ── */
-      await handleRes(await fetch(`${API_URL}/properties/", {
+      await handleRes(await fetch(`${API_URL}/properties/`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({

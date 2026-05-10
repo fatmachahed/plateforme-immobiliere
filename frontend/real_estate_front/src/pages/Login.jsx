@@ -28,7 +28,7 @@ export default function Login() {
       body.append("username", email);
       body.append("password", password);
 
-      const res = await fetch(`${API_URL}/users/login", {
+      const res = await fetch(`${API_URL}/users/login`, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: body.toString(),

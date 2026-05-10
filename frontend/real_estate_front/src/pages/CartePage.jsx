@@ -772,7 +772,7 @@ export default function CartePage() {
   }, [filters.govNom, showSchools, showMosques, showFaculties, fetchPOIs]);
 
   useEffect(() => {
-    fetch(`${API_URL}/annonces/public?limit=100")
+    fetch(`${API_URL}/annonces/public?limit=100`)
       .then(r => r.json())
       .then(data => {
         const transformed = (Array.isArray(data) ? data : [])
