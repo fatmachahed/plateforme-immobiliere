@@ -1,0 +1,6 @@
+{
+  "buildCommand": "cd frontend/real_estate_front && npm install && npm run build",
+  "outputDirectory": "frontend/real_estate_front/dist",
+  "installCommand": "cd frontend/real_estate_front && npm install",
+  "framework": "vite"
+}
