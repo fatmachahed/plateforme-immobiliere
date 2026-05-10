@@ -3,7 +3,7 @@ import API_URL from '../config';
 import { Link } from "react-router-dom";
 import { Eye, EyeOff, UserPlus } from "lucide-react";
 import { useToast } from "../components/Toast";
-import logoUrl from "../assets/logo_vert_new.png";
+import Logo from "../components/Logo";
 import heroUrl from "../assets/image_home_new.png";
 
 export default function Register() {
@@ -72,7 +72,7 @@ export default function Register() {
         <img src={heroUrl} alt="" className="sp-left__bg" />
         <div className="sp-left__overlay" />
         <div className="sp-left__content">
-          <img src={logoUrl} alt="Localizi" className="sp-left__logo" />
+          <div className="sp-left__logo"><Logo variant="white" height={46} to="/" /></div>
           <h2 className="sp-left__tagline">Rejoignez des milliers<br/>d'utilisateurs Localizi.</h2>
           <p className="sp-left__sub">Publiez, cherchez et trouvez le bien idéal en Tunisie. Inscription gratuite.</p>
           <div className="sp-left__pills">
@@ -92,7 +92,7 @@ export default function Register() {
       {/* Right */}
       <div className="sp-right">
         <div className="sp-form-wrap">
-          <Link to="/" className="sp-logo-mobile"><img src={logoUrl} alt="Localizi"/></Link>
+          <div className="sp-logo-mobile"><Logo variant="color" height={40} to="/" /></div>
 
           <h1 className="sp-title">Créer un compte</h1>
           <p className="sp-sub">Rejoignez Localizi et trouvez votre bien idéal.</p>
@@ -186,7 +186,7 @@ export default function Register() {
           background-size: 24px 24px;
         }
         .sp-left__content { position: relative; z-index: 2; padding: 52px; }
-        .sp-left__logo { height: 44px; margin-bottom: 40px; filter: brightness(0) invert(1); }
+        .sp-left__logo { margin-bottom: 40px; }
         .sp-left__tagline {
           font-size: clamp(26px, 2.8vw, 34px); font-weight: 800; color: #fff;
           line-height: 1.25; letter-spacing: -.025em;
@@ -223,7 +223,6 @@ export default function Register() {
         }
         .sp-form-wrap { width: 100%; max-width: 400px; }
         .sp-logo-mobile { display: none; justify-content: center; margin-bottom: 28px; }
-        .sp-logo-mobile img { height: 38px; }
         .sp-title { font-size: 27px; font-weight: 800; color: #0f172a; letter-spacing: -.02em; }
         .sp-sub   { font-size: 14px; color: #94a3b8; margin-top: 5px; margin-bottom: 28px; }
         .sp-notice {

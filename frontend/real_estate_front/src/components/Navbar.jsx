@@ -6,6 +6,7 @@ import {
   Home, Key, Umbrella, Phone, PlusCircle
 } from "lucide-react";
 import { useLanguage } from "../contexts/LanguageContext";
+import Logo from "./Logo";
 
 const NAV_LINK_KEYS = [
   { key: "nav_buy",      href: "/carte?categorie=vente",    icon: Home     },
@@ -71,23 +72,9 @@ export default function Navbar() {
       <header className={`lz-nav${scrolled ? " lz-nav--scrolled" : ""}`}>
         <div className="lz-nav__inner">
           {/* ── Logo ── */}
-          <Link to="/" className="lz-nav__logo">
-            <svg width="168" height="44" viewBox="0 0 168 44" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Localizi">
-              <defs>
-                <linearGradient id="nav-pin-g" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#6366f1"/>
-                  <stop offset="100%" stopColor="#4338ca"/>
-                </linearGradient>
-              </defs>
-              <ellipse cx="16" cy="40" rx="7" ry="3" fill="#6366f1" fillOpacity=".12"/>
-              <path d="M16 2C9.92 2 5 6.92 5 13C5 21.5 16 38 16 38C16 38 27 21.5 27 13C27 6.92 22.08 2 16 2Z" fill="url(#nav-pin-g)"/>
-              <circle cx="16" cy="13" r="6" fill="white" fillOpacity=".92"/>
-              <path d="M13 16V12.8L16 10.5L19 12.8V16H17.2V14.2H14.8V16H13Z" fill="#4f46e5"/>
-              <text x="35" y="29" fontFamily="'Plus Jakarta Sans', system-ui, sans-serif" fontWeight="800" fontSize="26" letterSpacing="-0.5">
-                <tspan fill="#0f172a">LOCALI</tspan><tspan fill="#6366f1">ZI</tspan>
-              </text>
-            </svg>
-          </Link>
+          <div className="lz-nav__logo">
+            <Logo variant="color" height={44} />
+          </div>
 
           {/* ── Desktop nav links ── */}
           <nav className="lz-nav__links">

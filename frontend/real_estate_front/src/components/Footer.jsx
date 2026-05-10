@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { MapPin, Mail, Phone, Facebook, Instagram, Twitter, Zap, Home, ArrowRight } from "lucide-react";
+import Logo from "./Logo";
 
 export default function Footer() {
   return (
@@ -11,8 +12,7 @@ export default function Footer() {
           {/* Brand */}
           <div className="lz-footer__brand">
             <div className="lz-footer__logo">
-              <Home size={22} style={{ color: "var(--primary)" }} />
-              <span>Localizi</span>
+              <Logo variant="white" height={38} to="/" />
             </div>
             <p>La plateforme immobilière N°1 en Tunisie. Achetez, louez et vendez vos biens immobiliers facilement.</p>
             <div className="lz-footer__social">
