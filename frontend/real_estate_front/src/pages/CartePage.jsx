@@ -1336,11 +1336,14 @@ export default function CartePage() {
           .cp-bar { padding: 4px 10px; min-height: 32px; }
         }
         @media (max-width: 640px) {
-          .fp__pill-group { display: none; }
+          .fp__pill-group     { display: none; }
           .loc-cascade__arrow { display: none; }
-          .fp__poi-group { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-          .cp-listonly { grid-template-columns: 1fr; }
-          .fp__loc-row { display: none; }
+          .cp-listonly        { grid-template-columns: 1fr; }
+          /* Localisation + POI toujours visibles, scroll horizontal si besoin */
+          .fp__loc-row        { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; gap: 6px; }
+          .loc-cascade        { flex-wrap: nowrap; flex-shrink: 0; }
+          .loc-cascade__field { min-width: 90px; flex: none; }
+          .fp__poi-group      { flex-shrink: 0; }
         }
       `}</style>
     </div>
