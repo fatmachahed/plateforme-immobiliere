@@ -43,9 +43,15 @@ app.include_router(admin.router,       tags=["Admin"])
 def root():
     return {"message": "API avec CORS activé!"}
 
+
+
 @app.get("/test-cors")
 def test_cors():
     return {"message": "CORS fonctionne!", "status": "ok"}
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 # 6. Gestionnaire OPTIONS global
 @app.options("/{path:path}")
