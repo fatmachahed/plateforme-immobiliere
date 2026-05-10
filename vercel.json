@@ -1,5 +1,13 @@
 {
   "buildCommand": "cd frontend/real_estate_front && npm install && npm run build",
   "outputDirectory": "frontend/real_estate_front/dist",
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
+  "env": {
+    "VITE_API_URL": "https://plateforme-immobiliere.onrender.com"
+  },
+  "build": {
+    "env": {
+      "VITE_API_URL": "https://plateforme-immobiliere.onrender.com"
+    }
+  }
 }
