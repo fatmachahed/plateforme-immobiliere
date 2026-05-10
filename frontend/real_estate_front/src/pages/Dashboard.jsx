@@ -43,7 +43,8 @@ export default function Dashboard() {
   async function fetchAnnonces() {
     setLoading(true);
     try {
-      const res = await fetch(`\/annonces/`, {
+      // fetch annonces
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/annonces/`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.status === 401) { navigate("/login?session=expired"); return; }
@@ -61,7 +62,8 @@ export default function Dashboard() {
 
   async function handleDelete(id) {
     try {
-      const res = await fetch(`\/annonces/${id}`, {
+      // fetch delete
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/annonces/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` }
       });
