@@ -698,7 +698,6 @@ export default function CartePage() {
   const [showFaculties,  setShowFaculties]  = useState(false);
   const [listMode,       setListMode]       = useState(searchParams.get("vue") === "liste");
   const [livePOIs,       setLivePOIs]       = useState({ schools: [], mosques: [], faculties: [], loading: false });
-  const [mobSheetOpen,   setMobSheetOpen]   = useState(false); // mobile bottom sheet
 
   /* ── Fetch POIs from Overpass API ── */
   const fetchPOIs = useCallback(async (govNom) => {
@@ -901,108 +900,19 @@ export default function CartePage() {
         </div>
       ) : (
         <div className="cp-layout">
-          <div className="cp-map">
-            <PropertyMap
-              properties={results}
-              activeId={active}
-              selectedGov={filters.govNom}
-              onPinClick={(id) => { handlePin(id); setMobSheetOpen(true); }}
-              showSchools={showSchools}
-              showMosques={showMosques}
-              showFaculties={showFaculties}
-              liveSchools={livePOIs.schools}
-              liveMosques={livePOIs.mosques}
-              liveFaculties={livePOIs.faculties}
-            />
-
-            {/* ── Mobile: floating bottom pill ── */}
-            <button
-              className="cp-mob-pill"
-              onClick={() => setMobSheetOpen(true)}
-            >
-              <LayoutList size={15} />
-              <strong>{results.length}</strong> annonce{results.length !== 1 ? "s" : ""}
-            </button>
-          </div>
-
-          {/* ── Desktop sidebar list ── */}
-          <div className="cp-list cp-list--desktop">
-            {results.length === 0
-              ? <div className="cp-empty">
-                  <MapPin size={36} style={{color:"#d1d5db",margin:"0 auto 14px"}}/>
-                  <p style={{fontWeight:600,color:"#374151",marginBottom:6}}>Aucun résultat</p>
-                  <p style={{fontSize:13,color:"#9ca3af",marginBottom:16}}>Essayez d'élargir vos filtres</p>
-                  <button className="fp__reset" onClick={()=>setFilters(INIT_F)}>
-                    <X size={12}/> Effacer les filtres
-                  </button>
-                </div>
-              : results.map((p) => (
-                  <div id={`card-${p.id}`} key={p.id}>
-                    <PropCard p={p} active={active===p.id}
-                      onHover={setActive}
-                      onClick={(id)=>{
-                        const realId = String(id).startsWith("api_") ? String(id).replace("api_","") : id;
-                        navigate(`/annonce/${realId}`);
-                      }}
-                    />
-                  </div>
-                ))
-            }
-          </div>
+          <PropertyMap
+            properties={results}
+            activeId={active}
+            selectedGov={filters.govNom}
+            onPinClick={handlePin}
+            showSchools={showSchools}
+            showMosques={showMosques}
+            showFaculties={showFaculties}
+            liveSchools={livePOIs.schools}
+            liveMosques={livePOIs.mosques}
+            liveFaculties={livePOIs.faculties}
+          />
         </div>
-
-      {/* ════════════════════════════════════════
-          MOBILE BOTTOM SHEET (cards)
-      ════════════════════════════════════════ */}
-      {mobSheetOpen && (
-        <>
-          {/* Backdrop */}
-          <div className="cp-mob-backdrop" onClick={() => setMobSheetOpen(false)} />
-
-          {/* Sheet */}
-          <div className="cp-mob-sheet animate-slideUpSheet">
-            {/* Handle */}
-            <div className="cp-mob-sheet__handle-bar" onClick={() => setMobSheetOpen(false)}>
-              <div className="cp-mob-sheet__handle" />
-            </div>
-
-            {/* Header */}
-            <div className="cp-mob-sheet__header">
-              <span className="cp-mob-sheet__title">
-                <strong>{results.length}</strong> annonce{results.length !== 1 ? "s" : ""} trouvée{results.length !== 1 ? "s" : ""}
-              </span>
-              <button className="cp-mob-sheet__close" onClick={() => setMobSheetOpen(false)}>
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Cards list */}
-            <div className="cp-mob-sheet__body">
-              {results.length === 0
-                ? <div className="cp-empty">
-                    <MapPin size={36} style={{color:"#d1d5db",margin:"0 auto 14px"}}/>
-                    <p style={{fontWeight:600,color:"#374151",marginBottom:6}}>Aucun résultat</p>
-                    <p style={{fontSize:13,color:"#9ca3af",marginBottom:16}}>Essayez d'élargir vos filtres</p>
-                    <button className="fp__reset" onClick={()=>setFilters(INIT_F)}>
-                      <X size={12}/> Effacer les filtres
-                    </button>
-                  </div>
-                : results.map((p) => (
-                    <div id={`card-mob-${p.id}`} key={p.id}>
-                      <PropCard p={p} active={active === p.id}
-                        onHover={setActive}
-                        onClick={(id) => {
-                          const realId = String(id).startsWith("api_") ? String(id).replace("api_","") : id;
-                          navigate(`/annonce/${realId}`);
-                        }}
-                      />
-                    </div>
-                  ))
-              }
-            </div>
-          </div>
-        </>
-      )}
       )}
 
       {/* ── CSS ── */}
@@ -1223,77 +1133,12 @@ export default function CartePage() {
         .cp-toggle-btn:hover { background: #6366f1; color: #fff; }
 
         /* ══════════════════════════════════════
-           LAYOUT CARTE + LISTE
+           LAYOUT CARTE — plein écran
         ══════════════════════════════════════ */
-        .cp-layout { flex: 1; display: flex; overflow: hidden; position: relative; }
-        .cp-map    { flex: 1; min-width: 0; position: relative; }
-        .cp-list   {
-          width: 400px; min-width: 290px;
-          overflow-y: auto; background: #f8fafc;
-          border-left: 1px solid #e2e8f0;
-          padding: 10px; display: flex; flex-direction: column; gap: 10px;
+        .cp-layout {
+          flex: 1; display: block;
+          width: 100%; height: 100%;
         }
-
-        /* ── Mobile floating pill (bottom of map) ── */
-        .cp-mob-pill {
-          display: none;
-          position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
-          align-items: center; gap: 8px;
-          padding: 12px 24px; border-radius: 50px;
-          background: #1e293b; color: #fff;
-          font-size: 14px; font-weight: 700; font-family: inherit;
-          border: none; cursor: pointer;
-          box-shadow: 0 6px 24px rgba(0,0,0,.35);
-          z-index: 400; white-space: nowrap;
-          transition: background .15s, transform .15s;
-        }
-        .cp-mob-pill:hover { background: #334155; transform: translateX(-50%) translateY(-2px); }
-        .cp-mob-pill strong { font-size: 15px; color: #a5f3fc; }
-
-        /* ── Mobile bottom sheet ── */
-        .cp-mob-backdrop {
-          display: none;
-          position: fixed; inset: 0; z-index: 500;
-          background: rgba(15,23,42,.5);
-        }
-        .cp-mob-sheet {
-          display: none;
-          position: fixed; bottom: 0; left: 0; right: 0; z-index: 600;
-          background: #fff; border-radius: 20px 20px 0 0;
-          box-shadow: 0 -8px 40px rgba(0,0,0,.2);
-          max-height: 75vh; flex-direction: column;
-        }
-        .cp-mob-sheet__handle-bar {
-          padding: 10px 0 4px; display: flex; justify-content: center;
-          cursor: pointer; flex-shrink: 0;
-        }
-        .cp-mob-sheet__handle {
-          width: 40px; height: 5px; background: #cbd5e1; border-radius: 3px;
-        }
-        .cp-mob-sheet__header {
-          display: flex; align-items: center; justify-content: space-between;
-          padding: 6px 16px 10px; flex-shrink: 0;
-          border-bottom: 1px solid #f1f5f9;
-        }
-        .cp-mob-sheet__title { font-size: 14px; color: #475569; }
-        .cp-mob-sheet__title strong { color: #0f172a; font-size: 16px; }
-        .cp-mob-sheet__close {
-          width: 32px; height: 32px; border-radius: 50%;
-          display: flex; align-items: center; justify-content: center;
-          background: #f1f5f9; border: none; cursor: pointer; color: #475569;
-          transition: background .15s;
-        }
-        .cp-mob-sheet__close:hover { background: #e2e8f0; }
-        .cp-mob-sheet__body {
-          flex: 1; overflow-y: auto; padding: 10px;
-          display: flex; flex-direction: column; gap: 10px;
-        }
-
-        @keyframes slideUpSheet {
-          from { transform: translateY(100%); }
-          to   { transform: translateY(0); }
-        }
-        .animate-slideUpSheet { animation: slideUpSheet .28s cubic-bezier(.22,.68,0,1.2) both; }
 
         /* ══════════════════════════════════════
            MODE LISTE SEULE
@@ -1445,49 +1290,19 @@ export default function CartePage() {
            RESPONSIVE
         ══════════════════════════════════════ */
 
-        /* ── Desktop ≥ 861px: sidebar list visible, pill/sheet hidden ── */
-        @media (min-width: 861px) {
-          .cp-mob-pill     { display: none !important; }
-          .cp-mob-backdrop { display: none !important; }
-          .cp-mob-sheet    { display: none !important; }
-        }
-
-        /* ── Mobile ≤ 860px: map full height, sidebar hidden, pill + sheet visible ── */
         @media (max-width: 860px) {
-          /* Map takes ALL available height — layout is just the map */
-          .cp-layout           { flex-direction: column; height: 100%; }
-          .cp-map              { flex: 1; height: 100%; }
-
-          /* Hide desktop sidebar list */
-          .cp-list--desktop    { display: none !important; }
-
-          /* Show floating pill at bottom of map */
-          .cp-mob-pill         { display: flex; }
-
-          /* Show backdrop + sheet when open */
-          .cp-mob-backdrop     { display: block; }
-          .cp-mob-sheet        { display: flex; }
-
-          /* List-only mode: 2 columns */
           .cp-listonly { grid-template-columns: 1fr 1fr; padding: 12px; }
-
-          /* Compact filter bar */
-          .fp { padding: 8px 12px 8px; }
+          .fp { padding: 8px 12px; }
           .fp__row1 { gap: 6px; }
           .fp__loc-row { margin-top: 6px; gap: 6px; }
-          .cp-bar  { padding: 4px 10px; min-height: 32px; }
+          .cp-bar { padding: 4px 10px; min-height: 32px; }
         }
-
         @media (max-width: 640px) {
-          /* Hide pill buttons in filter bar */
-          .fp__pill-group  { display: none; }
+          .fp__pill-group { display: none; }
           .loc-cascade__arrow { display: none; }
-          /* POI buttons — horizontal scroll */
-          .fp__poi-group   { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-          /* List-only: single column */
-          .cp-listonly     { grid-template-columns: 1fr; }
-          /* Compact filter: hide loc cascade on smallest screens, keep search */
-          .fp__loc-row     { display: none; }
+          .fp__poi-group { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+          .cp-listonly { grid-template-columns: 1fr; }
+          .fp__loc-row { display: none; }
         }
       `}</style>
     </div>
