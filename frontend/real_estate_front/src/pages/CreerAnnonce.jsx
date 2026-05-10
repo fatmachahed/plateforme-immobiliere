@@ -529,7 +529,8 @@ const CreateListingForm = () => {
       setTimeout(() => { window.location.href = "/dashboard"; }, 1200);
     } catch (err) {
       if (err.message !== "session_expired") {
-        toast("Erreur réseau — vérifiez que le serveur est démarré.", "error");
+        console.error("[CreerAnnonce] Erreur soumission:", err);
+        toast(`Erreur : ${err?.message || "Vérifiez votre connexion et réessayez."}`, "error");
       }
     }
   };

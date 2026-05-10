@@ -61,8 +61,8 @@ class LocaliteRead(LocaliteBase):
 class AnnonceBase(BaseModel):
     # utilisateur_id: int
     gouvernorat_id: int
-    delegation_id: int
-    localite_id: int
+    delegation_id: Optional[int] = None
+    localite_id: Optional[int] = None
     categorie: str
     type_bien: str
     titre: str
