@@ -2,15 +2,16 @@ import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Search, Menu, X, User, LogIn, UserPlus, LogOut,
-  LayoutDashboard, Zap, ChevronDown, ChevronRight, Map, Heart, Globe
+  LayoutDashboard, Zap, ChevronDown, ChevronRight, Map, Heart, Globe,
+  Home, Key, Umbrella, Phone, PlusCircle
 } from "lucide-react";
 import { useLanguage } from "../contexts/LanguageContext";
 
 const NAV_LINK_KEYS = [
-  { key: "nav_buy",      href: "/carte?categorie=vente" },
-  { key: "nav_rent",     href: "/carte?categorie=location" },
-  { key: "nav_vacation", href: "/carte?categorie=vacances" },
-  { key: "nav_contact",  href: "/contact" },
+  { key: "nav_buy",      href: "/carte?categorie=vente",    icon: Home     },
+  { key: "nav_rent",     href: "/carte?categorie=location", icon: Key      },
+  { key: "nav_vacation", href: "/carte?categorie=vacances", icon: Umbrella },
+  { key: "nav_contact",  href: "/contact",                  icon: Phone    },
 ];
 
 export default function Navbar() {
@@ -218,52 +219,43 @@ export default function Navbar() {
       ════════════════════════════════════════ */}
       {mobileOpen && (
         <div className="lz-mob-drawer animate-slideUp">
-
-          {/* CTA en haut */}
-          <div className="lz-mob-cta">
-            <Link to="/creer_annonce" className="btn btn-primary btn-full">
-              + {t("nav_publish") || "Publier une annonce"}
-            </Link>
-          </div>
-
           <div className="lz-mob-list">
-            {/* Navigation principale */}
+
+            {/* Navigation principale avec icônes */}
             {NAV_LINK_KEYS.map((n) => (
               <Link key={n.key} to={n.href}
                 className={`lz-mob-row${isActive(n.href) ? " lz-mob-row--active" : ""}`}>
-                {t(n.key)}
+                <n.icon size={17}/> {t(n.key)}
               </Link>
             ))}
-            <Link to="/carte"       className="lz-mob-row"><Map size={15}/> {t("nav_map") || "Carte"}</Link>
-            <Link to="/abonnements" className="lz-mob-row lz-mob-row--gold"><Zap size={15}/> {t("nav_boost") || "Boost"}</Link>
+            <Link to="/carte"       className="lz-mob-row"><Map size={17}/> {t("nav_map") || "Carte"}</Link>
+            <Link to="/abonnements" className="lz-mob-row lz-mob-row--gold"><Zap size={17}/> {t("nav_boost") || "Boost"}</Link>
 
             <div className="lz-mob-sep"/>
 
-            {/* Profil — ligne cliquable qui ouvre les sous-éléments */}
+            {/* Profil */}
             {user ? (
               <>
                 <button className="lz-mob-row lz-mob-row--profile" onClick={() => setMobAccOpen(v => !v)}>
-                  <span className="lz-mob-row__left">
-                    <User size={15}/> {user.username}
-                  </span>
-                  <ChevronDown size={15} style={{ transform: mobAccOpen ? "rotate(180deg)" : "none", transition: "transform .2s", flexShrink: 0 }}/>
+                  <span className="lz-mob-row__left"><User size={17}/> {user.username}</span>
+                  <ChevronDown size={15} style={{ transform: mobAccOpen ? "rotate(180deg)" : "none", transition: "transform .2s" }}/>
                 </button>
                 {mobAccOpen && (
                   <div className="lz-mob-submenu">
-                    <Link to="/compte"      className="lz-mob-subrow"><User size={14}/> {t("nav_profile") || "Mon profil"}</Link>
-                    <Link to="/dashboard"   className="lz-mob-subrow"><LayoutDashboard size={14}/> {t("nav_listings") || "Mes annonces"}</Link>
-                    <Link to="/favoris"     className="lz-mob-subrow"><Heart size={14}/> {t("nav_favorites") || "Favoris"}</Link>
+                    <Link to="/compte"    className="lz-mob-subrow"><User size={14}/> {t("nav_profile")    || "Mon profil"}</Link>
+                    <Link to="/dashboard" className="lz-mob-subrow"><LayoutDashboard size={14}/> {t("nav_listings")  || "Mes annonces"}</Link>
+                    <Link to="/favoris"   className="lz-mob-subrow"><Heart size={14}/> {t("nav_favorites") || "Favoris"}</Link>
                     {user?.role === "admin" && (
-                      <Link to="/admin"     className="lz-mob-subrow lz-mob-subrow--admin"><LayoutDashboard size={14}/> {t("nav_admin") || "Admin"}</Link>
+                      <Link to="/admin"   className="lz-mob-subrow lz-mob-subrow--admin"><LayoutDashboard size={14}/> {t("nav_admin") || "Admin"}</Link>
                     )}
-                    <Link to="/logout"      className="lz-mob-subrow lz-mob-subrow--danger"><LogOut size={14}/> {t("nav_logout") || "Déconnexion"}</Link>
+                    <Link to="/logout"    className="lz-mob-subrow lz-mob-subrow--danger"><LogOut size={14}/> {t("nav_logout") || "Déconnexion"}</Link>
                   </div>
                 )}
               </>
             ) : (
               <>
-                <Link to="/login"    className="lz-mob-row"><LogIn size={15}/> {t("nav_login") || "Se connecter"}</Link>
-                <Link to="/register" className="lz-mob-row"><UserPlus size={15}/> {t("nav_register") || "Créer un compte"}</Link>
+                <Link to="/login"    className="lz-mob-row"><LogIn    size={17}/> {t("nav_login")    || "Se connecter"}</Link>
+                <Link to="/register" className="lz-mob-row"><UserPlus size={17}/> {t("nav_register") || "Créer un compte"}</Link>
               </>
             )}
 
@@ -271,8 +263,16 @@ export default function Navbar() {
 
             {/* Langue */}
             <button className="lz-mob-row" onClick={toggleLang}>
-              <Globe size={15}/> {lang === "fr" ? "English" : "Français"}
+              <Globe size={17}/> {lang === "fr" ? "English" : "Français"}
             </button>
+
+            {/* CTA — dernier élément */}
+            <div className="lz-mob-cta">
+              <Link to="/creer_annonce" className="btn btn-primary btn-full lz-mob-cta__btn">
+                <PlusCircle size={17}/> {t("nav_publish") || "Publier une annonce"}
+              </Link>
+            </div>
+
           </div>
         </div>
       )}
@@ -404,9 +404,12 @@ export default function Navbar() {
           padding-bottom: 32px;
         }
 
-        /* CTA top */
-        .lz-mob-cta { padding: 14px 16px 8px; }
-        .lz-mob-cta .btn { border-radius: 12px; padding: 14px; font-size: 15px; font-weight: 700; }
+        /* CTA bas */
+        .lz-mob-cta { padding: 10px 4px 4px; }
+        .lz-mob-cta__btn {
+          border-radius: 12px; padding: 14px; font-size: 15px; font-weight: 700;
+          display: flex !important; align-items: center; justify-content: center; gap: 8px;
+        }
 
         /* Flat list */
         .lz-mob-list { display: flex; flex-direction: column; padding: 0 8px; }
