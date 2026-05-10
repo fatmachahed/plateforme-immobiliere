@@ -1,6 +1,0 @@
-{
-  "buildCommand": "cd frontend/real_estate_front && npm run build",
-  "outputDirectory": "frontend/real_estate_front/dist",
-  "installCommand": "cd frontend/real_estate_front && npm install --legacy-peer-deps",
-  "framework": "vite"
-}
