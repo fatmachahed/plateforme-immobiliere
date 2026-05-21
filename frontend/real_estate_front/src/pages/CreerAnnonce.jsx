@@ -102,67 +102,53 @@ const CreateListingForm = () => {
     const token = localStorage.getItem("token");
     if (!token) navigate("/login?redirect=/creer_annonce", { replace: true });
   }, []);
-  const [currentStep, setCurrentStep] = useState(1);
-  const [mapLocation, setMapLocation] = useState({
-    lat: 36.8065,
-    lng: 10.1815,
-    address: 'Tunis, Tunisie'
+
+  /* ── Restore step + non-file form data from localStorage ── */
+  const [currentStep, setCurrentStep] = useState(() => {
+    try {
+      const saved = localStorage.getItem("ca_step");
+      const n = saved ? parseInt(saved, 10) : 1;
+      return (n >= 1 && n <= 6) ? n : 1;
+    } catch { return 1; }
+  });
+  const [mapLocation, setMapLocation] = useState(() => {
+    try {
+      const saved = localStorage.getItem("ca_maploc");
+      return saved ? JSON.parse(saved) : { lat: 36.8065, lng: 10.1815, address: "Tunis, Tunisie" };
+    } catch { return { lat: 36.8065, lng: 10.1815, address: "Tunis, Tunisie" }; }
   });
   const [isGeolocating, setIsGeolocating] = useState(false);
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
   const [isAILoading, setIsAILoading] = useState(false);
-  const [hierarchy, setHierarchy] = useState({
-    gouvernorat: "",
-    delegation: "",
-    localite: ""
+  const [hierarchy, setHierarchy] = useState(() => {
+    try {
+      const saved = localStorage.getItem("ca_hierarchy");
+      return saved ? JSON.parse(saved) : { gouvernorat: "", delegation: "", localite: "" };
+    } catch { return { gouvernorat: "", delegation: "", localite: "" }; }
   });
 
   const { gouvernorats, delegations, localites } = useLocalisation(hierarchy);
 
-  const [formData, setFormData] = useState({
-    // Step 1
-    type_bien: "",
-    categorie: "",
-    etat_bien: "",
-    type_terrain: "",
-    titre_foncier: "",
-    type_appartement: "",
-    etage: "",
-    type_villa: "",
-    type_option_villa: "",
-    nb_pieces: 0,
-    nb_chambres: 0,
-    nb_salles_bain: 0,
-    // Step 2
-    vue_mer: false,
-    vue_montagne: false,
-    vue_foret: false,
-    jardin: false,
-    terrasse: false,
-    balcon: false,
-    ascenseur: false,
-    garage: false,
-    parking: false,
-    cellier: false,
-    meuble: false,
-    cuisine_equipee: false,
-    climatisation: false,
-    // Step 3
-    gouvernorat: "",
-    delegation: "",
-    localite: "",
-    address: "Tunis, Tunisie",
-    latitude: "36.8065",
-    longitude: "10.1815",
-    // Step 4
-    titre: "",
-    superficie: "",
-    prix: "",
-    devise: "TND",
-    description: "",
-    // Step 5
-    image_principale: null,
-    images: []
+  const defaultFormData = {
+    type_bien: "", categorie: "", etat_bien: "", type_terrain: "", titre_foncier: "",
+    type_appartement: "", etage: "", type_villa: "", type_option_villa: "",
+    nb_pieces: 0, nb_chambres: 0, nb_salles_bain: 0,
+    vue_mer: false, vue_montagne: false, vue_foret: false, jardin: false,
+    terrasse: false, balcon: false, ascenseur: false, garage: false, parking: false,
+    cellier: false, meuble: false, cuisine_equipee: false, climatisation: false,
+    gouvernorat: "", delegation: "", localite: "",
+    address: "Tunis, Tunisie", latitude: "36.8065", longitude: "10.1815",
+    titre: "", superficie: "", prix: "", devise: "TND", description: "",
+    image_principale: null, images: []
+  };
+
+  const [formData, setFormData] = useState(() => {
+    try {
+      const saved = localStorage.getItem("ca_formdata");
+      if (!saved) return defaultFormData;
+      const parsed = JSON.parse(saved);
+      return { ...defaultFormData, ...parsed, image_principale: null, images: [] };
+    } catch { return defaultFormData; }
   });
 
   const [imageValidation, setImageValidation] = useState({});
@@ -170,6 +156,32 @@ const CreateListingForm = () => {
   const totalSteps = 6;
 
   const [addressFilter, setAddressFilter] = useState("");
+
+  /* ── Persist form state to localStorage (non-file fields only) ── */
+  useEffect(() => {
+    try { localStorage.setItem("ca_step", String(currentStep)); } catch { /* ignore */ }
+  }, [currentStep]);
+
+  useEffect(() => {
+    try {
+      const { image_principale, images, ...serializableData } = formData;
+      localStorage.setItem("ca_formdata", JSON.stringify(serializableData));
+    } catch { /* ignore */ }
+  }, [formData]);
+
+  useEffect(() => {
+    try { localStorage.setItem("ca_hierarchy", JSON.stringify(hierarchy)); } catch { /* ignore */ }
+  }, [hierarchy]);
+
+  useEffect(() => {
+    try { localStorage.setItem("ca_maploc", JSON.stringify(mapLocation)); } catch { /* ignore */ }
+  }, [mapLocation]);
+
+  const clearFormStorage = () => {
+    ["ca_step", "ca_formdata", "ca_hierarchy", "ca_maploc"].forEach(k => {
+      try { localStorage.removeItem(k); } catch { /* ignore */ }
+    });
+  };
 
   const handleHierarchyChange = (level, value) => {
     const newHierarchy = { ...hierarchy };
@@ -397,9 +409,17 @@ const CreateListingForm = () => {
         toast("Champ requis ✦ Saisissez un prix valide.", "error"); return;
       }
     }
-    if (currentStep < totalSteps) setCurrentStep(currentStep + 1);
+    if (currentStep < totalSteps) {
+      setCurrentStep(currentStep + 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
-  const prevStep = () => { if (currentStep > 1) setCurrentStep(currentStep - 1); };
+  const prevStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
 
   const handleSubmit = async (e) => {
     if (e?.preventDefault) e.preventDefault();
@@ -525,6 +545,7 @@ const CreateListingForm = () => {
         }),
       }));
 
+      clearFormStorage();
       toast("Annonce créée et publiée sur la carte !");
       setTimeout(() => { window.location.href = "/dashboard"; }, 1200);
     } catch (err) {
@@ -984,6 +1005,7 @@ const CreateListingForm = () => {
                         <label className="ca-label">Gouvernorat <span className="ca-req">*</span></label>
                         <select className="ca-select" value={hierarchy.gouvernorat}
                           onChange={e => handleHierarchyChange("gouvernorat", e.target.value)}>
+                          <option value="">Gouvernorat</option>
                           {(gouvernorats || []).map(gov => (
                             <option key={gov.value} value={gov.value}>{gov.label}</option>
                           ))}
@@ -1070,94 +1092,156 @@ const CreateListingForm = () => {
                     <span className="ca-req-hint"><span className="ca-req">*</span> champs requis</span>
                   </div>
 
-                  {/* Titre */}
-                  <div className="ca-field" style={{marginBottom:20}}>
-                    <label className="ca-label">Titre de l'annonce <span className="ca-req">*</span></label>
-                    <div className="ca-input-wand">
-                      <input type="text" className="ca-input"
-                        placeholder="Ex: Magnifique villa moderne avec piscine"
-                        value={formData.titre}
-                        onChange={e => handleInputChange("titre", e.target.value)}
-                      />
-                      <button type="button" className="ca-wand-btn"
-                        title="Suggérer un titre avec l'IA"
-                        onClick={() => {
-                          if (formData.type_bien) {
-                            const titles = [
-                              `Superbe ${formData.type_bien} ${hierarchy.gouvernorat ? `à ${gouvernorats.find(g=>g.value===hierarchy.gouvernorat)?.label || ""}` : ""}`,
-                              `${formData.type_bien.charAt(0).toUpperCase() + formData.type_bien.slice(1)} exceptionnel`,
-                              `Magnifique ${formData.type_bien} moderne`
-                            ];
-                            handleInputChange("titre", titles[Math.floor(Math.random() * titles.length)]);
-                          }
-                        }}
-                      >
-                        <Wand2 size={15}/>
-                      </button>
-                    </div>
-                  </div>
+                  {/* ─── Split 2 colonnes ─── */}
+                  <div className="ca-split-2col">
 
-                  {/* Superficie + Prix */}
-                  <div className="ca-row-2" style={{marginBottom:20}}>
-                    <div className="ca-field">
-                      <label className="ca-label">Superficie <span className="ca-req">*</span></label>
-                      <div className="ca-input-unit">
-                        <input type="number" className="ca-input" placeholder="150"
-                          min="1" max="9999999"
-                          value={formData.superficie}
-                          onChange={e => handleInputChange("superficie", e.target.value)}/>
-                        <span className="ca-unit">m²</span>
-                      </div>
-                    </div>
-                    <div className="ca-field">
-                      <label className="ca-label">Prix <span className="ca-req">*</span></label>
-                      <div className="ca-input-unit">
-                        <input type="number" className="ca-input" placeholder="250000"
-                          min="1" max="9999999999"
-                          value={formData.prix}
-                          onChange={e => handleInputChange("prix", e.target.value)}/>
-                        <select className="ca-currency" value={formData.devise}
-                          onChange={e => handleInputChange("devise", e.target.value)}>
-                          <option value="TND">TND</option>
-                          <option value="EUR">EUR</option>
-                          <option value="USD">USD</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
+                    {/* Colonne gauche : Titre · Superficie · Prix */}
+                    <div className="ca-split-left">
 
-                  {/* Description */}
-                  <div className="ca-field">
-                    <label className="ca-label">Description <span className="ca-req">*</span></label>
-
-                    {/* IA actions — minimal strip */}
-                    <div className="ca-ai-strip">
-                      <span className="ca-ai-strip__label">Générer avec l'IA :</span>
-                      <button type="button" className="ca-ai-pill"
-                        onClick={generateQuickAIDescription} disabled={isAILoading}>
-                        {isAILoading ? "Génération…" : "Rédaction rapide"}
-                      </button>
-                      <button type="button" className="ca-ai-pill ca-ai-pill--ghost"
-                        onClick={() => setIsAIModalOpen(true)}>
-                        Assistant guidé
-                      </button>
-                    </div>
-
-                    <div className="ca-desc-wrap">
-                      <textarea className="ca-textarea" rows={6}
-                        placeholder="Décrivez votre bien : luminosité, équipements, quartier, points forts…"
-                        value={formData.description}
-                        onChange={e => handleInputChange("description", e.target.value)}
-                      />
-                      {formData.description && (
-                        <div className="ca-desc-stats">
-                          <span>{formData.description.length} car.</span>
-                          <span>{formData.description.split(" ").filter(Boolean).length} mots</span>
+                      {/* Titre */}
+                      <div className="ca-field">
+                        <label className="ca-label">Titre de l'annonce <span className="ca-req">*</span></label>
+                        <div className="ca-input-wand">
+                          <input type="text" className="ca-input"
+                            placeholder="Ex: Magnifique villa moderne avec piscine"
+                            value={formData.titre}
+                            onChange={e => handleInputChange("titre", e.target.value)}
+                          />
+                          <button type="button" className="ca-wand-btn"
+                            title="Suggérer un titre avec l'IA"
+                            onClick={() => {
+                              if (formData.type_bien) {
+                                const titles = [
+                                  `Superbe ${formData.type_bien} ${hierarchy.gouvernorat ? `à ${gouvernorats.find(g=>g.value===hierarchy.gouvernorat)?.label || ""}` : ""}`,
+                                  `${formData.type_bien.charAt(0).toUpperCase() + formData.type_bien.slice(1)} exceptionnel`,
+                                  `Magnifique ${formData.type_bien} moderne`
+                                ];
+                                handleInputChange("titre", titles[Math.floor(Math.random() * titles.length)]);
+                              }
+                            }}
+                          >
+                            <Wand2 size={15}/>
+                          </button>
                         </div>
-                      )}
-                    </div>
+                      </div>
 
-                  </div>
+                      {/* Superficie */}
+                      <div className="ca-field">
+                        <label className="ca-label">Superficie <span className="ca-req">*</span></label>
+                        <div className="ca-input-unit">
+                          <input type="number" className="ca-input" placeholder="150"
+                            min="1" max="9999999"
+                            value={formData.superficie}
+                            onChange={e => handleInputChange("superficie", e.target.value)}/>
+                          <span className="ca-unit">m²</span>
+                        </div>
+                      </div>
+
+                      {/* Prix */}
+                      <div className="ca-field">
+                        <label className="ca-label">Prix <span className="ca-req">*</span></label>
+                        <div className="ca-input-unit">
+                          <input type="number" className="ca-input" placeholder="250000"
+                            min="1" max="9999999999"
+                            value={formData.prix}
+                            onChange={e => handleInputChange("prix", e.target.value)}/>
+                          <select className="ca-currency" value={formData.devise}
+                            onChange={e => handleInputChange("devise", e.target.value)}>
+                            <option value="TND">TND</option>
+                            <option value="EUR">EUR</option>
+                            <option value="USD">USD</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* ── Aperçu en direct ── */}
+                      {(() => {
+                        const prixNum = parseFloat(formData.prix);
+                        const surfNum = parseFloat(formData.superficie);
+                        const prixM2  = (prixNum > 0 && surfNum > 0)
+                          ? Math.round(prixNum / surfNum).toLocaleString("fr-TN")
+                          : null;
+                        return (
+                          <div className="ca-live-preview">
+                            <div className="ca-live-preview__header">
+                              <span className="ca-live-preview__label">Aperçu en direct</span>
+                              <span className="ca-live-preview__dot"/>
+                            </div>
+                            <div className="ca-live-preview__card">
+                              {/* Badge type */}
+                              {formData.type_bien && (
+                                <span className="ca-live-preview__badge">
+                                  {formData.type_bien.charAt(0).toUpperCase() + formData.type_bien.slice(1)}
+                                  {formData.categorie ? ` · ${formData.categorie}` : ""}
+                                </span>
+                              )}
+                              {/* Titre */}
+                              <p className="ca-live-preview__titre">
+                                {formData.titre.trim() || <span className="ca-live-preview__ph">Titre de l'annonce…</span>}
+                              </p>
+                              {/* Stats row */}
+                              <div className="ca-live-preview__stats">
+                                {surfNum > 0 && (
+                                  <span className="ca-live-preview__stat">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+                                    {surfNum.toLocaleString("fr-TN")} m²
+                                  </span>
+                                )}
+                                {prixNum > 0 && (
+                                  <span className="ca-live-preview__stat ca-live-preview__stat--prix">
+                                    {prixNum.toLocaleString("fr-TN")} {formData.devise}
+                                  </span>
+                                )}
+                              </div>
+                              {/* Prix/m² */}
+                              {prixM2 && (
+                                <div className="ca-live-preview__prixm2">
+                                  <span className="ca-live-preview__prixm2-val">{prixM2} {formData.devise}/m²</span>
+                                  <span className="ca-live-preview__prixm2-lbl">Prix au m²</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                    </div>{/* /ca-split-left */}
+
+                    {/* Colonne droite : Description */}
+                    <div className="ca-split-right">
+                      <div className="ca-field ca-field--full">
+                        <label className="ca-label">Description <span className="ca-req">*</span></label>
+
+                        {/* IA actions — minimal strip */}
+                        <div className="ca-ai-strip">
+                          <span className="ca-ai-strip__label">Générer avec l'IA :</span>
+                          <button type="button" className="ca-ai-pill"
+                            onClick={generateQuickAIDescription} disabled={isAILoading}>
+                            {isAILoading ? "Génération…" : "Rédaction rapide"}
+                          </button>
+                          <button type="button" className="ca-ai-pill ca-ai-pill--ghost"
+                            onClick={() => setIsAIModalOpen(true)}>
+                            Assistant guidé
+                          </button>
+                        </div>
+
+                        <div className="ca-desc-wrap ca-desc-wrap--full">
+                          <textarea className="ca-textarea ca-textarea--tall"
+                            placeholder="Décrivez votre bien : luminosité, équipements, quartier, points forts…"
+                            value={formData.description}
+                            onChange={e => handleInputChange("description", e.target.value)}
+                          />
+                          {formData.description && (
+                            <div className="ca-desc-stats">
+                              <span>{formData.description.length} car.</span>
+                              <span>{formData.description.split(" ").filter(Boolean).length} mots</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>{/* /ca-split-right */}
+
+                  </div>{/* /ca-split-2col */}
                 </div>
               )}
 
@@ -1587,8 +1671,8 @@ const CreateListingForm = () => {
             cursor: pointer; font-family: inherit;
             transition: all .15s;
           }
-          .ca-pill:hover { border-color: #c7d2fe; color: #4f46e5; background: #f0f4ff; }
-          .ca-pill--on { background: #0f172a; color: #fff; border-color: #0f172a; box-shadow: 0 2px 8px rgba(15,23,42,.2); }
+          .ca-pill:hover { border-color: #6366f1; color: #4f46e5; background: #eef2ff; }
+          .ca-pill--on { background: #6366f1; color: #fff; border-color: #6366f1; box-shadow: 0 2px 8px rgba(99,102,241,.35); }
 
           /* Etat cards */
           .ca-etat-row { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -1599,8 +1683,8 @@ const CreateListingForm = () => {
             font-size: 13px; font-weight: 600; color: #6b7280;
             cursor: pointer; font-family: inherit; transition: all .15s;
           }
-          .ca-etat-card:hover { border-color: #c7d2fe; background: #f0f4ff; }
-          .ca-etat-card--on { border-color: #0f172a; background: #0f172a; color: #fff; }
+          .ca-etat-card:hover { border-color: #6366f1; background: #eef2ff; color: #4f46e5; }
+          .ca-etat-card--on { border-color: #6366f1; background: #6366f1; color: #fff; }
 
           /* Counters */
           .ca-counters {
@@ -1634,8 +1718,8 @@ const CreateListingForm = () => {
             font-size: 13px; font-weight: 500; color: #374151;
             cursor: pointer; font-family: inherit; transition: all .15s;
           }
-          .ca-feat-card:hover { border-color: #c7d2fe; background: #f0f4ff; }
-          .ca-feat-card--on { border-color: #0f172a; background: #0f172a; color: #fff; }
+          .ca-feat-card:hover { border-color: #6366f1; background: #eef2ff; color: #4f46e5; }
+          .ca-feat-card--on { border-color: #6366f1; background: #6366f1; color: #fff; }
           .ca-feat-card__ico { font-size: 16px; }
           .ca-feat-card__label { font-size: 13px; }
           .ca-feat-card__check { margin-left: 2px; color: #a3e635; }
@@ -1680,6 +1764,103 @@ const CreateListingForm = () => {
           .ca-input--sm { font-size: 12.5px; padding: 8px 10px; }
           .ca-row-2 { display: flex; gap: 14px; flex-wrap: wrap; }
 
+          /* Step 4 — split layout */
+          .ca-split-2col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+            align-items: stretch;
+            min-height: 420px;
+          }
+          .ca-split-left {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+          }
+          .ca-split-right {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+          }
+          .ca-field--full { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+          .ca-desc-wrap--full { display: flex; flex-direction: column; flex: 1; }
+          .ca-textarea--tall {
+            flex: 1;
+            min-height: 340px;
+            resize: vertical;
+          }
+          /* Live preview card */
+          .ca-live-preview {
+            margin-top: 4px;
+          }
+          .ca-live-preview__header {
+            display: flex; align-items: center; gap: 7px;
+            margin-bottom: 8px;
+          }
+          .ca-live-preview__label {
+            font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: .06em; color: #94a3b8;
+          }
+          .ca-live-preview__dot {
+            width: 7px; height: 7px; border-radius: 50%;
+            background: #22c55e;
+            box-shadow: 0 0 0 3px rgba(34,197,94,.18);
+            animation: ca-pulse 1.8s ease-in-out infinite;
+          }
+          @keyframes ca-pulse {
+            0%,100% { box-shadow: 0 0 0 3px rgba(34,197,94,.18); }
+            50%      { box-shadow: 0 0 0 6px rgba(34,197,94,.06); }
+          }
+          .ca-live-preview__card {
+            background: #f8faff;
+            border: 1.5px solid #e0e7ff;
+            border-radius: 14px;
+            padding: 16px 18px;
+            display: flex; flex-direction: column; gap: 10px;
+          }
+          .ca-live-preview__badge {
+            display: inline-block;
+            background: #eef2ff; color: #4f46e5;
+            font-size: 11px; font-weight: 700;
+            padding: 3px 10px; border-radius: 20px;
+            text-transform: capitalize; width: fit-content;
+          }
+          .ca-live-preview__titre {
+            font-size: 14.5px; font-weight: 700; color: #1e293b;
+            line-height: 1.4; margin: 0;
+          }
+          .ca-live-preview__ph { color: #cbd5e1; font-weight: 400; font-style: italic; }
+          .ca-live-preview__stats {
+            display: flex; flex-wrap: wrap; gap: 8px;
+          }
+          .ca-live-preview__stat {
+            display: flex; align-items: center; gap: 4px;
+            font-size: 12.5px; color: #475569; font-weight: 500;
+            background: #fff; border: 1px solid #e2e8f0;
+            border-radius: 8px; padding: 4px 10px;
+          }
+          .ca-live-preview__stat--prix {
+            color: #059669; border-color: #d1fae5; background: #f0fdf4;
+            font-weight: 700;
+          }
+          .ca-live-preview__prixm2 {
+            display: flex; align-items: center; justify-content: space-between;
+            background: #6366f1; border-radius: 10px;
+            padding: 8px 14px;
+          }
+          .ca-live-preview__prixm2-val {
+            font-size: 13px; font-weight: 800; color: #fff;
+          }
+          .ca-live-preview__prixm2-lbl {
+            font-size: 10.5px; color: rgba(255,255,255,.75);
+            text-transform: uppercase; letter-spacing: .05em;
+          }
+
+          @media (max-width: 720px) {
+            .ca-split-2col { grid-template-columns: 1fr; min-height: unset; }
+            .ca-textarea--tall { min-height: 200px; }
+          }
+
           /* Address row */
           .ca-addr-row { display: flex; gap: 10px; flex-wrap: wrap; }
           .ca-addr-row .ca-input { flex: 1; min-width: 200px; }
@@ -1723,7 +1904,7 @@ const CreateListingForm = () => {
             background: #f9fafb; color: #6b7280; font-size: 13px; font-weight: 600;
             cursor: pointer; font-family: inherit; transition: all .15s;
           }
-          .ca-tf-btn--on { background: #0f172a; color: #fff; border-color: #0f172a; }
+          .ca-tf-btn--on { background: #6366f1; color: #fff; border-color: #6366f1; }
           .ca-tf-btn--no.ca-tf-btn--on { background: #ef4444; border-color: #ef4444; }
 
           /* Step 4 */

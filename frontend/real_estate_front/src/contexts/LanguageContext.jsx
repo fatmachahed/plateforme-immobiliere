@@ -5,7 +5,7 @@ const T = {
   fr: {
     /* Navbar */
     nav_buy:       "Acheter",
-    nav_rent:      "Louer",
+    nav_rent:      "Location",
     nav_vacation:  "Vacances",
     nav_contact:   "Contact",
     nav_publish:   "+ Publier",

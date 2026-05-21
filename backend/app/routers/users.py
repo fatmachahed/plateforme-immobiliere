@@ -28,9 +28,14 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # ===============================
 @router.post("/", response_model=schemas.UserRead)
 def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    existing_user = crud.get_user_by_email(db, user.email)
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
+    # Vérifier email déjà utilisé
+    if crud.get_user_by_email(db, user.email):
+        raise HTTPException(status_code=400, detail="Cet email est déjà utilisé.")
+
+    # Vérifier username déjà utilisé
+    existing_username = db.query(models.User).filter(models.User.username == user.username).first()
+    if existing_username:
+        raise HTTPException(status_code=400, detail="Ce nom d'utilisateur est déjà pris.")
 
     return crud.create_user(db, user)
 

@@ -675,8 +675,8 @@ function transformApiAnnonce(a) {
 }
 
 export default function CartePage() {
-  const navigate       = useNavigate();
-  const [searchParams] = useSearchParams();
+  const navigate                   = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [active, setActive]         = useState(null);
   const [apiProperties, setApiProps] = useState([]);
   const [filters, setFilters] = useState({
@@ -692,6 +692,16 @@ export default function CartePage() {
     const type = searchParams.get("type")      || "";
     setFilters(prev => ({ ...prev, categorie: cat, query: q, type }));
   }, [searchParams]);
+
+  /* ── Appliquer les filtres ET synchroniser l'URL ── */
+  const applyFilters = useCallback((newFilters) => {
+    setFilters(newFilters);
+    const p = new URLSearchParams(searchParams);
+    if (newFilters.categorie) p.set("categorie", newFilters.categorie); else p.delete("categorie");
+    if (newFilters.query)     p.set("q",          newFilters.query);     else p.delete("q");
+    if (newFilters.type)      p.set("type",        newFilters.type);     else p.delete("type");
+    setSearchParams(p, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const [showSchools,    setShowSchools]    = useState(false);
   const [showMosques,    setShowMosques]    = useState(false);
@@ -789,7 +799,7 @@ export default function CartePage() {
   /* Filtrage + tri par boost décroissant (boost 3 en tête, 0 en dernier) */
   const results = allProperties
     .filter((p) => {
-      if (filters.query && !`${p.titre} ${p.delegation} ${p.gouvernorat} ${p.localite}`
+      if (filters.query && !`${p.titre} ${p.delegation} ${p.gouvernorat} ${p.localite} ${p.address||""}`
         .toLowerCase().includes(filters.query.toLowerCase())) return false;
       if (filters.govNom    && p.gouvernorat !== filters.govNom)   return false;
       if (filters.delNom    && p.delegation  !== filters.delNom)   return false;
@@ -839,7 +849,7 @@ export default function CartePage() {
       <Navbar />
 
       <FilterPanel
-        filters={filters} onChange={setFilters}
+        filters={filters} onChange={applyFilters}
         showSchools={showSchools} showMosques={showMosques} showFaculties={showFaculties}
         onToggleSchools={()=>setShowSchools(v=>!v)}
         onToggleMosques={()=>setShowMosques(v=>!v)}
@@ -1000,9 +1010,9 @@ export default function CartePage() {
           border: 1.5px solid #e5e7eb; background: #f9fafb; color: #6b7280;
           transition: all .15s;
         }
-        .fp__pill:hover { background: #f3f4f6; color: #374151; border-color: #d1d5db; }
-        .fp__pill--on[data-v=""] { background: #1e293b; color: #fff; border-color: #1e293b; }
-        .fp__pill--on { background: #1e293b; color: #fff; border-color: #1e293b; box-shadow: 0 2px 6px rgba(0,0,0,.15); }
+        .fp__pill:hover { background: #eef2ff; color: #4f46e5; border-color: #c7d2fe; }
+        .fp__pill--on[data-v=""] { background: #6366f1; color: #fff; border-color: #6366f1; }
+        .fp__pill--on { background: #6366f1; color: #fff; border-color: #6366f1; box-shadow: 0 2px 8px rgba(99,102,241,.35); }
 
         .fp__adv-btn {
           display: flex; align-items: center; gap: 6px;
