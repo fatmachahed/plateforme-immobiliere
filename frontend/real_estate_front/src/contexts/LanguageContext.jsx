@@ -4,11 +4,11 @@ import React, { createContext, useContext, useState, useCallback } from "react";
 const T = {
   fr: {
     /* Navbar */
-    nav_buy:       "Acheter",
+    nav_buy:       "Achat",
     nav_rent:      "Location",
     nav_vacation:  "Vacances",
     nav_contact:   "Contact",
-    nav_publish:   "+ Publier",
+    nav_publish:   "Publier annonce",
     nav_boost:     "Booster",
     nav_map:       "Carte",
     nav_profile:   "Mon profil",

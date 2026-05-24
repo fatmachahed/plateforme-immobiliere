@@ -238,13 +238,17 @@ export default function HomePage() {
           {/* Search box */}
           <div className="hp-search">
             <div className="hp-search__tabs">
-              {["vente","location","vacances"].map((t) => (
+              {[
+                { val:"vente",    lbl:"Achat"    },
+                { val:"location", lbl:"Location" },
+                { val:"vacances", lbl:"Vacances" },
+              ].map(({ val, lbl }) => (
                 <button
-                  key={t}
-                  onClick={() => setActiveTab(t)}
-                  className={`hp-search__tab${activeTab === t ? " hp-search__tab--active" : ""}`}
+                  key={val}
+                  onClick={() => setActiveTab(val)}
+                  className={`hp-search__tab${activeTab === val ? " hp-search__tab--active" : ""}`}
                 >
-                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                  {lbl}
                 </button>
               ))}
             </div>

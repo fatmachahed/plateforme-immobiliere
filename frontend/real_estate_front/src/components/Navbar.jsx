@@ -87,9 +87,7 @@ export default function Navbar() {
                 {t(n.key)}
               </Link>
             ))}
-            <Link to="/abonnements" className="lz-nav__link lz-nav__link--boost">
-              <Zap size={13} /> {t("nav_boost")}
-            </Link>
+            {/* Boost — hidden for now */}
           </nav>
 
           {/* ── Desktop right actions ── */}
@@ -106,7 +104,7 @@ export default function Navbar() {
 
             {/* Publish CTA — hidden on mobile (shown in drawer instead) */}
             <Link to="/creer_annonce" className="btn btn-primary btn-sm btn-round lz-nav__desktop-only">
-              + Publier
+              + Publier annonce
             </Link>
 
             {/* Profile dropdown — hidden on mobile */}
@@ -134,7 +132,6 @@ export default function Navbar() {
                         <Link to="/compte"      className="lz-nav__dd-item"><User size={14} /> {t("nav_profile")}</Link>
                         <Link to="/dashboard"   className="lz-nav__dd-item"><LayoutDashboard size={14} /> {t("nav_listings")}</Link>
                         <Link to="/favoris"     className="lz-nav__dd-item"><Heart size={14} /> {t("nav_favorites")}</Link>
-                        <Link to="/abonnements" className="lz-nav__dd-item lz-nav__dd-item--gold"><Zap size={14} /> {t("nav_boost")}</Link>
                         {user?.role === "admin" && (
                           <Link to="/admin" className="lz-nav__dd-item lz-nav__dd-item--admin"><LayoutDashboard size={14} /> {t("nav_admin")}</Link>
                         )}
@@ -153,15 +150,7 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* Language toggle — hidden on mobile */}
-            <button
-              className="lz-nav__lang-btn lz-nav__desktop-only"
-              onClick={toggleLang}
-              title={lang === "fr" ? "Switch to English" : "Passer en français"}
-            >
-              <Globe size={14} />
-              <span>{lang === "fr" ? "EN" : "FR"}</span>
-            </button>
+            {/* Language toggle — hidden for now */}
 
             {/* ── Hamburger — mobile only ── */}
             <button
@@ -216,7 +205,7 @@ export default function Navbar() {
               </Link>
             ))}
             <Link to="/carte"       className="lz-mob-row"><Map size={17}/> {t("nav_map") || "Carte"}</Link>
-            <Link to="/abonnements" className="lz-mob-row lz-mob-row--gold"><Zap size={17}/> {t("nav_boost") || "Boost"}</Link>
+            {/* Boost mobile — hidden for now */}
 
             <div className="lz-mob-sep"/>
 
@@ -248,10 +237,7 @@ export default function Navbar() {
 
             <div className="lz-mob-sep"/>
 
-            {/* Langue */}
-            <button className="lz-mob-row" onClick={toggleLang}>
-              <Globe size={17}/> {lang === "fr" ? "English" : "Français"}
-            </button>
+            {/* Langue — hidden for now */}
 
             {/* CTA — dernier élément */}
             <div className="lz-mob-cta">

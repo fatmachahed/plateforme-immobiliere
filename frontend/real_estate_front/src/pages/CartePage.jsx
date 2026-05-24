@@ -169,7 +169,7 @@ function PropCard({ p, active, onHover, onClick }) {
 }
 
 /* ─── Carte Leaflet ─── */
-function PropertyMap({ properties, activeId, selectedGov, onPinClick, showSchools, showMosques, showFaculties, liveSchools = [], liveMosques = [], liveFaculties = [] }) {
+function PropertyMap({ properties, activeId, selectedGov, onPinClick, onBoundsChange, showSchools, showMosques, showFaculties, liveSchools = [], liveMosques = [], liveFaculties = [] }) {
   const containerRef = useRef(null);
   const mapRef       = useRef(null);
   const markersRef   = useRef({});
@@ -182,37 +182,16 @@ function PropertyMap({ properties, activeId, selectedGov, onPinClick, showSchool
     markersRef.current = {};
     props.forEach((p) => {
       if (!p.lat || !p.lng) return;
-      const isA   = active === p.id;
-      const boost = p.boost || 0;
-
-      /* 4 niveaux visuels selon boost */
-      let lvlCls, inner, anchor;
-      if (boost >= 3) {
-        lvlCls = "pin-dot--b3"; // BOOST — orange XXL
-        inner  = `<span class="pin-icon">⚡</span>`;
-        anchor = [18, 18];
-      } else if (boost >= 2) {
-        lvlCls = "pin-dot--b2"; // PREMIUM — doré XL
-        inner  = `<span class="pin-star">★</span>`;
-        anchor = [14, 14];
-      } else if (boost >= 1) {
-        lvlCls = "pin-dot--b1"; // STANDARD — bleu
-        inner  = "";
-        anchor = [11, 11];
-      } else {
-        lvlCls = "pin-dot--b0"; // Gratuit — gris
-        inner  = "";
-        anchor = [9, 9];
-      }
-
-      const cls  = `pin-dot ${lvlCls}${isA ? " pin-dot--active" : ""}`;
+      const isA = active === p.id;
+      /* Marqueur unique bordeaux — même taille pour tous */
+      const cls  = `pin-dot pin-dot--std${isA ? " pin-dot--active" : ""}`;
       const icon = L.divIcon({
         className: "",
-        html: `<div class="${cls}">${inner}</div>`,
-        iconSize: [null, null], iconAnchor: anchor,
+        html: `<div class="${cls}"></div>`,
+        iconSize: [null, null], iconAnchor: [10, 10],
       });
-      const m = L.marker([p.lat, p.lng], { icon, zIndexOffset: boost * 100 }).addTo(map);
-      m.on("click", ()=>onPinClick(p.id));
+      const m = L.marker([p.lat, p.lng], { icon }).addTo(map);
+      m.on("click", () => onPinClick(p.id));
       markersRef.current[p.id] = m;
     });
   }, [onPinClick]);
@@ -232,6 +211,12 @@ function PropertyMap({ properties, activeId, selectedGov, onPinClick, showSchool
       L.control.zoom({ position:"bottomright" }).addTo(map);
       setTimeout(()=>map.invalidateSize(), 80);
       drawPins(L, map, properties, activeId);
+
+      /* ── Mise à jour de la liste au zoom/déplacement ── */
+      const emitBounds = () => {
+        if (onBoundsChange) onBoundsChange(map.getBounds());
+      };
+      map.on("zoomend moveend", emitBounds);
     })();
     return ()=>{ live=false; if(mapRef.current){mapRef.current.remove();mapRef.current=null;} };
   }, []); // eslint-disable-line
@@ -434,7 +419,7 @@ function LocationCascade({ govId, delId, locId, govNom, delNom, locNom, onChange
 /* ─── PANNEAU FILTRES ─── */
 const INIT_F = {
   query:"", govId:"", govNom:"", delId:"", delNom:"", locId:"", locNom:"",
-  categorie:"", type:"",
+  categories:[], type:"",
   prixMin:"", prixMax:"", superficieMin:"", bedsMin:"", etat:"", titre_foncier:"",
 };
 
@@ -469,16 +454,22 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
           {local.query && <button onClick={()=>set("query","")} className="fp__clear"><X size={11}/></button>}
         </div>
 
-        {/* Catégorie */}
+        {/* Catégorie — multi-sélection */}
         <div className="fp__pill-group">
-          {["", "vente", "location", "vacances"].map(v=>(
-            <button key={v}
-              className={`fp__pill${local.categorie===v?" fp__pill--on":""}`}
-              onClick={()=>set("categorie",v)}
-            >
-              {v===""?"Tous":CAT_LBL[v]}
-            </button>
-          ))}
+          {["vente", "location", "vacances"].map(v => {
+            const active = (local.categories || []).includes(v);
+            return (
+              <button key={v}
+                className={`fp__pill${active ? " fp__pill--on" : ""}`}
+                onClick={() => {
+                  const cats = local.categories || [];
+                  set("categories", active ? cats.filter(c => c !== v) : [...cats, v]);
+                }}
+              >
+                {CAT_LBL[v]}
+              </button>
+            );
+          })}
         </div>
 
         <div style={{ display:"flex", gap:8, marginLeft:"auto", alignItems:"center" }}>
@@ -679,27 +670,36 @@ export default function CartePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [active, setActive]         = useState(null);
   const [apiProperties, setApiProps] = useState([]);
+  const [mapBounds, setMapBounds]   = useState(null);
+
+  const initCats = (searchParams.get("categories") || searchParams.get("categorie") || "")
+    .split(",").map(s => s.trim()).filter(Boolean);
+
   const [filters, setFilters] = useState({
     ...INIT_F,
-    categorie: searchParams.get("categorie") || "",
-    query:     searchParams.get("q")         || "",
-    type:      searchParams.get("type")      || "",
+    categories: initCats,
+    query:      searchParams.get("q")    || "",
+    type:       searchParams.get("type") || "",
   });
-  /* ── Sync URL params → filters (ex : clic sur Acheter/Location/Vacances dans la navbar) ── */
+
+  /* ── Sync URL params → filters ── */
   useEffect(() => {
-    const cat  = searchParams.get("categorie") || "";
-    const q    = searchParams.get("q")         || "";
-    const type = searchParams.get("type")      || "";
-    setFilters(prev => ({ ...prev, categorie: cat, query: q, type }));
+    const cats = (searchParams.get("categories") || searchParams.get("categorie") || "")
+      .split(",").map(s => s.trim()).filter(Boolean);
+    const q    = searchParams.get("q")    || "";
+    const type = searchParams.get("type") || "";
+    setFilters(prev => ({ ...prev, categories: cats, query: q, type }));
   }, [searchParams]);
 
   /* ── Appliquer les filtres ET synchroniser l'URL ── */
   const applyFilters = useCallback((newFilters) => {
     setFilters(newFilters);
     const p = new URLSearchParams(searchParams);
-    if (newFilters.categorie) p.set("categorie", newFilters.categorie); else p.delete("categorie");
-    if (newFilters.query)     p.set("q",          newFilters.query);     else p.delete("q");
-    if (newFilters.type)      p.set("type",        newFilters.type);     else p.delete("type");
+    const cats = newFilters.categories || [];
+    if (cats.length > 0) p.set("categories", cats.join(",")); else p.delete("categories");
+    p.delete("categorie"); // nettoyage ancien param
+    if (newFilters.query) p.set("q",    newFilters.query); else p.delete("q");
+    if (newFilters.type)  p.set("type", newFilters.type);  else p.delete("type");
     setSearchParams(p, { replace: true });
   }, [searchParams, setSearchParams]);
 
@@ -796,32 +796,40 @@ export default function CartePage() {
   /* Combine real annonces (first) + demo data */
   const allProperties = [...apiProperties, ...DEMO];
 
-  /* Filtrage + tri par boost décroissant (boost 3 en tête, 0 en dernier) */
+  /* Filtrage complet (carte + liste) */
   const results = allProperties
     .filter((p) => {
       if (filters.query && !`${p.titre} ${p.delegation} ${p.gouvernorat} ${p.localite} ${p.address||""}`
         .toLowerCase().includes(filters.query.toLowerCase())) return false;
-      if (filters.govNom    && p.gouvernorat !== filters.govNom)   return false;
-      if (filters.delNom    && p.delegation  !== filters.delNom)   return false;
-      if (filters.locNom    && p.localite    !== filters.locNom)   return false;
-      if (filters.categorie && p.categorie   !== filters.categorie) return false;
-      if (filters.type      && p.type        !== filters.type)      return false;
-      if (filters.prixMin   && p.prix < +filters.prixMin)          return false;
-      if (filters.prixMax   && p.prix > +filters.prixMax)          return false;
+      if (filters.govNom && p.gouvernorat !== filters.govNom)   return false;
+      if (filters.delNom && p.delegation  !== filters.delNom)   return false;
+      if (filters.locNom && p.localite    !== filters.locNom)   return false;
+      const cats = filters.categories || [];
+      if (cats.length > 0 && !cats.includes(p.categorie))       return false;
+      if (filters.type   && p.type !== filters.type)             return false;
+      if (filters.prixMin && p.prix < +filters.prixMin)          return false;
+      if (filters.prixMax && p.prix > +filters.prixMax)          return false;
       if (filters.superficieMin && p.area < +filters.superficieMin) return false;
-      if (filters.bedsMin   && (p.beds==null||p.beds < +filters.bedsMin)) return false;
-      if (filters.etat      && p.etat !== filters.etat)             return false;
-      if (filters.titre_foncier==="1" && !p.titre_foncier)          return false;
+      if (filters.bedsMin && (p.beds==null||p.beds < +filters.bedsMin)) return false;
+      if (filters.etat && p.etat !== filters.etat)               return false;
+      if (filters.titre_foncier==="1" && !p.titre_foncier)       return false;
       return true;
     })
     .sort((a, b) => computeScore(b) - computeScore(a));
+
+  /* Sous-ensemble visible dans la zone de la carte (pour la liste droite) */
+  const visibleResults = mapBounds
+    ? results.filter(p =>
+        p.lat && p.lng && mapBounds.contains && mapBounds.contains([p.lat, p.lng])
+      )
+    : results;
 
   /* Tags filtres actifs */
   const activeTags = [
     filters.govNom    && { label:filters.govNom,    key:"govNom",  color:"#4f46e5" },
     filters.delNom    && { label:filters.delNom,    key:"delNom",  color:"#7c3aed" },
     filters.locNom    && { label:filters.locNom,    key:"locNom",  color:"#9333ea" },
-    filters.categorie && { label:CAT_LBL[filters.categorie], key:"categorie", color:"#0369a1" },
+    ...(filters.categories||[]).map(c=>({ label:CAT_LBL[c], key:`cat_${c}`, color:"#0369a1" })),
     filters.type      && { label:ucFirst(filters.type), key:"type", color:"#0f766e" },
     filters.etat      && { label:ETAT_LBL[filters.etat], key:"etat", color:"#92400e" },
     filters.prixMin   && { label:`≥ ${fmtFull(+filters.prixMin)} TND`, key:"prixMin", color:"#1d4ed8" },
@@ -841,6 +849,10 @@ export default function CartePage() {
     if (key==="govNom") setFilters(f=>({...f,govId:"",govNom:"",delId:"",delNom:"",locId:"",locNom:""}));
     else if (key==="delNom") setFilters(f=>({...f,delId:"",delNom:"",locId:"",locNom:""}));
     else if (key==="locNom") setFilters(f=>({...f,locId:"",locNom:""}));
+    else if (key.startsWith("cat_")) {
+      const cat = key.replace("cat_","");
+      setFilters(f=>({...f, categories:(f.categories||[]).filter(c=>c!==cat)}));
+    }
     else setFilters(f=>({...f,[key]:""}));
   };
 
@@ -863,8 +875,9 @@ export default function CartePage() {
       {/* Barre compteur + tags */}
       <div className="cp-bar">
         <span className="cp-bar__count">
-          <strong>{results.length}</strong> annonce{results.length!==1?"s":""} trouvée{results.length!==1?"s":""}
-          {filters.govNom && <> dans <strong>{filters.govNom}</strong></>}
+          <strong>{mapBounds ? visibleResults.length : results.length}</strong> annonce{results.length!==1?"s":""} trouvée{results.length!==1?"s":""}
+          {mapBounds && visibleResults.length !== results.length && <> dans la zone visible</>}
+          {filters.govNom && !mapBounds && <> dans <strong>{filters.govNom}</strong></>}
         </span>
         {activeTags.length > 0 && (
           <div className="cp-bar__tags">
@@ -917,6 +930,7 @@ export default function CartePage() {
               activeId={active}
               selectedGov={filters.govNom}
               onPinClick={handlePin}
+              onBoundsChange={setMapBounds}
               showSchools={showSchools}
               showMosques={showMosques}
               showFaculties={showFaculties}
@@ -926,18 +940,24 @@ export default function CartePage() {
             />
           </div>
 
-          {/* Liste à droite — desktop uniquement */}
+          {/* Liste à droite — filtrée par zone visible sur la carte */}
           <div className="cp-list">
-            {results.length === 0
+            {visibleResults.length === 0
               ? <div className="cp-empty">
                   <MapPin size={36} style={{color:"#d1d5db",margin:"0 auto 14px"}}/>
-                  <p style={{fontWeight:600,color:"#374151",marginBottom:6}}>Aucun résultat</p>
-                  <p style={{fontSize:13,color:"#9ca3af",marginBottom:16}}>Essayez d'élargir vos filtres</p>
-                  <button className="fp__reset" onClick={()=>setFilters(INIT_F)}>
-                    <X size={12}/> Effacer les filtres
-                  </button>
+                  <p style={{fontWeight:600,color:"#374151",marginBottom:6}}>
+                    {mapBounds && results.length > 0 ? "Aucun bien dans cette zone" : "Aucun résultat"}
+                  </p>
+                  <p style={{fontSize:13,color:"#9ca3af",marginBottom:16}}>
+                    {mapBounds && results.length > 0 ? "Dézoomez pour voir plus d'annonces" : "Essayez d'élargir vos filtres"}
+                  </p>
+                  {(!mapBounds || results.length === 0) && (
+                    <button className="fp__reset" onClick={()=>setFilters(INIT_F)}>
+                      <X size={12}/> Effacer les filtres
+                    </button>
+                  )}
                 </div>
-              : results.map((p) => (
+              : visibleResults.map((p) => (
                   <div id={`card-${p.id}`} key={p.id}>
                     <PropCard p={p} active={active===p.id}
                       onHover={setActive}
@@ -1263,41 +1283,15 @@ export default function CartePage() {
         }
         .pin-dot:hover, .pin-dot--active { transform: scale(1.4); z-index: 999 !important; }
 
-        /* Niveau 3 — BOOST (orange, XXL) */
-        .pin-dot--b3 {
-          width: 36px; height: 36px;
-          background: #ea580c;
-          box-shadow: 0 3px 12px rgba(234,88,12,.55);
+        /* Marqueur unique bordeaux — tous les biens */
+        .pin-dot--std {
+          width: 20px; height: 20px;
+          background: #9b1c2e;
+          box-shadow: 0 2px 8px rgba(155,28,46,.45);
         }
-        .pin-dot--b3:hover, .pin-dot--b3.pin-dot--active {
-          box-shadow: 0 4px 18px rgba(234,88,12,.7);
-        }
-
-        /* Niveau 2 — PREMIUM (doré, XL) */
-        .pin-dot--b2 {
-          width: 28px; height: 28px;
-          background: #f59e0b;
-          box-shadow: 0 3px 10px rgba(245,158,11,.5);
-        }
-        .pin-dot--b2:hover, .pin-dot--b2.pin-dot--active {
-          box-shadow: 0 4px 15px rgba(245,158,11,.65);
-        }
-
-        /* Niveau 1 — STANDARD (indigo) */
-        .pin-dot--b1 {
-          width: 22px; height: 22px;
-          background: #6366f1;
-          box-shadow: 0 2px 8px rgba(99,102,241,.45);
-        }
-        .pin-dot--b1:hover, .pin-dot--b1.pin-dot--active {
-          box-shadow: 0 3px 12px rgba(99,102,241,.6);
-        }
-
-        /* Niveau 0 — Gratuit (gris) */
-        .pin-dot--b0 {
-          width: 16px; height: 16px;
-          background: #94a3b8;
-          box-shadow: 0 1px 5px rgba(0,0,0,.2);
+        .pin-dot--std:hover, .pin-dot--std.pin-dot--active {
+          background: #7c1022;
+          box-shadow: 0 3px 14px rgba(155,28,46,.65);
         }
 
         /* Icônes internes */
