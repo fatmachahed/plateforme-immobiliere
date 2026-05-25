@@ -236,3 +236,24 @@ class Favori(Base):
 
     user    = relationship("User",    back_populates="favoris")
     annonce = relationship("Annonce")
+
+
+# ----------------------------------------
+# Agences
+# ----------------------------------------
+class Agency(Base):
+    __tablename__ = "agencies"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False)
+    nom = Column(String, nullable=False)
+    email = Column(String, nullable=True)
+    telephone = Column(String, nullable=True)
+    adresse = Column(String, nullable=True)
+    matricule = Column(String, nullable=True)
+    frais_mensuel = Column(Float, default=50.0)
+    abonnement_actif = Column(Boolean, default=True)
+    abonnement_expire_at = Column(DateTime, nullable=True)
+    note_admin = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", backref="agency")

@@ -445,8 +445,8 @@ export default function HomePage() {
         }
         .hp-hero__overlay {
           position: absolute; inset: 0;
-          background: url("https://images.unsplash.com/photo-1486325212027-8081e485255e?w=1600&q=60") center/cover no-repeat;
-          opacity: .15;
+          background: url("https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Sidi_Bou_Said_-_TN.jpg/1280px-Sidi_Bou_Said_-_TN.jpg") center/cover no-repeat;
+          opacity: .28;
         }
         .hp-hero__content {
           position: relative; z-index: 2;

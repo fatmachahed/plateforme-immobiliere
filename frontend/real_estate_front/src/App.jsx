@@ -21,7 +21,9 @@ import Contact          from "./pages/Contact";
 import AdminDashboard   from "./pages/AdminDashboard";
 import Favoris          from "./pages/Favoris";
 import EditAnnonce      from "./pages/EditAnnonce";
-import BoosterPage      from "./pages/BoosterPage";
+import BoosterPage             from "./pages/BoosterPage";
+import QuiSommesNous          from "./pages/QuiSommesNous";
+import PolitiqueConfidentialite from "./pages/PolitiqueConfidentialite";
 
 function App() {
   return (
@@ -54,8 +56,10 @@ function App() {
           <Route path="/admin" element={<AdminDashboard />} />
 
           {/* Info */}
-          <Route path="/apropos"  element={<Apropos />} />
-          <Route path="/contact"  element={<Contact />} />
+          <Route path="/apropos"                   element={<Apropos />} />
+          <Route path="/contact"                   element={<Contact />} />
+          <Route path="/qui-sommes-nous"            element={<QuiSommesNous />} />
+          <Route path="/politique-confidentialite"  element={<PolitiqueConfidentialite />} />
         </Routes>
       </Router>
     </ToastProvider>

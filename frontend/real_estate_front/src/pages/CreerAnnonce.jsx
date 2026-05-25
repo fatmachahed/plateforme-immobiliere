@@ -1,17 +1,58 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from "react";
+﻿import React, { useState, useEffect, useRef, useCallback, useContext, createContext } from "react";
 import API_URL from '../config';
 import { useNavigate } from "react-router-dom";
 import {
   Home, Building2, MapPin, Camera, ChevronRight, ChevronLeft,
   Check, X, Upload, Trash2, Eye, Bed, Bath, Maximize2, DollarSign,
   CheckCircle2, XCircle, Loader, Sparkles, Wand2,
-  Minus, Plus, Navigation
+  Minus, Plus, Navigation,
+  Leaf, Store, Waves, Mountain, TreePine, Sun, Flower2,
+  ArrowUpDown, Car, ParkingCircle, Package, Sofa,
+  UtensilsCrossed, Wind, Thermometer, Compass, Wrench,
+  HardHat, ThumbsUp, Hammer
 } from "lucide-react";
 import Layout from "../components/Layout";
 import AIDescriptionModal from '../components/AIDescriptionModal';
 import useLocalisation from "../hooks/useLocalisation";
 import { useToast } from "../components/Toast";
 import "leaflet/dist/leaflet.css";
+
+/* ── Bannière accompagnement ── */
+function AccompagnementBanner() {
+  const [visible, setVisible] = useState(() => {
+    try { return localStorage.getItem("ca_accom_dismissed") !== "1"; } catch { return true; }
+  });
+  const [answered, setAnswered] = useState(false);
+
+  if (!visible || answered) return null;
+
+  return (
+    <div className="ca-accom">
+      <div className="ca-accom__icon"><Sparkles size={18}/></div>
+      <div className="ca-accom__body">
+        <p className="ca-accom__q">Avez-vous besoin d'un accompagnement ?</p>
+        <p className="ca-accom__sub">Notre équipe peut vous aider à rédiger, valoriser et accélérer la publication de votre annonce.</p>
+        <div className="ca-accom__btns">
+          <a href="mailto:contact@localizi.tn?subject=Demande d'accompagnement publication annonce"
+            className="ca-accom__yes" onClick={() => setAnswered(true)}>
+            Oui, je veux être accompagné(e)
+          </a>
+          <button type="button" className="ca-accom__no"
+            onClick={() => {
+              setVisible(false);
+              try { localStorage.setItem("ca_accom_dismissed", "1"); } catch {}
+            }}>
+            Non merci
+          </button>
+        </div>
+      </div>
+      <button type="button" className="ca-accom__close"
+        onClick={() => { setVisible(false); try { localStorage.setItem("ca_accom_dismissed","1"); } catch {} }}>
+        <X size={14}/>
+      </button>
+    </div>
+  );
+}
 
 /* ── Carte Leaflet contrôlée (position synced via prop) ── */
 function ControlledMap({ position, onLocationChange }) {
@@ -93,6 +134,59 @@ const STEPS = [
   { id: 6, label: "Prévisualisation",   icon: Eye },
 ];
 
+/* ── Barre évaluation prix ─────────────────────────────────── */
+const CA_EVAL_LEVELS = [
+  { key:"none",  label:"AUCUNE ÉVALUATION", segs:0,  color:"#d1d5db" },
+  { key:"high3", label:"PRIX TRÈS ÉLEVÉ",   segs:1,  color:"#9a3412" },
+  { key:"high2", label:"PRIX ÉLEVÉ",         segs:3,  color:"#ca8a04" },
+  { key:"fair",  label:"PRIX ÉQUITABLE",     segs:5,  color:"#22c55e" },
+  { key:"good",  label:"BON PRIX",            segs:7,  color:"#16a34a" },
+  { key:"great", label:"TRÈS BON PRIX",       segs:10, color:"#15803d" },
+];
+const CA_EVAL_TOTAL = 10;
+
+function getCaEvalLevel(prixM2, govAvg, count) {
+  if (!count || !govAvg || !prixM2 || govAvg <= 0) return CA_EVAL_LEVELS[0];
+  const r = prixM2 / govAvg;
+  if (r >= 1.30) return CA_EVAL_LEVELS[1];
+  if (r >= 1.10) return CA_EVAL_LEVELS[2];
+  if (r >= 0.90) return CA_EVAL_LEVELS[3];
+  if (r >= 0.70) return CA_EVAL_LEVELS[4];
+  return CA_EVAL_LEVELS[5];
+}
+
+function CaPriceEvalBar({ prixM2, govStats, devise }) {
+  const gs  = govStats || { sum: 0, count: 0 };
+  const avg = gs.count > 0 ? gs.sum / gs.count : 0;
+  const ev  = getCaEvalLevel(prixM2, avg, gs.count);
+  const isNone = ev.key === "none";
+
+  return (
+    <div className="ca-peb">
+      <div className="ca-peb__top">
+        <span className="ca-peb__label" style={{ color: isNone ? "#9ca3af" : ev.color }}>
+          {ev.label}
+        </span>
+        {!isNone && avg > 0 && (
+          <span className="ca-peb__avg">
+            Moy. zone : {Math.round(avg).toLocaleString("fr-TN")} {devise}/m²
+          </span>
+        )}
+      </div>
+      <div className="ca-peb__bar">
+        {Array.from({ length: CA_EVAL_TOTAL }, (_, i) => (
+          <span key={i} className="ca-peb__seg"
+            style={{ background: i < ev.segs ? ev.color : "#e2e8f0" }}
+          />
+        ))}
+      </div>
+      {!isNone && gs.count > 0 && (
+        <span className="ca-peb__ref">{gs.count} annonce{gs.count > 1 ? "s" : ""} de référence</span>
+      )}
+    </div>
+  );
+}
+
 const CreateListingForm = () => {
   const toast    = useToast();
   const navigate = useNavigate();
@@ -136,6 +230,7 @@ const CreateListingForm = () => {
     vue_mer: false, vue_montagne: false, vue_foret: false, jardin: false,
     terrasse: false, balcon: false, ascenseur: false, garage: false, parking: false,
     cellier: false, meuble: false, cuisine_equipee: false, climatisation: false,
+    chauffage_centrale: false, orientation: "",
     gouvernorat: "", delegation: "", localite: "",
     address: "Tunis, Tunisie", latitude: "36.8065", longitude: "10.1815",
     titre: "", superficie: "", prix: "", devise: "TND", description: "",
@@ -152,6 +247,8 @@ const CreateListingForm = () => {
   });
 
   const [imageValidation, setImageValidation] = useState({});
+  /* ── Stats de marché (prix moyen/m² par gouvernorat) ── */
+  const [marketStats, setMarketStats] = useState({});
 
   const totalSteps = 6;
 
@@ -176,6 +273,25 @@ const CreateListingForm = () => {
   useEffect(() => {
     try { localStorage.setItem("ca_maploc", JSON.stringify(mapLocation)); } catch { /* ignore */ }
   }, [mapLocation]);
+
+  /* ── Fetch stats prix/m² depuis les annonces publiques ── */
+  useEffect(() => {
+    fetch(`${API_URL}/annonces/public?limit=500`)
+      .then(r => r.json())
+      .then(data => {
+        if (!Array.isArray(data)) return;
+        const stats = {};
+        data.forEach(a => {
+          if (!a.prix || !a.superficie || a.superficie <= 0 || !a.gouvernorat) return;
+          const k = a.gouvernorat;
+          if (!stats[k]) stats[k] = { sum: 0, count: 0 };
+          stats[k].sum   += a.prix / a.superficie;
+          stats[k].count += 1;
+        });
+        setMarketStats(stats);
+      })
+      .catch(() => {});
+  }, []);
 
   const clearFormStorage = () => {
     ["ca_step", "ca_formdata", "ca_hierarchy", "ca_maploc"].forEach(k => {
@@ -202,6 +318,21 @@ const CreateListingForm = () => {
     const delLabel = delegations.find(d => d.id === newHierarchy.delegation)?.nom || "";
     const locLabel = localites.find(l => l.id === newHierarchy.localite)?.nom || "";
 
+    /* Adresse progressive : dès qu'un niveau est choisi */
+    let builtAddress = "";
+    if (locLabel && delLabel && govLabel) {
+      builtAddress = [locLabel, delLabel, govLabel, "Tunisie"].join(", ");
+    } else if (delLabel && govLabel) {
+      builtAddress = [delLabel, govLabel, "Tunisie"].join(", ");
+    } else if (govLabel) {
+      builtAddress = govLabel + ", Tunisie";
+    }
+
+    /* Mettre à jour l'adresse immédiatement (avant même le geocode) */
+    if (builtAddress) {
+      setFormData(prev => ({ ...prev, address: builtAddress }));
+    }
+
     const searchLabel = locLabel || delLabel || govLabel;
     if (searchLabel) {
       fetch(
@@ -213,10 +344,7 @@ const CreateListingForm = () => {
           if (data[0]) {
             const lat = parseFloat(data[0].lat);
             const lng = parseFloat(data[0].lon);
-
-            /* Adresse par défaut seulement quand les 3 niveaux sont remplis */
-            if (newHierarchy.gouvernorat && newHierarchy.delegation && newHierarchy.localite) {
-              const builtAddress = [locLabel, delLabel, govLabel, "Tunisie"].filter(Boolean).join(", ");
+            if (builtAddress) {
               setMapLocation({ lat, lng, address: builtAddress });
               setFormData(prev => ({
                 ...prev,
@@ -668,38 +796,39 @@ const CreateListingForm = () => {
   ].filter(Boolean);
 
   const TYPE_CARDS = [
-    { value: "appartement", label: "Appartement",     icon: "🏢" },
-    { value: "villa",       label: "Villa",            icon: "🏡" },
-    { value: "terrain",     label: "Terrain",          icon: "🌿" },
-    { value: "commercial",  label: "Local commercial", icon: "🏪" },
-    { value: "bord_eau",    label: "Bord d'eau",       icon: "🌊" },
+    { value: "appartement",     label: "Appartement",     Ico: Building2, color: "#3b82f6"  },
+    { value: "villa",           label: "Villa",            Ico: Home,      color: "#10b981"  },
+    { value: "terrain",         label: "Terrain",          Ico: Leaf,      color: "#f59e0b"  },
+    { value: "local_commercial",label: "Local commercial", Ico: Store,     color: "#f97316"  },
+    { value: "bord_eau",        label: "Bord d'eau",       Ico: Waves,     color: "#06b6d4"  },
   ];
 
   const ETAT_CARDS = [
-    { value: "nouveau",             label: "Neuf",            icon: "✨" },
-    { value: "bon_etat",            label: "Bon état",         icon: "👍" },
-    { value: "a_renover",           label: "À rénover",        icon: "🔧" },
-    { value: "cours_construction",  label: "En construction",  icon: "🏗️" },
+    { value: "nouveau",            label: "Neuf",           Ico: Sparkles, color: "#6366f1" },
+    { value: "bon_etat",           label: "Bon état",       Ico: ThumbsUp, color: "#16a34a" },
+    { value: "a_renover",          label: "À rénover",      Ico: Wrench,   color: "#f59e0b" },
+    { value: "cours_construction", label: "En construction",Ico: HardHat,  color: "#64748b" },
   ];
 
   const VUE_ITEMS = [
-    { key: "vue_mer",      icon: "🌊", label: "Vue sur mer" },
-    { key: "vue_montagne", icon: "⛰️", label: "Vue montagne" },
-    { key: "vue_foret",    icon: "🌲", label: "Vue forêt" },
+    { key: "vue_mer",      Ico: Waves,    label: "Vue sur mer",   color: "#0ea5e9" },
+    { key: "vue_montagne", Ico: Mountain, label: "Vue montagne",  color: "#8b5cf6" },
+    { key: "vue_foret",    Ico: TreePine, label: "Vue forêt",     color: "#16a34a" },
   ];
   const EXT_ITEMS = [
-    { key: "jardin",   icon: "🏡", label: "Jardin" },
-    { key: "terrasse", icon: "☀️", label: "Terrasse" },
-    { key: "balcon",   icon: "🪴", label: "Balcon" },
+    { key: "jardin",   Ico: Leaf,    label: "Jardin",   color: "#22c55e" },
+    { key: "terrasse", Ico: Sun,     label: "Terrasse", color: "#f59e0b" },
+    { key: "balcon",   Ico: Flower2, label: "Balcon",   color: "#f43f5e" },
   ];
   const COM_ITEMS = [
-    { key: "ascenseur",     icon: "🛗",  label: "Ascenseur" },
-    { key: "garage",        icon: "🚗",  label: "Garage" },
-    { key: "parking",       icon: "🅿️",  label: "Parking" },
-    { key: "cellier",       icon: "📦",  label: "Cellier" },
-    { key: "meuble",        icon: "🛋️",  label: "Meublé" },
-    { key: "cuisine_equipee",icon: "🍳", label: "Cuisine équipée" },
-    { key: "climatisation", icon: "❄️",  label: "Climatisation" },
+    { key: "ascenseur",          Ico: ArrowUpDown,   label: "Ascenseur",       color: "#6366f1" },
+    { key: "garage",             Ico: Car,           label: "Garage",          color: "#475569" },
+    { key: "parking",            Ico: ParkingCircle, label: "Parking",         color: "#0284c7" },
+    { key: "cellier",            Ico: Package,       label: "Cellier",         color: "#92400e" },
+    { key: "meuble",             Ico: Sofa,          label: "Meublé",          color: "#7c3aed" },
+    { key: "cuisine_equipee",    Ico: UtensilsCrossed,label:"Cuisine équipée", color: "#ea580c" },
+    { key: "climatisation",      Ico: Wind,          label: "Climatisation",   color: "#0891b2" },
+    { key: "chauffage_centrale", Ico: Thermometer,   label: "Chauffage central",color:"#dc2626"},
   ];
 
   return (
@@ -783,18 +912,26 @@ const CreateListingForm = () => {
                   {/* Type de bien — compact inline (style état du bien) */}
                   <div className="ca-section-label">Sélectionnez le type <span className="ca-req">*</span></div>
                   <div className="ca-etat-row">
-                    {TYPE_CARDS.map(tc => (
-                      <button
-                        key={tc.value}
-                        type="button"
-                        className={`ca-etat-card${formData.type_bien === tc.value ? " ca-etat-card--on" : ""}`}
-                        onClick={() => handleInputChange("type_bien", tc.value)}
-                      >
-                        <span>{tc.icon}</span>
-                        <span>{tc.label}</span>
-                      </button>
-                    ))}
+                    {TYPE_CARDS.map(tc => {
+                      const isOn = formData.type_bien === tc.value;
+                      return (
+                        <button
+                          key={tc.value}
+                          type="button"
+                          className={`ca-etat-card${isOn ? " ca-etat-card--on" : ""}`}
+                          onClick={() => handleInputChange("type_bien", tc.value)}
+                        >
+                          <span style={{ display:"flex", alignItems:"center" }}>
+                            <tc.Ico size={24}/>
+                          </span>
+                          <span>{tc.label}</span>
+                        </button>
+                      );
+                    })}
                   </div>
+
+                  {/* ── Bannière accompagnement ── */}
+                  <AccompagnementBanner />
 
                   {/* Catégorie pills */}
                   <div className="ca-section-label" style={{marginTop:24}}>Type d'offre <span className="ca-req">*</span></div>
@@ -852,7 +989,7 @@ const CreateListingForm = () => {
                         <select className="ca-select" value={formData.type_villa}
                           onChange={e => handleInputChange("type_villa", e.target.value)}>
                           <option value="">Sélectionner…</option>
-                          <option value="r">Plain-pied (R)</option>
+                          <option value="r">RDC (Rez-de-chaussée)</option>
                           <option value="r+1">R+1</option>
                           <option value="r+2">R+2</option>
                           <option value="r+3">R+3</option>
@@ -860,14 +997,28 @@ const CreateListingForm = () => {
                         </select>
                       </div>
                       <div className="ca-field">
-                        <label className="ca-label">Option villa</label>
-                        <select className="ca-select" value={formData.type_option_villa}
-                          onChange={e => handleInputChange("type_option_villa", e.target.value)}>
-                          <option value="">Sélectionner…</option>
-                          <option value="aucun">Aucune option</option>
-                          <option value="sous-sol">Sous-sol</option>
-                          <option value="rez-de-jardin">Rez-de-jardin</option>
-                        </select>
+                        <label className="ca-label">Options villa</label>
+                        <div className="ca-toggle-group">
+                          {[
+                            { v: "sous-sol",      l: "Sous-sol" },
+                            { v: "rez-de-jardin", l: "Rez-de-jardin" },
+                            { v: "avec-garage",   l: "Avec garage" },
+                          ].map(opt => {
+                            const vals = (formData.type_option_villa || "").split(",").filter(Boolean);
+                            const on   = vals.includes(opt.v);
+                            return (
+                              <button key={opt.v} type="button"
+                                className={`ca-toggle-btn${on ? " ca-toggle-btn--on" : ""}`}
+                                onClick={() => {
+                                  const next = on ? vals.filter(x => x !== opt.v) : [...vals, opt.v];
+                                  handleInputChange("type_option_villa", next.join(","));
+                                }}
+                              >
+                                {on ? <Check size={11}/> : null} {opt.l}
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
                   )}
@@ -910,17 +1061,22 @@ const CreateListingForm = () => {
                   {/* État du bien */}
                   <div className="ca-section-label" style={{marginTop:24}}>État du bien</div>
                   <div className="ca-etat-row">
-                    {ETAT_CARDS.map(ec => (
-                      <button
-                        key={ec.value}
-                        type="button"
-                        className={`ca-etat-card${formData.etat_bien === ec.value ? " ca-etat-card--on" : ""}`}
-                        onClick={() => handleInputChange("etat_bien", ec.value)}
-                      >
-                        <span>{ec.icon}</span>
-                        <span>{ec.label}</span>
-                      </button>
-                    ))}
+                    {ETAT_CARDS.map(ec => {
+                      const isOn = formData.etat_bien === ec.value;
+                      return (
+                        <button
+                          key={ec.value}
+                          type="button"
+                          className={`ca-etat-card${isOn ? " ca-etat-card--on" : ""}`}
+                          onClick={() => handleInputChange("etat_bien", ec.value)}
+                        >
+                          <span style={{ display:"flex", alignItems:"center" }}>
+                            <ec.Ico size={22}/>
+                          </span>
+                          <span>{ec.label}</span>
+                        </button>
+                      );
+                    })}
                   </div>
 
                   {/* Counters — masqués pour terrain */}
@@ -963,26 +1119,32 @@ const CreateListingForm = () => {
                   {[
                     { title: "Vue",                  items: VUE_ITEMS },
                     { title: "Espaces extérieurs",   items: EXT_ITEMS },
-                    { title: "Commodités",            items: COM_ITEMS },
+                    { title: "Commodités & équipements", items: COM_ITEMS },
                   ].map(section => (
                     <div key={section.title} className="ca-feat-section">
                       <div className="ca-section-label">{section.title}</div>
                       <div className="ca-feat-grid">
-                        {section.items.map(item => (
-                          <button
-                            key={item.key}
-                            type="button"
-                            className={`ca-feat-card${formData[item.key] ? " ca-feat-card--on" : ""}`}
-                            onClick={() => handleCheckboxChange(item.key)}
-                          >
-                            <span className="ca-feat-card__ico">{item.icon}</span>
-                            <span className="ca-feat-card__label">{item.label}</span>
-                            {formData[item.key] && <Check size={12} className="ca-feat-card__check"/>}
-                          </button>
-                        ))}
+                        {section.items.map(item => {
+                          const isOn = !!formData[item.key];
+                          return (
+                            <button
+                              key={item.key}
+                              type="button"
+                              className={`ca-feat-card${isOn ? " ca-feat-card--on" : ""}`}
+                              onClick={() => handleCheckboxChange(item.key)}
+                            >
+                              <span className="ca-feat-card__ico">
+                                <item.Ico size={18}/>
+                              </span>
+                              <span className="ca-feat-card__label">{item.label}</span>
+                              {isOn && <Check size={12} className="ca-feat-card__check"/>}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   ))}
+
                 </div>
               )}
 
@@ -1205,6 +1367,23 @@ const CreateListingForm = () => {
                         );
                       })()}
 
+                      {/* ── Évaluation de marché ── */}
+                      {(() => {
+                        const prixNum  = parseFloat(formData.prix);
+                        const surfNum  = parseFloat(formData.superficie);
+                        const prixM2n  = (prixNum > 0 && surfNum > 0) ? prixNum / surfNum : null;
+                        const govLabel = gouvernorats.find(g => g.value === hierarchy.gouvernorat)?.label || "";
+                        if (!govLabel || !prixM2n) return null;
+                        const govStats = marketStats[govLabel] || { sum: 0, count: 0 };
+                        return (
+                          <CaPriceEvalBar
+                            prixM2={prixM2n}
+                            govStats={govStats}
+                            devise={formData.devise}
+                          />
+                        );
+                      })()}
+
                     </div>{/* /ca-split-left */}
 
                     {/* Colonne droite : Description */}
@@ -1219,10 +1398,12 @@ const CreateListingForm = () => {
                             onClick={generateQuickAIDescription} disabled={isAILoading}>
                             {isAILoading ? "Génération…" : "Rédaction rapide"}
                           </button>
+                          {/* Assistant guidé — à activer plus tard
                           <button type="button" className="ca-ai-pill ca-ai-pill--ghost"
                             onClick={() => setIsAIModalOpen(true)}>
                             Assistant guidé
                           </button>
+                          */}
                         </div>
 
                         <div className="ca-desc-wrap ca-desc-wrap--full">
@@ -1720,9 +1901,73 @@ const CreateListingForm = () => {
           }
           .ca-feat-card:hover { border-color: #6366f1; background: #eef2ff; color: #4f46e5; }
           .ca-feat-card--on { border-color: #6366f1; background: #6366f1; color: #fff; }
-          .ca-feat-card__ico { font-size: 16px; }
+          .ca-feat-card__ico { font-size: 18px; display:flex; align-items:center; }
           .ca-feat-card__label { font-size: 13px; }
           .ca-feat-card__check { margin-left: 2px; color: #a3e635; }
+
+          /* Toggle boutons (options villa) */
+          .ca-toggle-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+          .ca-toggle-btn {
+            display: flex; align-items: center; gap: 5px;
+            padding: 7px 14px; border-radius: 20px;
+            border: 1.5px solid #e5e7eb; background: #f9fafb;
+            font-size: 12.5px; font-weight: 600; color: #374151;
+            cursor: pointer; font-family: inherit; transition: all .15s;
+          }
+          .ca-toggle-btn:hover { border-color: #6366f1; color: #4f46e5; background: #eef2ff; }
+          .ca-toggle-btn--on { background: #6366f1; color: #fff; border-color: #6366f1; box-shadow: 0 2px 8px rgba(99,102,241,.3); }
+
+          /* Orientation grid */
+          /* orientation removed */
+          .ca-orient-btn-UNUSED {
+            padding: 6px 14px; border-radius: 20px;
+            border: 1.5px solid #e5e7eb; background: #f9fafb;
+            font-size: 12px; font-weight: 600; color: #374151;
+            cursor: pointer; font-family: inherit; transition: all .15s;
+          }
+          .ca-orient-btn:hover { border-color: #6366f1; color: #4f46e5; background: #eef2ff; }
+          .ca-orient-btn--on { background: #6366f1; color: #fff; border-color: #6366f1; box-shadow: 0 2px 8px rgba(99,102,241,.3); }
+
+          /* Bannière accompagnement */
+          .ca-accom {
+            display: flex; align-items: flex-start; gap: 14px;
+            margin: 20px 0; padding: 16px 18px;
+            background: linear-gradient(135deg, #eef2ff, #f5f3ff);
+            border: 1.5px solid #c7d2fe; border-radius: 14px;
+            position: relative;
+          }
+          .ca-accom__icon {
+            width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+            background: #6366f1; color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 3px 10px rgba(99,102,241,.3);
+          }
+          .ca-accom__body { flex: 1; }
+          .ca-accom__q { font-size: 14px; font-weight: 700; color: #1e293b; margin: 0 0 4px; }
+          .ca-accom__sub { font-size: 12.5px; color: #64748b; margin: 0 0 12px; line-height: 1.5; }
+          .ca-accom__btns { display: flex; gap: 8px; flex-wrap: wrap; }
+          .ca-accom__yes {
+            padding: 8px 16px; border-radius: 10px;
+            background: #6366f1; color: #fff;
+            font-size: 12.5px; font-weight: 700; text-decoration: none;
+            transition: background .15s;
+          }
+          .ca-accom__yes:hover { background: #4f46e5; }
+          .ca-accom__no {
+            padding: 8px 16px; border-radius: 10px;
+            border: 1.5px solid #c7d2fe; background: transparent; color: #4f46e5;
+            font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit;
+            transition: all .15s;
+          }
+          .ca-accom__no:hover { background: #e0e7ff; }
+          .ca-accom__close {
+            position: absolute; top: 10px; right: 10px;
+            width: 24px; height: 24px; border-radius: 6px; border: none;
+            background: rgba(99,102,241,.12); color: #6366f1;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: background .15s;
+          }
+          .ca-accom__close:hover { background: rgba(99,102,241,.22); }
 
           /* Step 3 — two-column layout */
           .ca-loc-layout {
@@ -1854,6 +2099,30 @@ const CreateListingForm = () => {
           .ca-live-preview__prixm2-lbl {
             font-size: 10.5px; color: rgba(255,255,255,.75);
             text-transform: uppercase; letter-spacing: .05em;
+          }
+
+          /* ── Évaluation prix (barre de marché) ── */
+          .ca-peb {
+            margin-top: 12px;
+            border: 1.5px solid #e5e7eb; border-radius: 12px;
+            padding: 10px 14px 10px;
+            background: #fff;
+            display: flex; flex-direction: column; gap: 5px;
+          }
+          .ca-peb__top {
+            display: flex; align-items: center; justify-content: space-between;
+          }
+          .ca-peb__label {
+            font-size: 9.5px; font-weight: 800;
+            text-transform: uppercase; letter-spacing: .07em;
+          }
+          .ca-peb__avg {
+            font-size: 10.5px; color: #94a3b8; font-weight: 500;
+          }
+          .ca-peb__bar { display: flex; gap: 3px; }
+          .ca-peb__seg { flex: 1; height: 6px; border-radius: 3px; transition: background .2s; }
+          .ca-peb__ref {
+            font-size: 10px; color: #cbd5e1; text-align: right; line-height: 1;
           }
 
           @media (max-width: 720px) {

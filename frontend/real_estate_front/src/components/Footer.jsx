@@ -38,9 +38,10 @@ export default function Footer() {
             <p className="lz-footer__heading">Services</p>
             <ul className="lz-footer__links">
               <li><Link to="/creer_annonce">Publier une annonce</Link></li>
-              <li><Link to="/abonnements"><Zap size={12} /> Booster mon annonce</Link></li>
+              {/* <li><Link to="/abonnements"><Zap size={12} /> Booster mon annonce</Link></li> */}
               <li><Link to="/dashboard">Mon tableau de bord</Link></li>
               <li><Link to="/apropos">À propos</Link></li>
+              <li><Link to="/qui-sommes-nous">Qui sommes-nous</Link></li>
             </ul>
           </div>
 
@@ -48,9 +49,9 @@ export default function Footer() {
           <div>
             <p className="lz-footer__heading">Contact</p>
             <ul className="lz-footer__contact">
-              <li><MapPin size={15} /><span>Tunis, Tunisie</span></li>
-              <li><Mail size={15} /><span>contact@localizi.tn</span></li>
-              <li><Phone size={15} /><span>+216 XX XXX XXX</span></li>
+              <li><MapPin size={15} /><span>La Marsa, Tunis</span></li>
+              <li><Mail size={15} /><span>xpertiseimmo@gmail.com</span></li>
+              <li><Phone size={15} /><span>+216 23 423 000</span></li>
             </ul>
 
             {/* Newsletter mini */}
@@ -64,9 +65,9 @@ export default function Footer() {
         <div className="lz-footer__bottom">
           <p>© {new Date().getFullYear()} Localizi. Tous droits réservés.</p>
           <div className="lz-footer__bottom-links">
-            <a href="#">Politique de confidentialité</a>
+            <Link to="/politique-confidentialite">Politique de confidentialité</Link>
+            <Link to="/qui-sommes-nous">Qui sommes-nous</Link>
             <a href="#">CGU</a>
-            <a href="#">Cookies</a>
           </div>
         </div>
       </div>

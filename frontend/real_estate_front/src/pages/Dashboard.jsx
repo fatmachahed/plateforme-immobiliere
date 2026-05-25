@@ -2,6 +2,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { useToast } from "../components/Toast";
+import API_URL from "../config";
 import {
   Home, Plus, Eye, Edit2, Trash2, MapPin, TrendingUp,
   Clock, CheckCircle, XCircle, AlertCircle, X, Search, Zap
@@ -44,7 +45,7 @@ export default function Dashboard() {
     setLoading(true);
     try {
       // fetch annonces
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/annonces/`, {
+      const res = await fetch(`${API_URL}/annonces/`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.status === 401) { navigate("/login?session=expired"); return; }
@@ -63,7 +64,7 @@ export default function Dashboard() {
   async function handleDelete(id) {
     try {
       // fetch delete
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/annonces/${id}`, {
+      const res = await fetch(`${API_URL}/annonces/${id}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -112,9 +113,11 @@ export default function Dashboard() {
               <p className="db-header__sub">Gérez toutes vos publications immobilières</p>
             </div>
             <div style={{display:"flex",gap:10}}>
+{/* Boost désactivé temporairement
               <Link to="/booster" className="db-btn-boost">
                 <Zap size={16}/> Booster mes annonces
               </Link>
+*/}
               <Link to="/creer_annonce" className="db-btn-primary">
                 <Plus size={17}/> Nouvelle annonce
               </Link>

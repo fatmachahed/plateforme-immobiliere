@@ -97,7 +97,8 @@ const TYPE_LBL = {
 };
 const ETATS    = ["nouveau","bon_etat","a_renover","cours_construction"];
 const ETAT_LBL = { nouveau:"Neuf", bon_etat:"Bon état", a_renover:"À rénover", cours_construction:"En construction" };
-const CAT_LBL  = { vente:"Vente", location:"Location", vacances:"Vacances" };
+const CAT_LBL    = { vente:"Achat", location:"Location", vacances:"Vacances" };
+const CAT_COLORS = { vente:"#4f46e5", location:"#16a34a", vacances:"#f59e0b" }; // indigo / vert / ambre
 
 function fmtPin(p)  { return p >= 1e6 ? `${(p/1e6).toFixed(1)}M` : p >= 1000 ? `${Math.round(p/1000)}k` : `${p}`; }
 function fmtFull(p) { return p.toLocaleString("fr-TN"); }
@@ -133,8 +134,55 @@ const arrowBtn = (s) => ({
   boxShadow:"0 1px 5px rgba(0,0,0,.2)", color:"#374151", zIndex:2,
 });
 
+/* ─────────────────────────────────────────────────────────────
+   ÉVALUATION DU PRIX — barre de 10 segments colorés
+───────────────────────────────────────────────────────────── */
+const EVAL_LEVELS = [
+  { key:"none",  label:"AUCUNE ÉVALUATION", segs:0,  color:"#d1d5db" },
+  { key:"high3", label:"PRIX TRÈS ÉLEVÉ",   segs:1,  color:"#9a3412" }, // orange foncé
+  { key:"high2", label:"PRIX ÉLEVÉ",         segs:3,  color:"#ca8a04" }, // jaune
+  { key:"fair",  label:"PRIX ÉQUITABLE",     segs:5,  color:"#22c55e" }, // vert
+  { key:"good",  label:"BON PRIX",            segs:7,  color:"#16a34a" }, // vert foncé
+  { key:"great", label:"TRÈS BON PRIX",       segs:10, color:"#15803d" }, // vert très foncé
+];
+const EVAL_TOTAL = 10;
+
+function getEvalLevel(prixM2, govAvg, count) {
+  if (!count || !govAvg || !prixM2 || govAvg <= 0) return EVAL_LEVELS[0];
+  const r = prixM2 / govAvg;
+  if (r >= 1.30) return EVAL_LEVELS[1];
+  if (r >= 1.10) return EVAL_LEVELS[2];
+  if (r >= 0.90) return EVAL_LEVELS[3];
+  if (r >= 0.70) return EVAL_LEVELS[4];
+  return EVAL_LEVELS[5];
+}
+
+function PriceEvalBar({ prixM2, govStats }) {
+  const gs  = govStats || { sum: 0, count: 0 };
+  const avg = gs.count > 0 ? gs.sum / gs.count : 0;
+  const ev  = getEvalLevel(prixM2, avg, gs.count);
+  const isNone = ev.key === "none";
+  return (
+    <div className="peb">
+      <span className="peb__label" style={{ color: isNone ? "#9ca3af" : ev.color }}>
+        {ev.label}
+      </span>
+      <div className="peb__bar">
+        {Array.from({ length: EVAL_TOTAL }, (_, i) => (
+          <span key={i} className="peb__seg"
+            style={{ background: i < ev.segs ? ev.color : "#e2e8f0" }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Carte de bien ─── */
-function PropCard({ p, active, onHover, onClick }) {
+function PropCard({ p, active, onHover, onClick, govMarketStats }) {
+  const prixM2   = (p.prix > 0 && p.area > 0 && p.categorie === "vente") ? p.prix / p.area : null;
+  const govStats = govMarketStats?.[p.gouvernorat] || null;
+
   return (
     <div className={`pc${active?" pc--active":""}`}
       onMouseEnter={()=>onHover(p.id)} onMouseLeave={()=>onHover(null)}
@@ -142,11 +190,7 @@ function PropCard({ p, active, onHover, onClick }) {
     >
       <div style={{ position:"relative" }}>
         <Carousel images={p.images} />
-        {p.boost >= 2 && (
-          <span className="pc__boost-badge">
-            <Star size={9} fill="currentColor"/> {p.boost===3?"Boost":"Premium"}
-          </span>
-        )}
+{/* boost badge removed */}
         <span className={`pc__cat-badge pc__cat-badge--${p.categorie}`}>{CAT_LBL[p.categorie]}</span>
       </div>
       <div className="pc__body">
@@ -157,6 +201,10 @@ function PropCard({ p, active, onHover, onClick }) {
           </div>
           <button className="pc__fav" onClick={(e)=>e.stopPropagation()}><Heart size={14}/></button>
         </div>
+        {/* Barre d'évaluation prix (vente uniquement) */}
+        {prixM2 && govStats && (
+          <PriceEvalBar prixM2={prixM2} govStats={govStats} />
+        )}
         <p className="pc__loc"><MapPin size={10}/> {p.delegation} · {p.localite}</p>
         <div className="pc__specs">
           {p.beds  != null && <span><Bed      size={11}/> {p.beds} ch.</span>}
@@ -182,9 +230,10 @@ function PropertyMap({ properties, activeId, selectedGov, onPinClick, onBoundsCh
     markersRef.current = {};
     props.forEach((p) => {
       if (!p.lat || !p.lng) return;
-      const isA = active === p.id;
-      /* Marqueur unique bordeaux — même taille pour tous */
-      const cls  = `pin-dot pin-dot--std${isA ? " pin-dot--active" : ""}`;
+      const isA    = active === p.id;
+      /* Couleur par catégorie */
+      const catCls = p.categorie ? `pin-dot--${p.categorie}` : "pin-dot--std";
+      const cls    = `pin-dot ${catCls}${isA ? " pin-dot--active" : ""}`;
       const icon = L.divIcon({
         className: "",
         html: `<div class="${cls}"></div>`,
@@ -454,13 +503,20 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
           {local.query && <button onClick={()=>set("query","")} className="fp__clear"><X size={11}/></button>}
         </div>
 
-        {/* Catégorie — multi-sélection */}
+        {/* Catégorie — multi-sélection avec bouton Tous */}
         <div className="fp__pill-group">
+          {/* Tous — actif quand aucune catégorie sélectionnée */}
+          <button
+            className={`fp__pill fp__pill--tous${(local.categories||[]).length === 0 ? " fp__pill--on" : ""}`}
+            onClick={() => set("categories", [])}
+          >
+            Tous
+          </button>
           {["vente", "location", "vacances"].map(v => {
             const active = (local.categories || []).includes(v);
             return (
               <button key={v}
-                className={`fp__pill${active ? " fp__pill--on" : ""}`}
+                className={`fp__pill fp__pill--${v}${active ? " fp__pill--on" : ""}`}
                 onClick={() => {
                   const cats = local.categories || [];
                   set("categories", active ? cats.filter(c => c !== v) : [...cats, v]);
@@ -493,7 +549,11 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
           govId={local.govId} govNom={local.govNom}
           delId={local.delId} delNom={local.delNom}
           locId={local.locId} locNom={local.locNom}
-          onChange={(v) => setLocal(f=>({...f,...v}))}
+          onChange={(v) => {
+            const updated = { ...local, ...v };
+            setLocal(updated);
+            onChange(updated);   // applique immédiatement sans cliquer "Rechercher"
+          }}
         />
 
         {/* Overlays POI */}
@@ -796,6 +856,18 @@ export default function CartePage() {
   /* Combine real annonces (first) + demo data */
   const allProperties = [...apiProperties, ...DEMO];
 
+  /* Stats marché : prix moyen/m² par gouvernorat (vente uniquement) */
+  const govMarketStats = React.useMemo(() => {
+    const stats = {};
+    allProperties.forEach(p => {
+      if (p.categorie !== "vente" || !p.gouvernorat || !p.prix || !p.area || p.area <= 0) return;
+      if (!stats[p.gouvernorat]) stats[p.gouvernorat] = { sum: 0, count: 0 };
+      stats[p.gouvernorat].sum   += p.prix / p.area;
+      stats[p.gouvernorat].count += 1;
+    });
+    return stats;
+  }, [allProperties]);
+
   /* Filtrage complet (carte + liste) */
   const results = allProperties
     .filter((p) => {
@@ -910,7 +982,7 @@ export default function CartePage() {
               </div>
             : results.map((p) => (
                 <div key={p.id}>
-                  <PropCard p={p} active={false}
+                  <PropCard p={p} active={false} govMarketStats={govMarketStats}
                     onHover={()=>{}}
                     onClick={(id)=>{
                       const realId = String(id).startsWith("api_") ? String(id).replace("api_","") : id;
@@ -959,7 +1031,7 @@ export default function CartePage() {
                 </div>
               : visibleResults.map((p) => (
                   <div id={`card-${p.id}`} key={p.id}>
-                    <PropCard p={p} active={active===p.id}
+                    <PropCard p={p} active={active===p.id} govMarketStats={govMarketStats}
                       onHover={setActive}
                       onClick={(id)=>{
                         const realId = String(id).startsWith("api_") ? String(id).replace("api_","") : id;
@@ -1030,9 +1102,23 @@ export default function CartePage() {
           border: 1.5px solid #e5e7eb; background: #f9fafb; color: #6b7280;
           transition: all .15s;
         }
-        .fp__pill:hover { background: #eef2ff; color: #4f46e5; border-color: #c7d2fe; }
-        .fp__pill--on[data-v=""] { background: #6366f1; color: #fff; border-color: #6366f1; }
-        .fp__pill--on { background: #6366f1; color: #fff; border-color: #6366f1; box-shadow: 0 2px 8px rgba(99,102,241,.35); }
+        .fp__pill:hover { background: #f3f4f6; border-color: #d1d5db; color: #374151; }
+
+        /* ── Tous ── */
+        .fp__pill--tous.fp__pill--on { background: #475569; border-color: #475569; color: #fff; box-shadow: 0 2px 8px rgba(71,85,105,.35); }
+        .fp__pill--tous:not(.fp__pill--on):hover { background: #f1f5f9; color: #475569; border-color: #94a3b8; }
+
+        /* ── Achat (vente) — indigo ── */
+        .fp__pill--vente.fp__pill--on { background: #4f46e5; border-color: #4f46e5; color: #fff; box-shadow: 0 2px 8px rgba(79,70,229,.40); }
+        .fp__pill--vente:not(.fp__pill--on):hover { background: #eef2ff; color: #4f46e5; border-color: #c7d2fe; }
+
+        /* ── Location — vert ── */
+        .fp__pill--location.fp__pill--on { background: #16a34a; border-color: #16a34a; color: #fff; box-shadow: 0 2px 8px rgba(22,163,74,.40); }
+        .fp__pill--location:not(.fp__pill--on):hover { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+
+        /* ── Vacances — ambre ── */
+        .fp__pill--vacances.fp__pill--on { background: #f59e0b; border-color: #f59e0b; color: #fff; box-shadow: 0 2px 8px rgba(245,158,11,.40); }
+        .fp__pill--vacances:not(.fp__pill--on):hover { background: #fffbeb; color: #d97706; border-color: #fcd34d; }
 
         .fp__adv-btn {
           display: flex; align-items: center; gap: 6px;
@@ -1270,6 +1356,20 @@ export default function CartePage() {
           font-size: 11px; color: #64748b;
         }
 
+        /* ── Barre évaluation prix ── */
+        .peb {
+          display: flex; flex-direction: column; gap: 4px;
+          margin: 5px 0 7px; padding-top: 7px;
+          border-top: 1px solid #f1f5f9;
+        }
+        .peb__label {
+          font-size: 9px; font-weight: 800;
+          text-transform: uppercase; letter-spacing: .07em;
+          line-height: 1;
+        }
+        .peb__bar { display: flex; gap: 2px; }
+        .peb__seg { flex: 1; height: 5px; border-radius: 2px; transition: background .2s; }
+
         /* ══════════════════════════════════════
            PINS CARTE
         ══════════════════════════════════════ */
@@ -1283,7 +1383,37 @@ export default function CartePage() {
         }
         .pin-dot:hover, .pin-dot--active { transform: scale(1.4); z-index: 999 !important; }
 
-        /* Marqueur unique bordeaux — tous les biens */
+        /* ── Achat / vente — indigo ── */
+        .pin-dot--vente {
+          width: 20px; height: 20px;
+          background: #4f46e5;
+          box-shadow: 0 2px 8px rgba(79,70,229,.50);
+        }
+        .pin-dot--vente:hover, .pin-dot--vente.pin-dot--active {
+          background: #3730a3;
+          box-shadow: 0 3px 14px rgba(79,70,229,.70);
+        }
+        /* ── Location — vert émeraude ── */
+        .pin-dot--location {
+          width: 20px; height: 20px;
+          background: #16a34a;
+          box-shadow: 0 2px 8px rgba(22,163,74,.50);
+        }
+        .pin-dot--location:hover, .pin-dot--location.pin-dot--active {
+          background: #15803d;
+          box-shadow: 0 3px 14px rgba(22,163,74,.70);
+        }
+        /* ── Vacances — ambre ── */
+        .pin-dot--vacances {
+          width: 20px; height: 20px;
+          background: #f59e0b;
+          box-shadow: 0 2px 8px rgba(245,158,11,.50);
+        }
+        .pin-dot--vacances:hover, .pin-dot--vacances.pin-dot--active {
+          background: #d97706;
+          box-shadow: 0 3px 14px rgba(245,158,11,.70);
+        }
+        /* ── Fallback bordeaux ── */
         .pin-dot--std {
           width: 20px; height: 20px;
           background: #9b1c2e;

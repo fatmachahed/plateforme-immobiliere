@@ -3,8 +3,13 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
 from typing import Optional
 from pydantic import BaseModel
+from datetime import datetime
+from passlib.context import CryptContext
 from app import models, database
 from app.utils.auth import get_current_admin
+from app.enums import RoleEnum
+
+_pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 get_db = database.get_db
@@ -68,6 +73,8 @@ def list_annonces(
     for a in annonces:
         user = db.query(models.User).filter(models.User.id == a.utilisateur_id).first()
         gov  = a.gouvernorat.nom if a.gouvernorat else None
+        del_ = a.delegation.nom  if a.delegation  else None
+        loc_ = a.localite.nom    if a.localite    else None
         prop = a.property
         result.append({
             "id":           a.id,
@@ -75,9 +82,12 @@ def list_annonces(
             "categorie":    a.categorie.value if hasattr(a.categorie, "value") else str(a.categorie),
             "type_bien":    a.type_bien.value  if hasattr(a.type_bien,  "value") else str(a.type_bien),
             "status":       a.status.value     if hasattr(a.status,     "value") else str(a.status),
-            "prix":         float(a.prix),
+            "prix":         float(a.prix) if a.prix else 0,
+            "superficie":   float(a.superficie) if a.superficie else None,
             "devise":       a.devise.value     if hasattr(a.devise,     "value") else str(a.devise),
             "gouvernorat":  gov,
+            "delegation":   del_,
+            "localite":     loc_,
             "date_creation":a.date_creation.isoformat(),
             "utilisateur_id": a.utilisateur_id,
             "user_name":    user.username if user else None,
@@ -133,7 +143,7 @@ def admin_delete_annonce(
 # ── Liste des utilisateurs ───────────────────────────────────
 @router.get("/users")
 def list_users(
-    skip: int = 0, limit: int = 50,
+    skip: int = 0, limit: int = 200,
     db: Session = Depends(get_db),
     _: models.User = Depends(get_current_admin),
 ):
@@ -149,3 +159,141 @@ def list_users(
         }
         for u in users
     ]
+
+
+# ── Pydantic models for agencies ────────────────────────────
+class AgencyCreate(BaseModel):
+    nom: str
+    email: str
+    telephone: Optional[str] = None
+    adresse: Optional[str] = None
+    matricule: Optional[str] = None
+    frais_mensuel: float = 50.0
+    username: str
+    password: str
+    role: Optional[str] = "agence"
+
+
+class AgencyUpdate(BaseModel):
+    abonnement_actif: Optional[bool] = None
+    note_admin: Optional[str] = None
+    frais_mensuel: Optional[float] = None
+    abonnement_expire_at: Optional[str] = None
+
+
+# ── GET /admin/agencies ─────────────────────────────────────
+@router.get("/agencies")
+def list_agencies(
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_admin),
+):
+    agencies = db.query(models.Agency).order_by(desc(models.Agency.created_at)).all()
+    result = []
+    for ag in agencies:
+        user = db.query(models.User).filter(models.User.id == ag.user_id).first()
+        nb_annonces = (
+            db.query(func.count(models.Annonce.id))
+            .filter(models.Annonce.utilisateur_id == ag.user_id)
+            .scalar() or 0
+        )
+        result.append({
+            "id":                  ag.id,
+            "user_id":             ag.user_id,
+            "nom":                 ag.nom,
+            "email":               ag.email,
+            "telephone":           ag.telephone,
+            "adresse":             ag.adresse,
+            "matricule":           ag.matricule,
+            "frais_mensuel":       ag.frais_mensuel,
+            "abonnement_actif":    ag.abonnement_actif,
+            "abonnement_expire_at": ag.abonnement_expire_at.isoformat() if ag.abonnement_expire_at else None,
+            "note_admin":          ag.note_admin,
+            "created_at":          ag.created_at.isoformat() if ag.created_at else None,
+            "username":            user.username if user else None,
+            "nb_annonces":         nb_annonces,
+        })
+    return result
+
+
+# ── POST /admin/agencies ─────────────────────────────────────
+@router.post("/agencies")
+def create_agency(
+    body: AgencyCreate,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_admin),
+):
+    if db.query(models.User).filter(models.User.username == body.username).first():
+        raise HTTPException(400, f"Le nom d'utilisateur '{body.username}' est déjà utilisé.")
+    if db.query(models.User).filter(models.User.email == body.email).first():
+        raise HTTPException(400, f"L'email '{body.email}' est déjà utilisé.")
+
+    user = models.User(
+        username=body.username,
+        email=body.email,
+        hashed_password=_pwd.hash(body.password),
+        role=RoleEnum.agence,
+        phone_number=body.telephone,
+    )
+    db.add(user)
+    db.flush()
+
+    agency = models.Agency(
+        user_id=user.id,
+        nom=body.nom,
+        email=body.email,
+        telephone=body.telephone,
+        adresse=body.adresse,
+        matricule=body.matricule,
+        frais_mensuel=body.frais_mensuel,
+        abonnement_actif=True,
+    )
+    db.add(agency)
+    db.commit()
+    db.refresh(agency)
+
+    return {
+        "id":               agency.id,
+        "user_id":          user.id,
+        "nom":              agency.nom,
+        "email":            agency.email,
+        "telephone":        agency.telephone,
+        "matricule":        agency.matricule,
+        "frais_mensuel":    agency.frais_mensuel,
+        "abonnement_actif": True,
+        "note_admin":       None,
+        "created_at":       agency.created_at.isoformat() if agency.created_at else None,
+        "username":         user.username,
+        "nb_annonces":      0,
+    }
+
+
+# ── PATCH /admin/agencies/{id} ──────────────────────────────
+@router.patch("/agencies/{agency_id}")
+def update_agency(
+    agency_id: int,
+    body: AgencyUpdate,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_admin),
+):
+    ag = db.query(models.Agency).filter(models.Agency.id == agency_id).first()
+    if not ag:
+        raise HTTPException(404, "Agence non trouvée")
+    if body.abonnement_actif is not None:
+        ag.abonnement_actif = body.abonnement_actif
+    if body.note_admin is not None:
+        ag.note_admin = body.note_admin
+    if body.frais_mensuel is not None:
+        ag.frais_mensuel = body.frais_mensuel
+    if body.abonnement_expire_at is not None:
+        try:
+            ag.abonnement_expire_at = datetime.fromisoformat(body.abonnement_expire_at)
+        except Exception:
+            pass
+    db.commit()
+    db.refresh(ag)
+    return {
+        "id":               ag.id,
+        "abonnement_actif": ag.abonnement_actif,
+        "note_admin":       ag.note_admin,
+        "frais_mensuel":    ag.frais_mensuel,
+    }

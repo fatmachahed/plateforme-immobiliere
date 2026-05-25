@@ -11,7 +11,7 @@ export default function Contact() {
   });
   const [sent, setSent] = useState(false);
 
-  const DEST = "fachahed@gmail.com";
+  const DEST = "xpertiseimmo@gmail.com";
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -38,13 +38,13 @@ export default function Contact() {
     {
       icon: <MapPin size={18} strokeWidth={1.5}/>,
       label: "Adresse",
-      value: "Avenue Habib Bourguiba, Tunis",
+      value: "La Marsa, Tunis",
       sub: "Siège social"
     },
     {
       icon: <Phone size={18} strokeWidth={1.5}/>,
       label: "Téléphone",
-      value: "+216 71 123 456",
+      value: "+216 23 423 000",
       sub: "Lun – Sam, 9h – 18h"
     },
     {
@@ -131,7 +131,7 @@ export default function Contact() {
                 </div>
 
                 {/* Dark card — hours */}
-                <div className="ct-hours-card">
+                {/* <div className="ct-hours-card">
                   <div className="ct-hours-card__icon">
                     <Clock size={16} strokeWidth={1.5}/>
                   </div>
@@ -141,7 +141,7 @@ export default function Contact() {
                     <p className="ct-hours-card__row"><span>Samedi</span><strong>9h00 – 13h00</strong></p>
                     <p className="ct-hours-card__row"><span>Dimanche</span><strong>Fermé</strong></p>
                   </div>
-                </div>
+                </div> */}
               </div>
 
               {/* ── Right — form ── */}
@@ -175,7 +175,7 @@ export default function Contact() {
                             />
                           </div>
                           <div className="ct-field">
-                            <label className="ct-label">Téléphone</label>
+                            <label className="ct-label">Téléphone / WhatsApp</label>
                             <input
                               type="tel" className="ct-input"
                               placeholder="+216 XX XXX XXX"

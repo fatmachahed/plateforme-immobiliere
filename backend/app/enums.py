@@ -20,6 +20,7 @@ class TypeBienEnum(str, enum.Enum):
     local_commercial = "local_commercial"
     terrain = "terrain"
     ferme = "ferme"
+    bord_eau = "bord_eau"
 
 class EtatBienEnum(str, enum.Enum):
     nouveau = "nouveau"
