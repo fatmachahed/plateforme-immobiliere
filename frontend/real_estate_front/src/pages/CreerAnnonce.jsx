@@ -800,7 +800,6 @@ const CreateListingForm = () => {
     { value: "villa",           label: "Villa",            Ico: Home,      color: "#10b981"  },
     { value: "terrain",         label: "Terrain",          Ico: Leaf,      color: "#f59e0b"  },
     { value: "local_commercial",label: "Local commercial", Ico: Store,     color: "#f97316"  },
-    { value: "bord_eau",        label: "Bord d'eau",       Ico: Waves,     color: "#06b6d4"  },
   ];
 
   const ETAT_CARDS = [
