@@ -11,6 +11,7 @@ export default function Register() {
   const [email,           setEmail]           = useState("");
   const [password,        setPassword]        = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [role,            setRole]            = useState("particulier");
   const [showPwd,         setShowPwd]         = useState(false);
   const [showConfirm,     setShowConfirm]     = useState(false);
   const [error,           setError]           = useState("");
@@ -30,7 +31,7 @@ export default function Register() {
       const res = await fetch(`${API_URL}/users/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, email, password }),
+        body: JSON.stringify({ username, email, password, role }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -116,6 +117,33 @@ export default function Register() {
                 value={email} onChange={e => setEmail(e.target.value)}
                 required disabled={loading} autoComplete="email"
               />
+            </div>
+
+            {/* Role selector */}
+            <div className="sp-field">
+              <label className="sp-label">Vous êtes</label>
+              <div className="sp-role-group">
+                <button
+                  type="button"
+                  className={`sp-role-btn${role === "particulier" ? " sp-role-btn--active" : ""}`}
+                  onClick={() => setRole("particulier")}
+                  disabled={loading}
+                >
+                  <span className="sp-role-icon">🏠</span>
+                  <span className="sp-role-label">Particulier</span>
+                  <span className="sp-role-desc">Je vends / loue mon bien</span>
+                </button>
+                <button
+                  type="button"
+                  className={`sp-role-btn${role === "professionnel" ? " sp-role-btn--active" : ""}`}
+                  onClick={() => setRole("professionnel")}
+                  disabled={loading}
+                >
+                  <span className="sp-role-icon">🏢</span>
+                  <span className="sp-role-label">Professionnel</span>
+                  <span className="sp-role-desc">Agence, promoteur, agent</span>
+                </button>
+              </div>
             </div>
 
             <div className="sp-field">
@@ -271,6 +299,33 @@ export default function Register() {
         .sp-switch { text-align: center; font-size: 13.5px; color: #6b7280; margin-top: 22px; }
         .sp-link   { color: #6366f1; font-weight: 700; text-decoration: none; }
         .sp-link:hover { text-decoration: underline; }
+        /* ── Role selector ── */
+        .sp-role-group {
+          display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+        }
+        .sp-role-btn {
+          display: flex; flex-direction: column; align-items: center; gap: 4px;
+          padding: 14px 10px; border-radius: 12px;
+          border: 2px solid #e2e8f0; background: #f8fafc;
+          cursor: pointer; font-family: inherit; text-align: center;
+          transition: all .15s;
+        }
+        .sp-role-btn:hover:not(:disabled) {
+          border-color: #a5b4fc; background: #eef2ff;
+        }
+        .sp-role-btn--active {
+          border-color: #6366f1 !important; background: #eef2ff !important;
+          box-shadow: 0 0 0 3px rgba(99,102,241,.12);
+        }
+        .sp-role-btn:disabled { opacity: .6; cursor: not-allowed; }
+        .sp-role-icon { font-size: 22px; line-height: 1; }
+        .sp-role-label {
+          font-size: 13px; font-weight: 700; color: #0f172a;
+        }
+        .sp-role-btn--active .sp-role-label { color: #4f46e5; }
+        .sp-role-desc {
+          font-size: 11px; color: #94a3b8; font-weight: 500; line-height: 1.3;
+        }
         @media (max-width: 900px) {
           .sp-left { display: none; }
           .sp-center-icon { display: none; }

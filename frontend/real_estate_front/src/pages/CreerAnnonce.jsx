@@ -126,24 +126,23 @@ function ControlledMap({ position, onLocationChange }) {
 }
 
 const STEPS = [
-  { id: 1, label: "Type de bien",       icon: Building2 },
-  { id: 2, label: "Caractéristiques",   icon: CheckCircle2 },
-  { id: 3, label: "Localisation",       icon: MapPin },
-  { id: 4, label: "Présentation",       icon: Sparkles },
-  { id: 5, label: "Photos",             icon: Camera },
-  { id: 6, label: "Prévisualisation",   icon: Eye },
+  { id: 1, label: "Type & Caractéristiques", icon: Building2 },
+  { id: 2, label: "Localisation",            icon: MapPin },
+  { id: 3, label: "Présentation",            icon: Sparkles },
+  { id: 4, label: "Photos",                  icon: Camera },
+  { id: 5, label: "Prévisualisation",        icon: Eye },
 ];
 
 /* ── Barre évaluation prix ─────────────────────────────────── */
 const CA_EVAL_LEVELS = [
-  { key:"none",  label:"AUCUNE ÉVALUATION", segs:0,  color:"#d1d5db" },
-  { key:"high3", label:"PRIX TRÈS ÉLEVÉ",   segs:1,  color:"#9a3412" },
-  { key:"high2", label:"PRIX ÉLEVÉ",         segs:3,  color:"#ca8a04" },
-  { key:"fair",  label:"PRIX ÉQUITABLE",     segs:5,  color:"#22c55e" },
-  { key:"good",  label:"BON PRIX",            segs:7,  color:"#16a34a" },
-  { key:"great", label:"TRÈS BON PRIX",       segs:10, color:"#15803d" },
+  { key:"none",  label:"Aucune évaluation", segs:0, color:"#d1d5db" },
+  { key:"high3", label:"Prix très élevé",   segs:1, color:"#dc2626" },
+  { key:"high2", label:"Prix élevé",        segs:2, color:"#f59e0b" },
+  { key:"fair",  label:"Prix équitable",    segs:3, color:"#3b82f6" },
+  { key:"good",  label:"Bon prix",          segs:4, color:"#16a34a" },
+  { key:"great", label:"Très bon prix",     segs:5, color:"#15803d" },
 ];
-const CA_EVAL_TOTAL = 10;
+const CA_EVAL_TOTAL = 5;
 
 function getCaEvalLevel(prixM2, govAvg, count) {
   if (!count || !govAvg || !prixM2 || govAvg <= 0) return CA_EVAL_LEVELS[0];
@@ -202,7 +201,7 @@ const CreateListingForm = () => {
     try {
       const saved = localStorage.getItem("ca_step");
       const n = saved ? parseInt(saved, 10) : 1;
-      return (n >= 1 && n <= 6) ? n : 1;
+      return (n >= 1 && n <= 5) ? n : 1;
     } catch { return 1; }
   });
   const [mapLocation, setMapLocation] = useState(() => {
@@ -234,6 +233,7 @@ const CreateListingForm = () => {
     gouvernorat: "", delegation: "", localite: "",
     address: "Tunis, Tunisie", latitude: "36.8065", longitude: "10.1815",
     titre: "", superficie: "", prix: "", devise: "TND", description: "",
+    duree_type: "", duree_valeur: "", accompagnement: false,
     image_principale: null, images: []
   };
 
@@ -250,7 +250,7 @@ const CreateListingForm = () => {
   /* ── Stats de marché (prix moyen/m² par gouvernorat) ── */
   const [marketStats, setMarketStats] = useState({});
 
-  const totalSteps = 6;
+  const totalSteps = 5;
 
   const [addressFilter, setAddressFilter] = useState("");
 
@@ -519,12 +519,12 @@ const CreateListingForm = () => {
         toast("Champ requis ✦ Sélectionnez un type d'offre.", "error"); return;
       }
     }
-    if (currentStep === 3) {
+    if (currentStep === 2) {
       if (!hierarchy.gouvernorat) {
         toast("Champ requis ✦ Sélectionnez un gouvernorat.", "error"); return;
       }
     }
-    if (currentStep === 4) {
+    if (currentStep === 3) {
       if (!formData.titre.trim()) {
         toast("Champ requis ✦ Saisissez un titre pour l'annonce.", "error"); return;
       }
@@ -555,12 +555,12 @@ const CreateListingForm = () => {
     /* Validation */
     if (!formData.type_bien)    { toast("Veuillez sélectionner un type de bien (étape 1).", "error"); return; }
     if (!formData.categorie)    { toast("Veuillez sélectionner le type d'offre (étape 1).", "error"); return; }
-    if (!formData.titre.trim()) { toast("Veuillez saisir un titre pour l'annonce (étape 4).", "error"); return; }
-    if (!hierarchy.gouvernorat) { toast("Veuillez sélectionner un gouvernorat (étape 3).", "error"); return; }
+    if (!formData.titre.trim()) { toast("Veuillez saisir un titre pour l'annonce (étape 3).", "error"); return; }
+    if (!hierarchy.gouvernorat) { toast("Veuillez sélectionner un gouvernorat (étape 2).", "error"); return; }
 
     const prixVal = parseFloat(formData.prix);
     if (!formData.prix || isNaN(prixVal) || prixVal <= 0) {
-      toast("Veuillez saisir un prix valide (étape 4).", "error"); return;
+      toast("Veuillez saisir un prix valide (étape 3).", "error"); return;
     }
     if (prixVal > 9_999_999_999) {
       toast("Le prix saisi est trop élevé (maximum 9 999 999 999).", "error"); return;
@@ -568,7 +568,7 @@ const CreateListingForm = () => {
 
     const supVal = parseFloat(formData.superficie);
     if (!formData.superficie || isNaN(supVal) || supVal <= 0) {
-      toast("Veuillez saisir une superficie valide (étape 4).", "error"); return;
+      toast("Veuillez saisir une superficie valide (étape 3).", "error"); return;
     }
     if (supVal > 9_999_999) {
       toast("La superficie saisie est trop grande (maximum 9 999 999 m²).", "error"); return;
@@ -612,7 +612,7 @@ const CreateListingForm = () => {
         superficie:     parseFloat(formData.superficie) || 0,
         prix:           parseFloat(formData.prix)       || 0,
         devise:         formData.devise || "TND",
-        status:         "en_attente",
+        status:         "approuvee",
         type_appartement:  formData.type_bien === "appartement" ? (formData.type_appartement || null) : null,
         type_villa:        formData.type_bien === "villa"       ? (formData.type_villa       || null) : null,
         type_terrain:      formData.type_bien === "terrain"     ? (formData.type_terrain     || null) : null,
@@ -638,16 +638,19 @@ const CreateListingForm = () => {
 
       const annonce = await annonceRes.json();
 
-      /* ── 2. Upload images ── */
-      let imageUrl = null;
+      /* ── 2. Upload ALL images (main first, then extras) ── */
+      let imageUrl = null;           // → image_principale
+      const uploadedExtraUrls = [];  // → property_images table
+
       const allImages = [
         ...(formData.image_principale ? [formData.image_principale] : []),
         ...formData.images,
       ];
-      if (allImages.length > 0) {
+
+      for (let i = 0; i < allImages.length; i++) {
         try {
           const imgForm = new FormData();
-          imgForm.append("file", allImages[0]);
+          imgForm.append("file", allImages[i]);
           const imgRes = await fetch(`${API_URL}/upload/image`, {
             method: "POST",
             headers: { "Authorization": `Bearer ${token}` },
@@ -655,13 +658,22 @@ const CreateListingForm = () => {
           });
           if (imgRes.ok) {
             const imgData = await imgRes.json();
-            imageUrl = `${API_URL}${imgData.url}`;
+            const relUrl = imgData.url; // "/uploads/filename.ext" — relative URL (no domain)
+            if (i === 0) {
+              imageUrl = relUrl;
+            } else {
+              uploadedExtraUrls.push(relUrl);
+            }
+          } else {
+            toast(`Image ${i + 1} : échec de l'upload`, "error");
           }
-        } catch { /* ignore upload errors */ }
+        } catch {
+          toast(`Image ${i + 1} : erreur de connexion lors de l'upload`, "error");
+        }
       }
 
-      /* ── 3. Créer la propriété (localisation + image) ── */
-      await handleRes(await fetch(`${API_URL}/properties/`, {
+      /* ── 3. Créer la propriété (localisation + image principale) ── */
+      const propRes = await handleRes(await fetch(`${API_URL}/properties/`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -672,6 +684,18 @@ const CreateListingForm = () => {
           image_principale:  imageUrl,
         }),
       }));
+      const propData = await propRes.json();
+
+      /* ── 3b. Ajouter les images supplémentaires ── */
+      for (const extraUrl of uploadedExtraUrls) {
+        try {
+          await fetch(`${API_URL}/properties/${propData.id}/images`, {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ image: extraUrl }),
+          });
+        } catch { /* silencieux — images extra non bloquantes */ }
+      }
 
       clearFormStorage();
       toast("Annonce créée et publiée sur la carte !");
@@ -691,7 +715,7 @@ const CreateListingForm = () => {
 
   const generateQuickAIDescription = () => {
     if (!formData.type_bien) {
-      toast("Veuillez d'abord sélectionner un type de bien (étape 1).", "error");
+      toast("Veuillez d'abord sélectionner un type de bien.", "error");
       return;
     }
     setIsAILoading(true);
@@ -904,9 +928,11 @@ const CreateListingForm = () => {
                 <div className="ca-step-content">
                   <div className="ca-card__head">
                     <Building2 size={20} className="ca-card__head-ico"/>
-                    <h2 className="ca-card__title">Type de bien</h2>
+                    <h2 className="ca-card__title">Type & Caractéristiques</h2>
                     <span className="ca-req-hint"><span className="ca-req">*</span> champs requis</span>
                   </div>
+                  <div className="ca-step1-cols">
+                  <div className="ca-step1-left">
 
                   {/* Type de bien — compact inline (style état du bien) */}
                   <div className="ca-section-label">Sélectionnez le type <span className="ca-req">*</span></div>
@@ -929,9 +955,6 @@ const CreateListingForm = () => {
                     })}
                   </div>
 
-                  {/* ── Bannière accompagnement ── */}
-                  <AccompagnementBanner />
-
                   {/* Catégorie pills */}
                   <div className="ca-section-label" style={{marginTop:24}}>Type d'offre <span className="ca-req">*</span></div>
                   <div className="ca-pill-row">
@@ -946,6 +969,39 @@ const CreateListingForm = () => {
                       </button>
                     ))}
                   </div>
+
+                  {/* Durée (vacances uniquement) */}
+                  {formData.categorie === "vacances" && (
+                    <div className="ca-row-2" style={{marginTop:16}}>
+                      <div className="ca-field">
+                        <label className="ca-label">Durée de location</label>
+                        <select className="ca-select" value={formData.duree_type || ""}
+                          onChange={e => handleInputChange("duree_type", e.target.value)}>
+                          <option value="">Sélectionner…</option>
+                          <option value="nuit">Par nuit</option>
+                          <option value="semaine">Par semaine</option>
+                          <option value="mois">Par mois</option>
+                          <option value="annee">Par an</option>
+                        </select>
+                      </div>
+                      <div className="ca-field">
+                        <label className="ca-label">Durée minimale</label>
+                        <div className="ca-input-unit">
+                          <input type="number" className="ca-input" placeholder="1"
+                            min="1" max="365"
+                            value={formData.duree_valeur || ""}
+                            onChange={e => handleInputChange("duree_valeur", e.target.value)}/>
+                          <span className="ca-unit">
+                            {formData.duree_type === "nuit"    ? "nuit(s)"
+                            : formData.duree_type === "semaine" ? "sem."
+                            : formData.duree_type === "mois"    ? "mois"
+                            : formData.duree_type === "annee"   ? "an(s)"
+                            : "—"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Appartement sub-fields */}
                   {formData.type_bien === "appartement" && (
@@ -975,6 +1031,24 @@ const CreateListingForm = () => {
                           <option value="2">2ème étage</option>
                           <option value="3">3ème étage</option>
                           <option value="4">4ème+</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Local commercial sub-fields */}
+                  {formData.type_bien === "local_commercial" && (
+                    <div className="ca-row-2" style={{marginTop:20}}>
+                      <div className="ca-field">
+                        <label className="ca-label">Étage du bien</label>
+                        <select className="ca-select" value={formData.etage}
+                          onChange={e => handleInputChange("etage", e.target.value)}>
+                          <option value="">Sélectionner…</option>
+                          <option value="0">Rez-de-chaussée (R)</option>
+                          <option value="1">R+1</option>
+                          <option value="2">R+2</option>
+                          <option value="3">R+3</option>
+                          <option value="4">R+4</option>
                         </select>
                       </div>
                     </div>
@@ -1104,24 +1178,18 @@ const CreateListingForm = () => {
                     ))}
                   </div>
                   </>)}
-                </div>
-              )}
 
-              {/* ─── STEP 2 ─── */}
-              {currentStep === 2 && (
-                <div className="ca-step-content">
-                  <div className="ca-card__head">
-                    <CheckCircle2 size={20} className="ca-card__head-ico"/>
-                    <h2 className="ca-card__title">Caractéristiques</h2>
                   </div>
+                  <div className="ca-step1-right">
 
+                  {/* ── Caractéristiques ── */}
                   {[
-                    { title: "Vue",                  items: VUE_ITEMS },
-                    { title: "Espaces extérieurs",   items: EXT_ITEMS },
-                    { title: "Commodités & équipements", items: COM_ITEMS },
+                    { title: "Vue",                      items: VUE_ITEMS },
+                    { title: "Espaces extérieurs",        items: EXT_ITEMS },
+                    { title: "Commodités & équipements",  items: COM_ITEMS },
                   ].map(section => (
                     <div key={section.title} className="ca-feat-section">
-                      <div className="ca-section-label">{section.title}</div>
+                      <div className="ca-section-label" style={{marginTop:24}}>{section.title}</div>
                       <div className="ca-feat-grid">
                         {section.items.map(item => {
                           const isOn = !!formData[item.key];
@@ -1144,11 +1212,13 @@ const CreateListingForm = () => {
                     </div>
                   ))}
 
+                  </div>
                 </div>
+              </div>
               )}
 
-              {/* ─── STEP 3 ─── */}
-              {currentStep === 3 && (
+              {/* ─── STEP 2 ─── */}
+              {currentStep === 2 && (
                 <div className="ca-step-content">
                   <div className="ca-card__head">
                     <MapPin size={20} className="ca-card__head-ico"/>
@@ -1244,8 +1314,8 @@ const CreateListingForm = () => {
                 </div>
               )}
 
-              {/* ─── STEP 4 ─── */}
-              {currentStep === 4 && (
+              {/* ─── STEP 3 ─── */}
+              {currentStep === 3 && (
                 <div className="ca-step-content">
                   <div className="ca-card__head">
                     <Sparkles size={20} className="ca-card__head-ico"/>
@@ -1425,8 +1495,8 @@ const CreateListingForm = () => {
                 </div>
               )}
 
-              {/* ─── STEP 5 ─── */}
-              {currentStep === 5 && (
+              {/* ─── STEP 4 ─── */}
+              {currentStep === 4 && (
                 <div className="ca-step-content">
                   <div className="ca-card__head">
                     <Camera size={20} className="ca-card__head-ico"/>
@@ -1506,11 +1576,25 @@ const CreateListingForm = () => {
                   <p className="ca-tip" style={{marginTop:14}}>
                     Ajoutez des photos sous différents angles, des pièces principales, et des caractéristiques uniques.
                   </p>
+
+                  {/* ── Accompagnement checkbox ── */}
+                  <div className="ca-accom-check" style={{marginTop:28}}>
+                    <label className="ca-accom-check__label">
+                      <input
+                        type="checkbox"
+                        className="ca-accom-check__input"
+                        checked={formData.accompagnement || false}
+                        onChange={e => handleInputChange("accompagnement", e.target.checked)}
+                      />
+                      <Sparkles size={14} className="ca-accom-check__ico"/>
+                      <span>Je souhaite être accompagné(e) par l'équipe Localizi pour la publication de mon annonce</span>
+                    </label>
+                  </div>
                 </div>
               )}
 
-              {/* ─── STEP 6 — Prévisualisation ─── */}
-              {currentStep === 6 && (
+              {/* ─── STEP 5 — Prévisualisation ─── */}
+              {currentStep === 5 && (
                 <div className="ca-step-content">
                   <div className="ca-card__head">
                     <Eye size={20} className="ca-card__head-ico"/>
@@ -1927,48 +2011,23 @@ const CreateListingForm = () => {
           .ca-orient-btn:hover { border-color: #6366f1; color: #4f46e5; background: #eef2ff; }
           .ca-orient-btn--on { background: #6366f1; color: #fff; border-color: #6366f1; box-shadow: 0 2px 8px rgba(99,102,241,.3); }
 
-          /* Bannière accompagnement */
-          .ca-accom {
-            display: flex; align-items: flex-start; gap: 14px;
-            margin: 20px 0; padding: 16px 18px;
+          /* Accompagnement checkbox */
+          .ca-accom-check {
+            padding: 14px 16px;
             background: linear-gradient(135deg, #eef2ff, #f5f3ff);
-            border: 1.5px solid #c7d2fe; border-radius: 14px;
-            position: relative;
+            border: 1.5px solid #c7d2fe; border-radius: 12px;
           }
-          .ca-accom__icon {
-            width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
-            background: #6366f1; color: #fff;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 3px 10px rgba(99,102,241,.3);
+          .ca-accom-check__label {
+            display: flex; align-items: flex-start; gap: 10px;
+            cursor: pointer; font-size: 13.5px; color: #374151; line-height: 1.5;
           }
-          .ca-accom__body { flex: 1; }
-          .ca-accom__q { font-size: 14px; font-weight: 700; color: #1e293b; margin: 0 0 4px; }
-          .ca-accom__sub { font-size: 12.5px; color: #64748b; margin: 0 0 12px; line-height: 1.5; }
-          .ca-accom__btns { display: flex; gap: 8px; flex-wrap: wrap; }
-          .ca-accom__yes {
-            padding: 8px 16px; border-radius: 10px;
-            background: #6366f1; color: #fff;
-            font-size: 12.5px; font-weight: 700; text-decoration: none;
-            transition: background .15s;
+          .ca-accom-check__input {
+            width: 16px; height: 16px; accent-color: #6366f1; cursor: pointer;
+            margin-top: 2px; flex-shrink: 0;
           }
-          .ca-accom__yes:hover { background: #4f46e5; }
-          .ca-accom__no {
-            padding: 8px 16px; border-radius: 10px;
-            border: 1.5px solid #c7d2fe; background: transparent; color: #4f46e5;
-            font-size: 12.5px; font-weight: 600; cursor: pointer; font-family: inherit;
-            transition: all .15s;
-          }
-          .ca-accom__no:hover { background: #e0e7ff; }
-          .ca-accom__close {
-            position: absolute; top: 10px; right: 10px;
-            width: 24px; height: 24px; border-radius: 6px; border: none;
-            background: rgba(99,102,241,.12); color: #6366f1;
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer; transition: background .15s;
-          }
-          .ca-accom__close:hover { background: rgba(99,102,241,.22); }
+          .ca-accom-check__ico { color: #6366f1; flex-shrink: 0; margin-top: 2px; }
 
-          /* Step 3 — two-column layout */
+          /* Step 2 — two-column layout */
           .ca-loc-layout {
             display: grid;
             grid-template-columns: 360px 1fr;
@@ -2423,6 +2482,25 @@ const CreateListingForm = () => {
             border-radius: 999px; transition: width .35s ease;
           }
 
+          /* Step 1 — two-column layout */
+          .ca-step1-cols {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 36px;
+            align-items: start;
+          }
+          .ca-step1-left {
+            display: flex;
+            flex-direction: column;
+          }
+          .ca-step1-right {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            position: sticky;
+            top: 20px;
+          }
+
           /* Responsive */
           @media (max-width: 900px) {
             .ca-sidebar { display: none; }
@@ -2430,6 +2508,7 @@ const CreateListingForm = () => {
             .ca-mobile-progress { display: block; }
             .ca-main > form { padding: 12px 16px 0; }
             .ca-card { padding: 20px 18px; }
+            .ca-step1-cols { grid-template-columns: 1fr; gap: 24px; }
           }
           @media (max-width: 860px) {
             .ca-loc-layout { grid-template-columns: 1fr; }

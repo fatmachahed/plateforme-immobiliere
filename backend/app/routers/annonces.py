@@ -70,10 +70,16 @@ def search_annonces_public(
             lat = a.property.latitude
             lng = a.property.longitude
             img = a.property.image_principale
+        loc  = None
+        addr = None
         if a.gouvernorat:
             gov = a.gouvernorat.nom
         if a.delegation:
             dele = a.delegation.nom
+        if a.localite:
+            loc = a.localite.nom
+        if a.property:
+            addr = a.property.address
         result.append(schemas.AnnoncePublic(
             id=a.id, titre=a.titre, prix=float(a.prix), devise=a.devise.value if hasattr(a.devise, 'value') else a.devise,
             superficie=a.superficie, categorie=a.categorie.value if hasattr(a.categorie, 'value') else a.categorie,
@@ -81,6 +87,7 @@ def search_annonces_public(
             boost_level=a.boost_level or 0, views_count=a.views_count or 0,
             date_creation=a.date_creation, latitude=lat, longitude=lng,
             image_principale=img, gouvernorat=gov, delegation=dele,
+            localite=loc, address=addr,
             nb_pieces=a.nb_pieces, nb_chambres=a.nb_chambres
         ))
     return result

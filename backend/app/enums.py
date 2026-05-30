@@ -5,6 +5,7 @@ class RoleEnum(str, enum.Enum):
     promoteur = "promoteur"
     agence = "agence"
     particulier = "particulier"
+    professionnel = "professionnel"
     partenaire = "partenaire"
 
 class CategorieEnum(str, enum.Enum):

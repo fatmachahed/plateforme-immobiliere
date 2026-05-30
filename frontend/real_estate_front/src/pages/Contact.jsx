@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import Layout from "../components/Layout";
 import {
-  MapPin, Phone, Mail, Clock, Send, MessageSquare,
+  MapPin, Mail, Clock, Send, MessageSquare,
   Facebook, Instagram, Youtube, ArrowRight, CheckCircle2
 } from "lucide-react";
 
@@ -40,12 +40,6 @@ export default function Contact() {
       label: "Adresse",
       value: "La Marsa, Tunis",
       sub: "Siège social"
-    },
-    {
-      icon: <Phone size={18} strokeWidth={1.5}/>,
-      label: "Téléphone",
-      value: "+216 23 423 000",
-      sub: "Lun – Sam, 9h – 18h"
     },
     {
       icon: <Mail size={18} strokeWidth={1.5}/>,

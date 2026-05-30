@@ -1,7 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
 from app import schemas, crud, database, models
 from app.utils.auth import get_current_user
+
+
+class AddImagePayload(BaseModel):
+    image: str
 
 router = APIRouter(
     prefix="/properties",
@@ -64,3 +69,17 @@ def delete_property(property_id: int, db: Session = Depends(get_db)):
     if not deleted:
         raise HTTPException(status_code=404, detail="Property not found")
     return {"detail": "Property deleted"}
+
+# ===============================
+# ADD IMAGE TO PROPERTY
+# ===============================
+@router.post("/{property_id}/images", status_code=201)
+def add_property_image(
+    property_id: int,
+    payload: AddImagePayload,
+    db: Session = Depends(get_db),
+):
+    prop = crud.get_property(db, property_id)
+    if not prop:
+        raise HTTPException(status_code=404, detail="Property not found")
+    return crud.create_property_image(db, {"property_id": property_id, "image": payload.image})

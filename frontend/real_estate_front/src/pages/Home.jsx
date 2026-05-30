@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Search, MapPin, Home, TrendingUp, Shield, Clock, Star,
   ArrowRight, Bed, Bath, Maximize, Zap, CheckCircle,
@@ -153,28 +153,46 @@ const TYPES = [
 
 const FEATURES = [
   { icon: <MapPin size={20} />,    title: "Carte interactive",        desc: "Visualisez tous les biens sur une carte en temps réel avec zoom et sélection de zones." },
-  { icon: <Zap size={20} />,       title: "Annonces boostées",        desc: "Payez pour apparaître en premier et attirer plus d'acheteurs qualifiés rapidement." },
+  { icon: <Zap size={20} />,       title: "Publication rapide",       desc: "Créez et publiez votre annonce en quelques minutes et touchez des milliers d'acheteurs." },
   { icon: <Shield size={20} />,    title: "Sécurisé & vérifié",       desc: "Chaque annonce est vérifiée par notre équipe pour garantir la fiabilité des offres." },
   { icon: <TrendingUp size={20} />,title: "Statistiques en temps réel",desc: "Suivez vos vues, contacts et performances d'annonces depuis votre tableau de bord." },
 ];
 
-/* ── Boost badge component ── */
-function BoostBadge({ level }) {
-  if (level === 3) return <span className="hp-badge hp-badge--boost"><Zap size={10} /> BOOST</span>;
-  if (level === 2) return <span className="hp-badge hp-badge--premium">PREMIUM</span>;
-  if (level === 1) return <span className="hp-badge hp-badge--standard">STANDARD</span>;
-  return null;
-}
+/* ── Gouvernorat cards data  (nom = valeur exacte en base) ── */
+const GOV_CARDS = [
+  { nom:"TUNIS",       display:"Tunis",       img:"https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Tunis_Medina.jpg/640px-Tunis_Medina.jpg",           color:"#1e40af" },
+  { nom:"ARIANA",      display:"Ariana",      img:"https://images.unsplash.com/photo-1590523277543-a94d2e4eb00b?w=600&q=75",                                      color:"#0e7490" },
+  { nom:"BEN AROUS",   display:"Ben Arous",   img:"https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=75",                                         color:"#4338ca" },
+  { nom:"MANOUBA",     display:"Manouba",     img:"https://images.unsplash.com/photo-1549925245-f20a1bac5222?w=600&q=75",                                         color:"#166534" },
+  { nom:"NABEUL",      display:"Nabeul",      img:"https://www.climamed.eu/wp-content/uploads/2021/02/nabeul-1024x688.jpg",                                       color:"#0369a1" },
+  { nom:"ZAGHOUAN",    display:"Zaghouan",    img:"https://www.tunisieindustrie.nat.tn/fr/images/mono/zaghouan1.jpg",                                              color:"#4d7c0f" },
+  { nom:"BIZERTE",     display:"Bizerte",     img:"https://media.istockphoto.com/id/1367865863/fr/photo/bizerte-tunisie-afrique-du-nord-bateaux-de-p%C3%AAche-accostent-au-bord-de-leau-ville-portuaire.jpg?s=612x612&w=0&k=20&c=GMbVO13CE35Jv8Mc_2PlCUHKC3ikTetXRWPC0V3PWM8=", color:"#0369a1" },
+  { nom:"BEJA",        display:"Béja",        img:"https://images.unsplash.com/photo-1523755231516-e43fd2e8dca5?w=600&q=75",                                      color:"#166534" },
+  { nom:"JENDOUBA",    display:"Jendouba",    img:"https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Bulla_Regia_-_temple_d%27Apollon.jpg/640px-Bulla_Regia_-_temple_d%27Apollon.jpg", color:"#92400e" },
+  { nom:"KEF",         display:"Le Kef",      img:"https://upload.wikimedia.org/wikipedia/commons/thumb/5/59/Le_Kef_-_Kasbah.jpg/640px-Le_Kef_-_Kasbah.jpg",    color:"#7c3aed" },
+  { nom:"SILIANA",     display:"Siliana",     img:"https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&q=75",                                      color:"#14532d" },
+  { nom:"SOUSSE",      display:"Sousse",      img:"https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=600&q=75",                                      color:"#0c4a6e" },
+  { nom:"MONASTIR",    display:"Monastir",    img:"https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=600&q=75",                                         color:"#1e40af" },
+  { nom:"MAHDIA",      display:"Mahdia",      img:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Mahdia-TN.jpg/640px-Mahdia-TN.jpg",                  color:"#0e7490" },
+  { nom:"SFAX",        display:"Sfax",        img:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Sfax_medina.jpg/640px-Sfax_medina.jpg",             color:"#92400e" },
+  { nom:"KAIROUAN",    display:"Kairouan",    img:"https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Sidi_Uqba_mosque_Kairouan.jpg/640px-Sidi_Uqba_mosque_Kairouan.jpg", color:"#9a3412" },
+  { nom:"KASSERINE",   display:"Kasserine",   img:"https://upload.wikimedia.org/wikipedia/commons/thumb/d/d5/Sbeitla_theatre.jpg/640px-Sbeitla_theatre.jpg",      color:"#78350f" },
+  { nom:"SIDI BOUZID", display:"Sidi Bouzid", img:"https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=600&q=75",                                      color:"#166534" },
+  { nom:"GABES",       display:"Gabès",       img:"https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Gabes_oasis.jpg/640px-Gabes_oasis.jpg",             color:"#14532d" },
+  { nom:"MEDENINE",    display:"Médenine",    img:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Ksar_Ghilane.jpg/640px-Ksar_Ghilane.jpg",           color:"#92400e" },
+  { nom:"TATAOUINE",   display:"Tataouine",   img:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Ksar_Ouled_Soltane.jpg/640px-Ksar_Ouled_Soltane.jpg", color:"#78350f" },
+  { nom:"GAFSA",       display:"Gafsa",       img:"https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Gafsa_oasis.jpg/640px-Gafsa_oasis.jpg",             color:"#9a3412" },
+  { nom:"TOZEUR",      display:"Tozeur",      img:"https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Tozeur_oasis.jpg/640px-Tozeur_oasis.jpg",           color:"#b45309" },
+  { nom:"KEBILI",      display:"Kébili",      img:"https://images.unsplash.com/photo-1547234935-80c7145ec969?w=600&q=75",                                         color:"#92400e" },
+];
 
 /* ── Property card ── */
 function PropCard({ p, delay = 0 }) {
-  const cardClass = p.boost === 3 ? "hp-card hp-card--boost" : p.boost === 2 ? "hp-card hp-card--premium" : "hp-card";
   return (
-    <Link to={`/annonce/${p.id}`} className={cardClass} style={{ animationDelay: `${delay}ms` }}>
+    <Link to={`/annonce/${p.id}`} className="hp-card" style={{ animationDelay: `${delay}ms` }}>
       <div className="hp-card__img-wrap">
         <img src={p.image} alt={p.titre} loading="lazy" />
         <span className={`hp-card__cat hp-card__cat--${p.categorie.toLowerCase()}`}>{p.categorie}</span>
-        <BoostBadge level={p.boost} />
       </div>
       <div className="hp-card__body">
         <p className="hp-card__title">{p.titre}</p>
@@ -192,6 +210,40 @@ function PropCard({ p, delay = 0 }) {
         </div>
       </div>
     </Link>
+  );
+}
+
+/* ── Gouvernorat Card ── */
+function GovCard({ gov }) {
+  const navigate = useNavigate();
+  const [err, setErr] = useState(false);
+
+  return (
+    <div
+      className="hp-gov-card"
+      style={{ "--gov-color": gov.color }}
+      onClick={() => navigate(`/carte?gouvernorat=${encodeURIComponent(gov.nom)}`)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={e => e.key === "Enter" && navigate(`/carte?gouvernorat=${encodeURIComponent(gov.nom)}`)}
+    >
+      {!err ? (
+        <img
+          src={gov.img}
+          alt={gov.nom}
+          loading="lazy"
+          onError={() => setErr(true)}
+          className="hp-gov-card__img"
+        />
+      ) : (
+        <div className="hp-gov-card__fallback" style={{ background: gov.color }} />
+      )}
+      <div className="hp-gov-card__overlay" />
+      <div className="hp-gov-card__content">
+        <span className="hp-gov-card__name">{gov.display || gov.nom}</span>
+        <span className="hp-gov-card__cta">Explorer <ArrowRight size={12}/></span>
+      </div>
+    </div>
   );
 }
 
@@ -226,7 +278,6 @@ export default function HomePage() {
         <div className="hp-hero__bg" />
         <div className="hp-hero__overlay" />
         <div className="hp-hero__content animate-fadeInUp">
-          <span className="section-eyebrow" style={{ color: "#93c5fd" }}>N°1 en Tunisie</span>
           <h1 className="hp-hero__title">
             Trouvez votre<br />
             <span className="hp-hero__highlight">propriété idéale</span>
@@ -313,15 +364,7 @@ export default function HomePage() {
           <div className="section-header">
             <span className="section-eyebrow">En vedette</span>
             <h2>Annonces récentes</h2>
-            <p>Les biens les plus récents — les boostés apparaissent en premier</p>
-          </div>
-
-          {/* Boost legend */}
-          <div className="hp-legend">
-            <span className="hp-badge hp-badge--boost"><Zap size={10} /> BOOST</span>
-            <span className="hp-badge hp-badge--premium">PREMIUM</span>
-            <span className="hp-badge hp-badge--standard">STANDARD</span>
-            <span style={{ color: "var(--text-muted)", fontSize: 13 }}>— niveaux de visibilité</span>
+            <p>Découvrez les dernières annonces publiées</p>
           </div>
 
           <div className="hp-recent__grid">
@@ -332,6 +375,20 @@ export default function HomePage() {
             <Link to="/carte" className="btn btn-outline btn-lg btn-round">
               Voir toutes les annonces <ArrowRight size={17} />
             </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── GOUVERNORATS ── */}
+      <section className="hp-gov section">
+        <div className="container">
+          <div className="section-header">
+            <span className="section-eyebrow">🇹🇳 Explorer la Tunisie</span>
+            <h2>Cherchez par gouvernorat</h2>
+            <p>Cliquez sur un gouvernorat pour voir toutes ses annonces immobilières</p>
+          </div>
+          <div className="hp-gov__grid">
+            {GOV_CARDS.map(gov => <GovCard key={gov.nom} gov={gov} />)}
           </div>
         </div>
       </section>
@@ -363,7 +420,7 @@ export default function HomePage() {
                 dessinez une zone de recherche et consultez les offres en temps réel.
               </p>
               <ul className="hp-map-cta__checks">
-                {["Punaises avec prix visible sur la carte","Filtres : type, prix, superficie","Sélection de zone libre à la main","Annonces boostées mises en avant"].map((c) => (
+                {["Punaises avec prix visible sur la carte","Filtres : type, prix, superficie","Sélection de zone libre à la main","Navigation par gouvernorat"].map((c) => (
                   <li key={c}><CheckCircle size={16} style={{ color: "var(--success)" }} />{c}</li>
                 ))}
               </ul>
@@ -380,9 +437,9 @@ export default function HomePage() {
               <HomeTunisiaMap props={RECENT_PROPS} />
               {/* Légende flottante */}
               <div className="hp-map-cta__legend">
-                <span className="hp-map-cta__leg-item hp-map-cta__leg-item--boost"><Zap size={10}/>Boosté</span>
-                <span className="hp-map-cta__leg-item hp-map-cta__leg-item--premium">★ Premium</span>
-                <span className="hp-map-cta__leg-item hp-map-cta__leg-item--std">Standard</span>
+                <span className="hp-map-cta__leg-item hp-map-cta__leg-item--std">Vente</span>
+                <span className="hp-map-cta__leg-item hp-map-cta__leg-item--loc">Location</span>
+                <span className="hp-map-cta__leg-item hp-map-cta__leg-item--vac">Vacances</span>
               </div>
             </div>
           </div>
@@ -408,26 +465,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── BOOST CTA ── */}
-      <section className="hp-boost-cta section">
-        <div className="container-sm text-center">
-          <Zap size={40} style={{ color: "var(--gold)", margin: "0 auto 16px" }} />
-          <h2 style={{ color: "white" }}>Boostez votre annonce</h2>
-          <p style={{ color: "rgba(255,255,255,.75)", fontSize: 17, margin: "12px auto 32px", maxWidth: 520 }}>
-            Payez pour apparaître en premier dans les résultats et sur la carte.
-            Plus de visibilité = plus de contacts qualifiés.
-          </p>
-          <div className="flex-center gap-16">
-            <Link to="/abonnements" className="btn btn-gold btn-lg btn-round">
-              <Zap size={18} /> Voir les offres
-            </Link>
-            <Link to="/creer_annonce" className="btn btn-lg btn-round" style={{ background: "rgba(255,255,255,.15)", color: "white", border: "1.5px solid rgba(255,255,255,.3)" }}>
-              Publier gratuitement
-            </Link>
-          </div>
-        </div>
-      </section>
-
       <Footer />
 
       <style>{`
@@ -441,12 +478,16 @@ export default function HomePage() {
         }
         .hp-hero__bg {
           position: absolute; inset: 0;
-          background: linear-gradient(135deg, #0a1628 0%, #0e2a58 50%, #0a1628 100%);
+          background: url("https://www.guidesulysse.com/images/destinations/iStock-498116298.jpg") center/cover no-repeat;
         }
         .hp-hero__overlay {
           position: absolute; inset: 0;
-          background: url("https://upload.wikimedia.org/wikipedia/commons/thumb/2/24/Sidi_Bou_Said_-_TN.jpg/1280px-Sidi_Bou_Said_-_TN.jpg") center/cover no-repeat;
-          opacity: .28;
+          background: linear-gradient(
+            to bottom,
+            rgba(10, 22, 40, 0.65) 0%,
+            rgba(10, 22, 40, 0.45) 40%,
+            rgba(10, 22, 40, 0.75) 100%
+          );
         }
         .hp-hero__content {
           position: relative; z-index: 2;
@@ -635,9 +676,9 @@ export default function HomePage() {
           font-size: 11px; font-weight: 700; padding: 3px 9px;
           border-radius: 12px; white-space: nowrap;
         }
-        .hp-map-cta__leg-item--boost   { background: #ea580c; color: #fff; }
-        .hp-map-cta__leg-item--premium { background: #f59e0b; color: #fff; }
-        .hp-map-cta__leg-item--std     { background: #6366f1; color: #fff; }
+        .hp-map-cta__leg-item--std     { background: #4f46e5; color: #fff; }
+        .hp-map-cta__leg-item--loc     { background: #16a34a; color: #fff; }
+        .hp-map-cta__leg-item--vac     { background: #f59e0b; color: #fff; }
 
         /* ── FEATURES ── */
         .hp-features__grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
@@ -662,6 +703,54 @@ export default function HomePage() {
         }
         .hp-boost-cta h2 { font-size: clamp(24px, 3vw, 38px); }
 
+        /* ── GOUVERNORATS ── */
+        .hp-gov { background: var(--bg); }
+        .hp-gov__grid {
+          display: grid;
+          grid-template-columns: repeat(6, 1fr);
+          gap: 12px;
+        }
+        .hp-gov-card {
+          position: relative; border-radius: 14px; overflow: hidden;
+          aspect-ratio: 3/4; cursor: pointer;
+          background: var(--gov-color, #334155);
+          transition: transform .25s, box-shadow .25s;
+          outline: none;
+        }
+        .hp-gov-card:hover,
+        .hp-gov-card:focus-visible { transform: translateY(-6px) scale(1.02); box-shadow: 0 16px 40px rgba(0,0,0,.25); }
+        .hp-gov-card__img {
+          width: 100%; height: 100%; object-fit: cover;
+          transition: transform .4s;
+        }
+        .hp-gov-card:hover .hp-gov-card__img { transform: scale(1.08); }
+        .hp-gov-card__fallback { width: 100%; height: 100%; }
+        .hp-gov-card__overlay {
+          position: absolute; inset: 0;
+          background: linear-gradient(to top, rgba(0,0,0,.75) 0%, rgba(0,0,0,.1) 50%, transparent 100%);
+          transition: background .3s;
+        }
+        .hp-gov-card:hover .hp-gov-card__overlay {
+          background: linear-gradient(to top, rgba(0,0,0,.85) 0%, rgba(0,0,0,.3) 60%, rgba(0,0,0,.1) 100%);
+        }
+        .hp-gov-card__content {
+          position: absolute; bottom: 0; left: 0; right: 0;
+          padding: 14px 12px 12px;
+          display: flex; flex-direction: column; gap: 4px;
+        }
+        .hp-gov-card__name {
+          font-size: 14px; font-weight: 800; color: white;
+          line-height: 1.2; letter-spacing: -.01em;
+          text-shadow: 0 1px 4px rgba(0,0,0,.5);
+        }
+        .hp-gov-card__cta {
+          display: inline-flex; align-items: center; gap: 4px;
+          font-size: 11px; font-weight: 600; color: rgba(255,255,255,.7);
+          opacity: 0; transform: translateY(4px);
+          transition: opacity .2s, transform .2s;
+        }
+        .hp-gov-card:hover .hp-gov-card__cta { opacity: 1; transform: translateY(0); }
+
         /* ── Responsive ── */
         @media (max-width: 1100px) {
           .hp-types__grid   { grid-template-columns: repeat(2, 1fr); }
@@ -669,6 +758,7 @@ export default function HomePage() {
           .hp-features__grid{ grid-template-columns: repeat(2, 1fr); }
           .hp-stats__grid   { grid-template-columns: repeat(2, 1fr); }
           .hp-map-cta__inner{ grid-template-columns: 1fr; gap: 36px; }
+          .hp-gov__grid     { grid-template-columns: repeat(4, 1fr); }
         }
         @media (max-width: 700px) {
           .hp-hero { min-height: 100vh; }
@@ -680,10 +770,12 @@ export default function HomePage() {
           .hp-features__grid { grid-template-columns: 1fr; }
           .hp-stats__grid { grid-template-columns: 1fr 1fr; gap: 20px; }
           .hp-stat__val { font-size: 32px; }
+          .hp-gov__grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
         }
         @media (max-width: 420px) {
           .hp-types__grid { grid-template-columns: 1fr; }
           .hp-stats__grid { grid-template-columns: 1fr; }
+          .hp-gov__grid   { grid-template-columns: repeat(2, 1fr); }
         }
       `}</style>
     </div>

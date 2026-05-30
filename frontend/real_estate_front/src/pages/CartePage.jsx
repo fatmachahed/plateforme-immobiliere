@@ -135,17 +135,17 @@ const arrowBtn = (s) => ({
 });
 
 /* ─────────────────────────────────────────────────────────────
-   ÉVALUATION DU PRIX — barre de 10 segments colorés
+   ÉVALUATION DU PRIX — barre de 5 segments colorés
 ───────────────────────────────────────────────────────────── */
 const EVAL_LEVELS = [
-  { key:"none",  label:"AUCUNE ÉVALUATION", segs:0,  color:"#d1d5db" },
-  { key:"high3", label:"PRIX TRÈS ÉLEVÉ",   segs:1,  color:"#9a3412" }, // orange foncé
-  { key:"high2", label:"PRIX ÉLEVÉ",         segs:3,  color:"#ca8a04" }, // jaune
-  { key:"fair",  label:"PRIX ÉQUITABLE",     segs:5,  color:"#22c55e" }, // vert
-  { key:"good",  label:"BON PRIX",            segs:7,  color:"#16a34a" }, // vert foncé
-  { key:"great", label:"TRÈS BON PRIX",       segs:10, color:"#15803d" }, // vert très foncé
+  { key:"none",  label:"Aucune évaluation", segs:0, color:"#d1d5db" },
+  { key:"high3", label:"Prix très élevé",   segs:1, color:"#dc2626" },
+  { key:"high2", label:"Prix élevé",        segs:2, color:"#f59e0b" },
+  { key:"fair",  label:"Prix équitable",    segs:3, color:"#3b82f6" },
+  { key:"good",  label:"Bon prix",          segs:4, color:"#16a34a" },
+  { key:"great", label:"Très bon prix",     segs:5, color:"#15803d" },
 ];
-const EVAL_TOTAL = 10;
+const EVAL_TOTAL = 5;
 
 function getEvalLevel(prixM2, govAvg, count) {
   if (!count || !govAvg || !prixM2 || govAvg <= 0) return EVAL_LEVELS[0];
@@ -201,8 +201,8 @@ function PropCard({ p, active, onHover, onClick, govMarketStats }) {
           </div>
           <button className="pc__fav" onClick={(e)=>e.stopPropagation()}><Heart size={14}/></button>
         </div>
-        {/* Barre d'évaluation prix (vente uniquement) */}
-        {prixM2 && govStats && (
+        {/* Barre d'évaluation prix (vente uniquement — toujours affichée) */}
+        {p.categorie === "vente" && (
           <PriceEvalBar prixM2={prixM2} govStats={govStats} />
         )}
         <p className="pc__loc"><MapPin size={10}/> {p.delegation} · {p.localite}</p>
@@ -410,6 +410,41 @@ function LocationCascade({ govId, delId, locId, govNom, delNom, locNom, onChange
     localite:    locId,
   });
 
+  /* ── Résolution automatique des IDs à partir des noms ───────────────
+     Quand la détection intelligente (saisie texte) remplit govNom/delNom/locNom
+     sans les IDs correspondants, ces effets les retrouvent dès que les
+     listes de référence sont disponibles, et mettent à jour la cascade. */
+
+  // 1 — govId depuis govNom
+  useEffect(() => {
+    if (!govId && govNom && gouvernorats.length > 0) {
+      const found = gouvernorats.find(g => g.label.toLowerCase() === govNom.toLowerCase());
+      if (found) {
+        onChange({ govId: String(found.value), govNom, delId: "", delNom, locId: "", locNom });
+      }
+    }
+  }, [govNom, gouvernorats]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 2 — delId depuis delNom (requiert govId)
+  useEffect(() => {
+    if (govId && !delId && delNom && delegations.length > 0) {
+      const found = delegations.find(d => d.nom.toLowerCase() === delNom.toLowerCase());
+      if (found) {
+        onChange({ govId, govNom, delId: String(found.id), delNom, locId: "", locNom });
+      }
+    }
+  }, [delNom, delegations, govId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 3 — locId depuis locNom (requiert delId)
+  useEffect(() => {
+    if (delId && !locId && locNom && localites.length > 0) {
+      const found = localites.find(l => l.nom.toLowerCase() === locNom.toLowerCase());
+      if (found) {
+        onChange({ govId, govNom, delId, delNom, locId: String(found.id), locNom });
+      }
+    }
+  }, [locNom, localites, delId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div className="loc-cascade">
       {/* Gouvernorat */}
@@ -425,7 +460,7 @@ function LocationCascade({ govId, delId, locId, govNom, delNom, locNom, onChange
           <option value="">Gouvernorat</option>
           {gouvernorats.map(g=><option key={g.value} value={g.value}>{g.label}</option>)}
         </select>
-        {loading && govId && <Loader2 size={12} className="lc__spin"/>}
+        {loading && (govId || govNom) && <Loader2 size={12} className="lc__spin"/>}
       </div>
 
       <ChevronRight size={14} className="loc-cascade__arrow" />
@@ -704,6 +739,7 @@ function transformApiAnnonce(a) {
     gouvernorat:   a.gouvernorat   || "",
     delegation:    a.delegation    || "",
     localite:      a.localite      || "",
+    address:       a.address       || "",
     beds:          a.nb_chambres   || null,
     baths:         a.nb_salles_bain|| null,
     area:          a.superficie    || 0,
@@ -719,7 +755,7 @@ function transformApiAnnonce(a) {
     images:        (a.images || []).length > 0
       ? (a.images || []).map(img => img.startsWith("http") ? img : `${API_URL}${img}`)
       : a.image_principale
-        ? [`${API_URL}/uploads/${a.image_principale}`]
+        ? [a.image_principale.startsWith("http") ? a.image_principale : `${API_URL}${a.image_principale}`]
         : ["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=75"],
     isReal: true,
   };
@@ -731,37 +767,121 @@ export default function CartePage() {
   const [active, setActive]         = useState(null);
   const [apiProperties, setApiProps] = useState([]);
   const [mapBounds, setMapBounds]   = useState(null);
+  /* Ref toujours synchronisé avec allProperties (utilisé dans applyFilters) */
+  const allPropertiesRef = useRef([]);
 
-  const initCats = (searchParams.get("categories") || searchParams.get("categorie") || "")
-    .split(",").map(s => s.trim()).filter(Boolean);
+  /* ── Lecture URL → objet filtre (source de vérité unique) ── */
+  const readFiltersFromUrl = useCallback((sp) => ({
+    categories:    (sp.get("categories") || sp.get("categorie") || "")
+                     .split(",").map(s => s.trim()).filter(Boolean),
+    query:         sp.get("q")           || "",
+    type:          sp.get("type")        || "",
+    govNom:        sp.get("gouvernorat") || "",
+    delNom:        sp.get("delegation")  || "",
+    locNom:        sp.get("localite")    || "",
+    govId:         sp.get("govId")       || "",
+    delId:         sp.get("delId")       || "",
+    locId:         sp.get("locId")       || "",
+    prixMin:       sp.get("prixMin")     || "",
+    prixMax:       sp.get("prixMax")     || "",
+    superficieMin: sp.get("sMin")        || "",
+    bedsMin:       sp.get("beds")        || "",
+    etat:          sp.get("etat")        || "",
+    titre_foncier: sp.get("tf")          || "",
+  }), []);
 
-  const [filters, setFilters] = useState({
-    ...INIT_F,
-    categories: initCats,
-    query:      searchParams.get("q")    || "",
-    type:       searchParams.get("type") || "",
+  /* ── État initial : URL d'abord, sessionStorage en fallback ── */
+  const [filters, setFilters] = useState(() => {
+    const fromUrl = readFiltersFromUrl(searchParams);
+    const hasUrlFilters = Object.values(fromUrl).some(v =>
+      Array.isArray(v) ? v.length > 0 : v !== ""
+    );
+    if (hasUrlFilters) return { ...INIT_F, ...fromUrl };
+    /* Pas de params URL → restaurer depuis sessionStorage (retour depuis détail) */
+    try {
+      const saved = JSON.parse(sessionStorage.getItem("localizi_carte_filters"));
+      if (saved) return { ...INIT_F, ...saved };
+    } catch {}
+    return { ...INIT_F };
   });
 
-  /* ── Sync URL params → filters ── */
+  /* ── Sync URL params → filters (navigation externe / retour navigateur) ── */
   useEffect(() => {
-    const cats = (searchParams.get("categories") || searchParams.get("categorie") || "")
-      .split(",").map(s => s.trim()).filter(Boolean);
-    const q    = searchParams.get("q")    || "";
-    const type = searchParams.get("type") || "";
-    setFilters(prev => ({ ...prev, categories: cats, query: q, type }));
-  }, [searchParams]);
+    setFilters({ ...INIT_F, ...readFiltersFromUrl(searchParams) });
+  }, [searchParams, readFiltersFromUrl]);
 
-  /* ── Appliquer les filtres ET synchroniser l'URL ── */
+  /* ── Sauvegarde sessionStorage (restauration au retour depuis le détail) ── */
+  useEffect(() => {
+    sessionStorage.setItem("localizi_carte_filters", JSON.stringify(filters));
+  }, [filters]);
+
+  /* ── Écriture URL → ALL filtres sérialisés (source de vérité) ── */
   const applyFilters = useCallback((newFilters) => {
-    setFilters(newFilters);
-    const p = new URLSearchParams(searchParams);
-    const cats = newFilters.categories || [];
-    if (cats.length > 0) p.set("categories", cats.join(",")); else p.delete("categories");
-    p.delete("categorie"); // nettoyage ancien param
-    if (newFilters.query) p.set("q",    newFilters.query); else p.delete("q");
-    if (newFilters.type)  p.set("type", newFilters.type);  else p.delete("type");
-    setSearchParams(p, { replace: true });
-  }, [searchParams, setSearchParams]);
+    /* ── Détection intelligente de localisation dans le champ texte ──
+       Si la requête texte correspond exactement (insensible à la casse)
+       à une localité / délégation / gouvernorat connu, on remplit
+       automatiquement la cascade et on vide le champ texte.        */
+    let f = { ...newFilters };
+    const q = (f.query || "").trim();
+    if (q) {
+      const props = allPropertiesRef.current;
+      const ql = q.toLowerCase();
+
+      // 1 — Recherche exacte (insensible à la casse)
+      const locExact = props.find(p => p.localite  && p.localite.toLowerCase()   === ql);
+      const delExact = props.find(p => p.delegation && p.delegation.toLowerCase() === ql);
+      const govExact = props.find(p => p.gouvernorat && p.gouvernorat.toLowerCase() === ql);
+
+      if (locExact) {
+        f = { ...f, query:"", locNom:locExact.localite, delNom:locExact.delegation||"",
+              govNom:locExact.gouvernorat||"", locId:"", delId:"", govId:"" };
+      } else if (delExact) {
+        f = { ...f, query:"", delNom:delExact.delegation, govNom:delExact.gouvernorat||"",
+              locNom:"", delId:"", govId:"", locId:"" };
+      } else if (govExact) {
+        f = { ...f, query:"", govNom:govExact.gouvernorat, delNom:"", locNom:"",
+              govId:"", delId:"", locId:"" };
+      } else {
+        // 2 — Correspondance partielle (contient le mot)
+        const locPart = props.find(p => p.localite  && p.localite.toLowerCase().includes(ql));
+        const delPart = props.find(p => p.delegation && p.delegation.toLowerCase().includes(ql));
+        const govPart = props.find(p => p.gouvernorat && p.gouvernorat.toLowerCase().includes(ql));
+
+        if (locPart) {
+          f = { ...f, query:"", locNom:locPart.localite, delNom:locPart.delegation||"",
+                govNom:locPart.gouvernorat||"", locId:"", delId:"", govId:"" };
+        } else if (delPart) {
+          f = { ...f, query:"", delNom:delPart.delegation, govNom:delPart.gouvernorat||"",
+                locNom:"", delId:"", govId:"", locId:"" };
+        } else if (govPart) {
+          f = { ...f, query:"", govNom:govPart.gouvernorat, delNom:"", locNom:"",
+                govId:"", delId:"", locId:"" };
+        }
+        // sinon : texte libre → la recherche multi-champs gère le reste
+      }
+    }
+
+    setFilters(f); // mise à jour immédiate pour éviter le flash
+    const sp = new URLSearchParams();
+    const cats = f.categories || [];
+    if (cats.length > 0)    sp.set("categories",  cats.join(","));
+    if (f.query)            sp.set("q",           f.query);
+    if (f.type)             sp.set("type",        f.type);
+    if (f.govNom)           sp.set("gouvernorat", f.govNom);
+    if (f.delNom)           sp.set("delegation",  f.delNom);
+    if (f.locNom)           sp.set("localite",    f.locNom);
+    if (f.govId)            sp.set("govId",       f.govId);
+    if (f.delId)            sp.set("delId",       f.delId);
+    if (f.locId)            sp.set("locId",       f.locId);
+    if (f.prixMin)          sp.set("prixMin",     f.prixMin);
+    if (f.prixMax)          sp.set("prixMax",     f.prixMax);
+    if (f.superficieMin)    sp.set("sMin",        f.superficieMin);
+    if (f.bedsMin)          sp.set("beds",        f.bedsMin);
+    if (f.etat)             sp.set("etat",        f.etat);
+    if (f.titre_foncier)    sp.set("tf",          f.titre_foncier);
+    /* setSearchParams déclenche le useEffect ci-dessus qui met à jour filters */
+    setSearchParams(sp, { replace: true });
+  }, [setSearchParams]);
 
   const [showSchools,    setShowSchools]    = useState(false);
   const [showMosques,    setShowMosques]    = useState(false);
@@ -853,8 +973,9 @@ export default function CartePage() {
       .catch(() => {});
   }, []);
 
-  /* Combine real annonces (first) + demo data */
-  const allProperties = [...apiProperties, ...DEMO];
+  /* Annonces réelles uniquement */
+  const allProperties = [...apiProperties];
+  allPropertiesRef.current = allProperties; // toujours à jour pour applyFilters
 
   /* Stats marché : prix moyen/m² par gouvernorat (vente uniquement) */
   const govMarketStats = React.useMemo(() => {
@@ -896,18 +1017,19 @@ export default function CartePage() {
       )
     : results;
 
-  /* Tags filtres actifs */
+  /* Tags filtres actifs (toujours visibles même si 0 résultats) */
   const activeTags = [
-    filters.govNom    && { label:filters.govNom,    key:"govNom",  color:"#4f46e5" },
-    filters.delNom    && { label:filters.delNom,    key:"delNom",  color:"#7c3aed" },
-    filters.locNom    && { label:filters.locNom,    key:"locNom",  color:"#9333ea" },
+    filters.query      && { label:`🔍 ${filters.query}`, key:"query",   color:"#374151" },
+    filters.govNom     && { label:filters.govNom,         key:"govNom",  color:"#4f46e5" },
+    filters.delNom     && { label:filters.delNom,         key:"delNom",  color:"#7c3aed" },
+    filters.locNom     && { label:filters.locNom,         key:"locNom",  color:"#9333ea" },
     ...(filters.categories||[]).map(c=>({ label:CAT_LBL[c], key:`cat_${c}`, color:"#0369a1" })),
-    filters.type      && { label:ucFirst(filters.type), key:"type", color:"#0f766e" },
-    filters.etat      && { label:ETAT_LBL[filters.etat], key:"etat", color:"#92400e" },
-    filters.prixMin   && { label:`≥ ${fmtFull(+filters.prixMin)} TND`, key:"prixMin", color:"#1d4ed8" },
-    filters.prixMax   && { label:`≤ ${fmtFull(+filters.prixMax)} TND`, key:"prixMax", color:"#1d4ed8" },
-    filters.bedsMin   && { label:`${filters.bedsMin}+ ch.`, key:"bedsMin", color:"#be185d" },
-    filters.titre_foncier && { label:"Titre foncier", key:"titre_foncier", color:"#15803d" },
+    filters.type       && { label:ucFirst(filters.type),  key:"type",    color:"#0f766e" },
+    filters.etat       && { label:ETAT_LBL[filters.etat], key:"etat",    color:"#92400e" },
+    filters.prixMin    && { label:`≥ ${fmtFull(+filters.prixMin)} TND`, key:"prixMin", color:"#1d4ed8" },
+    filters.prixMax    && { label:`≤ ${fmtFull(+filters.prixMax)} TND`, key:"prixMax", color:"#1d4ed8" },
+    filters.bedsMin    && { label:`${filters.bedsMin}+ ch.`, key:"bedsMin", color:"#be185d" },
+    filters.titre_foncier && { label:"Titre foncier",     key:"titre_foncier", color:"#15803d" },
   ].filter(Boolean);
 
   /* Click pin → scroll vers la carte */
@@ -917,15 +1039,18 @@ export default function CartePage() {
     if (el) el.scrollIntoView({ behavior:"smooth", block:"nearest" });
   };
 
+  /* removeTag passe par applyFilters pour synchroniser URL + sessionStorage */
   const removeTag = (key) => {
-    if (key==="govNom") setFilters(f=>({...f,govId:"",govNom:"",delId:"",delNom:"",locId:"",locNom:""}));
-    else if (key==="delNom") setFilters(f=>({...f,delId:"",delNom:"",locId:"",locNom:""}));
-    else if (key==="locNom") setFilters(f=>({...f,locId:"",locNom:""}));
+    let newF;
+    if (key === "govNom")      newF = { ...filters, govId:"", govNom:"", delId:"", delNom:"", locId:"", locNom:"" };
+    else if (key === "delNom") newF = { ...filters, delId:"", delNom:"", locId:"", locNom:"" };
+    else if (key === "locNom") newF = { ...filters, locId:"", locNom:"" };
     else if (key.startsWith("cat_")) {
       const cat = key.replace("cat_","");
-      setFilters(f=>({...f, categories:(f.categories||[]).filter(c=>c!==cat)}));
+      newF = { ...filters, categories: (filters.categories||[]).filter(c => c !== cat) };
     }
-    else setFilters(f=>({...f,[key]:""}));
+    else newF = { ...filters, [key]: "" };
+    applyFilters(newF);
   };
 
   return (
@@ -956,7 +1081,7 @@ export default function CartePage() {
             {activeTags.map(t=>(
               <Tag key={t.key} label={t.label} color={t.color} onRemove={()=>removeTag(t.key)} />
             ))}
-            <button className="cp-bar__clear-all" onClick={()=>setFilters(INIT_F)}>
+            <button className="cp-bar__clear-all" onClick={()=>applyFilters(INIT_F)}>
               Tout effacer
             </button>
           </div>
@@ -976,7 +1101,7 @@ export default function CartePage() {
                 <MapPin size={36} style={{color:"#d1d5db",margin:"0 auto 14px"}}/>
                 <p style={{fontWeight:600,color:"#374151",marginBottom:6}}>Aucun résultat</p>
                 <p style={{fontSize:13,color:"#9ca3af",marginBottom:16}}>Essayez d'élargir vos filtres</p>
-                <button className="fp__reset" onClick={()=>setFilters(INIT_F)}>
+                <button className="fp__reset" onClick={()=>applyFilters(INIT_F)}>
                   <X size={12}/> Effacer les filtres
                 </button>
               </div>
@@ -1024,7 +1149,7 @@ export default function CartePage() {
                     {mapBounds && results.length > 0 ? "Dézoomez pour voir plus d'annonces" : "Essayez d'élargir vos filtres"}
                   </p>
                   {(!mapBounds || results.length === 0) && (
-                    <button className="fp__reset" onClick={()=>setFilters(INIT_F)}>
+                    <button className="fp__reset" onClick={()=>applyFilters(INIT_F)}>
                       <X size={12}/> Effacer les filtres
                     </button>
                   )}
@@ -1108,13 +1233,13 @@ export default function CartePage() {
         .fp__pill--tous.fp__pill--on { background: #475569; border-color: #475569; color: #fff; box-shadow: 0 2px 8px rgba(71,85,105,.35); }
         .fp__pill--tous:not(.fp__pill--on):hover { background: #f1f5f9; color: #475569; border-color: #94a3b8; }
 
-        /* ── Achat (vente) — indigo ── */
-        .fp__pill--vente.fp__pill--on { background: #4f46e5; border-color: #4f46e5; color: #fff; box-shadow: 0 2px 8px rgba(79,70,229,.40); }
-        .fp__pill--vente:not(.fp__pill--on):hover { background: #eef2ff; color: #4f46e5; border-color: #c7d2fe; }
+        /* ── Achat (vente) — vert (comme le badge carte) ── */
+        .fp__pill--vente.fp__pill--on { background: #166534; border-color: #166534; color: #fff; box-shadow: 0 2px 8px rgba(22,101,52,.40); }
+        .fp__pill--vente:not(.fp__pill--on):hover { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
 
-        /* ── Location — vert ── */
-        .fp__pill--location.fp__pill--on { background: #16a34a; border-color: #16a34a; color: #fff; box-shadow: 0 2px 8px rgba(22,163,74,.40); }
-        .fp__pill--location:not(.fp__pill--on):hover { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+        /* ── Location — bleu (comme le badge carte) ── */
+        .fp__pill--location.fp__pill--on { background: #1e40af; border-color: #1e40af; color: #fff; box-shadow: 0 2px 8px rgba(30,64,175,.40); }
+        .fp__pill--location:not(.fp__pill--on):hover { background: #eff6ff; color: #1e40af; border-color: #bfdbfe; }
 
         /* ── Vacances — ambre ── */
         .fp__pill--vacances.fp__pill--on { background: #f59e0b; border-color: #f59e0b; color: #fff; box-shadow: 0 2px 8px rgba(245,158,11,.40); }

@@ -152,6 +152,8 @@ class AnnoncePublic(BaseModel):
     image_principale: Optional[str] = None
     gouvernorat: Optional[str] = None
     delegation: Optional[str] = None
+    localite: Optional[str] = None
+    address: Optional[str] = None
     nb_pieces: Optional[int] = None
     nb_chambres: Optional[int] = None
 

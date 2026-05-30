@@ -58,7 +58,7 @@ export default function Compte() {
     try {
       const form = new FormData();
       form.append("file", file);
-      const res = await fetch(`\/users/me/avatar`, {
+      const res = await fetch(`${API_URL}/users/me/avatar`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: form,
@@ -82,7 +82,7 @@ export default function Compte() {
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`\/users/me`, {
+      const res = await fetch(`${API_URL}/users/me`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { MapPin, Mail, Phone, Facebook, Instagram, Twitter, Zap, Home, ArrowRight } from "lucide-react";
+import { MapPin, Mail, Facebook, Instagram, Twitter, ArrowRight } from "lucide-react";
 import Logo from "./Logo";
 
 export default function Footer() {
@@ -14,7 +14,7 @@ export default function Footer() {
             <div className="lz-footer__logo">
               <Logo variant="white" height={38} to="/" />
             </div>
-            <p>La plateforme immobilière N°1 en Tunisie. Achetez, louez et vendez vos biens immobiliers facilement.</p>
+            <p>La plateforme immobilière de référence en Tunisie. Achetez, louez et vendez vos biens facilement.</p>
             <div className="lz-footer__social">
               <a href="#" aria-label="Facebook"><Facebook size={18} /></a>
               <a href="#" aria-label="Instagram"><Instagram size={18} /></a>
@@ -51,7 +51,6 @@ export default function Footer() {
             <ul className="lz-footer__contact">
               <li><MapPin size={15} /><span>La Marsa, Tunis</span></li>
               <li><Mail size={15} /><span>xpertiseimmo@gmail.com</span></li>
-              <li><Phone size={15} /><span>+216 23 423 000</span></li>
             </ul>
 
             {/* Newsletter mini */}

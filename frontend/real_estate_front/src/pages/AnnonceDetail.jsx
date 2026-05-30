@@ -5,7 +5,7 @@ import {
   ChevronLeft, ChevronRight, ArrowLeft, MapPin,
   Bed, Bath, Maximize, Phone, Mail, Heart, Share2,
   CheckCircle, Calendar, Tag, Home, Loader,
-  Languages, Navigation
+  Languages, Navigation, Eye
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import { useToast } from "../components/Toast";
@@ -44,6 +44,11 @@ function normalizeApi(a) {
     prix:        a.prix,
     devise:      a.devise,
     location:    loc || "Tunisie",
+    /* adresse détaillée */
+    address:     a.address     || null,
+    gouvernorat: a.gouvernorat || null,
+    delegation:  a.delegation  || null,
+    localite:    a.localite    || null,
     beds:        a.nb_chambres,
     baths:       a.nb_salles_bain,
     area:        a.superficie,
@@ -55,7 +60,9 @@ function normalizeApi(a) {
     features:    a.features || [],
     lat:         a.latitude  || 36.8065,
     lng:         a.longitude || 10.1815,
-    images:      (a.images || []).map(img => img.startsWith("http") ? img : `\${img}`),
+    images:      (a.images || []).length > 0
+      ? (a.images || []).map(img => img.startsWith("http") ? img : `${API_URL}${img}`)
+      : ["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=900&q=80"],
     contact: {
       nom:   a.user?.username     || "Propriétaire",
       tel:   a.user?.phone_number || "",
@@ -63,6 +70,7 @@ function normalizeApi(a) {
     },
     fromApi: true,
     utilisateur_id: a.user?.id,
+    views_count: a.views_count || 0,
   };
 }
 
@@ -90,7 +98,7 @@ export default function AnnonceDetail() {
   useEffect(() => {
     setLoading(true);
     setImgIdx(0);
-    fetch(`\/annonces/${id}/detail`)
+    fetch(`${API_URL}/annonces/${id}/detail`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (data) {
@@ -111,7 +119,7 @@ export default function AnnonceDetail() {
   useEffect(() => {
     if (!prop) return;
     setNearby([]);
-    fetch(`\/annonces/public?limit=100`)
+    fetch(`${API_URL}/annonces/public?limit=100`)
       .then(r => r.json())
       .then(data => {
         const annonces = Array.isArray(data) ? data : [];
@@ -128,7 +136,7 @@ export default function AnnonceDetail() {
   /* Check if already saved */
   useEffect(() => {
     if (!token || !prop?.fromApi) return;
-    fetch(`\/users/me/favoris`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${API_URL}/users/me/favoris`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : [])
       .then(data => {
         if (Array.isArray(data)) setIsFavori(data.some(f => f.id === Number(id)));
@@ -148,13 +156,13 @@ export default function AnnonceDetail() {
     setFavLoading(true);
     try {
       if (isFavori) {
-        await fetch(`\/users/me/favoris/${id}`, {
+        await fetch(`${API_URL}/users/me/favoris/${id}`, {
           method: "DELETE", headers: { Authorization: `Bearer ${token}` }
         });
         setIsFavori(false);
         toast("Retiré des favoris.");
       } else {
-        await fetch(`\/users/me/favoris/${id}`, {
+        await fetch(`${API_URL}/users/me/favoris/${id}`, {
           method: "POST", headers: { Authorization: `Bearer ${token}` }
         });
         setIsFavori(true);
@@ -311,7 +319,25 @@ export default function AnnonceDetail() {
           <div className="ad-card">
             <span className={`ad-card__cat ad-card__cat--${prop.categorie?.toLowerCase()}`}>{prop.categorie}</span>
             <h1 className="ad-card__titre">{prop.titre}</h1>
-            <p className="ad-card__loc"><MapPin size={13}/> {prop.location}</p>
+            {/* ── Adresse complète ── */}
+            <div className="ad-addr">
+              {prop.address && (
+                <p className="ad-addr__street">
+                  <MapPin size={13} className="ad-addr__ico"/>
+                  {prop.address}
+                </p>
+              )}
+              <div className="ad-addr__hier">
+                {prop.localite    && <span className="ad-addr__chip ad-addr__chip--loc">{prop.localite}</span>}
+                {prop.localite    && prop.delegation && <span className="ad-addr__sep">›</span>}
+                {prop.delegation  && <span className="ad-addr__chip ad-addr__chip--del">{prop.delegation}</span>}
+                {(prop.delegation || prop.localite) && prop.gouvernorat && <span className="ad-addr__sep">›</span>}
+                {prop.gouvernorat && <span className="ad-addr__chip ad-addr__chip--gov">{prop.gouvernorat}</span>}
+                {!prop.gouvernorat && !prop.delegation && !prop.localite && !prop.address && (
+                  <span style={{color:"#9ca3af",fontSize:13}}><MapPin size={12}/> {prop.location}</span>
+                )}
+              </div>
+            </div>
             <p className="ad-card__price">
               {Number(prop.prix).toLocaleString("fr-TN")}
               <span> {prop.devise}</span>
@@ -346,43 +372,31 @@ export default function AnnonceDetail() {
                 </div>
               </div>
 
+              {/* ── Vues (visible au propriétaire seulement) ── */}
+              {isOwner && prop.views_count > 0 && (
+                <div className="ad-views-row">
+                  <Eye size={14}/> <span>{prop.views_count} vue{prop.views_count > 1 ? "s" : ""}</span>
+                </div>
+              )}
+
               {token ? (
-                /* ── Connecté : afficher les boutons ── */
+                /* ── Connecté : numéros affichés directement ── */
                 <div className="ad-contact-box__btns">
                   {prop.contact.tel && (
                     <>
-                      {/* Bouton Appeler */}
-                      <button
-                        className="ad-cbtn ad-cbtn--call"
-                        onClick={() => setShowPhone(!showPhone)}
+                      <a href={`tel:${prop.contact.tel.replace(/\s/g,"")}`} className="ad-cbtn ad-cbtn--call">
+                        <Phone size={15}/> {prop.contact.tel}
+                      </a>
+                      <a
+                        href={`https://wa.me/${prop.contact.tel.replace(/[\s+]/g,"").replace(/^00/,"")}?text=${encodeURIComponent(`Bonjour, je suis intéressé(e) par votre annonce "${prop.titre}" sur Localizi.`)}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="ad-cbtn ad-cbtn--whatsapp"
                       >
-                        <Phone size={15}/>
-                        {showPhone
-                          ? <a href={`tel:${prop.contact.tel.replace(/\s/g,"")}`} className="ad-cbtn__tel">{prop.contact.tel}</a>
-                          : "Afficher le numéro"
-                        }
-                      </button>
-
-                      {/* Bouton WhatsApp */}
-                      {showWhatsapp ? (
-                        <a
-                          href={`https://wa.me/${prop.contact.tel.replace(/[\s+]/g,"").replace(/^00/,"")}?text=${encodeURIComponent(`Bonjour, je suis intéressé(e) par votre annonce "${prop.titre}" sur Localizi.`)}`}
-                          target="_blank" rel="noopener noreferrer"
-                          className="ad-cbtn ad-cbtn--whatsapp"
-                        >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.12.549 4.112 1.51 5.845L.057 23.617a.5.5 0 00.611.65l5.975-1.566A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.894a9.893 9.893 0 01-5.048-1.38l-.361-.215-3.745.982.999-3.648-.235-.374A9.861 9.861 0 012.106 12C2.106 6.527 6.527 2.106 12 2.106S21.894 6.527 21.894 12 17.473 21.894 12 21.894z"/></svg>
-                          Ouvrir WhatsApp
-                        </a>
-                      ) : (
-                        <button className="ad-cbtn ad-cbtn--whatsapp" onClick={() => setShowWhatsapp(true)}>
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.12.549 4.112 1.51 5.845L.057 23.617a.5.5 0 00.611.65l5.975-1.566A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.894a9.893 9.893 0 01-5.048-1.38l-.361-.215-3.745.982.999-3.648-.235-.374A9.861 9.861 0 012.106 12C2.106 6.527 6.527 2.106 12 2.106S21.894 6.527 21.894 12 17.473 21.894 12 21.894z"/></svg>
-                          Contacter sur WhatsApp
-                        </button>
-                      )}
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.12.549 4.112 1.51 5.845L.057 23.617a.5.5 0 00.611.65l5.975-1.566A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.894a9.893 9.893 0 01-5.048-1.38l-.361-.215-3.745.982.999-3.648-.235-.374A9.861 9.861 0 012.106 12C2.106 6.527 6.527 2.106 12 2.106S21.894 6.527 21.894 12 17.473 21.894 12 21.894z"/></svg>
+                        WhatsApp
+                      </a>
                     </>
                   )}
-
-                  {/* Email */}
                   {prop.contact.email && (
                     <a href={`mailto:${prop.contact.email}?subject=${encodeURIComponent(`Annonce "${prop.titre}" — Localizi`)}&body=${encodeURIComponent(`Bonjour,\n\nJe suis intéressé(e) par votre annonce "${prop.titre}".\n\nCordialement`)}`}
                       className="ad-cbtn ad-cbtn--mail">
@@ -391,18 +405,19 @@ export default function AnnonceDetail() {
                   )}
                 </div>
               ) : (
-                /* ── Non connecté : numéro masqué + CTA ── */
+                /* ── Non connecté : numéro flouté + CTA connexion ── */
                 <div className="ad-contact-box__locked">
-                  <div className="ad-contact-box__blur-row">
-                    <Phone size={13}/>
-                    <span className="ad-contact-box__blur-num">+216 •• ••• •••</span>
-                  </div>
-                  <div className="ad-contact-box__blur-row">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.12.549 4.112 1.51 5.845L.057 23.617a.5.5 0 00.611.65l5.975-1.566A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.894a9.893 9.893 0 01-5.048-1.38l-.361-.215-3.745.982.999-3.648-.235-.374A9.861 9.861 0 012.106 12C2.106 6.527 6.527 2.106 12 2.106S21.894 6.527 21.894 12 17.473 21.894 12 21.894z"/></svg>
-                    <span className="ad-contact-box__blur-num">WhatsApp ••••••</span>
-                  </div>
+                  <button
+                    className="ad-contact-box__blur-btn"
+                    onClick={() => window.location.href = `/login?redirect=/annonce/${prop.id}`}
+                    title="Connectez-vous pour voir le numéro"
+                  >
+                    <Phone size={14}/>
+                    <span className="ad-contact-box__blur-num">+216 XX XXX XXX</span>
+                    <span className="ad-contact-box__blur-lock">🔒 Voir le numéro</span>
+                  </button>
                   <p className="ad-contact-box__lock-msg">
-                    🔒 Connectez-vous pour voir les coordonnées
+                    Connectez-vous pour accéder aux coordonnées du propriétaire
                   </p>
                   <div className="ad-contact-box__auth-btns">
                     <a href={`/login?redirect=/annonce/${prop.id}`} className="ad-cbtn ad-cbtn--login">
@@ -433,7 +448,7 @@ export default function AnnonceDetail() {
           <div className="ad-nearby__scroll">
             {nearby.map(a => {
               const img = a.image_principale
-                ? (a.image_principale.startsWith("http") ? a.image_principale : `\${a.image_principale}`)
+                ? (a.image_principale.startsWith("http") ? a.image_principale : `${API_URL}${a.image_principale}`)
                 : "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400&q=75";
               const CAT_COLOR = { vente:"#166534", location:"#1e40af", vacances:"#854d0e" };
               const CAT_BG    = { vente:"#dcfce7", location:"#dbeafe", vacances:"#fef9c3" };
@@ -520,7 +535,25 @@ export default function AnnonceDetail() {
         .ad-card__cat--location { background:#e6f9f3; color:#00B47D; }
         .ad-card__cat--vacances { background:#fff8e7; color:#9a6700; }
         .ad-card__titre { font-size:18px; font-weight:800; color:#111; line-height:1.3; margin-bottom:6px; }
-        .ad-card__loc { display:flex; align-items:center; gap:4px; font-size:13px; color:#9ca3af; margin-bottom:14px; }
+        /* ─── Bloc adresse hiérarchique ─── */
+        .ad-addr { margin-bottom: 14px; display: flex; flex-direction: column; gap: 6px; }
+        .ad-addr__street {
+          display: flex; align-items: flex-start; gap: 5px;
+          font-size: 13px; color: #374151; font-weight: 500; line-height: 1.4;
+        }
+        .ad-addr__ico { color: #6366f1; flex-shrink: 0; margin-top: 1px; }
+        .ad-addr__hier {
+          display: flex; align-items: center; flex-wrap: wrap; gap: 4px;
+        }
+        .ad-addr__chip {
+          display: inline-flex; align-items: center;
+          padding: 3px 9px; border-radius: 20px;
+          font-size: 11.5px; font-weight: 600; line-height: 1;
+        }
+        .ad-addr__chip--loc { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+        .ad-addr__chip--del { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+        .ad-addr__chip--gov { background: #eef2ff; color: #4f46e5; border: 1px solid #c7d2fe; }
+        .ad-addr__sep { font-size: 13px; color: #d1d5db; font-weight: 400; }
         .ad-card__price { font-size:28px; font-weight:900; color:#111; margin-bottom:16px; }
         .ad-card__price span { font-size:14px; font-weight:400; color:#9ca3af; }
         .ad-specs { display:flex; gap:0; margin-bottom:16px; }
@@ -581,21 +614,37 @@ export default function AnnonceDetail() {
         }
         .ad-cbtn--mail:hover { border-color: #6b7280; background: #f9fafb; }
 
+        /* Views row (owner only) */
+        .ad-views-row {
+          display: flex; align-items: center; gap: 6px;
+          font-size: 12.5px; color: #64748b; font-weight: 600;
+          padding: 6px 16px 0;
+        }
+
         /* Locked state */
         .ad-contact-box__locked { padding: 14px 16px; }
-        .ad-contact-box__blur-row {
-          display: flex; align-items: center; gap: 8px;
-          padding: 9px 12px; margin-bottom: 6px;
-          background: #f1f5f9; border-radius: 8px;
-          color: #94a3b8; font-size: 13px;
+        .ad-contact-box__blur-btn {
+          display: flex; align-items: center; gap: 10px;
+          width: 100%; padding: 11px 14px; margin-bottom: 6px;
+          background: #f1f5f9; border: 1.5px dashed #cbd5e1;
+          border-radius: 10px; cursor: pointer; text-align: left;
+          transition: background .15s, border-color .15s;
+          font-family: inherit;
+        }
+        .ad-contact-box__blur-btn:hover {
+          background: #e2e8f0; border-color: #94a3b8;
         }
         .ad-contact-box__blur-num {
-          filter: blur(3.5px); user-select: none;
+          flex: 1; filter: blur(4px); user-select: none; pointer-events: none;
           font-weight: 700; color: #374151; font-size: 14px; letter-spacing: .5px;
+        }
+        .ad-contact-box__blur-lock {
+          font-size: 12px; font-weight: 700; color: #6366f1;
+          white-space: nowrap; filter: none;
         }
         .ad-contact-box__lock-msg {
           text-align: center; font-size: 12.5px; color: #64748b;
-          font-weight: 600; margin: 10px 0 12px;
+          font-weight: 500; margin: 8px 0 12px; line-height: 1.5;
         }
         .ad-contact-box__auth-btns {
           display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
