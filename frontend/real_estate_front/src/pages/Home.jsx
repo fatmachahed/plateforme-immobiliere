@@ -160,14 +160,14 @@ const FEATURES = [
 
 /* ── Gouvernorat cards data  (nom = valeur exacte en base) ── */
 const GOV_CARDS = [
-  { nom:"TUNIS",       display:"Tunis",       img:"https://upload.wikimedia.org/wikipedia/commons/thumb/e/e7/Tunis_Medina.jpg/640px-Tunis_Medina.jpg",           color:"#1e40af" },
-  { nom:"ARIANA",      display:"Ariana",      img:"https://images.unsplash.com/photo-1590523277543-a94d2e4eb00b?w=600&q=75",                                      color:"#0e7490" },
+  { nom:"TUNIS",       display:"Tunis",       img:"https://upload.wikimedia.org/wikipedia/commons/9/98/Tour_de_l%27Horloge_du_centre-ville_de_Tunis_03.jpg",           color:"#1e40af" },
+  { nom:"ARIANA",      display:"Ariana",      img:"https://kapitalis.com/tunisie/wp-content/uploads/2021/05/08-2-1024x768-1.jpg",                                      color:"#0e7490" },
   { nom:"BEN AROUS",   display:"Ben Arous",   img:"https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=75",                                         color:"#4338ca" },
   { nom:"MANOUBA",     display:"Manouba",     img:"https://images.unsplash.com/photo-1549925245-f20a1bac5222?w=600&q=75",                                         color:"#166534" },
   { nom:"NABEUL",      display:"Nabeul",      img:"https://www.climamed.eu/wp-content/uploads/2021/02/nabeul-1024x688.jpg",                                       color:"#0369a1" },
   { nom:"ZAGHOUAN",    display:"Zaghouan",    img:"https://www.tunisieindustrie.nat.tn/fr/images/mono/zaghouan1.jpg",                                              color:"#4d7c0f" },
   { nom:"BIZERTE",     display:"Bizerte",     img:"https://media.istockphoto.com/id/1367865863/fr/photo/bizerte-tunisie-afrique-du-nord-bateaux-de-p%C3%AAche-accostent-au-bord-de-leau-ville-portuaire.jpg?s=612x612&w=0&k=20&c=GMbVO13CE35Jv8Mc_2PlCUHKC3ikTetXRWPC0V3PWM8=", color:"#0369a1" },
-  { nom:"BEJA",        display:"Béja",        img:"https://images.unsplash.com/photo-1523755231516-e43fd2e8dca5?w=600&q=75",                                      color:"#166534" },
+  { nom:"BEJA",        display:"Béja",        img:"https://www.shutterstock.com/image-photo/beja-tunisia-april-07-2023-260nw-2272834149.jpg",                                      color:"#166534" },
   { nom:"JENDOUBA",    display:"Jendouba",    img:"https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Bulla_Regia_-_temple_d%27Apollon.jpg/640px-Bulla_Regia_-_temple_d%27Apollon.jpg", color:"#92400e" },
   { nom:"KEF",         display:"Le Kef",      img:"https://upload.wikimedia.org/wikipedia/commons/thumb/5/59/Le_Kef_-_Kasbah.jpg/640px-Le_Kef_-_Kasbah.jpg",    color:"#7c3aed" },
   { nom:"SILIANA",     display:"Siliana",     img:"https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&q=75",                                      color:"#14532d" },
@@ -175,15 +175,15 @@ const GOV_CARDS = [
   { nom:"MONASTIR",    display:"Monastir",    img:"https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=600&q=75",                                         color:"#1e40af" },
   { nom:"MAHDIA",      display:"Mahdia",      img:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Mahdia-TN.jpg/640px-Mahdia-TN.jpg",                  color:"#0e7490" },
   { nom:"SFAX",        display:"Sfax",        img:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Sfax_medina.jpg/640px-Sfax_medina.jpg",             color:"#92400e" },
-  { nom:"KAIROUAN",    display:"Kairouan",    img:"https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Sidi_Uqba_mosque_Kairouan.jpg/640px-Sidi_Uqba_mosque_Kairouan.jpg", color:"#9a3412" },
+  { nom:"KAIROUAN",    display:"Kairouan",    img:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQAUYc78FbsLdPCPI50CRDdRj_-liiGYo6i0Q&s", color:"#9a3412" },
   { nom:"KASSERINE",   display:"Kasserine",   img:"https://upload.wikimedia.org/wikipedia/commons/thumb/d/d5/Sbeitla_theatre.jpg/640px-Sbeitla_theatre.jpg",      color:"#78350f" },
   { nom:"SIDI BOUZID", display:"Sidi Bouzid", img:"https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=600&q=75",                                      color:"#166534" },
   { nom:"GABES",       display:"Gabès",       img:"https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Gabes_oasis.jpg/640px-Gabes_oasis.jpg",             color:"#14532d" },
-  { nom:"MEDENINE",    display:"Médenine",    img:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Ksar_Ghilane.jpg/640px-Ksar_Ghilane.jpg",           color:"#92400e" },
-  { nom:"TATAOUINE",   display:"Tataouine",   img:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Ksar_Ouled_Soltane.jpg/640px-Ksar_Ouled_Soltane.jpg", color:"#78350f" },
-  { nom:"GAFSA",       display:"Gafsa",       img:"https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Gafsa_oasis.jpg/640px-Gafsa_oasis.jpg",             color:"#9a3412" },
-  { nom:"TOZEUR",      display:"Tozeur",      img:"https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Tozeur_oasis.jpg/640px-Tozeur_oasis.jpg",           color:"#b45309" },
-  { nom:"KEBILI",      display:"Kébili",      img:"https://images.unsplash.com/photo-1547234935-80c7145ec969?w=600&q=75",                                         color:"#92400e" },
+  { nom:"MEDENINE",    display:"Médenine",    img:"https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Centre_ville_de_Medenine.JPG/1280px-Centre_ville_de_Medenine.JPG",           color:"#92400e" },
+  { nom:"TATAOUINE",   display:"Tataouine",   img:"https://www.les-covoyageurs.com/ressources/images-lieux/photo-lieu-1540-3.jpg", color:"#78350f" },
+  { nom:"GAFSA",       display:"Gafsa",       img:"https://lapressetn.b-cdn.net/wp-content/uploads/2026/01/gafsa-sned-770x470.jpg",             color:"#9a3412" },
+  { nom:"TOZEUR",      display:"Tozeur",      img:"https://media.routard.com/image/95/3/pt82944.1291953.w1000.jpg",           color:"#b45309" },
+  { nom:"KEBILI",      display:"Kébili",      img:"https://cdn.nawaat.org/wp-content/uploads/2012/01/rond-point_kebili.jpg",                                         color:"#92400e" },
 ];
 
 /* ── Property card ── */
