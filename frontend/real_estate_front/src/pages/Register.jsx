@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { Eye, EyeOff, UserPlus } from "lucide-react";
 import { useToast } from "../components/Toast";
 import Logo from "../components/Logo";
-import heroUrl from "../assets/image_home_new.png";
+const heroUrl = "https://www.guidesulysse.com/images/destinations/iStock-498116298.jpg";
 
 export default function Register() {
   const [username,        setUsername]        = useState("");

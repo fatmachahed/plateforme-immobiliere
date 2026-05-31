@@ -1,13 +1,19 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import Optional
-import base64, uuid, os
+import base64, uuid, os, secrets
+from datetime import datetime, timedelta
 
 from app import schemas, crud, database, models
 from app.utils.auth import create_access_token, get_current_user
+from app.utils.security import hash_password
 from passlib.context import CryptContext
 from pydantic import BaseModel
+
+# In-memory token store for password reset (replace with DB in production)
+_reset_tokens: dict = {}  # token -> {email, expires}
 
 class UserUpdateBody(BaseModel):
     username: Optional[str] = None
@@ -183,3 +189,61 @@ async def upload_avatar(
 
     crud.update_user(db, current_user.id, {"profile_picture": data_url})
     return {"profile_picture": data_url}
+
+
+# ===============================
+# FORGOT PASSWORD
+# ===============================
+@router.post("/forgot-password")
+def forgot_password(body: dict, db: Session = Depends(get_db)):
+    email = body.get("email", "").strip().lower()
+    user = db.query(models.User).filter(func.lower(models.User.email) == email).first()
+    if not user:
+        # Don't reveal if email exists
+        return {"message": "Si cet email existe, un lien de réinitialisation a été envoyé."}
+
+    token = secrets.token_urlsafe(32)
+    _reset_tokens[token] = {
+        "email": user.email,
+        "expires": datetime.utcnow() + timedelta(hours=2),
+    }
+
+    # In production: send email. For now: return token in response for demo
+    return {
+        "message": "Lien de réinitialisation généré.",
+        "reset_token": token,  # Remove in production, use email
+        "demo_link": f"http://localhost:5173/reset-password?token={token}",
+    }
+
+
+# ===============================
+# RESET PASSWORD
+# ===============================
+@router.post("/reset-password")
+def reset_password(body: dict, db: Session = Depends(get_db)):
+    token = body.get("token", "")
+    new_password = body.get("new_password", "")
+
+    if not token or not new_password:
+        raise HTTPException(400, "Token et nouveau mot de passe requis")
+
+    if len(new_password) < 6:
+        raise HTTPException(400, "Le mot de passe doit contenir au moins 6 caractères")
+
+    token_data = _reset_tokens.get(token)
+    if not token_data:
+        raise HTTPException(400, "Token invalide ou expiré")
+
+    if datetime.utcnow() > token_data["expires"]:
+        del _reset_tokens[token]
+        raise HTTPException(400, "Token expiré. Veuillez refaire la demande.")
+
+    user = db.query(models.User).filter(models.User.email == token_data["email"]).first()
+    if not user:
+        raise HTTPException(404, "Utilisateur non trouvé")
+
+    user.hashed_password = hash_password(new_password)
+    db.commit()
+
+    del _reset_tokens[token]
+    return {"message": "Mot de passe réinitialisé avec succès"}

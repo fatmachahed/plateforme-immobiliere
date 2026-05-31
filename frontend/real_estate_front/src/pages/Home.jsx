@@ -325,17 +325,6 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* floating stats */}
-        <div className="hp-hero__floats">
-          <div className="hp-hero__float hp-hero__float--1 animate-float">
-            <Home size={22} style={{ color: "var(--primary)" }} />
-            <div><p className="hp-hero__float-num">12 500+</p><p className="hp-hero__float-label">annonces</p></div>
-          </div>
-          <div className="hp-hero__float hp-hero__float--2 animate-float" style={{ animationDelay: ".6s" }}>
-            <Zap size={22} style={{ color: "var(--gold)" }} />
-            <div><p className="hp-hero__float-num">98%</p><p className="hp-hero__float-label">satisfaction</p></div>
-          </div>
-        </div>
       </section>
 
       {/* ── TYPES ── */}
@@ -389,21 +378,6 @@ export default function HomePage() {
           </div>
           <div className="hp-gov__grid">
             {GOV_CARDS.map(gov => <GovCard key={gov.nom} gov={gov} />)}
-          </div>
-        </div>
-      </section>
-
-      {/* ── STATS ── */}
-      <section className="hp-stats" ref={statsRef}>
-        <div className="container">
-          <div className="hp-stats__grid">
-            {STATS.map((s, i) => (
-              <div key={s.label} className={`hp-stat${statsVisible ? " hp-stat--visible" : ""}`} style={{ transitionDelay: `${i * 100}ms` }}>
-                <div className="hp-stat__icon">{s.icon}</div>
-                <p className="hp-stat__val">{s.value}</p>
-                <p className="hp-stat__label">{s.label}</p>
-              </div>
-            ))}
           </div>
         </div>
       </section>

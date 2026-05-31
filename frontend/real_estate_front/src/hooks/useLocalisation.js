@@ -32,14 +32,15 @@ export default function useLocalisation(hierarchy) {
         const formattedGouvernorats = response.data.map((gov, index) => {
           const id = gov.id || gov.value || index.toString();
           const nom = gov.nom || gov.name || gov.label || `Gouvernorat ${index + 1}`;
-          
+
           return {
             value: id.toString(),
             label: nom,
             icon: "🏛️"
           };
         });
-        
+        formattedGouvernorats.sort((a, b) => a.label.localeCompare(b.label, 'fr', {sensitivity: 'base'}));
+
         setGouvernorats(formattedGouvernorats);
         setError(null);
         
@@ -76,6 +77,7 @@ export default function useLocalisation(hierarchy) {
             id: (del.id || del.value || "").toString(),
             nom: del.nom || del.name || ""
           }));
+          formattedDelegations.sort((a, b) => a.nom.localeCompare(b.nom, 'fr', {sensitivity: 'base'}));
           setDelegations(formattedDelegations);
         } else {
           setDelegations([]);
@@ -107,6 +109,7 @@ export default function useLocalisation(hierarchy) {
             id: (loc.id || loc.value || "").toString(),
             nom: loc.nom || loc.name || ""
           }));
+          formattedLocalites.sort((a, b) => a.nom.localeCompare(b.nom, 'fr', {sensitivity: 'base'}));
           setLocalites(formattedLocalites);
         } else {
           setLocalites([]);

@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { Eye, EyeOff, Home } from "lucide-react";
 import { useToast } from "../components/Toast";
 import Logo from "../components/Logo";
-import heroUrl from "../assets/image_home_new.png";
+const heroUrl = "https://www.guidesulysse.com/images/destinations/iStock-498116298.jpg";
 
 export default function Login() {
   const [email,    setEmail]    = useState("");
@@ -114,6 +114,11 @@ export default function Login() {
                 <button type="button" className="sp-eye" onClick={() => setShowPwd(v => !v)} tabIndex={-1}>
                   {showPwd ? <EyeOff size={17}/> : <Eye size={17}/>}
                 </button>
+              </div>
+              <div style={{textAlign:"right", marginTop:4}}>
+                <Link to="/forgot-password" style={{fontSize:12, color:"#6366f1", textDecoration:"none", fontWeight:600}}>
+                  Mot de passe oublié ?
+                </Link>
               </div>
             </div>
 

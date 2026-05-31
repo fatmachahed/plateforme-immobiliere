@@ -2,7 +2,7 @@
 import API_URL from '../config';
 import { useNavigate } from "react-router-dom";
 import {
-  Home, Building2, MapPin, Camera, ChevronRight, ChevronLeft,
+  Home, Building2, MapPin, Camera, ChevronRight, ChevronLeft, Save,
   Check, X, Upload, Trash2, Eye, Bed, Bath, Maximize2, DollarSign,
   CheckCircle2, XCircle, Loader, Sparkles, Wand2,
   Minus, Plus, Navigation,
@@ -10,7 +10,7 @@ import {
   ArrowUpDown, Car, ParkingCircle, Package, Sofa,
   UtensilsCrossed, Wind, Thermometer, Compass, Wrench,
   HardHat, ThumbsUp, Hammer,
-  Wifi, Flame, DoorClosed, ShieldCheck, Tv, PhoneCall, Users, KeyRound, Droplets, Signal, Heart, RefreshCw, Monitor, LockKeyhole, Fence, Fingerprint
+  Wifi, Flame, DoorClosed, ShieldCheck, Tv, PhoneCall, Users, KeyRound, Droplets, Signal, Heart, RefreshCw, Monitor, LockKeyhole, Fence, Fingerprint, Briefcase
 } from "lucide-react";
 import Layout from "../components/Layout";
 import AIDescriptionModal from '../components/AIDescriptionModal';
@@ -203,7 +203,83 @@ function CaPriceEvalBar({ prixM2, govStats, devise }) {
   );
 }
 
-const CreateListingForm = () => {
+/* ── Helper: build prefill formData from detail API response ── */
+function buildPrefill(a) {
+  const feat = a.features || [];
+  return {
+    type_bien:         a.type_bien || "",
+    categorie:         a.categorie || "",
+    etat_bien:         a.etat_bien || "",
+    type_terrain:      a.type_terrain || "",
+    vocation_terrain:  "",
+    titre_foncier:     "",
+    type_appartement:  a.type_appartement || "",
+    etage:             a.etage !== null && a.etage !== undefined ? String(a.etage) : "",
+    type_villa:        a.type_villa || "",
+    type_option_villa: "",
+    nb_pieces:         a.nb_pieces || 0,
+    nb_chambres:       a.nb_chambres || 0,
+    nb_salles_bain:    a.nb_salles_bain || 0,
+    titre:             a.titre || "",
+    superficie:        a.superficie ? String(a.superficie) : "",
+    prix:              a.prix ? String(a.prix) : "",
+    devise:            a.devise || "TND",
+    description:       a.description || "",
+    address:           a.address || "Tunis, Tunisie",
+    latitude:          a.latitude ? String(a.latitude) : "36.8065",
+    longitude:         a.longitude ? String(a.longitude) : "10.1815",
+    allImages:         [],
+    mainImageIndex:    0,
+    age_bien:          "",
+    orientation:       "",
+    surface_jardin:    "",
+    surface_terrasse:  "",
+    nb_places_garage:  1,
+    duree_type:        "",
+    duree_valeur:      "",
+    accompagnement:    false,
+    jardin:            feat.includes("Jardin"),
+    terrasse:          feat.includes("Terrasse"),
+    balcon:            feat.includes("Balcon"),
+    parking:           feat.includes("Parking"),
+    garage:            feat.includes("Garage"),
+    ascenseur:         feat.includes("Ascenseur"),
+    vue_mer:           feat.includes("Vue sur mer"),
+    vue_montagne:      feat.includes("Vue montagne"),
+    vue_foret:         feat.includes("Vue forêt"),
+    piscine:           feat.includes("Piscine"),
+    concierge:         feat.includes("Concierge"),
+    cellier:           feat.includes("Chambre rangement"),
+    meuble:            feat.includes("Meublé"),
+    cuisine_equipee:   feat.includes("Cuisine équipée"),
+    climatisation:     feat.includes("Climatisation"),
+    chauffage_centrale:feat.includes("Chauffage central"),
+    cheminee:          feat.includes("Cheminée"),
+    double_vitrage:    feat.includes("Double vitrage"),
+    porte_blindee:     feat.includes("Porte blindée"),
+    securite:          feat.includes("Sécurité"),
+    internet:          feat.includes("Internet"),
+    tv:                feat.includes("TV"),
+    machine_laver:     feat.includes("Machine à laver"),
+    digicode:          feat.includes("Digicode"),
+    interphone:        feat.includes("Interphone"),
+    gardien:           feat.includes("Gardien"),
+    animaux_admis:     feat.includes("Animaux admis"),
+    salon_americain:   feat.includes("Salon américain"),
+    relie_onas:        feat.includes("Relié ONAS"),
+    fibre_optique:     feat.includes("Fibre optique"),
+  };
+}
+
+function buildPrefillHierarchy(a) {
+  return {
+    gouvernorat: a.gouvernorat_id ? String(a.gouvernorat_id) : "",
+    delegation:  a.delegation_id  ? String(a.delegation_id)  : "",
+    localite:    a.localite_id    ? String(a.localite_id)    : "",
+  };
+}
+
+export const CreateListingForm = ({ editId = null }) => {
   const toast    = useToast();
   const navigate = useNavigate();
 
@@ -215,6 +291,7 @@ const CreateListingForm = () => {
 
   /* ── Restore step + non-file form data from localStorage ── */
   const [currentStep, setCurrentStep] = useState(() => {
+    if (editId) return 1; // Always start at step 1 in edit mode
     try {
       const saved = localStorage.getItem("ca_step");
       const n = saved ? parseInt(saved, 10) : 1;
@@ -222,6 +299,7 @@ const CreateListingForm = () => {
     } catch { return 1; }
   });
   const [mapLocation, setMapLocation] = useState(() => {
+    if (editId) return { lat: 36.8065, lng: 10.1815, address: "Tunis, Tunisie" };
     try {
       const saved = localStorage.getItem("ca_maploc");
       return saved ? JSON.parse(saved) : { lat: 36.8065, lng: 10.1815, address: "Tunis, Tunisie" };
@@ -231,6 +309,7 @@ const CreateListingForm = () => {
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
   const [isAILoading, setIsAILoading] = useState(false);
   const [hierarchy, setHierarchy] = useState(() => {
+    if (editId) return { gouvernorat: "", delegation: "", localite: "" };
     try {
       const saved = localStorage.getItem("ca_hierarchy");
       return saved ? JSON.parse(saved) : { gouvernorat: "", delegation: "", localite: "" };
@@ -260,6 +339,7 @@ const CreateListingForm = () => {
   };
 
   const [formData, setFormData] = useState(() => {
+    if (editId) return defaultFormData; // Will be overwritten by edit useEffect
     try {
       const saved = localStorage.getItem("ca_formdata");
       if (!saved) return defaultFormData;
@@ -269,6 +349,12 @@ const CreateListingForm = () => {
   });
 
   const [imageValidation, setImageValidation] = useState({});
+  /* ── Edit mode state ── */
+  const [loadingEdit,        setLoadingEdit]        = useState(false);
+  const [loadingEditError,   setLoadingEditError]   = useState(false);
+  const [editPropertyIdState,setEditPropertyIdState]= useState(null);
+  /* Images existantes (edit mode) — URLs chargées depuis le backend */
+  const [existingImageUrls,  setExistingImageUrls]  = useState([]);
   /* ── Stats de marché (prix moyen/m² par gouvernorat) ── */
   const [marketStats, setMarketStats] = useState({});
 
@@ -276,25 +362,29 @@ const CreateListingForm = () => {
 
   const [addressFilter, setAddressFilter] = useState("");
 
-  /* ── Persist form state to localStorage (non-file fields only) ── */
+  /* ── Persist form state to localStorage (non-file fields only) — skip in edit mode ── */
   useEffect(() => {
+    if (editId) return;
     try { localStorage.setItem("ca_step", String(currentStep)); } catch { /* ignore */ }
-  }, [currentStep]);
+  }, [currentStep, editId]);
 
   useEffect(() => {
+    if (editId) return;
     try {
       const { allImages, ...serializableData } = formData;
       localStorage.setItem("ca_formdata", JSON.stringify(serializableData));
     } catch { /* ignore */ }
-  }, [formData]);
+  }, [formData, editId]);
 
   useEffect(() => {
+    if (editId) return;
     try { localStorage.setItem("ca_hierarchy", JSON.stringify(hierarchy)); } catch { /* ignore */ }
-  }, [hierarchy]);
+  }, [hierarchy, editId]);
 
   useEffect(() => {
+    if (editId) return;
     try { localStorage.setItem("ca_maploc", JSON.stringify(mapLocation)); } catch { /* ignore */ }
-  }, [mapLocation]);
+  }, [mapLocation, editId]);
 
   /* ── Reset categorie if type_bien changes to terrain/local_commercial and categorie is vacances ── */
   useEffect(() => {
@@ -329,7 +419,55 @@ const CreateListingForm = () => {
       .catch(() => {});
   }, []);
 
+  /* ── Load existing annonce data when in edit mode ── */
+  useEffect(() => {
+    if (!editId) return;
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    setLoadingEdit(true);
+    fetch(`${API_URL}/annonces/${editId}/detail`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(r => r.ok ? r.json() : Promise.reject("Erreur chargement"))
+      .then(a => {
+        setFormData(prev => ({ ...prev, ...buildPrefill(a) }));
+        setHierarchy(buildPrefillHierarchy(a));
+        if (a.latitude && a.longitude) {
+          setMapLocation({ lat: a.latitude, lng: a.longitude, address: a.address || "" });
+        }
+        setEditPropertyIdState(a.property_id || null);
+        /* Stocker les URLs des images existantes pour l'affichage en step 4 */
+        if (Array.isArray(a.images) && a.images.length > 0) {
+          setExistingImageUrls(a.images.map(img =>
+            img.startsWith("http") ? img : `${API_URL}${img}`
+          ));
+        }
+        setLoadingEdit(false);
+      })
+      .catch(() => {
+        setLoadingEditError(true);
+        setLoadingEdit(false);
+      });
+  }, [editId]); // eslint-disable-line
+
+  /* ── Incompatibilités terrain type ↔ vocation (calcul inline, sans toast) ── */
+  const TERRAIN_INCOMPATIBILITIES = {
+    agricole:    ["commerciale","industrielle","touristique"],
+    zone_verte:  ["commerciale","industrielle","residentielle"],
+    industriel:  ["agricole","touristique","residentielle"],
+    commercial:  ["agricole"],
+    lotissement: ["agricole","industrielle"],
+    nu:          [],
+  };
+  const VOCATION_LABELS = { residentielle:"Résidentielle", commerciale:"Commerciale",
+    industrielle:"Industrielle", agricole:"Agricole", touristique:"Touristique/Hôtelière", mixte:"Mixte" };
+  const TYPE_TERRAIN_LABELS = { agricole:"Agricole", zone_verte:"Zone verte", industriel:"Industriel",
+    commercial:"Commercial", lotissement:"Lotissement", nu:"Nu" };
+  const vocIncompat = formData.type_bien === "terrain" && formData.type_terrain && formData.vocation_terrain
+    && (TERRAIN_INCOMPATIBILITIES[formData.type_terrain] || []).includes(formData.vocation_terrain);
+
   const clearFormStorage = () => {
+    if (editId) return; // Don't clear storage in edit mode
     ["ca_step", "ca_formdata", "ca_hierarchy", "ca_maploc"].forEach(k => {
       try { localStorage.removeItem(k); } catch { /* ignore */ }
     });
@@ -493,42 +631,65 @@ const CreateListingForm = () => {
   };
 
   const incrementValue = (field) => {
-    if (formData[field] < 15) handleInputChange(field, formData[field] + 1);
+    if (formData[field] < 15) {
+      const newVal = formData[field] + 1;
+      handleInputChange(field, newVal);
+      /* Règle : nb_pieces >= nb_chambres — si on augmente les chambres, ajuster les pièces */
+      if (field === "nb_chambres" && newVal > formData.nb_pieces) {
+        handleInputChange("nb_pieces", newVal);
+      }
+    }
   };
 
   const decrementValue = (field) => {
-    if (formData[field] > 0) handleInputChange(field, formData[field] - 1);
+    if (formData[field] > 0) {
+      const newVal = formData[field] - 1;
+      handleInputChange(field, newVal);
+      /* Règle : nb_chambres <= nb_pieces — si on réduit les pièces, ajuster les chambres */
+      if (field === "nb_pieces" && newVal < formData.nb_chambres) {
+        handleInputChange("nb_chambres", newVal);
+      }
+    }
   };
 
 
+  /* ── Champs invalides (bordure rouge) ── */
+  const [validationErrors, setValidationErrors] = useState({});
+
   const nextStep = () => {
-    /* ── Validation par étape ── */
+    const errors = {};
+
     if (currentStep === 1) {
-      if (!formData.type_bien) {
-        toast("Champ requis ✦ Sélectionnez un type de bien.", "error"); return;
-      }
-      if (!formData.categorie) {
-        toast("Champ requis ✦ Sélectionnez un type d'offre.", "error"); return;
+      if (!formData.type_bien)  errors.type_bien  = true;
+      if (!formData.categorie)  errors.categorie  = true;
+      if (Object.keys(errors).length > 0) {
+        setValidationErrors(errors);
+        toast("Champs requis ✦ Veuillez compléter les champs en rouge.", "error");
+        return;
       }
     }
     if (currentStep === 2) {
-      if (!hierarchy.gouvernorat) {
-        toast("Champ requis ✦ Sélectionnez un gouvernorat.", "error"); return;
+      if (!hierarchy.gouvernorat) errors.gouvernorat = true;
+      if (Object.keys(errors).length > 0) {
+        setValidationErrors(errors);
+        toast("Champ requis ✦ Sélectionnez un gouvernorat.", "error");
+        return;
       }
     }
     if (currentStep === 3) {
-      if (!formData.titre.trim()) {
-        toast("Champ requis ✦ Saisissez un titre pour l'annonce.", "error"); return;
-      }
+      if (!formData.titre.trim())                          errors.titre     = true;
       const sup = parseFloat(formData.superficie);
-      if (!formData.superficie || isNaN(sup) || sup <= 0) {
-        toast("Champ requis ✦ Saisissez une superficie valide.", "error"); return;
-      }
+      if (!formData.superficie || isNaN(sup) || sup <= 0)  errors.superficie = true;
       const px = parseFloat(formData.prix);
-      if (!formData.prix || isNaN(px) || px <= 0) {
-        toast("Champ requis ✦ Saisissez un prix valide.", "error"); return;
+      if (!formData.prix || isNaN(px) || px <= 0)          errors.prix       = true;
+      if (Object.keys(errors).length > 0) {
+        setValidationErrors(errors);
+        toast("Champs requis ✦ Veuillez compléter les champs en rouge.", "error");
+        return;
       }
     }
+
+    setValidationErrors({});
     if (currentStep < totalSteps) {
       setCurrentStep(currentStep + 1);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -592,7 +753,7 @@ const CreateListingForm = () => {
     };
 
     try {
-      /* ── 1. Créer l'annonce (JSON) ── */
+      /* ── Build shared payload ── */
       const payload = {
         gouvernorat_id: parseInt(hierarchy.gouvernorat) || undefined,
         delegation_id:  parseInt(hierarchy.delegation)  || undefined,
@@ -604,18 +765,72 @@ const CreateListingForm = () => {
         superficie:     parseFloat(formData.superficie) || 0,
         prix:           parseFloat(formData.prix)       || 0,
         devise:         formData.devise || "TND",
-        status:         "approuvee",
+        status:         "en_attente",
         type_appartement:  formData.type_bien === "appartement" ? (formData.type_appartement || null) : null,
         type_villa:        formData.type_bien === "villa"       ? (formData.type_villa       || null) : null,
         type_terrain:      formData.type_bien === "terrain"     ? (formData.type_terrain     || null) : null,
         etat_bien:         formData.etat_bien         || null,
         etage:             formData.etage ? parseInt(formData.etage) : null,
-        type_option_villa: formData.type_option_villa || null,
+        /* type_option_villa est une sélection multiple (ex: "sous-sol,rez-de-jardin").
+           Le backend attend une seule valeur enum → on envoie null pour éviter l'erreur DB.
+           Les options villa sont sauvegardées dans le formulaire mais pas soumises à la DB. */
+        type_option_villa: null,
         nb_pieces:         formData.nb_pieces    || null,
         nb_chambres:       formData.nb_chambres  || null,
         nb_salles_bain:    formData.nb_salles_bain || null,
       };
 
+      /* ── EDIT MODE branch ── */
+      if (editId) {
+        const updateRes = await handleRes(await fetch(`${API_URL}/annonces/${editId}`, {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }));
+        if (!updateRes.ok) {
+          const err = await updateRes.json();
+          toast(readError(err.detail), "error");
+          return;
+        }
+
+        /* Upload new images if any were added */
+        if (formData.allImages.length > 0) {
+          const orderedImages = [
+            formData.allImages[formData.mainImageIndex] || formData.allImages[0],
+            ...formData.allImages.filter((_, i) => i !== formData.mainImageIndex)
+          ];
+          for (let i = 0; i < orderedImages.length; i++) {
+            try {
+              const imgForm = new FormData();
+              imgForm.append("file", orderedImages[i]);
+              await fetch(`${API_URL}/upload/image`, {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` },
+                body: imgForm,
+              });
+            } catch { /* non-bloquant */ }
+          }
+        }
+
+        /* Update property */
+        if (editPropertyIdState) {
+          await fetch(`${API_URL}/properties/${editPropertyIdState}`, {
+            method: "PUT",
+            headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              address:   formData.address   || "",
+              latitude:  parseFloat(formData.latitude)  || 0,
+              longitude: parseFloat(formData.longitude) || 0,
+            }),
+          });
+        }
+
+        toast("Annonce mise à jour !");
+        setTimeout(() => { window.location.href = "/dashboard"; }, 1200);
+        return;
+      }
+
+      /* ── CREATE MODE branch ── */
       const annonceRes = await handleRes(await fetch(`${API_URL}/annonces/`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
@@ -811,10 +1026,11 @@ const CreateListingForm = () => {
   ].filter(Boolean);
 
   const TYPE_CARDS = [
-    { value: "appartement",     label: "Appartement",     Ico: Building2, color: "#3b82f6"  },
-    { value: "villa",           label: "Villa/Maison",     Ico: Home,      color: "#10b981"  },
-    { value: "terrain",         label: "Terrain",          Ico: Leaf,      color: "#f59e0b"  },
-    { value: "local_commercial",label: "Local commercial", Ico: Store,     color: "#f97316"  },
+    { value: "appartement",     label: "Appartement",     Ico: Building2,  color: "#3b82f6" },
+    { value: "villa",           label: "Villa/Maison",    Ico: Home,       color: "#10b981" },
+    { value: "terrain",         label: "Terrain",         Ico: Leaf,       color: "#f59e0b" },
+    { value: "local_commercial",label: "Local commercial",Ico: Store,      color: "#f97316" },
+    { value: "bureau",          label: "Bureau",          Ico: Briefcase,  color: "#6366f1" },
   ];
 
   const ETAT_CARDS = [
@@ -882,8 +1098,7 @@ const CreateListingForm = () => {
     { key:"double_vitrage",   Ico:DoorClosed,      label:"Double vitrage",    color:"#64748b" },
     { key:"porte_blindee",    Ico:LockKeyhole,     label:"Porte blindée",     color:"#374151" },
     { key:"securite",         Ico:Fingerprint,     label:"Sécurité",          color:"#ef4444" },
-    { key:"fibre_optique",    Ico:Wifi,            label:"Fibre optique",     color:"#3b82f6" },
-    { key:"internet",         Ico:Signal,          label:"Internet",          color:"#10b981" },
+    { key:"internet",         Ico:Wifi,            label:"Internet",          color:"#10b981" },
     { key:"tv",               Ico:Monitor,         label:"TV",                color:"#8b5cf6" },
     { key:"machine_laver",    Ico:WashingMachineIco,label:"Machine à laver",  color:"#0284c7" },
     { key:"digicode",         Ico:KeyRound,        label:"Digicode",          color:"#7c3aed" },
@@ -891,35 +1106,71 @@ const CreateListingForm = () => {
     { key:"relie_onas",       Ico:Droplets,        label:"Relié ONAS",        color:"#0891b2" },
   ];
 
+  if (loadingEdit) return (
+    <Layout>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"60vh",flexDirection:"column",gap:16}}>
+        <div style={{width:40,height:40,border:"3px solid #e5e7eb",borderTopColor:"#6366f1",borderRadius:"50%",animation:"caSpin .7s linear infinite"}}/>
+        <p style={{color:"#94a3b8",fontSize:14}}>Chargement de l'annonce…</p>
+        <style>{`@keyframes caSpin{to{transform:rotate(360deg)}}`}</style>
+      </div>
+    </Layout>
+  );
+
+  if (loadingEditError) return (
+    <Layout>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"center",minHeight:"60vh",flexDirection:"column",gap:16}}>
+        <p style={{color:"#ef4444",fontSize:15,fontWeight:600}}>Impossible de charger l'annonce.</p>
+        <button type="button" onClick={() => window.history.back()}
+          style={{padding:"10px 22px",borderRadius:10,background:"#0f172a",color:"#fff",border:"none",fontSize:14,fontWeight:600,cursor:"pointer"}}>
+          Retour
+        </button>
+      </div>
+    </Layout>
+  );
+
   return (
     <Layout>
       <div className="ca-root">
         {/* ── Left sidebar ── */}
         <aside className="ca-sidebar">
           <div className="ca-sidebar__inner">
-            <div className="ca-sidebar__title">Créer une annonce</div>
+            <div className="ca-sidebar__title">{editId ? "Modifier l'annonce" : "Créer une annonce"}</div>
 
             {/* Step list */}
             <nav className="ca-steps">
               {STEPS.map((s) => {
-                const done   = currentStep > s.id;
-                const active = currentStep === s.id;
+                const done    = currentStep > s.id;
+                const active  = currentStep === s.id;
+                /* En mode édition : toutes les étapes sont accessibles directement */
+                const canClick = done || !!editId;
                 return (
                   <div
                     key={s.id}
-                    className={`ca-step${active ? " ca-step--active" : done ? " ca-step--done" : " ca-step--future"}`}
-                    onClick={done ? () => setCurrentStep(s.id) : undefined}
-                    title={done ? `Revenir à : ${s.label}` : undefined}
+                    className={`ca-step${active ? " ca-step--active" : done ? " ca-step--done" : editId ? " ca-step--edit-nav" : " ca-step--future"}`}
+                    onClick={canClick ? () => setCurrentStep(s.id) : undefined}
+                    style={canClick && !active ? {cursor:"pointer"} : undefined}
+                    title={canClick && !active ? s.label : undefined}
                   >
                     <div className="ca-step__circle">
                       {done ? <Check size={13} strokeWidth={3}/> : <span>{s.id}</span>}
                     </div>
                     <span className="ca-step__label">{s.label}</span>
-                    {done && <span className="ca-step__back-ico">↩</span>}
+                    {(done || (editId && !active)) && <span className="ca-step__back-ico">↩</span>}
                   </div>
                 );
               })}
             </nav>
+
+            {/* Bouton Enregistrer — toujours visible en mode édition */}
+            {editId && (
+              <button
+                type="button"
+                className="ca-sidebar-save-btn"
+                onClick={handleSubmit}
+              >
+                <Save size={15}/> Enregistrer
+              </button>
+            )}
 
             {/* Summary card */}
             {summary.length > 0 && (
@@ -1008,8 +1259,8 @@ const CreateListingForm = () => {
                         </div>
                       )}
 
-                      {/* Local commercial sub-fields */}
-                      {formData.type_bien === "local_commercial" && (
+                      {/* Local commercial & Bureau sub-fields */}
+                      {(formData.type_bien === "local_commercial" || formData.type_bien === "bureau") && (
                         <div className="ca-field">
                           <label className="ca-label">Étage du bien</label>
                           <select className="ca-select" value={formData.etage}
@@ -1080,8 +1331,11 @@ const CreateListingForm = () => {
                           </div>
                           <div className="ca-field">
                             <label className="ca-label">Vocation du terrain</label>
-                            <select className="ca-select" value={formData.vocation_terrain}
-                              onChange={e => handleInputChange("vocation_terrain", e.target.value)}>
+                            <select
+                              className="ca-select"
+                              value={formData.vocation_terrain}
+                              onChange={e => handleInputChange("vocation_terrain", e.target.value)}
+                              style={vocIncompat ? {borderColor:"#ef4444", background:"#fff5f5"} : {}}>
                               <option value="">Sélectionner…</option>
                               <option value="residentielle">Résidentielle</option>
                               <option value="commerciale">Commerciale</option>
@@ -1091,6 +1345,16 @@ const CreateListingForm = () => {
                               <option value="mixte">Mixte</option>
                               <option value="non_definie">Non définie</option>
                             </select>
+                            {vocIncompat && (
+                              <p style={{
+                                margin:"6px 0 0", fontSize:12, color:"#dc2626",
+                                display:"flex", alignItems:"center", gap:5,
+                                background:"#fef2f2", border:"1px solid #fecaca",
+                                borderRadius:7, padding:"5px 10px", lineHeight:1.4
+                              }}>
+                                ⚠️ Incompatibilité : un terrain <strong>{TYPE_TERRAIN_LABELS[formData.type_terrain]}</strong> ne peut pas avoir la vocation <strong>{VOCATION_LABELS[formData.vocation_terrain]}</strong>.
+                              </p>
+                            )}
                           </div>
                           <div className="ca-tf-row">
                             <span className="ca-tf-label">Titre foncier</span>
@@ -1128,7 +1392,7 @@ const CreateListingForm = () => {
                       </>)}
 
                       {/* Orientation */}
-                      {(formData.type_bien==="appartement"||formData.type_bien==="villa"||formData.type_bien==="local_commercial") && (
+                      {(formData.type_bien==="appartement"||formData.type_bien==="villa"||formData.type_bien==="local_commercial"||formData.type_bien==="bureau") && (
                         <div style={{marginTop:16}}>
                           <div className="ca-section-label">Orientation <span style={{color:"#9ca3af",fontWeight:400,textTransform:"none",fontSize:"10px"}}>(optionnel)</span></div>
                           <div className="ca-toggle-group">
@@ -1152,13 +1416,13 @@ const CreateListingForm = () => {
                     <div className="ca-s1-lr__right">
 
                       <div className="ca-section-label">Sélectionnez le type <span className="ca-req">*</span></div>
-                      <div className="ca-etat-row" style={{flexWrap:"wrap"}}>
+                      <div className={`ca-etat-row ca-val-group${validationErrors.type_bien?" ca-val-group--err":""}`} style={{flexWrap:"wrap"}}>
                         {TYPE_CARDS.map(tc => {
                           const isOn = formData.type_bien === tc.value;
                           return (
                             <button key={tc.value} type="button"
                               className={`ca-etat-card${isOn ? " ca-etat-card--on" : ""}`}
-                              onClick={() => handleInputChange("type_bien", tc.value)}>
+                              onClick={() => { handleInputChange("type_bien", tc.value); setValidationErrors(v=>({...v,type_bien:false})); }}>
                               <span style={{display:"flex",alignItems:"center"}}><tc.Ico size={22}/></span>
                               <span>{tc.label}</span>
                             </button>
@@ -1167,13 +1431,13 @@ const CreateListingForm = () => {
                       </div>
 
                       <div className="ca-section-label" style={{marginTop:20}}>Type d'offre <span className="ca-req">*</span></div>
-                      <div className="ca-pill-row">
+                      <div className={`ca-pill-row ca-val-group${validationErrors.categorie?" ca-val-group--err":""}`}>
                         {[{v:"vente",l:"Vente"},{v:"location",l:"Location"},{v:"vacances",l:"Vacances"}]
                           .filter(o => !(o.v==="vacances"&&(formData.type_bien==="terrain"||formData.type_bien==="local_commercial")))
                           .map(o => (
                             <button key={o.v} type="button"
                               className={`ca-pill${formData.categorie===o.v?" ca-pill--on":""}`}
-                              onClick={() => handleInputChange("categorie", o.v)}>
+                              onClick={() => { handleInputChange("categorie", o.v); setValidationErrors(v=>({...v,categorie:false})); }}>
                               {o.l}
                             </button>
                         ))}
@@ -1207,41 +1471,48 @@ const CreateListingForm = () => {
                         </div>
                       )}
 
-                      <div className="ca-section-label" style={{marginTop:20}}>État du bien</div>
-                      <div className="ca-etat-row" style={{flexWrap:"wrap"}}>
-                        {ETAT_CARDS
-                          .filter(ec => !(ec.value==="cours_construction"&&(formData.categorie==="location"||formData.categorie==="vacances")))
-                          .map(ec => {
-                            const isOn = formData.etat_bien===ec.value;
-                            return (
-                              <button key={ec.value} type="button"
-                                className={`ca-etat-card${isOn?" ca-etat-card--on":""}`}
-                                onClick={() => handleInputChange("etat_bien", ec.value)}>
-                                <span style={{display:"flex",alignItems:"center"}}><ec.Ico size={20}/></span>
-                                <span>{ec.label}</span>
-                              </button>
-                            );
-                        })}
-                      </div>
-
-                      {formData.etat_bien && formData.etat_bien !== "nouveau" && (
-                        <div style={{marginTop:12}}>
-                          <div className="ca-section-label">Ancienneté du bien</div>
-                          <select className="ca-select" value={formData.age_bien}
-                            onChange={e => handleInputChange("age_bien", e.target.value)}>
-                            <option value="">Sélectionnez…</option>
-                            <option value="moins_1an">Moins d'un an</option>
-                            <option value="1_5ans">D'un an à 5 ans</option>
-                            <option value="5_10ans">De 5 ans à 10 ans</option>
-                            <option value="10_20ans">De 10 ans à 20 ans</option>
-                            <option value="20_30ans">De 20 ans à 30 ans</option>
-                            <option value="30_50ans">De 30 ans à 50 ans</option>
-                            <option value="50_70ans">De 50 ans à 70 ans</option>
-                            <option value="70_100ans">De 70 ans à 100 ans</option>
-                            <option value="plus_100ans">Plus de 100 ans</option>
-                          </select>
+                      {/* État du bien — masqué pour terrain */}
+                      {formData.type_bien !== "terrain" && (<>
+                        <div className="ca-section-label" style={{marginTop:20}}>État du bien</div>
+                        <div className="ca-etat-row" style={{flexWrap:"wrap"}}>
+                          {ETAT_CARDS
+                            .filter(ec => {
+                              if (ec.value==="cours_construction" && (formData.categorie==="location"||formData.categorie==="vacances")) return false;
+                              if (ec.value==="a_renover" && formData.categorie==="vacances") return false;
+                              return true;
+                            })
+                            .map(ec => {
+                              const isOn = formData.etat_bien===ec.value;
+                              return (
+                                <button key={ec.value} type="button"
+                                  className={`ca-etat-card${isOn?" ca-etat-card--on":""}`}
+                                  onClick={() => handleInputChange("etat_bien", ec.value)}>
+                                  <span style={{display:"flex",alignItems:"center"}}><ec.Ico size={20}/></span>
+                                  <span>{ec.label}</span>
+                                </button>
+                              );
+                          })}
                         </div>
-                      )}
+
+                        {formData.etat_bien && formData.etat_bien !== "nouveau" && (
+                          <div style={{marginTop:12}}>
+                            <div className="ca-section-label">Ancienneté du bien</div>
+                            <select className="ca-select" value={formData.age_bien}
+                              onChange={e => handleInputChange("age_bien", e.target.value)}>
+                              <option value="">Sélectionnez…</option>
+                              <option value="moins_1an">Moins d'un an</option>
+                              <option value="1_5ans">D'un an à 5 ans</option>
+                              <option value="5_10ans">De 5 ans à 10 ans</option>
+                              <option value="10_20ans">De 10 ans à 20 ans</option>
+                              <option value="20_30ans">De 20 ans à 30 ans</option>
+                              <option value="30_50ans">De 30 ans à 50 ans</option>
+                              <option value="50_70ans">De 50 ans à 70 ans</option>
+                              <option value="70_100ans">De 70 ans à 100 ans</option>
+                              <option value="plus_100ans">Plus de 100 ans</option>
+                            </select>
+                          </div>
+                        )}
+                      </>)}
 
                     </div>{/* /ca-s1-lr__right */}
                   </div>{/* /ca-s1-lr */}
@@ -1366,8 +1637,10 @@ const CreateListingForm = () => {
                       <div className="ca-section-label">Zone géographique <span className="ca-req">*</span></div>
                       <div className="ca-field">
                         <label className="ca-label">Gouvernorat <span className="ca-req">*</span></label>
-                        <select className="ca-select" value={hierarchy.gouvernorat}
-                          onChange={e => handleHierarchyChange("gouvernorat", e.target.value)}>
+                        <select
+                          className={`ca-select${validationErrors.gouvernorat?" ca-select--err":""}`}
+                          value={hierarchy.gouvernorat}
+                          onChange={e => { handleHierarchyChange("gouvernorat", e.target.value); setValidationErrors(v=>({...v,gouvernorat:false})); }}>
                           <option value="">Gouvernorat</option>
                           {(gouvernorats || []).map(gov => (
                             <option key={gov.value} value={gov.value}>{gov.label}</option>
@@ -1464,10 +1737,11 @@ const CreateListingForm = () => {
                       <div className="ca-field">
                         <label className="ca-label">Titre de l'annonce <span className="ca-req">*</span></label>
                         <div className="ca-input-wand">
-                          <input type="text" className="ca-input"
+                          <input type="text"
+                            className={`ca-input${validationErrors.titre ? " ca-input--err" : ""}`}
                             placeholder="Ex: Magnifique villa moderne avec piscine"
                             value={formData.titre}
-                            onChange={e => handleInputChange("titre", e.target.value)}
+                            onChange={e => { handleInputChange("titre", e.target.value); setValidationErrors(v=>({...v,titre:false})); }}
                           />
                           <button type="button" className="ca-wand-btn"
                             title="Suggérer un titre avec l'IA"
@@ -1491,10 +1765,11 @@ const CreateListingForm = () => {
                       <div className="ca-field">
                         <label className="ca-label">Superficie <span className="ca-req">*</span></label>
                         <div className="ca-input-unit">
-                          <input type="number" className="ca-input" placeholder="150"
-                            min="1" max="9999999"
+                          <input type="number"
+                            className={`ca-input${validationErrors.superficie ? " ca-input--err" : ""}`}
+                            placeholder="150" min="1" max="9999999"
                             value={formData.superficie}
-                            onChange={e => handleInputChange("superficie", e.target.value)}/>
+                            onChange={e => { handleInputChange("superficie", e.target.value); setValidationErrors(v=>({...v,superficie:false})); }}/>
                           <span className="ca-unit">m²</span>
                         </div>
                       </div>
@@ -1503,10 +1778,11 @@ const CreateListingForm = () => {
                       <div className="ca-field">
                         <label className="ca-label">Prix <span className="ca-req">*</span></label>
                         <div className="ca-input-unit">
-                          <input type="number" className="ca-input" placeholder="250000"
-                            min="1" max="9999999999"
+                          <input type="number"
+                            className={`ca-input${validationErrors.prix ? " ca-input--err" : ""}`}
+                            placeholder="250000" min="1" max="9999999999"
                             value={formData.prix}
-                            onChange={e => handleInputChange("prix", e.target.value)}/>
+                            onChange={e => { handleInputChange("prix", e.target.value); setValidationErrors(v=>({...v,prix:false})); }}/>
                           <select className="ca-currency" value={formData.devise}
                             onChange={e => handleInputChange("devise", e.target.value)}>
                             <option value="TND">DT</option>
@@ -1632,11 +1908,89 @@ const CreateListingForm = () => {
                     <span className="ca-req-hint">{formData.allImages.length}/10 photos</span>
                   </div>
 
-                  <p className="ca-tip" style={{marginBottom:16}}>
-                    Cliquez sur le cœur ❤️ d'une photo pour la définir comme image principale. Elle apparaîtra en premier.
+                  <p className="ca-tip" style={{marginBottom:12}}>
+                    Glissez-déposez vos photos ou cliquez pour sélectionner. Cœur ❤️ pour définir l'image principale.
                   </p>
+                  {/* ── Images existantes (edit mode) ── */}
+                  {editId && existingImageUrls.length > 0 && (
+                    <div style={{marginBottom:20}}>
+                      <div className="ca-section-label" style={{marginBottom:10}}>
+                        Photos actuelles de l'annonce
+                        <span className="ca-count-badge">{existingImageUrls.length}</span>
+                      </div>
+                      <div className="ca-img-unified-grid">
+                        {existingImageUrls.map((url, idx) => (
+                          <div key={url} className="ca-img-uni-card" style={{border:"2px solid #e5e7eb"}}>
+                            <img src={url} alt={`Photo ${idx+1}`}
+                              style={{width:"100%",height:"100%",objectFit:"cover"}}
+                              onError={e => { e.currentTarget.style.display="none"; }}/>
+                            <div className="ca-img-overlay">
+                              <button type="button" className="ca-img-btn ca-img-btn--eye"
+                                onClick={() => window.open(url, "_blank")}>
+                                <Eye size={15}/>
+                              </button>
+                              <button type="button" className="ca-img-btn ca-img-btn--del"
+                                title="Supprimer cette photo"
+                                onClick={async () => {
+                                  const token = localStorage.getItem("token");
+                                  if (editPropertyIdState) {
+                                    try {
+                                      /* Extraire l'URL relative pour l'API */
+                                      const relUrl = url.startsWith(API_URL)
+                                        ? url.slice(API_URL.length) : url;
+                                      await fetch(`${API_URL}/properties/${editPropertyIdState}/images`, {
+                                        method: "DELETE",
+                                        headers: { Authorization:`Bearer ${token}`, "Content-Type":"application/json" },
+                                        body: JSON.stringify({ image: relUrl }),
+                                      });
+                                    } catch { /* silencieux */ }
+                                  }
+                                  setExistingImageUrls(prev => prev.filter(u => u !== url));
+                                }}>
+                                <Trash2 size={15}/>
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
-                  <div className="ca-img-unified-grid">
+                  {/* Zone drag-and-drop globale */}
+                  {formData.allImages.length < 10 && (
+                    <div
+                      className="ca-img-dnd-zone"
+                      onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add("ca-img-dnd-zone--over"); }}
+                      onDragLeave={e => e.currentTarget.classList.remove("ca-img-dnd-zone--over")}
+                      onDrop={e => {
+                        e.preventDefault();
+                        e.currentTarget.classList.remove("ca-img-dnd-zone--over");
+                        const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith("image/"));
+                        const remaining = 10 - formData.allImages.length;
+                        const toAdd = files.slice(0, remaining).filter(f => f.size <= 10 * 1024 * 1024);
+                        if (files.some(f => f.size > 10 * 1024 * 1024)) toast("Certaines images dépassent 10 MB.", "error");
+                        if (toAdd.length > 0) setFormData(prev => ({ ...prev, allImages: [...prev.allImages, ...toAdd] }));
+                      }}
+                      onClick={() => document.getElementById("ca-dnd-input").click()}
+                    >
+                      <input id="ca-dnd-input" type="file" accept="image/*" multiple style={{display:"none"}}
+                        onChange={e => {
+                          const files = Array.from(e.target.files || []);
+                          const remaining = 10 - formData.allImages.length;
+                          const toAdd = files.slice(0, remaining).filter(f => f.size <= 10 * 1024 * 1024);
+                          if (files.some(f => f.size > 10 * 1024 * 1024)) toast("Certaines images dépassent 10 MB.", "error");
+                          if (toAdd.length > 0) setFormData(prev => ({ ...prev, allImages: [...prev.allImages, ...toAdd] }));
+                          e.target.value = "";
+                        }}
+                      />
+                      <Upload size={32} style={{color:"#9ca3af"}}/>
+                      <span style={{fontSize:14,fontWeight:600,color:"#374151",marginTop:8}}>Glissez vos photos ici</span>
+                      <span style={{fontSize:12,color:"#9ca3af"}}>ou cliquez pour parcourir — JPG, PNG, max 10 MB</span>
+                      <span style={{fontSize:11,color:"#c7d2fe",marginTop:4}}>{formData.allImages.length}/10 photos ajoutées</span>
+                    </div>
+                  )}
+
+                  <div className="ca-img-unified-grid" style={{marginTop: formData.allImages.length > 0 ? 16 : 0}}>
                     {formData.allImages.map((file, index) => {
                       const isMain = index === formData.mainImageIndex;
                       return (
@@ -1675,21 +2029,20 @@ const CreateListingForm = () => {
                       );
                     })}
 
-                    {formData.allImages.length < 10 && (
+                    {/* Slot d'ajout supplémentaire si la grille est déjà partiellement remplie */}
+                    {formData.allImages.length > 0 && formData.allImages.length < 10 && (
                       <label className="ca-img-add-slot">
                         <input type="file" accept="image/*" multiple style={{display:"none"}}
                           onChange={e => {
                             const files = Array.from(e.target.files || []);
                             const remaining = 10 - formData.allImages.length;
                             const toAdd = files.slice(0, remaining).filter(f => f.size <= 10 * 1024 * 1024);
-                            if (files.some(f => f.size > 10 * 1024 * 1024)) toast("Certaines images dépassent 10 MB et ont été ignorées.", "error");
                             if (toAdd.length > 0) setFormData(prev => ({ ...prev, allImages: [...prev.allImages, ...toAdd] }));
                             e.target.value = "";
                           }}
                         />
-                        <Upload size={28} style={{color:"#9ca3af"}}/>
-                        <span style={{fontSize:12,color:"#9ca3af",marginTop:6}}>Ajouter</span>
-                        <span style={{fontSize:11,color:"#cbd5e1"}}>max 10 MB</span>
+                        <Upload size={22} style={{color:"#9ca3af"}}/>
+                        <span style={{fontSize:11,color:"#9ca3af",marginTop:4}}>Ajouter</span>
                       </label>
                     )}
                   </div>
@@ -1705,7 +2058,7 @@ const CreateListingForm = () => {
                         checked={formData.accompagnement || false}
                         onChange={e => handleInputChange("accompagnement", e.target.checked)}/>
                       <Sparkles size={14} className="ca-accom-check__ico"/>
-                      <span>Je souhaite être accompagné(e) par l'équipe Localizi pour la publication de mon annonce</span>
+                      <span>Je souhaite être accompagné(e) par un professionnel de l'immobilier dans la transaction du bien immobilier (achat / vente / location)</span>
                     </label>
                   </div>
                 </div>
@@ -1847,7 +2200,7 @@ const CreateListingForm = () => {
                       <Eye size={17}/> Prévisualiser
                     </button>
                   : <button type="button" className="ca-nav-btn ca-nav-btn--publish" onClick={handleSubmit}>
-                      <Check size={17}/> Créer l'annonce
+                      <Check size={17}/> {editId ? "Mettre à jour l'annonce" : "Créer l'annonce"}
                     </button>
               }
             </div>
@@ -1909,6 +2262,23 @@ const CreateListingForm = () => {
 
           /* Future (not yet reached) */
           .ca-step--future { opacity: .45; }
+
+          /* Edit mode — toutes les étapes non-actives sont navigables */
+          .ca-step--edit-nav { opacity: .75; cursor: pointer; }
+          .ca-step--edit-nav:hover { background: #f0fdf4; }
+          .ca-step--edit-nav:hover .ca-step__label { color: #15803d; }
+
+          /* Bouton Enregistrer dans la sidebar (edit mode) */
+          .ca-sidebar-save-btn {
+            width: 100%; margin-top: 18px; padding: 11px 16px;
+            display: flex; align-items: center; justify-content: center; gap: 7px;
+            background: linear-gradient(135deg, #6366f1, #818cf8);
+            color: #fff; border: none; border-radius: 11px;
+            font-size: 13.5px; font-weight: 700; cursor: pointer;
+            font-family: inherit; transition: all .15s;
+            box-shadow: 0 4px 12px rgba(99,102,241,.35);
+          }
+          .ca-sidebar-save-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(99,102,241,.45); }
 
           /* Active */
           .ca-step--active { background: #eef2ff; }
@@ -2183,6 +2553,10 @@ const CreateListingForm = () => {
           }
           .ca-select:disabled { opacity: .45; cursor: not-allowed; }
           .ca-input--sm { font-size: 12.5px; padding: 8px 10px; }
+          /* ── Validation errors ── */
+          .ca-input--err  { border-color: #ef4444 !important; background: #fff5f5 !important; box-shadow: 0 0 0 3px rgba(239,68,68,.1); }
+          .ca-select--err { border-color: #ef4444 !important; background: #fff5f5 !important; box-shadow: 0 0 0 3px rgba(239,68,68,.1); }
+          .ca-val-group--err { outline: 2.5px solid #ef4444; outline-offset: 4px; border-radius: 10px; }
           .ca-row-2 { display: flex; gap: 14px; flex-wrap: wrap; }
 
           /* Step 4 — split layout */
@@ -2723,6 +3097,20 @@ const CreateListingForm = () => {
           .ca-img-btn--heart { background: rgba(255,255,255,.85); color: #374151; }
           .ca-img-btn--heart:hover { background: #f43f5e; color: #fff; }
           .ca-img-btn--heart-on { background: #f43f5e !important; color: #fff !important; }
+          /* ── Drag & Drop zone ── */
+          .ca-img-dnd-zone {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 4px; padding: 32px 20px;
+            border: 2.5px dashed #c7d2fe; border-radius: 16px;
+            background: #f8faff; cursor: pointer; transition: all .2s;
+            text-align: center;
+          }
+          .ca-img-dnd-zone:hover, .ca-img-dnd-zone--over {
+            border-color: #6366f1; background: #eef2ff;
+            box-shadow: 0 0 0 4px rgba(99,102,241,.1);
+          }
+          .ca-img-dnd-zone--over { transform: scale(1.01); }
+
           .ca-img-add-slot {
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             aspect-ratio: 1; border-radius: 12px;
@@ -2736,4 +3124,6 @@ const CreateListingForm = () => {
   );
 };
 
-export default CreateListingForm;
+export default function CreerAnnonce() {
+  return <CreateListingForm />;
+}

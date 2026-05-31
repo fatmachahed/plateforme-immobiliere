@@ -21,6 +21,8 @@ import Contact          from "./pages/Contact";
 import AdminDashboard   from "./pages/AdminDashboard";
 import Favoris          from "./pages/Favoris";
 import EditAnnonce      from "./pages/EditAnnonce";
+import ForgotPassword   from "./pages/ForgotPassword";
+import ResetPassword    from "./pages/ResetPassword";
 import BoosterPage             from "./pages/BoosterPage";
 import QuiSommesNous          from "./pages/QuiSommesNous";
 import PolitiqueConfidentialite from "./pages/PolitiqueConfidentialite";
@@ -48,9 +50,11 @@ function App() {
           <Route path="/compte"    element={<Compte />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/favoris"   element={<Favoris />} />
-          <Route path="/login"     element={<Login />} />
-          <Route path="/register"  element={<Register />} />
-          <Route path="/logout"    element={<Logout />} />
+          <Route path="/login"            element={<Login />} />
+          <Route path="/register"         element={<Register />} />
+          <Route path="/logout"           element={<Logout />} />
+          <Route path="/forgot-password"  element={<ForgotPassword />} />
+          <Route path="/reset-password"   element={<ResetPassword />} />
 
           {/* Admin */}
           <Route path="/admin" element={<AdminDashboard />} />

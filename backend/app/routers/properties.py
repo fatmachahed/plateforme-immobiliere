@@ -83,3 +83,28 @@ def add_property_image(
     if not prop:
         raise HTTPException(status_code=404, detail="Property not found")
     return crud.create_property_image(db, {"property_id": property_id, "image": payload.image})
+
+# ===============================
+# REMOVE IMAGE FROM PROPERTY (by URL)
+# ===============================
+@router.delete("/{property_id}/images")
+def remove_property_image(
+    property_id: int,
+    payload: AddImagePayload,
+    db: Session = Depends(get_db),
+):
+    prop = crud.get_property(db, property_id)
+    if not prop:
+        raise HTTPException(status_code=404, detail="Property not found")
+    # Remove from property_images table
+    img = db.query(models.PropertyImage).filter(
+        models.PropertyImage.property_id == property_id,
+        models.PropertyImage.image == payload.image
+    ).first()
+    if img:
+        db.delete(img)
+    # Also clear image_principale if it matches
+    if prop.image_principale == payload.image:
+        prop.image_principale = None
+    db.commit()
+    return {"detail": "Image supprimée"}
