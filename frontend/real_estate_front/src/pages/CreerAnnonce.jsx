@@ -9,7 +9,8 @@ import {
   Leaf, Store, Waves, Mountain, TreePine, Sun, Flower2,
   ArrowUpDown, Car, ParkingCircle, Package, Sofa,
   UtensilsCrossed, Wind, Thermometer, Compass, Wrench,
-  HardHat, ThumbsUp, Hammer
+  HardHat, ThumbsUp, Hammer,
+  Wifi, Flame, DoorClosed, ShieldCheck, Tv, PhoneCall, Users, KeyRound, Droplets, Signal, Heart, RefreshCw, Monitor, LockKeyhole, Fence, Fingerprint
 } from "lucide-react";
 import Layout from "../components/Layout";
 import AIDescriptionModal from '../components/AIDescriptionModal';
@@ -91,8 +92,8 @@ function ControlledMap({ position, onLocationChange }) {
       const map = L.map(containerRef.current).setView([position.lat, position.lng], 13);
       mapRef.current = map;
 
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-        { attribution: "© OpenStreetMap © CARTO", maxZoom: 19 }).addTo(map);
+      L.tileLayer("https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
+        { attribution: "© OpenStreetMap contributors, Tiles courtesy of Humanitarian OpenStreetMap Team", maxZoom: 19 }).addTo(map);
 
       const marker = L.marker([position.lat, position.lng], { draggable: true }).addTo(map);
       markerRef.current = marker;
@@ -122,7 +123,23 @@ function ControlledMap({ position, onLocationChange }) {
     mapRef.current.setView([position.lat, position.lng], Math.max(mapRef.current.getZoom(), 12));
   }, [position.lat, position.lng]);
 
-  return <div ref={containerRef} style={{ width: "100%", height: "100%", minHeight: 420, borderRadius: 12, overflow: "hidden" }} />;
+  return (
+    <div style={{position:"relative", width:"100%", height:"100%", minHeight:420}}>
+      <div ref={containerRef} style={{width:"100%", height:"100%", minHeight:420, borderRadius:12, overflow:"hidden"}}/>
+      <div style={{
+        position:"absolute", top:14, left:"50%", transform:"translateX(-50%)",
+        background:"rgba(255,255,255,0.96)", backdropFilter:"blur(6px)",
+        border:"2px solid #e2e8f0", borderRadius:10,
+        padding:"9px 20px", fontSize:14, fontWeight:700, color:"#0f172a",
+        pointerEvents:"none", zIndex:999, whiteSpace:"nowrap",
+        boxShadow:"0 4px 16px rgba(0,0,0,.18)",
+        display:"flex", alignItems:"center", gap:8,
+        letterSpacing:".01em"
+      }}>
+        <span style={{fontSize:16}}>📍</span> Déplacez l'emplacement
+      </div>
+    </div>
+  );
 }
 
 const STEPS = [
@@ -223,18 +240,23 @@ const CreateListingForm = () => {
   const { gouvernorats, delegations, localites } = useLocalisation(hierarchy);
 
   const defaultFormData = {
-    type_bien: "", categorie: "", etat_bien: "", type_terrain: "", titre_foncier: "",
+    type_bien: "", categorie: "", etat_bien: "", type_terrain: "", vocation_terrain: "", titre_foncier: "",
     type_appartement: "", etage: "", type_villa: "", type_option_villa: "",
     nb_pieces: 0, nb_chambres: 0, nb_salles_bain: 0,
     vue_mer: false, vue_montagne: false, vue_foret: false, jardin: false,
     terrasse: false, balcon: false, ascenseur: false, garage: false, parking: false,
     cellier: false, meuble: false, cuisine_equipee: false, climatisation: false,
     chauffage_centrale: false, orientation: "",
+    piscine: false, concierge: false, digicode: false, interphone: false, gardien: false,
+    relie_onas: false, salon_americain: false, fibre_optique: false, cheminee: false,
+    double_vitrage: false, porte_blindee: false, securite: false, internet: false,
+    machine_laver: false, tv: false, animaux_admis: false,
+    age_bien: "", surface_jardin: "", surface_terrasse: "", nb_places_garage: 1,
     gouvernorat: "", delegation: "", localite: "",
     address: "Tunis, Tunisie", latitude: "36.8065", longitude: "10.1815",
     titre: "", superficie: "", prix: "", devise: "TND", description: "",
     duree_type: "", duree_valeur: "", accompagnement: false,
-    image_principale: null, images: []
+    allImages: [], mainImageIndex: 0
   };
 
   const [formData, setFormData] = useState(() => {
@@ -242,7 +264,7 @@ const CreateListingForm = () => {
       const saved = localStorage.getItem("ca_formdata");
       if (!saved) return defaultFormData;
       const parsed = JSON.parse(saved);
-      return { ...defaultFormData, ...parsed, image_principale: null, images: [] };
+      return { ...defaultFormData, ...parsed, allImages: [], mainImageIndex: 0 };
     } catch { return defaultFormData; }
   });
 
@@ -261,7 +283,7 @@ const CreateListingForm = () => {
 
   useEffect(() => {
     try {
-      const { image_principale, images, ...serializableData } = formData;
+      const { allImages, ...serializableData } = formData;
       localStorage.setItem("ca_formdata", JSON.stringify(serializableData));
     } catch { /* ignore */ }
   }, [formData]);
@@ -273,6 +295,20 @@ const CreateListingForm = () => {
   useEffect(() => {
     try { localStorage.setItem("ca_maploc", JSON.stringify(mapLocation)); } catch { /* ignore */ }
   }, [mapLocation]);
+
+  /* ── Reset categorie if type_bien changes to terrain/local_commercial and categorie is vacances ── */
+  useEffect(() => {
+    if ((formData.type_bien === "terrain" || formData.type_bien === "local_commercial") && formData.categorie === "vacances") {
+      setFormData(prev => ({ ...prev, categorie: "" }));
+    }
+  }, [formData.type_bien]);
+
+  /* ── Reset etat_bien if categorie changes to location/vacances and etat is cours_construction ── */
+  useEffect(() => {
+    if ((formData.categorie === "location" || formData.categorie === "vacances") && formData.etat_bien === "cours_construction") {
+      setFormData(prev => ({ ...prev, etat_bien: "" }));
+    }
+  }, [formData.categorie]);
 
   /* ── Fetch stats prix/m² depuis les annonces publiques ── */
   useEffect(() => {
@@ -464,50 +500,6 @@ const CreateListingForm = () => {
     if (formData[field] > 0) handleInputChange(field, formData[field] - 1);
   };
 
-  const handleImageUpload = (e, isMain = false) => {
-    const files = Array.from(e.target.files);
-    if (isMain) {
-      const file = files[0];
-      if (file) {
-        if (file.size > 5 * 1024 * 1024) {
-          setImageValidation(prev => ({ ...prev, main: { valid: false, message: "Fichier trop volumineux (>5MB)" } }));
-          return;
-        }
-        setTimeout(() => {
-          setImageValidation(prev => ({ ...prev, main: { valid: true, message: "Image valide" } }));
-        }, 1000);
-        handleInputChange('image_principale', file);
-      }
-    } else {
-      const currentImages = formData.images.length;
-      const remainingSlots = 10 - currentImages;
-      const newImages = files.slice(0, remainingSlots);
-      newImages.forEach((file, index) => {
-        if (file.size > 5 * 1024 * 1024) {
-          setImageValidation(prev => ({
-            ...prev,
-            [currentImages + index]: { valid: false, message: "Fichier >5MB" }
-          }));
-          return;
-        }
-        setTimeout(() => {
-          setImageValidation(prev => ({
-            ...prev,
-            [currentImages + index]: { valid: true, message: "Image valide" }
-          }));
-        }, 1000 + index * 500);
-      });
-      handleInputChange('images', [...formData.images, ...newImages]);
-    }
-  };
-
-  const removeImage = (index) => {
-    const newImages = formData.images.filter((_, i) => i !== index);
-    handleInputChange('images', newImages);
-    const newValidation = { ...imageValidation };
-    delete newValidation[index];
-    setImageValidation(newValidation);
-  };
 
   const nextStep = () => {
     /* ── Validation par étape ── */
@@ -639,18 +631,20 @@ const CreateListingForm = () => {
       const annonce = await annonceRes.json();
 
       /* ── 2. Upload ALL images (main first, then extras) ── */
-      let imageUrl = null;           // → image_principale
-      const uploadedExtraUrls = [];  // → property_images table
+      const orderedImages = formData.allImages.length > 0
+        ? [
+            formData.allImages[formData.mainImageIndex] || formData.allImages[0],
+            ...formData.allImages.filter((_, i) => i !== formData.mainImageIndex)
+          ]
+        : [];
 
-      const allImages = [
-        ...(formData.image_principale ? [formData.image_principale] : []),
-        ...formData.images,
-      ];
+      let imageUrl = null;
+      const uploadedExtraUrls = [];
 
-      for (let i = 0; i < allImages.length; i++) {
+      for (let i = 0; i < orderedImages.length; i++) {
         try {
           const imgForm = new FormData();
-          imgForm.append("file", allImages[i]);
+          imgForm.append("file", orderedImages[i]);
           const imgRes = await fetch(`${API_URL}/upload/image`, {
             method: "POST",
             headers: { "Authorization": `Bearer ${token}` },
@@ -658,17 +652,14 @@ const CreateListingForm = () => {
           });
           if (imgRes.ok) {
             const imgData = await imgRes.json();
-            const relUrl = imgData.url; // "/uploads/filename.ext" — relative URL (no domain)
-            if (i === 0) {
-              imageUrl = relUrl;
-            } else {
-              uploadedExtraUrls.push(relUrl);
-            }
+            const relUrl = imgData.url;
+            if (i === 0) imageUrl = relUrl;
+            else uploadedExtraUrls.push(relUrl);
           } else {
             toast(`Image ${i + 1} : échec de l'upload`, "error");
           }
         } catch {
-          toast(`Image ${i + 1} : erreur de connexion lors de l'upload`, "error");
+          toast(`Image ${i + 1} : erreur lors de l'upload`, "error");
         }
       }
 
@@ -821,7 +812,7 @@ const CreateListingForm = () => {
 
   const TYPE_CARDS = [
     { value: "appartement",     label: "Appartement",     Ico: Building2, color: "#3b82f6"  },
-    { value: "villa",           label: "Villa",            Ico: Home,      color: "#10b981"  },
+    { value: "villa",           label: "Villa/Maison",     Ico: Home,      color: "#10b981"  },
     { value: "terrain",         label: "Terrain",          Ico: Leaf,      color: "#f59e0b"  },
     { value: "local_commercial",label: "Local commercial", Ico: Store,     color: "#f97316"  },
   ];
@@ -833,25 +824,71 @@ const CreateListingForm = () => {
     { value: "cours_construction", label: "En construction",Ico: HardHat,  color: "#64748b" },
   ];
 
-  const VUE_ITEMS = [
-    { key: "vue_mer",      Ico: Waves,    label: "Vue sur mer",   color: "#0ea5e9" },
-    { key: "vue_montagne", Ico: Mountain, label: "Vue montagne",  color: "#8b5cf6" },
-    { key: "vue_foret",    Ico: TreePine, label: "Vue forêt",     color: "#16a34a" },
+  /* ── Icônes personnalisées (SVG inline) ── */
+  const WashingMachineIco = ({ size = 24, strokeWidth = 1.5 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="2" width="20" height="20" rx="2"/>
+      <circle cx="12" cy="13" r="5"/>
+      <circle cx="12" cy="13" r="2.5"/>
+      <circle cx="8" cy="6.5" r="1" fill="currentColor" stroke="none"/>
+      <circle cx="11" cy="6.5" r="1" fill="currentColor" stroke="none"/>
+      <path d="M15 6h2"/>
+    </svg>
+  );
+
+  const CctvIco = ({ size = 24, strokeWidth = 1.5 }) => (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 9h13l2.5-4"/>
+      <path d="M7 9v7"/>
+      <circle cx="7" cy="18" r="2"/>
+      <path d="M15 9l2 6"/>
+      <circle cx="18.5" cy="15.5" r="1.5"/>
+      <path d="M11 9l1-3"/>
+    </svg>
+  );
+
+  const FEAT_VUE = [
+    { key:"vue_mer",       Ico:Waves,       label:"Vue sur mer",       color:"#0ea5e9" },
+    { key:"vue_montagne",  Ico:Mountain,    label:"Vue montagne",      color:"#8b5cf6" },
+    { key:"vue_foret",     Ico:TreePine,    label:"Vue forêt",         color:"#16a34a" },
   ];
-  const EXT_ITEMS = [
-    { key: "jardin",   Ico: Leaf,    label: "Jardin",   color: "#22c55e" },
-    { key: "terrasse", Ico: Sun,     label: "Terrasse", color: "#f59e0b" },
-    { key: "balcon",   Ico: Flower2, label: "Balcon",   color: "#f43f5e" },
+
+  const FEAT_EXT = [
+    { key:"jardin",        Ico:Fence,       label:"Jardin",            color:"#22c55e", extra:"surface_jardin" },
+    { key:"terrasse",      Ico:Sun,         label:"Terrasse",          color:"#f59e0b", extra:"surface_terrasse" },
+    { key:"balcon",        Ico:Flower2,     label:"Balcon",            color:"#f43f5e" },
+    { key:"piscine",       Ico:Droplets,    label:"Piscine",           color:"#06b6d4" },
+    { key:"parking",       Ico:ParkingCircle,label:"Parking",          color:"#0284c7" },
   ];
-  const COM_ITEMS = [
-    { key: "ascenseur",          Ico: ArrowUpDown,   label: "Ascenseur",       color: "#6366f1" },
-    { key: "garage",             Ico: Car,           label: "Garage",          color: "#475569" },
-    { key: "parking",            Ico: ParkingCircle, label: "Parking",         color: "#0284c7" },
-    { key: "cellier",            Ico: Package,       label: "Cellier",         color: "#92400e" },
-    { key: "meuble",             Ico: Sofa,          label: "Meublé",          color: "#7c3aed" },
-    { key: "cuisine_equipee",    Ico: UtensilsCrossed,label:"Cuisine équipée", color: "#ea580c" },
-    { key: "climatisation",      Ico: Wind,          label: "Climatisation",   color: "#0891b2" },
-    { key: "chauffage_centrale", Ico: Thermometer,   label: "Chauffage central",color:"#dc2626"},
+
+  const FEAT_COM = [
+    { key:"ascenseur",       Ico:ArrowUpDown,   label:"Ascenseur",         color:"#6366f1" },
+    { key:"garage",          Ico:Car,           label:"Garage",            color:"#475569", extra:"nb_places_garage" },
+    { key:"cellier",         Ico:Package,       label:"Chambre rangement", color:"#92400e" },
+    { key:"meuble",          Ico:Sofa,          label:"Meublé",            color:"#7c3aed" },
+    { key:"concierge",       Ico:Users,         label:"Concierge",         color:"#0369a1" },
+    { key:"gardien",         Ico:ShieldCheck,   label:"Gardien",           color:"#15803d" },
+    { key:"animaux_admis",   Ico:Heart,         label:"Animaux admis",     color:"#ec4899" },
+  ];
+
+  const FEAT_INT = [
+    { key:"cuisine_equipee",  Ico:UtensilsCrossed, label:"Cuisine équipée",   color:"#ea580c" },
+    { key:"climatisation",    Ico:Wind,            label:"Climatisation",     color:"#0891b2" },
+    { key:"chauffage_centrale",Ico:Thermometer,    label:"Chauffage central", color:"#dc2626" },
+    { key:"cheminee",         Ico:Flame,           label:"Cheminée",          color:"#f97316" },
+    { key:"salon_americain",  Ico:Tv,              label:"Salon américain",   color:"#6366f1" },
+    { key:"double_vitrage",   Ico:DoorClosed,      label:"Double vitrage",    color:"#64748b" },
+    { key:"porte_blindee",    Ico:LockKeyhole,     label:"Porte blindée",     color:"#374151" },
+    { key:"securite",         Ico:Fingerprint,     label:"Sécurité",          color:"#ef4444" },
+    { key:"fibre_optique",    Ico:Wifi,            label:"Fibre optique",     color:"#3b82f6" },
+    { key:"internet",         Ico:Signal,          label:"Internet",          color:"#10b981" },
+    { key:"tv",               Ico:Monitor,         label:"TV",                color:"#8b5cf6" },
+    { key:"machine_laver",    Ico:WashingMachineIco,label:"Machine à laver",  color:"#0284c7" },
+    { key:"digicode",         Ico:KeyRound,        label:"Digicode",          color:"#7c3aed" },
+    { key:"interphone",       Ico:PhoneCall,       label:"Interphone",        color:"#0369a1" },
+    { key:"relie_onas",       Ico:Droplets,        label:"Relié ONAS",        color:"#0891b2" },
   ];
 
   return (
@@ -931,290 +968,385 @@ const CreateListingForm = () => {
                     <h2 className="ca-card__title">Type & Caractéristiques</h2>
                     <span className="ca-req-hint"><span className="ca-req">*</span> champs requis</span>
                   </div>
-                  <div className="ca-step1-cols">
-                  <div className="ca-step1-left">
 
-                  {/* Type de bien — compact inline (style état du bien) */}
-                  <div className="ca-section-label">Sélectionnez le type <span className="ca-req">*</span></div>
-                  <div className="ca-etat-row">
-                    {TYPE_CARDS.map(tc => {
-                      const isOn = formData.type_bien === tc.value;
-                      return (
-                        <button
-                          key={tc.value}
-                          type="button"
-                          className={`ca-etat-card${isOn ? " ca-etat-card--on" : ""}`}
-                          onClick={() => handleInputChange("type_bien", tc.value)}
-                        >
-                          <span style={{ display:"flex", alignItems:"center" }}>
-                            <tc.Ico size={24}/>
-                          </span>
-                          <span>{tc.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {/* ── Grille gauche / droite ── */}
+                  <div className="ca-s1-lr">
 
-                  {/* Catégorie pills */}
-                  <div className="ca-section-label" style={{marginTop:24}}>Type d'offre <span className="ca-req">*</span></div>
-                  <div className="ca-pill-row">
-                    {[{ v:"vente", l:"Vente" }, { v:"location", l:"Location" }, { v:"vacances", l:"Vacances" }].map(o => (
-                      <button
-                        key={o.v}
-                        type="button"
-                        className={`ca-pill${formData.categorie === o.v ? " ca-pill--on" : ""}`}
-                        onClick={() => handleInputChange("categorie", o.v)}
-                      >
-                        {o.l}
-                      </button>
-                    ))}
-                  </div>
+                    {/* ── GAUCHE : sous-champs spécifiques, pièces, orientation ── */}
+                    <div className="ca-s1-lr__left">
 
-                  {/* Durée (vacances uniquement) */}
-                  {formData.categorie === "vacances" && (
-                    <div className="ca-row-2" style={{marginTop:16}}>
-                      <div className="ca-field">
-                        <label className="ca-label">Durée de location</label>
-                        <select className="ca-select" value={formData.duree_type || ""}
-                          onChange={e => handleInputChange("duree_type", e.target.value)}>
-                          <option value="">Sélectionner…</option>
-                          <option value="nuit">Par nuit</option>
-                          <option value="semaine">Par semaine</option>
-                          <option value="mois">Par mois</option>
-                          <option value="annee">Par an</option>
-                        </select>
-                      </div>
-                      <div className="ca-field">
-                        <label className="ca-label">Durée minimale</label>
-                        <div className="ca-input-unit">
-                          <input type="number" className="ca-input" placeholder="1"
-                            min="1" max="365"
-                            value={formData.duree_valeur || ""}
-                            onChange={e => handleInputChange("duree_valeur", e.target.value)}/>
-                          <span className="ca-unit">
-                            {formData.duree_type === "nuit"    ? "nuit(s)"
-                            : formData.duree_type === "semaine" ? "sem."
-                            : formData.duree_type === "mois"    ? "mois"
-                            : formData.duree_type === "annee"   ? "an(s)"
-                            : "—"}
-                          </span>
+                      {/* Appartement sub-fields */}
+                      {formData.type_bien === "appartement" && (
+                        <div className="ca-row-2">
+                          <div className="ca-field">
+                            <label className="ca-label">Type de logement</label>
+                            <select className="ca-select" value={formData.type_appartement}
+                              onChange={e => handleInputChange("type_appartement", e.target.value)}>
+                              <option value="">Sélectionner…</option>
+                              <option value="studio">Studio</option>
+                              <option value="s0">S0</option>
+                              <option value="s+1">S+1</option>
+                              <option value="s+2">S+2</option>
+                              <option value="s+3">S+3</option>
+                              <option value="s+4">S+4</option>
+                              <option value="duplex">Duplex</option>
+                              <option value="penthouse">Penthouse</option>
+                            </select>
+                          </div>
+                          <div className="ca-field">
+                            <label className="ca-label">Étage du bien</label>
+                            <select className="ca-select" value={formData.etage}
+                              onChange={e => handleInputChange("etage", e.target.value)}>
+                              <option value="">Sélectionner…</option>
+                              <option value="0">Rez-de-chaussée</option>
+                              <option value="1">1er étage</option>
+                              <option value="2">2ème étage</option>
+                              <option value="3">3ème étage</option>
+                              <option value="4">4ème+</option>
+                            </select>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  )}
+                      )}
 
-                  {/* Appartement sub-fields */}
-                  {formData.type_bien === "appartement" && (
-                    <div className="ca-row-2" style={{marginTop:20}}>
-                      <div className="ca-field">
-                        <label className="ca-label">Type de logement</label>
-                        <select className="ca-select" value={formData.type_appartement}
-                          onChange={e => handleInputChange("type_appartement", e.target.value)}>
-                          <option value="">Sélectionner…</option>
-                          <option value="studio">Studio</option>
-                          <option value="s0">S0</option>
-                          <option value="s+1">S+1</option>
-                          <option value="s+2">S+2</option>
-                          <option value="s+3">S+3</option>
-                          <option value="s+4">S+4</option>
-                          <option value="duplex">Duplex</option>
-                          <option value="penthouse">Penthouse</option>
-                        </select>
-                      </div>
-                      <div className="ca-field">
-                        <label className="ca-label">Étage du bien</label>
-                        <select className="ca-select" value={formData.etage}
-                          onChange={e => handleInputChange("etage", e.target.value)}>
-                          <option value="">Sélectionner…</option>
-                          <option value="0">Rez-de-chaussée</option>
-                          <option value="1">1er étage</option>
-                          <option value="2">2ème étage</option>
-                          <option value="3">3ème étage</option>
-                          <option value="4">4ème+</option>
-                        </select>
-                      </div>
-                    </div>
-                  )}
+                      {/* Local commercial sub-fields */}
+                      {formData.type_bien === "local_commercial" && (
+                        <div className="ca-field">
+                          <label className="ca-label">Étage du bien</label>
+                          <select className="ca-select" value={formData.etage}
+                            onChange={e => handleInputChange("etage", e.target.value)}>
+                            <option value="">Sélectionner…</option>
+                            <option value="0">Rez-de-chaussée (R)</option>
+                            <option value="1">R+1</option>
+                            <option value="2">R+2</option>
+                            <option value="3">R+3</option>
+                            <option value="4">R+4</option>
+                          </select>
+                        </div>
+                      )}
 
-                  {/* Local commercial sub-fields */}
-                  {formData.type_bien === "local_commercial" && (
-                    <div className="ca-row-2" style={{marginTop:20}}>
-                      <div className="ca-field">
-                        <label className="ca-label">Étage du bien</label>
-                        <select className="ca-select" value={formData.etage}
-                          onChange={e => handleInputChange("etage", e.target.value)}>
-                          <option value="">Sélectionner…</option>
-                          <option value="0">Rez-de-chaussée (R)</option>
-                          <option value="1">R+1</option>
-                          <option value="2">R+2</option>
-                          <option value="3">R+3</option>
-                          <option value="4">R+4</option>
-                        </select>
-                      </div>
-                    </div>
-                  )}
+                      {/* Villa sub-fields */}
+                      {formData.type_bien === "villa" && (
+                        <div className="ca-row-2">
+                          <div className="ca-field">
+                            <label className="ca-label">Type de villa</label>
+                            <select className="ca-select" value={formData.type_villa}
+                              onChange={e => handleInputChange("type_villa", e.target.value)}>
+                              <option value="">Sélectionner…</option>
+                              <option value="r">RDC (Rez-de-chaussée)</option>
+                              <option value="r+1">R+1</option>
+                              <option value="r+2">R+2</option>
+                              <option value="r+3">R+3</option>
+                              <option value="r+4">R+4</option>
+                            </select>
+                          </div>
+                          <div className="ca-field">
+                            <label className="ca-label">Options villa</label>
+                            <div className="ca-toggle-group">
+                              {[{v:"sous-sol",l:"Sous-sol"},{v:"rez-de-jardin",l:"Rez-de-jardin"},{v:"avec-garage",l:"Avec garage"}]
+                                .map(opt => {
+                                  const vals = (formData.type_option_villa||"").split(",").filter(Boolean);
+                                  const on   = vals.includes(opt.v);
+                                  return (
+                                    <button key={opt.v} type="button"
+                                      className={`ca-toggle-btn${on?" ca-toggle-btn--on":""}`}
+                                      onClick={() => {
+                                        const next = on ? vals.filter(x=>x!==opt.v) : [...vals,opt.v];
+                                        handleInputChange("type_option_villa", next.join(","));
+                                      }}>
+                                      {on?<Check size={11}/>:null} {opt.l}
+                                    </button>
+                                  );
+                                })}
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
-                  {/* Villa sub-fields */}
-                  {formData.type_bien === "villa" && (
-                    <div className="ca-row-2" style={{marginTop:20}}>
-                      <div className="ca-field">
-                        <label className="ca-label">Type de villa</label>
-                        <select className="ca-select" value={formData.type_villa}
-                          onChange={e => handleInputChange("type_villa", e.target.value)}>
-                          <option value="">Sélectionner…</option>
-                          <option value="r">RDC (Rez-de-chaussée)</option>
-                          <option value="r+1">R+1</option>
-                          <option value="r+2">R+2</option>
-                          <option value="r+3">R+3</option>
-                          <option value="r+4">R+4</option>
-                        </select>
-                      </div>
-                      <div className="ca-field">
-                        <label className="ca-label">Options villa</label>
-                        <div className="ca-toggle-group">
+                      {/* Terrain sub-fields */}
+                      {formData.type_bien === "terrain" && (
+                        <div style={{display:"flex",flexDirection:"column",gap:16}}>
+                          <div className="ca-field">
+                            <label className="ca-label">Type de terrain</label>
+                            <select className="ca-select" value={formData.type_terrain}
+                              onChange={e => handleInputChange("type_terrain", e.target.value)}>
+                              <option value="">Sélectionner…</option>
+                              <option value="agricole">Agricole</option>
+                              <option value="nu">Nu</option>
+                              <option value="zone_verte">Zone verte</option>
+                              <option value="lotissement">Lotissement</option>
+                              <option value="commercial">Commercial</option>
+                              <option value="industriel">Industriel</option>
+                            </select>
+                          </div>
+                          <div className="ca-field">
+                            <label className="ca-label">Vocation du terrain</label>
+                            <select className="ca-select" value={formData.vocation_terrain}
+                              onChange={e => handleInputChange("vocation_terrain", e.target.value)}>
+                              <option value="">Sélectionner…</option>
+                              <option value="residentielle">Résidentielle</option>
+                              <option value="commerciale">Commerciale</option>
+                              <option value="industrielle">Industrielle</option>
+                              <option value="agricole">Agricole</option>
+                              <option value="touristique">Touristique / Hôtelière</option>
+                              <option value="mixte">Mixte</option>
+                              <option value="non_definie">Non définie</option>
+                            </select>
+                          </div>
+                          <div className="ca-tf-row">
+                            <span className="ca-tf-label">Titre foncier</span>
+                            <div className="ca-tf-btns">
+                              <button type="button"
+                                className={`ca-tf-btn${formData.titre_foncier==="1"?" ca-tf-btn--on":""}`}
+                                onClick={() => handleInputChange("titre_foncier","1")}>Oui</button>
+                              <button type="button"
+                                className={`ca-tf-btn${formData.titre_foncier==="0"?" ca-tf-btn--on ca-tf-btn--no":""}`}
+                                onClick={() => handleInputChange("titre_foncier","0")}>Non</button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Pièces & espaces */}
+                      {formData.type_bien !== "terrain" && (<>
+                        <div className="ca-section-label" style={{marginTop:20}}>Pièces & espaces</div>
+                        <div className="ca-counters">
                           {[
-                            { v: "sous-sol",      l: "Sous-sol" },
-                            { v: "rez-de-jardin", l: "Rez-de-jardin" },
-                            { v: "avec-garage",   l: "Avec garage" },
-                          ].map(opt => {
-                            const vals = (formData.type_option_villa || "").split(",").filter(Boolean);
-                            const on   = vals.includes(opt.v);
-                            return (
-                              <button key={opt.v} type="button"
-                                className={`ca-toggle-btn${on ? " ca-toggle-btn--on" : ""}`}
-                                onClick={() => {
-                                  const next = on ? vals.filter(x => x !== opt.v) : [...vals, opt.v];
-                                  handleInputChange("type_option_villa", next.join(","));
-                                }}
-                              >
-                                {on ? <Check size={11}/> : null} {opt.l}
-                              </button>
-                            );
-                          })}
+                            { field:"nb_pieces",     label:"Pièce(s)" },
+                            { field:"nb_chambres",   label:"Chambre(s)" },
+                            { field:"nb_salles_bain",label:"Salle(s) d'eau / Salle(s) de bain" },
+                          ].map(c => (
+                            <div key={c.field} className="ca-counter">
+                              <span className="ca-counter__label">{c.label}</span>
+                              <div className="ca-counter__ctrl">
+                                <button type="button" className="ca-counter__btn" onClick={() => decrementValue(c.field)}><Minus size={14}/></button>
+                                <span className="ca-counter__val">{formData[c.field]}</span>
+                                <button type="button" className="ca-counter__btn" onClick={() => incrementValue(c.field)}><Plus size={14}/></button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                      </div>
-                    </div>
-                  )}
+                      </>)}
 
-                  {/* Terrain sub-fields */}
-                  {formData.type_bien === "terrain" && (
-                    <div style={{marginTop:20,display:"flex",flexDirection:"column",gap:16}}>
-                      <div className="ca-field">
-                        <label className="ca-label">Type de terrain</label>
-                        <select className="ca-select" value={formData.type_terrain}
-                          onChange={e => handleInputChange("type_terrain", e.target.value)}>
-                          <option value="">Sélectionner…</option>
-                          <option value="agricole">Agricole</option>
-                          <option value="nu">Nu</option>
-                          <option value="zone_verte">Zone verte</option>
-                          <option value="lotissement">Lotissement</option>
-                          <option value="commercial">Commercial</option>
-                          <option value="industriel">Industriel</option>
-                        </select>
-                      </div>
-                      {/* Titre foncier — terrain only */}
-                      <div className="ca-tf-row">
-                        <span className="ca-tf-label">Titre foncier</span>
-                        <div className="ca-tf-btns">
-                          <button type="button"
-                            className={`ca-tf-btn${formData.titre_foncier === "1" ? " ca-tf-btn--on" : ""}`}
-                            onClick={() => handleInputChange("titre_foncier", "1")}>
-                            Oui
-                          </button>
-                          <button type="button"
-                            className={`ca-tf-btn${formData.titre_foncier === "0" ? " ca-tf-btn--on ca-tf-btn--no" : ""}`}
-                            onClick={() => handleInputChange("titre_foncier", "0")}>
-                            Non
-                          </button>
+                      {/* Orientation */}
+                      {(formData.type_bien==="appartement"||formData.type_bien==="villa"||formData.type_bien==="local_commercial") && (
+                        <div style={{marginTop:16}}>
+                          <div className="ca-section-label">Orientation <span style={{color:"#9ca3af",fontWeight:400,textTransform:"none",fontSize:"10px"}}>(optionnel)</span></div>
+                          <div className="ca-toggle-group">
+                            {["Nord","Sud","Est","Ouest","Nord-Est","Nord-Ouest","Sud-Est","Sud-Ouest"].map(o => {
+                              const on = formData.orientation===o;
+                              return (
+                                <button key={o} type="button"
+                                  className={`ca-toggle-btn${on?" ca-toggle-btn--on":""}`}
+                                  onClick={() => handleInputChange("orientation", on?"":o)}>
+                                  {on&&<Check size={11}/>} {o}
+                                </button>
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  )}
+                      )}
 
-                  {/* État du bien */}
-                  <div className="ca-section-label" style={{marginTop:24}}>État du bien</div>
-                  <div className="ca-etat-row">
-                    {ETAT_CARDS.map(ec => {
-                      const isOn = formData.etat_bien === ec.value;
-                      return (
-                        <button
-                          key={ec.value}
-                          type="button"
-                          className={`ca-etat-card${isOn ? " ca-etat-card--on" : ""}`}
-                          onClick={() => handleInputChange("etat_bien", ec.value)}
-                        >
-                          <span style={{ display:"flex", alignItems:"center" }}>
-                            <ec.Ico size={22}/>
-                          </span>
-                          <span>{ec.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                    </div>{/* /ca-s1-lr__left */}
 
-                  {/* Counters — masqués pour terrain */}
-                  {formData.type_bien !== "terrain" && (<>
-                  <div className="ca-section-label" style={{marginTop:24}}>Pièces & espaces</div>
-                  <div className="ca-counters">
-                    {[
-                      { field: "nb_pieces",     label: "Pièces" },
-                      { field: "nb_chambres",   label: "Chambres" },
-                      { field: "nb_salles_bain", label: "Salles de bain" },
-                    ].map(c => (
-                      <div key={c.field} className="ca-counter">
-                        <span className="ca-counter__label">{c.label}</span>
-                        <div className="ca-counter__ctrl">
-                          <button type="button" className="ca-counter__btn"
-                            onClick={() => decrementValue(c.field)}>
-                            <Minus size={14}/>
-                          </button>
-                          <span className="ca-counter__val">{formData[c.field]}</span>
-                          <button type="button" className="ca-counter__btn"
-                            onClick={() => incrementValue(c.field)}>
-                            <Plus size={14}/>
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  </>)}
+                    {/* ── DROITE : type, offre, état, ancienneté ── */}
+                    <div className="ca-s1-lr__right">
 
-                  </div>
-                  <div className="ca-step1-right">
-
-                  {/* ── Caractéristiques ── */}
-                  {[
-                    { title: "Vue",                      items: VUE_ITEMS },
-                    { title: "Espaces extérieurs",        items: EXT_ITEMS },
-                    { title: "Commodités & équipements",  items: COM_ITEMS },
-                  ].map(section => (
-                    <div key={section.title} className="ca-feat-section">
-                      <div className="ca-section-label" style={{marginTop:24}}>{section.title}</div>
-                      <div className="ca-feat-grid">
-                        {section.items.map(item => {
-                          const isOn = !!formData[item.key];
+                      <div className="ca-section-label">Sélectionnez le type <span className="ca-req">*</span></div>
+                      <div className="ca-etat-row" style={{flexWrap:"wrap"}}>
+                        {TYPE_CARDS.map(tc => {
+                          const isOn = formData.type_bien === tc.value;
                           return (
-                            <button
-                              key={item.key}
-                              type="button"
-                              className={`ca-feat-card${isOn ? " ca-feat-card--on" : ""}`}
-                              onClick={() => handleCheckboxChange(item.key)}
-                            >
-                              <span className="ca-feat-card__ico">
-                                <item.Ico size={18}/>
-                              </span>
-                              <span className="ca-feat-card__label">{item.label}</span>
-                              {isOn && <Check size={12} className="ca-feat-card__check"/>}
+                            <button key={tc.value} type="button"
+                              className={`ca-etat-card${isOn ? " ca-etat-card--on" : ""}`}
+                              onClick={() => handleInputChange("type_bien", tc.value)}>
+                              <span style={{display:"flex",alignItems:"center"}}><tc.Ico size={22}/></span>
+                              <span>{tc.label}</span>
                             </button>
                           );
                         })}
                       </div>
-                    </div>
-                  ))}
 
+                      <div className="ca-section-label" style={{marginTop:20}}>Type d'offre <span className="ca-req">*</span></div>
+                      <div className="ca-pill-row">
+                        {[{v:"vente",l:"Vente"},{v:"location",l:"Location"},{v:"vacances",l:"Vacances"}]
+                          .filter(o => !(o.v==="vacances"&&(formData.type_bien==="terrain"||formData.type_bien==="local_commercial")))
+                          .map(o => (
+                            <button key={o.v} type="button"
+                              className={`ca-pill${formData.categorie===o.v?" ca-pill--on":""}`}
+                              onClick={() => handleInputChange("categorie", o.v)}>
+                              {o.l}
+                            </button>
+                        ))}
+                      </div>
+
+                      {/* Durée vacances */}
+                      {formData.categorie === "vacances" && (
+                        <div className="ca-row-2" style={{marginTop:12}}>
+                          <div className="ca-field">
+                            <label className="ca-label">Durée</label>
+                            <select className="ca-select" value={formData.duree_type||""}
+                              onChange={e => handleInputChange("duree_type", e.target.value)}>
+                              <option value="">Sélectionner…</option>
+                              <option value="nuit">Par nuitée</option>
+                              <option value="semaine">Par semaine</option>
+                              <option value="mois">Par mois</option>
+                              <option value="annee">Par an</option>
+                            </select>
+                          </div>
+                          <div className="ca-field">
+                            <label className="ca-label">Minimum</label>
+                            <div className="ca-input-unit">
+                              <input type="number" className="ca-input" placeholder="1" min="1" max="365"
+                                value={formData.duree_valeur||""}
+                                onChange={e => handleInputChange("duree_valeur", e.target.value)}/>
+                              <span className="ca-unit">
+                                {formData.duree_type==="nuit"?"nuitée(s)":formData.duree_type==="semaine"?"sem.":formData.duree_type==="mois"?"mois":formData.duree_type==="annee"?"an(s)":"—"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="ca-section-label" style={{marginTop:20}}>État du bien</div>
+                      <div className="ca-etat-row" style={{flexWrap:"wrap"}}>
+                        {ETAT_CARDS
+                          .filter(ec => !(ec.value==="cours_construction"&&(formData.categorie==="location"||formData.categorie==="vacances")))
+                          .map(ec => {
+                            const isOn = formData.etat_bien===ec.value;
+                            return (
+                              <button key={ec.value} type="button"
+                                className={`ca-etat-card${isOn?" ca-etat-card--on":""}`}
+                                onClick={() => handleInputChange("etat_bien", ec.value)}>
+                                <span style={{display:"flex",alignItems:"center"}}><ec.Ico size={20}/></span>
+                                <span>{ec.label}</span>
+                              </button>
+                            );
+                        })}
+                      </div>
+
+                      {formData.etat_bien && formData.etat_bien !== "nouveau" && (
+                        <div style={{marginTop:12}}>
+                          <div className="ca-section-label">Ancienneté du bien</div>
+                          <select className="ca-select" value={formData.age_bien}
+                            onChange={e => handleInputChange("age_bien", e.target.value)}>
+                            <option value="">Sélectionnez…</option>
+                            <option value="moins_1an">Moins d'un an</option>
+                            <option value="1_5ans">D'un an à 5 ans</option>
+                            <option value="5_10ans">De 5 ans à 10 ans</option>
+                            <option value="10_20ans">De 10 ans à 20 ans</option>
+                            <option value="20_30ans">De 20 ans à 30 ans</option>
+                            <option value="30_50ans">De 30 ans à 50 ans</option>
+                            <option value="50_70ans">De 50 ans à 70 ans</option>
+                            <option value="70_100ans">De 70 ans à 100 ans</option>
+                            <option value="plus_100ans">Plus de 100 ans</option>
+                          </select>
+                        </div>
+                      )}
+
+                    </div>{/* /ca-s1-lr__right */}
+                  </div>{/* /ca-s1-lr */}
+
+                  {/* ── Caractéristiques — directement dans la page, sans wrapper ── */}
+
+                  <div className="ca-feats-section-title" style={{marginTop:40, paddingTop:28, borderTop:"1.5px solid #f1f5f9"}}>Vue</div>
+                  <div className="ca-feat-big-grid">
+                    {FEAT_VUE.map(item => {
+                      const isOn = !!formData[item.key];
+                      return (
+                        <button key={item.key} type="button"
+                          className={`ca-feat-big${isOn ? " ca-feat-big--on" : ""}`}
+                          onClick={() => handleCheckboxChange(item.key)}>
+                          <span className="ca-feat-big__ico"><item.Ico size={52} strokeWidth={1.3}/></span>
+                          <span className="ca-feat-big__label">{item.label}</span>
+                          {isOn && <Check size={13} className="ca-feat-big__check"/>}
+                        </button>
+                      );
+                    })}
                   </div>
+
+                  {formData.type_bien !== "terrain" && (
+                    <>
+                      <div className="ca-feats-section-title" style={{marginTop:36}}>Espaces extérieurs</div>
+                      <div className="ca-feat-big-grid">
+                        {FEAT_EXT.map(item => {
+                          const isOn = !!formData[item.key];
+                          return (
+                            <div key={item.key} className="ca-feat-big-wrap">
+                              <button type="button"
+                                className={`ca-feat-big${isOn ? " ca-feat-big--on" : ""}`}
+                                onClick={() => handleCheckboxChange(item.key)}>
+                                <span className="ca-feat-big__ico"><item.Ico size={52} strokeWidth={1.3}/></span>
+                                <span className="ca-feat-big__label">{item.label}</span>
+                                {isOn && <Check size={13} className="ca-feat-big__check"/>}
+                              </button>
+                              {isOn && item.extra && item.extra !== "nb_places_garage" && (
+                                <div className="ca-feat-big-extra">
+                                  <div className="ca-feat-big-extra__label">Surface (m²)</div>
+                                  <input type="number" className="ca-input ca-input--sm" placeholder="m²" min="1"
+                                    value={formData[item.extra] || ""}
+                                    onChange={e => handleInputChange(item.extra, e.target.value)}/>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+
+                  {formData.type_bien !== "terrain" && (<>
+                    <div className="ca-feats-section-title" style={{marginTop:36}}>Commodités</div>
+                    <div className="ca-feat-big-grid">
+                      {FEAT_COM.map(item => {
+                        const isOn = !!formData[item.key];
+                        return (
+                          <div key={item.key} className="ca-feat-big-wrap">
+                            <button type="button"
+                              className={`ca-feat-big${isOn ? " ca-feat-big--on" : ""}`}
+                              onClick={() => handleCheckboxChange(item.key)}>
+                              <span className="ca-feat-big__ico"><item.Ico size={52} strokeWidth={1.3}/></span>
+                              <span className="ca-feat-big__label">{item.label}</span>
+                              {isOn && <Check size={13} className="ca-feat-big__check"/>}
+                            </button>
+                            {isOn && item.extra === "nb_places_garage" && (
+                              <div className="ca-feat-big-extra">
+                                <div className="ca-feat-big-extra__label">Places</div>
+                                <div className="ca-counter__ctrl">
+                                  <button type="button" className="ca-counter__btn"
+                                    onClick={() => formData.nb_places_garage > 1 && handleInputChange("nb_places_garage", formData.nb_places_garage - 1)}>
+                                    <Minus size={13}/>
+                                  </button>
+                                  <span className="ca-counter__val" style={{fontSize:16}}>{formData.nb_places_garage || 1}</span>
+                                  <button type="button" className="ca-counter__btn"
+                                    onClick={() => (formData.nb_places_garage || 1) < 10 && handleInputChange("nb_places_garage", (formData.nb_places_garage || 1) + 1)}>
+                                    <Plus size={13}/>
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="ca-feats-section-title" style={{marginTop:36}}>Intérieur &amp; équipements</div>
+                    <div className="ca-feat-big-grid">
+                      {FEAT_INT.map(item => {
+                        const isOn = !!formData[item.key];
+                        return (
+                          <button key={item.key} type="button"
+                            className={`ca-feat-big${isOn ? " ca-feat-big--on" : ""}`}
+                            onClick={() => handleCheckboxChange(item.key)}>
+                            <span className="ca-feat-big__ico"><item.Ico size={52} strokeWidth={1.3}/></span>
+                            <span className="ca-feat-big__label">{item.label}</span>
+                            {isOn && <Check size={13} className="ca-feat-big__check"/>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>)}
+
                 </div>
-              </div>
               )}
 
               {/* ─── STEP 2 ─── */}
@@ -1278,11 +1410,11 @@ const CreateListingForm = () => {
                         <button type="button" className="ca-geo-btn ca-geo-btn--search" onClick={geocodeAddress} title="Chercher sur la carte">
                           <MapPin size={15}/>
                         </button>
-                        <button type="button" className="ca-geo-btn" onClick={handleGeolocate} disabled={isGeolocating}>
+                        <button type="button" className="ca-geo-btn" onClick={handleGeolocate} disabled={isGeolocating} title="Position actuelle">
                           {isGeolocating ? <Loader size={15} className="ca-spin"/> : <Navigation size={15}/>}
                         </button>
                       </div>
-                      <p className="ca-map-hint">Entrée ou 📍 pour centrer la carte.</p>
+                      <p className="ca-map-hint">Entrez une adresse + Entrée ou cliquez sur 📍 pour centrer la carte.</p>
 
                       <div className="ca-row-2" style={{marginTop:14}}>
                         <div className="ca-field">
@@ -1306,7 +1438,6 @@ const CreateListingForm = () => {
                         position={{ lat: mapLocation.lat, lng: mapLocation.lng }}
                         onLocationChange={handleMapLocationChange}
                       />
-                      <p className="ca-map-hint">Cliquez sur la carte ou déplacez le marqueur pour préciser l'emplacement.</p>
                     </div>
 
                   </div>
@@ -1378,7 +1509,7 @@ const CreateListingForm = () => {
                             onChange={e => handleInputChange("prix", e.target.value)}/>
                           <select className="ca-currency" value={formData.devise}
                             onChange={e => handleInputChange("devise", e.target.value)}>
-                            <option value="TND">TND</option>
+                            <option value="TND">DT</option>
                             <option value="EUR">EUR</option>
                             <option value="USD">USD</option>
                           </select>
@@ -1392,6 +1523,7 @@ const CreateListingForm = () => {
                         const prixM2  = (prixNum > 0 && surfNum > 0)
                           ? Math.round(prixNum / surfNum).toLocaleString("fr-TN")
                           : null;
+                        const devise  = formData.devise === "TND" ? "DT" : formData.devise;
                         return (
                           <div className="ca-live-preview">
                             <div className="ca-live-preview__header">
@@ -1399,18 +1531,15 @@ const CreateListingForm = () => {
                               <span className="ca-live-preview__dot"/>
                             </div>
                             <div className="ca-live-preview__card">
-                              {/* Badge type */}
                               {formData.type_bien && (
                                 <span className="ca-live-preview__badge">
                                   {formData.type_bien.charAt(0).toUpperCase() + formData.type_bien.slice(1)}
                                   {formData.categorie ? ` · ${formData.categorie}` : ""}
                                 </span>
                               )}
-                              {/* Titre */}
                               <p className="ca-live-preview__titre">
                                 {formData.titre.trim() || <span className="ca-live-preview__ph">Titre de l'annonce…</span>}
                               </p>
-                              {/* Stats row */}
                               <div className="ca-live-preview__stats">
                                 {surfNum > 0 && (
                                   <span className="ca-live-preview__stat">
@@ -1420,14 +1549,13 @@ const CreateListingForm = () => {
                                 )}
                                 {prixNum > 0 && (
                                   <span className="ca-live-preview__stat ca-live-preview__stat--prix">
-                                    {prixNum.toLocaleString("fr-TN")} {formData.devise}
+                                    {prixNum.toLocaleString("fr-TN")} {devise}
                                   </span>
                                 )}
                               </div>
-                              {/* Prix/m² */}
                               {prixM2 && (
                                 <div className="ca-live-preview__prixm2">
-                                  <span className="ca-live-preview__prixm2-val">{prixM2} {formData.devise}/m²</span>
+                                  <span className="ca-live-preview__prixm2-val">{prixM2} {devise}/m²</span>
                                   <span className="ca-live-preview__prixm2-lbl">Prix au m²</span>
                                 </div>
                               )}
@@ -1501,91 +1629,81 @@ const CreateListingForm = () => {
                   <div className="ca-card__head">
                     <Camera size={20} className="ca-card__head-ico"/>
                     <h2 className="ca-card__title">Photos du bien</h2>
+                    <span className="ca-req-hint">{formData.allImages.length}/10 photos</span>
                   </div>
 
-                  {/* Main image */}
-                  <div className="ca-section-label">Image principale <span className="ca-req">*</span></div>
-                  {!formData.image_principale ? (
-                    <label className="ca-dropzone ca-dropzone--main">
-                      <input type="file" accept="image/*"
-                        onChange={e => handleImageUpload(e, true)}
-                        style={{display:"none"}}/>
-                      <Upload size={36} className="ca-dropzone__ico"/>
-                      <span className="ca-dropzone__text">Cliquez pour ajouter l'image principale</span>
-                      <span className="ca-dropzone__hint">JPG, PNG — max 5 MB</span>
-                    </label>
-                  ) : (
-                    <div className="ca-img-preview ca-img-preview--main">
-                      <img src={URL.createObjectURL(formData.image_principale)} alt="Principale"/>
-                      <div className="ca-img-overlay">
-                        <button type="button" className="ca-img-btn ca-img-btn--eye"
-                          onClick={() => window.open(URL.createObjectURL(formData.image_principale), "_blank")}>
-                          <Eye size={16}/>
-                        </button>
-                        <button type="button" className="ca-img-btn ca-img-btn--del"
-                          onClick={() => handleInputChange("image_principale", null)}>
-                          <Trash2 size={16}/>
-                        </button>
-                      </div>
-                      {imageValidation.main && (
-                        <div className={`ca-badge${imageValidation.main.valid ? " ca-badge--ok" : " ca-badge--err"}`}>
-                          {imageValidation.main.valid ? <><CheckCircle2 size={13}/> Valide</> : <><XCircle size={13}/> {imageValidation.main.message}</>}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  <p className="ca-tip" style={{marginBottom:16}}>
+                    Cliquez sur le cœur ❤️ d'une photo pour la définir comme image principale. Elle apparaîtra en premier.
+                  </p>
 
-                  {/* Additional images */}
-                  <div className="ca-section-label" style={{marginTop:24}}>
-                    Images supplémentaires
-                    <span className="ca-count-badge">{formData.images.length}/10</span>
-                  </div>
-                  <div className="ca-img-grid">
-                    {formData.images.map((file, index) => (
-                      <div key={index} className="ca-img-preview">
-                        <img src={URL.createObjectURL(file)} alt={`Image ${index + 1}`}/>
-                        <div className="ca-img-overlay">
-                          <button type="button" className="ca-img-btn ca-img-btn--eye"
-                            onClick={() => window.open(URL.createObjectURL(file), "_blank")}>
-                            <Eye size={14}/>
-                          </button>
-                          <button type="button" className="ca-img-btn ca-img-btn--del"
-                            onClick={() => removeImage(index)}>
-                            <Trash2 size={14}/>
-                          </button>
-                        </div>
-                        {imageValidation[index] === undefined ? (
-                          <div className="ca-badge ca-badge--load"><Loader size={12} className="ca-spin"/> Analyse…</div>
-                        ) : (
-                          <div className={`ca-badge${imageValidation[index]?.valid ? " ca-badge--ok" : " ca-badge--err"}`}>
-                            {imageValidation[index]?.valid ? <CheckCircle2 size={12}/> : <XCircle size={12}/>}
+                  <div className="ca-img-unified-grid">
+                    {formData.allImages.map((file, index) => {
+                      const isMain = index === formData.mainImageIndex;
+                      return (
+                        <div key={index} className={`ca-img-uni-card${isMain ? " ca-img-uni-card--main" : ""}`}>
+                          <img src={URL.createObjectURL(file)} alt={`Image ${index + 1}`}/>
+                          {isMain && (
+                            <div className="ca-img-main-badge">⭐ Principale</div>
+                          )}
+                          <div className="ca-img-overlay">
+                            <button type="button" className="ca-img-btn ca-img-btn--eye"
+                              onClick={() => window.open(URL.createObjectURL(file), "_blank")}>
+                              <Eye size={15}/>
+                            </button>
+                            <button type="button"
+                              className={`ca-img-btn ca-img-btn--heart${isMain ? " ca-img-btn--heart-on" : ""}`}
+                              title={isMain ? "Image principale" : "Définir comme principale"}
+                              onClick={() => handleInputChange("mainImageIndex", index)}>
+                              <Heart size={15} fill={isMain ? "#fff" : "none"}/>
+                            </button>
+                            <button type="button" className="ca-img-btn ca-img-btn--del"
+                              onClick={() => {
+                                const newImages = formData.allImages.filter((_, i) => i !== index);
+                                const newMain = formData.mainImageIndex >= newImages.length
+                                  ? Math.max(0, newImages.length - 1)
+                                  : formData.mainImageIndex === index
+                                    ? 0
+                                    : formData.mainImageIndex > index
+                                      ? formData.mainImageIndex - 1
+                                      : formData.mainImageIndex;
+                                setFormData(prev => ({ ...prev, allImages: newImages, mainImageIndex: newMain }));
+                              }}>
+                              <Trash2 size={15}/>
+                            </button>
                           </div>
-                        )}
-                      </div>
-                    ))}
-                    {formData.images.length < 10 && (
-                      <label className="ca-dropzone ca-dropzone--sm">
-                        <input type="file" accept="image/*" multiple
-                          onChange={e => handleImageUpload(e, false)}
-                          style={{display:"none"}}/>
-                        <Upload size={22} className="ca-dropzone__ico"/>
-                        <span className="ca-dropzone__text">Ajouter</span>
+                        </div>
+                      );
+                    })}
+
+                    {formData.allImages.length < 10 && (
+                      <label className="ca-img-add-slot">
+                        <input type="file" accept="image/*" multiple style={{display:"none"}}
+                          onChange={e => {
+                            const files = Array.from(e.target.files || []);
+                            const remaining = 10 - formData.allImages.length;
+                            const toAdd = files.slice(0, remaining).filter(f => f.size <= 10 * 1024 * 1024);
+                            if (files.some(f => f.size > 10 * 1024 * 1024)) toast("Certaines images dépassent 10 MB et ont été ignorées.", "error");
+                            if (toAdd.length > 0) setFormData(prev => ({ ...prev, allImages: [...prev.allImages, ...toAdd] }));
+                            e.target.value = "";
+                          }}
+                        />
+                        <Upload size={28} style={{color:"#9ca3af"}}/>
+                        <span style={{fontSize:12,color:"#9ca3af",marginTop:6}}>Ajouter</span>
+                        <span style={{fontSize:11,color:"#cbd5e1"}}>max 10 MB</span>
                       </label>
                     )}
                   </div>
+
                   <p className="ca-tip" style={{marginTop:14}}>
-                    Ajoutez des photos sous différents angles, des pièces principales, et des caractéristiques uniques.
+                    Ajoutez jusqu'à 10 photos. La photo avec ⭐ sera l'image principale visible sur les annonces.
                   </p>
 
                   {/* ── Accompagnement checkbox ── */}
                   <div className="ca-accom-check" style={{marginTop:28}}>
                     <label className="ca-accom-check__label">
-                      <input
-                        type="checkbox"
-                        className="ca-accom-check__input"
+                      <input type="checkbox" className="ca-accom-check__input"
                         checked={formData.accompagnement || false}
-                        onChange={e => handleInputChange("accompagnement", e.target.checked)}
-                      />
+                        onChange={e => handleInputChange("accompagnement", e.target.checked)}/>
                       <Sparkles size={14} className="ca-accom-check__ico"/>
                       <span>Je souhaite être accompagné(e) par l'équipe Localizi pour la publication de mon annonce</span>
                     </label>
@@ -1678,11 +1796,11 @@ const CreateListingForm = () => {
                   )}
 
                   {/* Main image */}
-                  {formData.image_principale && (
+                  {formData.allImages.length > 0 && (
                     <div style={{marginTop:20}}>
                       <div className="ca-prev-section-lbl">Image principale</div>
                       <img
-                        src={URL.createObjectURL(formData.image_principale)}
+                        src={URL.createObjectURL(formData.allImages[formData.mainImageIndex] || formData.allImages[0])}
                         alt="Principale"
                         style={{width:"100%",maxWidth:480,borderRadius:12,objectFit:"cover",maxHeight:280,display:"block"}}
                       />
@@ -1690,17 +1808,17 @@ const CreateListingForm = () => {
                   )}
 
                   {/* Additional images */}
-                  {formData.images.length > 0 && (
+                  {formData.allImages.length > 1 && (
                     <div style={{marginTop:16}}>
-                      <div className="ca-prev-section-lbl">Photos ({formData.images.length+1} au total)</div>
+                      <div className="ca-prev-section-lbl">Photos ({formData.allImages.length} au total)</div>
                       <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                        {formData.images.slice(0,6).map((img,i)=>(
+                        {formData.allImages.slice(0,6).map((img,i)=>(
                           <img key={i} src={URL.createObjectURL(img)} alt={`img ${i}`}
                             style={{width:80,height:80,objectFit:"cover",borderRadius:8}}/>
                         ))}
-                        {formData.images.length > 6 && (
+                        {formData.allImages.length > 6 && (
                           <div style={{width:80,height:80,borderRadius:8,background:"#f1f5f9",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,color:"#64748b",fontWeight:700}}>
-                            +{formData.images.length-6}
+                            +{formData.allImages.length-6}
                           </div>
                         )}
                       </div>
@@ -2520,6 +2638,98 @@ const CreateListingForm = () => {
             .ca-nav { flex-direction: column-reverse; gap: 10px; }
             .ca-nav-btn { width: 100%; justify-content: center; }
           }
+
+          /* ── New big-icon feature cards — monochromatic, no borders ── */
+          .ca-feats-section { margin-top: 36px; padding-top: 28px; border-top: 1.5px solid #f1f5f9; }
+          .ca-feats-section-title {
+            font-size: 11.5px; font-weight: 700; color: #64748b;
+            text-transform: uppercase; letter-spacing: .6px;
+            margin-bottom: 18px; margin-top: 32px;
+            display: flex; align-items: center; gap: 8px;
+            line-height: 1.5;  /* allows wrapping on 2 lines */
+          }
+          .ca-feats-section-title:first-child { margin-top: 0; }
+          .ca-feat-big-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 28px; }
+          .ca-feat-big-wrap { display: flex; flex-direction: column; gap: 10px; }
+          .ca-feat-big {
+            position: relative; display: flex; flex-direction: column; align-items: center;
+            gap: 10px; padding: 24px 12px 18px;
+            border-radius: 16px; border: none; background: transparent;
+            cursor: pointer; font-family: inherit; transition: background .15s, transform .15s;
+            min-height: 116px; width: 100%;
+          }
+          .ca-feat-big:hover { background: #f1f5f9; }
+          .ca-feat-big--on { background: #eef2ff; }
+          .ca-feat-big__ico {
+            display: flex; align-items: center; justify-content: center;
+            transition: transform .15s, color .15s; color: #94a3b8;
+          }
+          .ca-feat-big:hover .ca-feat-big__ico { transform: scale(1.1); color: #4f46e5; }
+          .ca-feat-big--on .ca-feat-big__ico { color: #4f46e5; transform: scale(1.05); }
+          .ca-feat-big__label { font-size: 13px; font-weight: 600; text-align: center; line-height: 1.35; color: #6b7280; }
+          .ca-feat-big--on .ca-feat-big__label { color: #4f46e5; font-weight: 700; font-size: 13px; }
+          .ca-feat-big__check { position: absolute; top: 6px; right: 6px; color: #4f46e5; }
+          .ca-feat-big-extra { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 9px; padding: 8px 10px; }
+          .ca-feat-big-extra__label { font-size: 10.5px; font-weight: 600; color: #64748b; margin-bottom: 5px; display: flex; align-items: center; gap: 4px; }
+
+          /* ── Step 1 compact 2-col (kept for other uses) ── */
+          .ca-s1-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+          @media (max-width: 700px) { .ca-s1-2col { grid-template-columns: 1fr; } }
+
+          /* ── Step 1 gauche/droite (droite = type/offre/état, gauche = sous-champs) ── */
+          .ca-s1-lr { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; align-items: start; }
+          .ca-s1-lr__left  { display: flex; flex-direction: column; gap: 0; order: 2; }
+          .ca-s1-lr__right { display: flex; flex-direction: column; gap: 0; order: 1; }
+          @media (max-width: 820px) {
+            .ca-s1-lr { grid-template-columns: 1fr; }
+            .ca-s1-lr__left  { order: 2; }
+            .ca-s1-lr__right { order: 1; }
+          }
+
+          /* ── Prix/m² inline pill ── */
+          .ca-prixm2-pill {
+            display: inline-flex; align-items: center; gap: 7px;
+            background: #f0fdf4; border: 1px solid #bbf7d0;
+            border-radius: 8px; padding: 6px 12px; margin-top: 6px;
+            font-size: 13px; color: #15803d;
+          }
+          .ca-prixm2-pill strong { font-weight: 700; font-size: 13.5px; }
+          .ca-prixm2-pill__lbl { font-size: 11px; color: #86efac; font-weight: 600; }
+
+          /* ── New unified image grid ── */
+          .ca-img-unified-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
+          }
+          .ca-img-uni-card {
+            position: relative; aspect-ratio: 1;
+            border-radius: 12px; overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,.1);
+            border: 2.5px solid transparent;
+            transition: border-color .15s;
+          }
+          .ca-img-uni-card--main { border-color: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,.25), 0 4px 12px rgba(0,0,0,.12); }
+          .ca-img-uni-card img { width:100%; height:100%; object-fit:cover; }
+          .ca-img-main-badge {
+            position: absolute; top: 7px; left: 7px;
+            background: #f59e0b; color: #fff;
+            font-size: 10.5px; font-weight: 700;
+            padding: 3px 8px; border-radius: 20px;
+            pointer-events: none;
+          }
+          .ca-img-uni-card .ca-img-overlay { opacity: 0; }
+          .ca-img-uni-card:hover .ca-img-overlay { opacity: 1; }
+          .ca-img-btn--heart { background: rgba(255,255,255,.85); color: #374151; }
+          .ca-img-btn--heart:hover { background: #f43f5e; color: #fff; }
+          .ca-img-btn--heart-on { background: #f43f5e !important; color: #fff !important; }
+          .ca-img-add-slot {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            aspect-ratio: 1; border-radius: 12px;
+            border: 2px dashed #d1d5db; background: #f9fafb;
+            cursor: pointer; gap: 4px; transition: all .15s;
+          }
+          .ca-img-add-slot:hover { border-color: #6366f1; background: #f0f4ff; }
         `}</style>
       </div>
     </Layout>

@@ -585,7 +585,8 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
           delId={local.delId} delNom={local.delNom}
           locId={local.locId} locNom={local.locNom}
           onChange={(v) => {
-            const updated = { ...local, ...v };
+            // Sélection cascade → efface la recherche texte précédente
+            const updated = { ...local, ...v, query: "" };
             setLocal(updated);
             onChange(updated);   // applique immédiatement sans cliquer "Rechercher"
           }}
@@ -769,6 +770,10 @@ export default function CartePage() {
   const [mapBounds, setMapBounds]   = useState(null);
   /* Ref toujours synchronisé avec allProperties (utilisé dans applyFilters) */
   const allPropertiesRef = useRef([]);
+  /* Liste complète des gouvernorats — pour la détection même sans annonces chargées */
+  const { gouvernorats: _allGovs } = useLocalisation({ gouvernorat:"", delegation:"", localite:"" });
+  const govListRef = useRef([]);
+  govListRef.current = _allGovs;
 
   /* ── Lecture URL → objet filtre (source de vérité unique) ── */
   const readFiltersFromUrl = useCallback((sp) => ({
@@ -824,41 +829,67 @@ export default function CartePage() {
     let f = { ...newFilters };
     const q = (f.query || "").trim();
     if (q) {
-      const props = allPropertiesRef.current;
-      const ql = q.toLowerCase();
+      /* ─── Règle stricte : on n'affiche un chip de localisation QUE si le mot est
+         vérifié dans la hiérarchie réelle (annonces chargées + liste gouvernorats API).
+         Toute nouvelle saisie efface d'abord les filtres de localisation précédents.  */
+      f = { ...f, govNom:"", govId:"", delNom:"", delId:"", locNom:"", locId:"" };
 
-      // 1 — Recherche exacte (insensible à la casse)
-      const locExact = props.find(p => p.localite  && p.localite.toLowerCase()   === ql);
-      const delExact = props.find(p => p.delegation && p.delegation.toLowerCase() === ql);
+      const props = allPropertiesRef.current;
+      const ql    = q.toLowerCase();
+      let detected = false;
+
+      /* 1 — Correspondance EXACTE dans les annonces chargées (localité > délégation > gouvernorat) */
+      const locExact = props.find(p => p.localite   && p.localite.toLowerCase()   === ql);
+      const delExact = props.find(p => p.delegation  && p.delegation.toLowerCase()  === ql);
       const govExact = props.find(p => p.gouvernorat && p.gouvernorat.toLowerCase() === ql);
 
       if (locExact) {
         f = { ...f, query:"", locNom:locExact.localite, delNom:locExact.delegation||"",
               govNom:locExact.gouvernorat||"", locId:"", delId:"", govId:"" };
+        detected = true;
       } else if (delExact) {
         f = { ...f, query:"", delNom:delExact.delegation, govNom:delExact.gouvernorat||"",
               locNom:"", delId:"", govId:"", locId:"" };
+        detected = true;
       } else if (govExact) {
         f = { ...f, query:"", govNom:govExact.gouvernorat, delNom:"", locNom:"",
               govId:"", delId:"", locId:"" };
-      } else {
-        // 2 — Correspondance partielle (contient le mot)
-        const locPart = props.find(p => p.localite  && p.localite.toLowerCase().includes(ql));
-        const delPart = props.find(p => p.delegation && p.delegation.toLowerCase().includes(ql));
+        detected = true;
+      }
+
+      /* 2 — Correspondance partielle dans les annonces (contient le mot) */
+      if (!detected) {
+        const locPart = props.find(p => p.localite   && p.localite.toLowerCase().includes(ql));
+        const delPart = props.find(p => p.delegation  && p.delegation.toLowerCase().includes(ql));
         const govPart = props.find(p => p.gouvernorat && p.gouvernorat.toLowerCase().includes(ql));
 
         if (locPart) {
           f = { ...f, query:"", locNom:locPart.localite, delNom:locPart.delegation||"",
                 govNom:locPart.gouvernorat||"", locId:"", delId:"", govId:"" };
+          detected = true;
         } else if (delPart) {
           f = { ...f, query:"", delNom:delPart.delegation, govNom:delPart.gouvernorat||"",
                 locNom:"", delId:"", govId:"", locId:"" };
+          detected = true;
         } else if (govPart) {
           f = { ...f, query:"", govNom:govPart.gouvernorat, delNom:"", locNom:"",
                 govId:"", delId:"", locId:"" };
+          detected = true;
         }
-        // sinon : texte libre → la recherche multi-champs gère le reste
       }
+
+      /* 3 — Fallback : gouvernorats API (exact uniquement — pas de partiel inventé) */
+      if (!detected) {
+        const govFull = govListRef.current.find(g => g.label.toLowerCase() === ql);
+        if (govFull) {
+          f = { ...f, query:"", govNom:govFull.label, govId:String(govFull.value),
+                delNom:"", locNom:"", delId:"", locId:"" };
+          detected = true;
+        }
+      }
+
+      /* 4 — Aucune localisation vérifiée → filtre texte libre, AUCUN chip inventé */
+      /* f.query reste tel quel, la recherche multi-champs s'en occupe silencieusement */
     }
 
     setFilters(f); // mise à jour immédiate pour éviter le flash
@@ -1019,8 +1050,8 @@ export default function CartePage() {
 
   /* Tags filtres actifs (toujours visibles même si 0 résultats) */
   const activeTags = [
-    filters.query      && { label:`🔍 ${filters.query}`, key:"query",   color:"#374151" },
-    filters.govNom     && { label:filters.govNom,         key:"govNom",  color:"#4f46e5" },
+    /* query = filtre texte libre silencieux — pas de chip, seules les localisations vérifiées en ont un */
+    filters.govNom     && { label:filters.govNom,          key:"govNom",  color:"#4f46e5" },
     filters.delNom     && { label:filters.delNom,         key:"delNom",  color:"#7c3aed" },
     filters.locNom     && { label:filters.locNom,         key:"locNom",  color:"#9333ea" },
     ...(filters.categories||[]).map(c=>({ label:CAT_LBL[c], key:`cat_${c}`, color:"#0369a1" })),

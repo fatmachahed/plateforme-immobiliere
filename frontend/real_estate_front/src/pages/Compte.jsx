@@ -20,6 +20,7 @@ export default function Compte() {
     username:        storedUser?.username        || "",
     email:           storedUser?.email           || "",
     phone_number:    storedUser?.phone_number    || "",
+    phone_code:      storedUser?.phone_code      || "+216",
     profile_picture: storedUser?.profile_picture || "",
   });
   const [avatarPreview, setAvatarPreview] = useState(storedUser?.profile_picture || "");
@@ -86,8 +87,10 @@ export default function Compte() {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          username:     profile.username     || undefined,
-          phone_number: profile.phone_number || undefined,
+          username:     profile.username || undefined,
+          phone_number: profile.phone_number
+            ? `${profile.phone_code || "+216"}${profile.phone_number}`
+            : undefined,
         }),
       });
       if (!res.ok) throw new Error();
@@ -193,13 +196,35 @@ export default function Compte() {
                 </div>
                 <div className="cpt-field">
                   <label><Phone size={12}/> Téléphone</label>
-                  <input
-                    className={`cpt-input${editing ? " cpt-input--edit" : ""}`}
-                    value={profile.phone_number || ""}
-                    placeholder="Non renseigné"
-                    readOnly={!editing}
-                    onChange={e => setProfile(p => ({...p, phone_number: e.target.value}))}
-                  />
+                  <div className="cpt-phone-row">
+                    <select
+                      className={`cpt-input cpt-phone-code${editing ? " cpt-input--edit" : ""}`}
+                      value={profile.phone_code || "+216"}
+                      readOnly={!editing}
+                      disabled={!editing}
+                      onChange={e => setProfile(p => ({...p, phone_code: e.target.value}))}
+                    >
+                      <option value="+216">🇹🇳 +216</option>
+                      <option value="+33">🇫🇷 +33</option>
+                      <option value="+1">🇺🇸 +1</option>
+                      <option value="+49">🇩🇪 +49</option>
+                      <option value="+44">🇬🇧 +44</option>
+                      <option value="+32">🇧🇪 +32</option>
+                      <option value="+41">🇨🇭 +41</option>
+                      <option value="+212">🇲🇦 +212</option>
+                      <option value="+213">🇩🇿 +213</option>
+                      <option value="+218">🇱🇾 +218</option>
+                      <option value="+966">🇸🇦 +966</option>
+                      <option value="+971">🇦🇪 +971</option>
+                    </select>
+                    <input
+                      className={`cpt-input cpt-phone-num${editing ? " cpt-input--edit" : ""}`}
+                      value={profile.phone_number || ""}
+                      placeholder="12 345 678"
+                      readOnly={!editing}
+                      onChange={e => setProfile(p => ({...p, phone_number: e.target.value}))}
+                    />
+                  </div>
                 </div>
                 <div className="cpt-field">
                   <label><Camera size={12}/> Photo de profil</label>
@@ -369,6 +394,11 @@ export default function Compte() {
             white-space:nowrap; transition:background .15s;
           }
           .cpt-shortcut__btn:hover { background:#1e293b; }
+
+          /* Phone row */
+          .cpt-phone-row { display: flex; gap: 8px; }
+          .cpt-phone-code { flex-shrink: 0; width: 110px; cursor: pointer; }
+          .cpt-phone-num { flex: 1; }
 
           @keyframes spin { to { transform:rotate(360deg); } }
 
