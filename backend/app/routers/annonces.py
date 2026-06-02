@@ -48,7 +48,10 @@ def search_annonces_public(
     if categorie:
         query = query.filter(models.Annonce.categorie == categorie)
     if type_bien:
-        query = query.filter(models.Annonce.type_bien == type_bien)
+        if type_bien == "villa_maison":
+            query = query.filter(models.Annonce.type_bien.in_(["villa", "maison", "villa_maison"]))
+        else:
+            query = query.filter(models.Annonce.type_bien == type_bien)
     if gouvernorat_id:
         query = query.filter(models.Annonce.gouvernorat_id == gouvernorat_id)
     if prix_min is not None:
@@ -107,7 +110,10 @@ def get_map_pins(
     if categorie:
         query = query.filter(models.Annonce.categorie == categorie)
     if type_bien:
-        query = query.filter(models.Annonce.type_bien == type_bien)
+        if type_bien == "villa_maison":
+            query = query.filter(models.Annonce.type_bien.in_(["villa", "maison", "villa_maison"]))
+        else:
+            query = query.filter(models.Annonce.type_bien == type_bien)
     if gouvernorat_id:
         query = query.filter(models.Annonce.gouvernorat_id == gouvernorat_id)
 
@@ -234,9 +240,12 @@ def get_annonce_detail(annonce_id: int, db: Session = Depends(get_db)):
         "features":        features,
         "annee_construction": a.annee_construction,
         "exclusivite":     a.exclusivite,
+        "anonyme":         a.anonyme or False,
+        "accompagnement":  a.accompagnement or False,
         "user": {
             "id":           user.id           if user else None,
             "username":     user.username     if user else None,
+            # Si anonyme : phone/email masqués côté frontend selon le flag
             "phone_number": user.phone_number if user else None,
             "email":        user.email        if user else None,
         } if user else None,
@@ -293,4 +302,48 @@ def delete_annonce(
 
     crud.delete_annonce(db, annonce_id)
     return {"detail": "Annonce supprimée"}
+
+
+# ===============================
+# DEMANDE DE CONTACT ANONYME
+# ===============================
+@router.post("/{annonce_id}/contact-request", status_code=201)
+def contact_request(
+    annonce_id: int,
+    body: schemas.ContactRequestCreate,
+    db: Session = Depends(get_db)
+):
+    """Envoie une demande de contact au propriétaire d'une annonce anonyme."""
+    annonce = db.query(models.Annonce).filter(models.Annonce.id == annonce_id).first()
+    if not annonce:
+        raise HTTPException(status_code=404, detail="Annonce non trouvée")
+    if not (body.email or body.telephone):
+        raise HTTPException(status_code=400, detail="Email ou téléphone requis pour que le propriétaire puisse vous contacter")
+    req = models.ContactRequest(
+        annonce_id = annonce_id,
+        nom        = body.nom,
+        email      = body.email,
+        telephone  = body.telephone,
+        message    = body.message,
+    )
+    db.add(req)
+    db.commit()
+    return {"detail": "Demande envoyée. Le propriétaire vous contactera prochainement."}
+
+
+@router.get("/{annonce_id}/contact-requests")
+def get_contact_requests(
+    annonce_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Liste les demandes de contact pour une annonce (propriétaire uniquement)."""
+    annonce = db.query(models.Annonce).filter(models.Annonce.id == annonce_id).first()
+    if not annonce:
+        raise HTTPException(status_code=404, detail="Annonce non trouvée")
+    if annonce.utilisateur_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Action interdite")
+    reqs = db.query(models.ContactRequest).filter(models.ContactRequest.annonce_id == annonce_id).all()
+    return [{"id":r.id,"nom":r.nom,"email":r.email,"telephone":r.telephone,
+             "message":r.message,"created_at":r.created_at.isoformat(),"lu":r.lu} for r in reqs]
 

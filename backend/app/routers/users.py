@@ -247,3 +247,64 @@ def reset_password(body: dict, db: Session = Depends(get_db)):
 
     del _reset_tokens[token]
     return {"message": "Mot de passe réinitialisé avec succès"}
+
+
+# ===============================
+# DEMANDES DE CONTACT REÇUES
+# ===============================
+@router.get("/me/contact-requests")
+def get_my_contact_requests(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Retourne toutes les demandes de contact pour les annonces anonymes de l'utilisateur."""
+    # Récupérer les annonces de l'utilisateur
+    annonces = db.query(models.Annonce).filter(
+        models.Annonce.utilisateur_id == current_user.id
+    ).all()
+    annonce_ids = [a.id for a in annonces]
+    if not annonce_ids:
+        return []
+
+    requests = db.query(models.ContactRequest).filter(
+        models.ContactRequest.annonce_id.in_(annonce_ids)
+    ).order_by(models.ContactRequest.created_at.desc()).all()
+
+    # Enrichir avec les infos de l'annonce
+    annonces_map = {a.id: a for a in annonces}
+    return [
+        {
+            "id":          r.id,
+            "annonce_id":  r.annonce_id,
+            "annonce_titre": annonces_map.get(r.annonce_id, {}).titre if hasattr(annonces_map.get(r.annonce_id), 'titre') else "",
+            "nom":         r.nom,
+            "email":       r.email,
+            "telephone":   r.telephone,
+            "message":     r.message,
+            "lu":          r.lu,
+            "created_at":  r.created_at.isoformat(),
+        }
+        for r in requests
+    ]
+
+
+@router.put("/me/contact-requests/{request_id}/lu")
+def mark_contact_request_lu(
+    request_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Marque une demande comme lue."""
+    req = db.query(models.ContactRequest).filter(models.ContactRequest.id == request_id).first()
+    if not req:
+        raise HTTPException(404, "Demande non trouvée")
+    # Vérifier que c'est bien une annonce de l'utilisateur
+    annonce = db.query(models.Annonce).filter(
+        models.Annonce.id == req.annonce_id,
+        models.Annonce.utilisateur_id == current_user.id
+    ).first()
+    if not annonce:
+        raise HTTPException(403, "Action interdite")
+    req.lu = True
+    db.commit()
+    return {"detail": "Marqué comme lu"}

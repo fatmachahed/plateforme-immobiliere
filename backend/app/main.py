@@ -24,6 +24,34 @@ from app.routers import users, annonces, properties, localisation, catalogue, up
 # Créer les tables si elles n'existent pas
 Base.metadata.create_all(bind=engine)
 
+# ── Migration automatique : ajouter les colonnes manquantes ──
+from sqlalchemy import text
+with engine.connect() as conn:
+    migrations = [
+        # Champ anonyme sur les annonces (publication anonyme)
+        "ALTER TABLE annonces ADD COLUMN IF NOT EXISTS anonyme BOOLEAN DEFAULT FALSE;",
+        "ALTER TABLE annonces ADD COLUMN IF NOT EXISTS accompagnement BOOLEAN DEFAULT FALSE;",
+        # Table des demandes de contact anonyme
+        """
+        CREATE TABLE IF NOT EXISTS contact_requests (
+            id SERIAL PRIMARY KEY,
+            annonce_id INTEGER REFERENCES annonces(id) ON DELETE CASCADE,
+            nom VARCHAR NOT NULL,
+            email VARCHAR,
+            telephone VARCHAR,
+            message VARCHAR,
+            lu BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+        """,
+    ]
+    for sql in migrations:
+        try:
+            conn.execute(text(sql))
+        except Exception as e:
+            print(f"[Migration] {e}")
+    conn.commit()
+
 # Servir les images uploadées
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)

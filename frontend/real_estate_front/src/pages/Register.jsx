@@ -1,7 +1,7 @@
 ﻿import { useState } from "react";
 import API_URL from '../config';
 import { Link } from "react-router-dom";
-import { Eye, EyeOff, UserPlus } from "lucide-react";
+import { Eye, EyeOff, UserPlus, Home, Building2 } from "lucide-react";
 import { useToast } from "../components/Toast";
 import Logo from "../components/Logo";
 const heroUrl = "https://www.guidesulysse.com/images/destinations/iStock-498116298.jpg";
@@ -129,7 +129,7 @@ export default function Register() {
                   onClick={() => setRole("particulier")}
                   disabled={loading}
                 >
-                  <span className="sp-role-icon">🏠</span>
+                  <span className="sp-role-icon"><Home size={22} style={{color:"inherit"}}/></span>
                   <span className="sp-role-label">Particulier</span>
                   <span className="sp-role-desc">Je vends / loue mon bien</span>
                 </button>
@@ -139,7 +139,7 @@ export default function Register() {
                   onClick={() => setRole("professionnel")}
                   disabled={loading}
                 >
-                  <span className="sp-role-icon">🏢</span>
+                  <span className="sp-role-icon"><Building2 size={22} style={{color:"inherit"}}/></span>
                   <span className="sp-role-label">Professionnel</span>
                   <span className="sp-role-desc">Agence, promoteur, agent</span>
                 </button>
@@ -306,25 +306,29 @@ export default function Register() {
         .sp-role-btn {
           display: flex; flex-direction: column; align-items: center; gap: 4px;
           padding: 14px 10px; border-radius: 12px;
-          border: 2px solid #e2e8f0; background: #f8fafc;
+          border: 1.5px solid #e2e8f0; background: #f8fafc;
+          color: #94a3b8;
           cursor: pointer; font-family: inherit; text-align: center;
           transition: all .15s;
         }
         .sp-role-btn:hover:not(:disabled) {
-          border-color: #a5b4fc; background: #eef2ff;
+          border-color: #94a3b8; background: #f1f5f9; color: #64748b;
         }
         .sp-role-btn--active {
-          border-color: #6366f1 !important; background: #eef2ff !important;
-          box-shadow: 0 0 0 3px rgba(99,102,241,.12);
+          border: 1.5px solid #0f172a !important; background: #0f172a !important;
+          color: #fff !important;
+          box-shadow: 0 4px 14px rgba(15,23,42,.22);
         }
         .sp-role-btn:disabled { opacity: .6; cursor: not-allowed; }
-        .sp-role-icon { font-size: 22px; line-height: 1; }
-        .sp-role-label {
-          font-size: 13px; font-weight: 700; color: #0f172a;
+        .sp-role-icon {
+          display: flex; align-items: center; justify-content: center;
+          line-height: 1; color: inherit;
         }
-        .sp-role-btn--active .sp-role-label { color: #4f46e5; }
+        .sp-role-label {
+          font-size: 13px; font-weight: 700; color: inherit;
+        }
         .sp-role-desc {
-          font-size: 11px; color: #94a3b8; font-weight: 500; line-height: 1.3;
+          font-size: 11px; color: inherit; opacity: .7; font-weight: 500; line-height: 1.3;
         }
         @media (max-width: 900px) {
           .sp-left { display: none; }

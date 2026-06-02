@@ -63,6 +63,7 @@ function normalizeApi(a) {
     images:      (a.images || []).length > 0
       ? (a.images || []).map(img => img.startsWith("http") ? img : `${API_URL}${img}`)
       : ["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=900&q=80"],
+    anonyme: a.anonyme || false,
     contact: {
       nom:   a.user?.username     || "Propriétaire",
       tel:   a.user?.phone_number || "",
@@ -80,6 +81,11 @@ export default function AnnonceDetail() {
   const toast    = useToast();
 
   const [prop,      setProp]      = useState(null);
+  const [showContactModal, setShowContactModal] = useState(false);
+  const [contactForm,  setContactForm]  = useState({ nom:"", email:"", telephone:"", message:"" });
+  const [contactSent,  setContactSent]  = useState(false);
+  const [contactLoading, setContactLoading] = useState(false);
+  const [contactError, setContactError] = useState("");
   const [loading,   setLoading]   = useState(true);
   const [imgIdx,    setImgIdx]    = useState(0);
   const [showPhone,    setShowPhone]    = useState(false);
@@ -359,15 +365,40 @@ export default function AnnonceDetail() {
 
             {/* ── Bloc contact Phase 1 ── */}
             <div className="ad-contact-box">
-              {/* Avatar + nom */}
+              {/* ── Avatar + nom ── */}
               <div className="ad-contact-box__header">
-                <div className="ad-contact-box__avatar">
-                  {prop.contact.nom?.charAt(0).toUpperCase() || "?"}
-                </div>
+                {prop.anonyme ? (
+                  /* Avatar anonyme — affiché pour TOUT le monde quand anonyme=true */
+                  <div style={{
+                    width:44, height:44, borderRadius:"50%",
+                    background:"linear-gradient(135deg,#94a3b8,#64748b)",
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                    flexShrink:0, border:"2px solid #e2e8f0"
+                  }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                      <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                  </div>
+                ) : (() => {
+                  const storedUser = (() => { try { return JSON.parse(localStorage.getItem("user")); } catch { return null; } })();
+                  const avatarUrl = isOwner ? storedUser?.profile_picture : null;
+                  const initiale  = (prop.contact.nom||"?")[0].toUpperCase();
+                  return avatarUrl ? (
+                    <img src={avatarUrl.startsWith("http") ? avatarUrl : `${API_URL}${avatarUrl}`}
+                      alt="avatar" style={{width:44,height:44,borderRadius:"50%",objectFit:"cover",flexShrink:0,border:"2px solid #e2e8f0"}}/>
+                  ) : (
+                    <div className="ad-contact-box__avatar">{initiale}</div>
+                  );
+                })()}
                 <div>
-                  <div className="ad-contact-box__name">{prop.contact.nom}</div>
+                  <div className="ad-contact-box__name">
+                    {prop.anonyme ? "Membre anonyme" : prop.contact.nom}
+                  </div>
                   <div className="ad-contact-box__role">
-                    {prop.fromApi ? "Propriétaire / Agent" : "Propriétaire"}
+                    {prop.anonyme
+                      ? "Identité masquée · Publication anonyme"
+                      : (prop.fromApi ? "Propriétaire / Agent" : "Propriétaire")}
                   </div>
                 </div>
               </div>
@@ -379,8 +410,50 @@ export default function AnnonceDetail() {
                 </div>
               )}
 
-              {token ? (
-                /* ── Connecté : numéros affichés directement ── */
+              {/* ── Contact : logique anonyme stricte ── */}
+              {prop.anonyme ? (
+                /* ANONYME — tout le monde voit ce bloc, y compris l'owner (pour preview) */
+                <div style={{marginTop:16}}>
+                  {isOwner && (
+                    <div style={{
+                      background:"#fffbeb", border:"1px solid #fde68a", borderRadius:9,
+                      padding:"9px 13px", fontSize:12.5, color:"#92400e", marginBottom:12,
+                      display:"flex", alignItems:"center", gap:7
+                    }}>
+                      🔒 Votre annonce est publiée <strong>anonymement</strong> — les visiteurs ne voient pas vos coordonnées.
+                    </div>
+                  )}
+                  {!isOwner && (
+                    <>
+                      <button
+                        onClick={() => {
+                          /* Pré-remplir avec les infos du compte connecté */
+                          const u = (() => { try { return JSON.parse(localStorage.getItem("user")); } catch { return null; } })();
+                          if (u) setContactForm(f => ({
+                            ...f,
+                            nom:       f.nom       || u.username     || "",
+                            telephone: f.telephone || u.phone_number || "",
+                            email:     f.email     || u.email        || "",
+                          }));
+                          setShowContactModal(true);
+                        }}
+                        style={{
+                          width:"100%", padding:"13px 16px", borderRadius:11, border:"none",
+                          background:"linear-gradient(135deg,#6366f1,#818cf8)", color:"#fff",
+                          fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit",
+                          display:"flex", alignItems:"center", justifyContent:"center", gap:8
+                        }}
+                      >
+                        📩 Contacter le propriétaire
+                      </button>
+                      <p style={{fontSize:11.5, color:"#94a3b8", textAlign:"center", marginTop:8}}>
+                        Laissez vos coordonnées — le propriétaire vous contactera s'il est intéressé.
+                      </p>
+                    </>
+                  )}
+                </div>
+              ) : token ? (
+                /* ── NON-ANONYME + CONNECTÉ : coordonnées visibles ── */
                 <div className="ad-contact-box__btns">
                   {prop.contact.tel && (
                     <>
@@ -405,7 +478,7 @@ export default function AnnonceDetail() {
                   )}
                 </div>
               ) : (
-                /* ── Non connecté : numéro flouté + CTA connexion ── */
+                /* ── NON-ANONYME + NON CONNECTÉ : numéro flouté ── */
                 <div className="ad-contact-box__locked">
                   <button
                     className="ad-contact-box__blur-btn"
@@ -428,7 +501,7 @@ export default function AnnonceDetail() {
                     </a>
                   </div>
                 </div>
-              )}
+              ) /* fin ternaire anonyme/token */ }
             </div>
           </div>
 
@@ -736,6 +809,116 @@ export default function AnnonceDetail() {
           .ad-nearby__scroll { grid-template-columns: 1fr; }
         }
       `}</style>
+
+      {/* ── Modal contact anonyme ── */}
+      {showContactModal && (
+        <div style={{
+          position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:99999,
+          display:"flex",alignItems:"center",justifyContent:"center",padding:20,
+          fontFamily:"'Inter',system-ui,sans-serif"
+        }}>
+          <div style={{
+            background:"#fff",borderRadius:18,width:"100%",maxWidth:480,
+            padding:"32px 28px",boxShadow:"0 24px 80px rgba(0,0,0,.28)"
+          }}>
+            {contactSent ? (
+              <div style={{textAlign:"center",padding:"20px 0"}}>
+                <div style={{fontSize:48,marginBottom:12}}>✅</div>
+                <h3 style={{fontSize:20,fontWeight:800,color:"#0f172a",marginBottom:8}}>Demande envoyée !</h3>
+                <p style={{fontSize:14,color:"#64748b",lineHeight:1.6}}>
+                  La personne au {contactForm.telephone ? `numéro ${contactForm.telephone}` : `mail ${contactForm.email}`} souhaite vous contacter pour le bien <strong>"{prop?.titre}"</strong>. Le propriétaire dispose de vos coordonnées pour vous joindre.
+                </p>
+                <button onClick={() => { setShowContactModal(false); setContactSent(false); }}
+                  style={{marginTop:20,padding:"11px 28px",borderRadius:10,border:"none",
+                    background:"#0f172a",color:"#fff",fontWeight:700,cursor:"pointer",
+                    fontSize:14,fontFamily:"inherit"}}>Fermer</button>
+              </div>
+            ) : (<>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+                <div>
+                  <h3 style={{fontSize:18,fontWeight:800,color:"#0f172a",margin:0}}>Contacter le propriétaire</h3>
+                  <p style={{fontSize:13,color:"#64748b",margin:"4px 0 0"}}>
+                    Le propriétaire vous contactera directement par WhatsApp / téléphone / email selon vos informations ci-dessous.
+                  </p>
+                </div>
+                <button onClick={()=>setShowContactModal(false)}
+                  style={{background:"#f1f5f9",border:"none",borderRadius:"50%",
+                    width:34,height:34,cursor:"pointer",fontSize:18,color:"#64748b",
+                    display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+              </div>
+
+              {contactError && (
+                <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:9,
+                  padding:"10px 14px",fontSize:13,color:"#dc2626",marginBottom:14}}>{contactError}</div>
+              )}
+
+              {[
+                {key:"nom",       label:"Votre nom *",             type:"text",  placeholder:"Prénom Nom"},
+                {key:"telephone", label:"Votre téléphone",         type:"tel",   placeholder:"+216 XX XXX XXX"},
+                {key:"email",     label:"Votre email",             type:"email", placeholder:"vous@email.com"},
+                {key:"message",   label:"Message (optionnel)",     type:"textarea", placeholder:"Décrivez votre intérêt..."},
+              ].map(({key,label,type,placeholder}) => (
+                <div key={key} style={{marginBottom:14}}>
+                  <label style={{fontSize:12.5,fontWeight:700,color:"#374151",display:"block",marginBottom:5}}>{label}</label>
+                  {type === "textarea" ? (
+                    <textarea placeholder={placeholder}
+                      value={contactForm[key]} rows={3}
+                      onChange={e => setContactForm(f=>({...f,[key]:e.target.value}))}
+                      style={{width:"100%",padding:"10px 13px",border:"1.5px solid #e2e8f0",
+                        borderRadius:10,fontSize:13,fontFamily:"inherit",outline:"none",
+                        resize:"vertical",background:"#f8fafc",boxSizing:"border-box"}}/>
+                  ) : (
+                    <input type={type} placeholder={placeholder}
+                      value={contactForm[key]}
+                      onChange={e => setContactForm(f=>({...f,[key]:e.target.value}))}
+                      style={{width:"100%",padding:"11px 13px",border:"1.5px solid #e2e8f0",
+                        borderRadius:10,fontSize:13,fontFamily:"inherit",outline:"none",
+                        background:"#f8fafc",boxSizing:"border-box"}}/>
+                  )}
+                </div>
+              ))}
+
+              <p style={{fontSize:12,color:"#94a3b8",marginBottom:16}}>
+                📞 Renseignez au moins votre téléphone ou votre email pour que le propriétaire puisse vous contacter.
+              </p>
+
+              <button
+                disabled={contactLoading || !contactForm.nom.trim() || (!contactForm.telephone && !contactForm.email)}
+                onClick={async () => {
+                  setContactLoading(true); setContactError("");
+                  try {
+                    const res = await fetch(`${API_URL}/annonces/${prop.id}/contact-request`, {
+                      method:"POST",
+                      headers:{"Content-Type":"application/json"},
+                      body:JSON.stringify({
+                        nom:       contactForm.nom.trim(),
+                        telephone: contactForm.telephone.trim() || null,
+                        email:     contactForm.email.trim() || null,
+                        message:   contactForm.message.trim() || null,
+                      }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.detail || "Erreur");
+                    setContactSent(true);
+                  } catch(err) {
+                    setContactError(err.message || "Erreur lors de l'envoi");
+                  } finally {
+                    setContactLoading(false);
+                  }
+                }}
+                style={{
+                  width:"100%",padding:"13px",borderRadius:11,border:"none",
+                  background: contactLoading ? "#94a3b8" : "#0f172a",
+                  color:"#fff",fontSize:14,fontWeight:700,cursor:contactLoading?"not-allowed":"pointer",
+                  fontFamily:"inherit",marginTop:4
+                }}
+              >
+                {contactLoading ? "Envoi en cours…" : "📩 Envoyer ma demande"}
+              </button>
+            </>)}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -10,7 +10,8 @@ import {
   ArrowUpDown, Car, ParkingCircle, Package, Sofa,
   UtensilsCrossed, Wind, Thermometer, Compass, Wrench,
   HardHat, ThumbsUp, Hammer,
-  Wifi, Flame, DoorClosed, ShieldCheck, Tv, PhoneCall, Users, KeyRound, Droplets, Signal, Heart, RefreshCw, Monitor, LockKeyhole, Fence, Fingerprint, Briefcase
+  Wifi, Flame, DoorClosed, ShieldCheck, Tv, PhoneCall, Users, KeyRound, Droplets, Signal, Heart, RefreshCw, Monitor, LockKeyhole, Fence, Fingerprint, Briefcase,
+  Tractor, LayoutGrid, Star
 } from "lucide-react";
 import Layout from "../components/Layout";
 import AIDescriptionModal from '../components/AIDescriptionModal';
@@ -237,7 +238,8 @@ function buildPrefill(a) {
     nb_places_garage:  1,
     duree_type:        "",
     duree_valeur:      "",
-    accompagnement:    false,
+    accompagnement:    a.accompagnement || false,
+    anonyme:           a.anonyme || false,
     jardin:            feat.includes("Jardin"),
     terrasse:          feat.includes("Terrasse"),
     balcon:            feat.includes("Balcon"),
@@ -334,7 +336,7 @@ export const CreateListingForm = ({ editId = null }) => {
     gouvernorat: "", delegation: "", localite: "",
     address: "Tunis, Tunisie", latitude: "36.8065", longitude: "10.1815",
     titre: "", superficie: "", prix: "", devise: "TND", description: "",
-    duree_type: "", duree_valeur: "", accompagnement: false,
+    duree_type: "", duree_valeur: "", accompagnement: false, anonyme: false,
     allImages: [], mainImageIndex: 0
   };
 
@@ -452,7 +454,8 @@ export const CreateListingForm = ({ editId = null }) => {
 
   /* ── Incompatibilités terrain type ↔ vocation (calcul inline, sans toast) ── */
   const TERRAIN_INCOMPATIBILITIES = {
-    agricole:    ["commerciale","industrielle","touristique"],
+    /* agricole → seulement agricole/mixte/non_définie autorisées */
+    agricole:    ["commerciale","industrielle","touristique","residentielle"],
     zone_verte:  ["commerciale","industrielle","residentielle"],
     industriel:  ["agricole","touristique","residentielle"],
     commercial:  ["agricole"],
@@ -465,6 +468,56 @@ export const CreateListingForm = ({ editId = null }) => {
     commercial:"Commercial", lotissement:"Lotissement", nu:"Nu" };
   const vocIncompat = formData.type_bien === "terrain" && formData.type_terrain && formData.vocation_terrain
     && (TERRAIN_INCOMPATIBILITIES[formData.type_terrain] || []).includes(formData.vocation_terrain);
+
+  /* Réinitialiser vocation si incompatible avec type de terrain */
+  useEffect(() => {
+    if (formData.type_terrain === "agricole" &&
+        formData.vocation_terrain &&
+        !["agricole","mixte","non_definie",""].includes(formData.vocation_terrain)) {
+      handleInputChange("vocation_terrain", "");
+    }
+  }, [formData.type_terrain]); // eslint-disable-line
+
+  /* ── Réinitialisation des champs spécifiques quand le type de bien change ── */
+  const prevTypeBienRef = useRef(formData.type_bien);
+  useEffect(() => {
+    const prev = prevTypeBienRef.current;
+    const curr = formData.type_bien;
+    if (prev === curr || !prev) { prevTypeBienRef.current = curr; return; }
+    prevTypeBienRef.current = curr;
+
+    /* Réinitialiser TOUS les champs spécifiques au type précédent */
+    setFormData(f => ({
+      ...f,
+      /* Appartement */
+      type_appartement:  "",
+      etage:             "",
+      /* Villa */
+      type_villa:        "",
+      type_option_villa: "",
+      /* Terrain */
+      type_terrain:      "",
+      titre_foncier:     "",
+      vocation_terrain:  "",
+      /* Communs (remis à 0) */
+      etat_bien:         "",
+      age_bien:          "",
+      nb_pieces:         0,
+      nb_chambres:       0,
+      nb_salles_bain:    0,
+      orientation:       "",
+    }));
+    /* Effacer aussi les erreurs de validation */
+    setValidationErrors({});
+  }, [formData.type_bien]); // eslint-disable-line
+
+  /* Réinitialiser aussi la catégorie si elle devient incompatible */
+  useEffect(() => {
+    const t = formData.type_bien;
+    if ((t === "terrain" || t === "local_commercial") && formData.categorie === "vacances") {
+      setFormData(f => ({ ...f, categorie: "" }));
+    }
+  }, [formData.type_bien]); // eslint-disable-line
 
   const clearFormStorage = () => {
     if (editId) return; // Don't clear storage in edit mode
@@ -662,6 +715,17 @@ export const CreateListingForm = ({ editId = null }) => {
     if (currentStep === 1) {
       if (!formData.type_bien)  errors.type_bien  = true;
       if (!formData.categorie)  errors.categorie  = true;
+      /* Titre foncier obligatoire pour terrain */
+      if (formData.type_bien === "terrain" && !formData.titre_foncier) {
+        errors.titre_foncier = true;
+      }
+      /* Incompatibilité type ↔ vocation bloque le passage */
+      if (vocIncompat) {
+        errors.vocation_terrain = true;
+        setValidationErrors(errors);
+        toast("Incompatibilité ✦ Corrigez le type et la vocation du terrain avant de continuer.", "error");
+        return;
+      }
       if (Object.keys(errors).length > 0) {
         setValidationErrors(errors);
         toast("Champs requis ✦ Veuillez compléter les champs en rouge.", "error");
@@ -677,11 +741,12 @@ export const CreateListingForm = ({ editId = null }) => {
       }
     }
     if (currentStep === 3) {
-      if (!formData.titre.trim())                          errors.titre     = true;
+      if (!formData.titre.trim())                                errors.titre       = true;
       const sup = parseFloat(formData.superficie);
-      if (!formData.superficie || isNaN(sup) || sup <= 0)  errors.superficie = true;
+      if (!formData.superficie || isNaN(sup) || sup <= 0)        errors.superficie  = true;
       const px = parseFloat(formData.prix);
-      if (!formData.prix || isNaN(px) || px <= 0)          errors.prix       = true;
+      if (!formData.prix || isNaN(px) || px <= 0)                errors.prix        = true;
+      if (!formData.description?.trim())                         errors.description = true;
       if (Object.keys(errors).length > 0) {
         setValidationErrors(errors);
         toast("Champs requis ✦ Veuillez compléter les champs en rouge.", "error");
@@ -710,6 +775,9 @@ export const CreateListingForm = ({ editId = null }) => {
     if (!formData.categorie)    { toast("Veuillez sélectionner le type d'offre (étape 1).", "error"); return; }
     if (!formData.titre.trim()) { toast("Veuillez saisir un titre pour l'annonce (étape 3).", "error"); return; }
     if (!hierarchy.gouvernorat) { toast("Veuillez sélectionner un gouvernorat (étape 2).", "error"); return; }
+    if (formData.type_bien === "terrain" && !formData.titre_foncier) {
+      toast("Champ requis ✦ Le titre foncier est obligatoire pour un terrain (étape 1).", "error"); return;
+    }
 
     const prixVal = parseFloat(formData.prix);
     if (!formData.prix || isNaN(prixVal) || prixVal <= 0) {
@@ -778,6 +846,8 @@ export const CreateListingForm = ({ editId = null }) => {
         nb_pieces:         formData.nb_pieces    || null,
         nb_chambres:       formData.nb_chambres  || null,
         nb_salles_bain:    formData.nb_salles_bain || null,
+        anonyme:           formData.anonyme || false,
+        accompagnement:    formData.accompagnement || false,
       };
 
       /* ── EDIT MODE branch ── */
@@ -1026,11 +1096,13 @@ export const CreateListingForm = ({ editId = null }) => {
   ].filter(Boolean);
 
   const TYPE_CARDS = [
-    { value: "appartement",     label: "Appartement",     Ico: Building2,  color: "#3b82f6" },
-    { value: "villa",           label: "Villa/Maison",    Ico: Home,       color: "#10b981" },
-    { value: "terrain",         label: "Terrain",         Ico: Leaf,       color: "#f59e0b" },
-    { value: "local_commercial",label: "Local commercial",Ico: Store,      color: "#f97316" },
-    { value: "bureau",          label: "Bureau",          Ico: Briefcase,  color: "#6366f1" },
+    { value: "appartement",      label: "Appartement",      Ico: Building2,  color: "#3b82f6" },
+    { value: "villa",            label: "Villa/Maison",     Ico: Home,       color: "#10b981" },
+    { value: "terrain",          label: "Terrain",          Ico: Leaf,       color: "#f59e0b" },
+    { value: "local_commercial", label: "Local commercial", Ico: Store,      color: "#f97316" },
+    { value: "bureau",           label: "Bureau",           Ico: Briefcase,  color: "#6366f1" },
+    { value: "ferme",            label: "Ferme",            Ico: Tractor,    color: "#16a34a" },
+    { value: "immobiliers_divers",label:"Immobiliers divers",Ico: LayoutGrid, color: "#6366f1" },
   ];
 
   const ETAT_CARDS = [
@@ -1356,15 +1428,15 @@ export const CreateListingForm = ({ editId = null }) => {
                               </p>
                             )}
                           </div>
-                          <div className="ca-tf-row">
+                          <div className={`ca-tf-row${validationErrors.titre_foncier?" ca-val-group--err":""}`}>
                             <span className="ca-tf-label">Titre foncier</span>
                             <div className="ca-tf-btns">
                               <button type="button"
                                 className={`ca-tf-btn${formData.titre_foncier==="1"?" ca-tf-btn--on":""}`}
-                                onClick={() => handleInputChange("titre_foncier","1")}>Oui</button>
+                                onClick={() => { handleInputChange("titre_foncier","1"); setValidationErrors(v=>({...v,titre_foncier:false})); }}>Oui</button>
                               <button type="button"
                                 className={`ca-tf-btn${formData.titre_foncier==="0"?" ca-tf-btn--on ca-tf-btn--no":""}`}
-                                onClick={() => handleInputChange("titre_foncier","0")}>Non</button>
+                                onClick={() => { handleInputChange("titre_foncier","0"); setValidationErrors(v=>({...v,titre_foncier:false})); }}>Non</button>
                             </div>
                           </div>
                         </div>
@@ -1880,10 +1952,11 @@ export const CreateListingForm = ({ editId = null }) => {
                         </div>
 
                         <div className="ca-desc-wrap ca-desc-wrap--full">
-                          <textarea className="ca-textarea ca-textarea--tall"
-                            placeholder="Décrivez votre bien : luminosité, équipements, quartier, points forts…"
+                          <textarea
+                            className={`ca-textarea ca-textarea--tall${validationErrors.description ? " ca-input--err" : ""}`}
+                            placeholder="Décrivez votre bien : luminosité, équipements, quartier, points forts… (obligatoire)"
                             value={formData.description}
-                            onChange={e => handleInputChange("description", e.target.value)}
+                            onChange={e => { handleInputChange("description", e.target.value); setValidationErrors(v=>({...v,description:false})); }}
                           />
                           {formData.description && (
                             <div className="ca-desc-stats">
@@ -1905,11 +1978,11 @@ export const CreateListingForm = ({ editId = null }) => {
                   <div className="ca-card__head">
                     <Camera size={20} className="ca-card__head-ico"/>
                     <h2 className="ca-card__title">Photos du bien</h2>
-                    <span className="ca-req-hint">{formData.allImages.length}/10 photos</span>
+                    <span className="ca-req-hint">{existingImageUrls.length + formData.allImages.length}/10 photos</span>
                   </div>
 
                   <p className="ca-tip" style={{marginBottom:12}}>
-                    Glissez-déposez vos photos ou cliquez pour sélectionner. Cœur ❤️ pour définir l'image principale.
+                    Glissez-déposez vos photos ou cliquez pour les ajouter. Cliquez sur ⭐ pour définir l'image principale.
                   </p>
                   {/* ── Images existantes (edit mode) ── */}
                   {editId && existingImageUrls.length > 0 && (
@@ -1957,7 +2030,7 @@ export const CreateListingForm = ({ editId = null }) => {
                   )}
 
                   {/* Zone drag-and-drop globale */}
-                  {formData.allImages.length < 10 && (
+                  {(existingImageUrls.length + formData.allImages.length) < 10 && (
                     <div
                       className="ca-img-dnd-zone"
                       onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add("ca-img-dnd-zone--over"); }}
@@ -1966,7 +2039,7 @@ export const CreateListingForm = ({ editId = null }) => {
                         e.preventDefault();
                         e.currentTarget.classList.remove("ca-img-dnd-zone--over");
                         const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith("image/"));
-                        const remaining = 10 - formData.allImages.length;
+                        const remaining = 10 - existingImageUrls.length - formData.allImages.length;
                         const toAdd = files.slice(0, remaining).filter(f => f.size <= 10 * 1024 * 1024);
                         if (files.some(f => f.size > 10 * 1024 * 1024)) toast("Certaines images dépassent 10 MB.", "error");
                         if (toAdd.length > 0) setFormData(prev => ({ ...prev, allImages: [...prev.allImages, ...toAdd] }));
@@ -1976,7 +2049,7 @@ export const CreateListingForm = ({ editId = null }) => {
                       <input id="ca-dnd-input" type="file" accept="image/*" multiple style={{display:"none"}}
                         onChange={e => {
                           const files = Array.from(e.target.files || []);
-                          const remaining = 10 - formData.allImages.length;
+                          const remaining = 10 - existingImageUrls.length - formData.allImages.length;
                           const toAdd = files.slice(0, remaining).filter(f => f.size <= 10 * 1024 * 1024);
                           if (files.some(f => f.size > 10 * 1024 * 1024)) toast("Certaines images dépassent 10 MB.", "error");
                           if (toAdd.length > 0) setFormData(prev => ({ ...prev, allImages: [...prev.allImages, ...toAdd] }));
@@ -1986,7 +2059,7 @@ export const CreateListingForm = ({ editId = null }) => {
                       <Upload size={32} style={{color:"#9ca3af"}}/>
                       <span style={{fontSize:14,fontWeight:600,color:"#374151",marginTop:8}}>Glissez vos photos ici</span>
                       <span style={{fontSize:12,color:"#9ca3af"}}>ou cliquez pour parcourir — JPG, PNG, max 10 MB</span>
-                      <span style={{fontSize:11,color:"#c7d2fe",marginTop:4}}>{formData.allImages.length}/10 photos ajoutées</span>
+                      <span style={{fontSize:11,color:"#c7d2fe",marginTop:4}}>{existingImageUrls.length + formData.allImages.length}/10 photos</span>
                     </div>
                   )}
 
@@ -2006,9 +2079,9 @@ export const CreateListingForm = ({ editId = null }) => {
                             </button>
                             <button type="button"
                               className={`ca-img-btn ca-img-btn--heart${isMain ? " ca-img-btn--heart-on" : ""}`}
-                              title={isMain ? "Image principale" : "Définir comme principale"}
+                              title={isMain ? "Image principale ⭐" : "Définir comme principale"}
                               onClick={() => handleInputChange("mainImageIndex", index)}>
-                              <Heart size={15} fill={isMain ? "#fff" : "none"}/>
+                              <Star size={15} fill={isMain ? "#fff" : "none"}/>
                             </button>
                             <button type="button" className="ca-img-btn ca-img-btn--del"
                               onClick={() => {
@@ -2030,12 +2103,12 @@ export const CreateListingForm = ({ editId = null }) => {
                     })}
 
                     {/* Slot d'ajout supplémentaire si la grille est déjà partiellement remplie */}
-                    {formData.allImages.length > 0 && formData.allImages.length < 10 && (
+                    {formData.allImages.length > 0 && (existingImageUrls.length + formData.allImages.length) < 10 && (
                       <label className="ca-img-add-slot">
                         <input type="file" accept="image/*" multiple style={{display:"none"}}
                           onChange={e => {
                             const files = Array.from(e.target.files || []);
-                            const remaining = 10 - formData.allImages.length;
+                            const remaining = 10 - existingImageUrls.length - formData.allImages.length;
                             const toAdd = files.slice(0, remaining).filter(f => f.size <= 10 * 1024 * 1024);
                             if (toAdd.length > 0) setFormData(prev => ({ ...prev, allImages: [...prev.allImages, ...toAdd] }));
                             e.target.value = "";
@@ -2047,19 +2120,97 @@ export const CreateListingForm = ({ editId = null }) => {
                     )}
                   </div>
 
-                  <p className="ca-tip" style={{marginTop:14}}>
-                    Ajoutez jusqu'à 10 photos. La photo avec ⭐ sera l'image principale visible sur les annonces.
-                  </p>
+
+                  {/* ── Publication anonyme / identité visible ── */}
+                  {(() => {
+                    const storedUser = (() => { try { return JSON.parse(localStorage.getItem("user")); } catch { return null; } })();
+                    const avatar     = storedUser?.profile_picture;
+                    const pseudo     = storedUser?.username || "Utilisateur";
+                    return (
+                      <div className="ca-anon-toggle" style={{marginTop:20}}>
+                        <div className="ca-anon-toggle__inner">
+                          {/* Aperçu identité — change au switch */}
+                          <div style={{display:"flex", alignItems:"center", gap:12, flex:1}}>
+                            {formData.anonyme ? (
+                              /* Avatar anonyme */
+                              <div style={{
+                                width:42,height:42,borderRadius:"50%",flexShrink:0,
+                                background:"linear-gradient(135deg,#94a3b8,#64748b)",
+                                display:"flex",alignItems:"center",justifyContent:"center",
+                                border:"2px solid #e2e8f0"
+                              }}>
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                  <circle cx="12" cy="7" r="4"/>
+                                </svg>
+                              </div>
+                            ) : avatar ? (
+                              <img src={avatar.startsWith("http") ? avatar : `${API_URL}${avatar}`}
+                                alt="" style={{width:42,height:42,borderRadius:"50%",objectFit:"cover",flexShrink:0,border:"2px solid #e2e8f0"}}/>
+                            ) : (
+                              <div style={{
+                                width:42,height:42,borderRadius:"50%",flexShrink:0,
+                                background:"linear-gradient(135deg,#6366f1,#818cf8)",
+                                display:"flex",alignItems:"center",justifyContent:"center",
+                                border:"2px solid #e2e8f0",
+                                fontSize:18,fontWeight:800,color:"#fff"
+                              }}>{pseudo[0].toUpperCase()}</div>
+                            )}
+                            <div className="ca-anon-toggle__text">
+                              <span className="ca-anon-toggle__title">
+                                {formData.anonyme ? "Membre anonyme" : pseudo}
+                              </span>
+                              <span className="ca-anon-toggle__sub">
+                                {formData.anonyme
+                                  ? "Identité masquée — les visiteurs pourront vous envoyer une notification"
+                                  : "Votre nom et coordonnées seront visibles dans l'annonce"}
+                              </span>
+                            </div>
+                          </div>
+                          <div style={{display:"flex", alignItems:"center", gap:8, flexShrink:0}}>
+                            <span style={{
+                              fontSize:12.5, fontWeight:700,
+                              color: formData.anonyme ? "#16a34a" : "#94a3b8",
+                              transition:"color .2s", minWidth:24
+                            }}>
+                              {formData.anonyme ? "Oui" : "Non"}
+                            </span>
+                            <label className="ca-anon-sw">
+                              <input type="checkbox" checked={formData.anonyme||false}
+                                onChange={e => handleInputChange("anonyme", e.target.checked)}/>
+                              <span className="ca-anon-sw__track"/>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* ── Accompagnement checkbox ── */}
-                  <div className="ca-accom-check" style={{marginTop:28}}>
-                    <label className="ca-accom-check__label">
-                      <input type="checkbox" className="ca-accom-check__input"
-                        checked={formData.accompagnement || false}
-                        onChange={e => handleInputChange("accompagnement", e.target.checked)}/>
-                      <Sparkles size={14} className="ca-accom-check__ico"/>
-                      <span>Je souhaite être accompagné(e) par un professionnel de l'immobilier dans la transaction du bien immobilier (achat / vente / location)</span>
-                    </label>
+                  {/* ── Accompagnement — switch identique à anonyme ── */}
+                  <div className="ca-anon-toggle" style={{marginTop:16}}>
+                    <div className="ca-anon-toggle__inner">
+                      <div className="ca-anon-toggle__text">
+                        <span className="ca-anon-toggle__title">Je souhaite être accompagné(e)</span>
+                        <span className="ca-anon-toggle__sub">
+                          par un professionnel de l'immobilier dans la transaction du bien immobilier (achat / vente / location)
+                        </span>
+                      </div>
+                      <div style={{display:"flex", alignItems:"center", gap:8, flexShrink:0}}>
+                        <span style={{
+                          fontSize:12.5, fontWeight:700,
+                          color: formData.accompagnement ? "#16a34a" : "#94a3b8",
+                          transition:"color .2s", minWidth:24
+                        }}>
+                          {formData.accompagnement ? "Oui" : "Non"}
+                        </span>
+                        <label className="ca-anon-sw">
+                          <input type="checkbox" checked={formData.accompagnement || false}
+                            onChange={e => handleInputChange("accompagnement", e.target.checked)}/>
+                          <span className="ca-anon-sw__track"/>
+                        </label>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -2500,6 +2651,27 @@ export const CreateListingForm = ({ editId = null }) => {
           .ca-orient-btn--on { background: #6366f1; color: #fff; border-color: #6366f1; box-shadow: 0 2px 8px rgba(99,102,241,.3); }
 
           /* Accompagnement checkbox */
+          /* ── Toggle anonyme ── */
+          .ca-anon-toggle { border:1.5px solid #e0e7ff; border-radius:12px; background:#f8f9ff; }
+          .ca-anon-toggle__inner { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 16px; }
+          .ca-anon-toggle__text { display:flex; flex-direction:column; gap:3px; flex:1; }
+          .ca-anon-toggle__title { font-size:14px; font-weight:700; color:#0f172a; }
+          .ca-anon-toggle__sub   { font-size:12.5px; color:#64748b; line-height:1.4; }
+          .ca-anon-sw { position:relative; display:inline-block; width:44px; height:24px; flex-shrink:0; cursor:pointer; }
+          .ca-anon-sw input { opacity:0; width:0; height:0; }
+          .ca-anon-sw__track {
+            position:absolute; inset:0; border-radius:24px;
+            background:#d1d5db; transition:background .2s;
+          }
+          .ca-anon-sw__track::before {
+            content:""; position:absolute; width:18px; height:18px;
+            left:3px; bottom:3px; border-radius:50%;
+            background:#fff; transition:transform .2s;
+            box-shadow:0 1px 4px rgba(0,0,0,.2);
+          }
+          .ca-anon-sw input:checked + .ca-anon-sw__track { background:#6366f1; }
+          .ca-anon-sw input:checked + .ca-anon-sw__track::before { transform:translateX(20px); }
+
           .ca-accom-check {
             padding: 14px 16px;
             background: linear-gradient(135deg, #eef2ff, #f5f3ff);
@@ -3094,9 +3266,9 @@ export const CreateListingForm = ({ editId = null }) => {
           }
           .ca-img-uni-card .ca-img-overlay { opacity: 0; }
           .ca-img-uni-card:hover .ca-img-overlay { opacity: 1; }
-          .ca-img-btn--heart { background: rgba(255,255,255,.85); color: #374151; }
-          .ca-img-btn--heart:hover { background: #f43f5e; color: #fff; }
-          .ca-img-btn--heart-on { background: #f43f5e !important; color: #fff !important; }
+          .ca-img-btn--heart { background: rgba(255,255,255,.85); color: #92400e; }
+          .ca-img-btn--heart:hover { background: #f59e0b; color: #fff; }
+          .ca-img-btn--heart-on { background: #f59e0b !important; color: #fff !important; }
           /* ── Drag & Drop zone ── */
           .ca-img-dnd-zone {
             display: flex; flex-direction: column; align-items: center; justify-content: center;

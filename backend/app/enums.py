@@ -14,14 +14,18 @@ class CategorieEnum(str, enum.Enum):
     vacances = "vacances"
 
 class TypeBienEnum(str, enum.Enum):
+    # NOTE: PostgreSQL migration needed:
+    #   ALTER TYPE typebienum ADD VALUE 'villa_maison';
+    #   ALTER TYPE typebienum ADD VALUE 'immobiliers_divers';
+    #   (bord_eau and maison kept in DB for backward compat, but new entries use villa_maison/immobiliers_divers)
     appartement = "appartement"
-    maison = "maison"
     villa = "villa"
+    villa_maison = "villa_maison"
     bureau = "bureau"
     local_commercial = "local_commercial"
     terrain = "terrain"
     ferme = "ferme"
-    bord_eau = "bord_eau"
+    immobiliers_divers = "immobiliers_divers"
 
 class EtatBienEnum(str, enum.Enum):
     nouveau = "nouveau"

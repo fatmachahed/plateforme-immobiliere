@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Search, Menu, X, User, LogIn, UserPlus, LogOut,
   LayoutDashboard, Zap, ChevronDown, ChevronRight, Map, Heart, Globe,
-  Home, Key, Umbrella, Phone, PlusCircle
+  Home, Key, Umbrella, Phone, PlusCircle, Bell
 } from "lucide-react";
+import API_URL from "../config";
 import { useLanguage } from "../contexts/LanguageContext";
 import Logo from "./Logo";
 
@@ -25,10 +26,31 @@ export default function Navbar() {
   const profileRef = useRef(null);
   const location   = useLocation();
   const { lang, toggleLang, t } = useLanguage();
+  const navigate = useNavigate();
 
   const user = (() => {
     try { return JSON.parse(localStorage.getItem("user")); } catch { return null; }
   })();
+
+  /* ── Badge notifications : demandes de contact non lues ── */
+  const [unreadCount, setUnreadCount] = useState(0);
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    const load = () => {
+      fetch(`${API_URL}/users/me/contact-requests`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then(r => r.ok ? r.json() : [])
+        .then(data => {
+          if (Array.isArray(data)) setUnreadCount(data.filter(r => !r.lu).length);
+        })
+        .catch(() => {});
+    };
+    load();
+    const interval = setInterval(load, 60000); // refresh toutes les 60s
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 12);
@@ -107,6 +129,16 @@ export default function Navbar() {
               + Publier annonce
             </Link>
 
+            {/* ── Bell notification (demandes de contact anonyme) ── */}
+            {user && (
+              <Link to="/dashboard?tab=contacts" className="lz-nav__bell lz-nav__desktop-only" title="Demandes de contact">
+                <Bell size={18}/>
+                {unreadCount > 0 && (
+                  <span className="lz-nav__bell-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
+                )}
+              </Link>
+            )}
+
             {/* Profile dropdown — hidden on mobile */}
             <div className="lz-nav__profile lz-nav__desktop-only" ref={profileRef}>
               <button
@@ -175,8 +207,10 @@ export default function Navbar() {
                 value={searchVal}
                 onChange={(e) => setSearchVal(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && searchVal.trim())
-                    window.location.href = `/carte?q=${encodeURIComponent(searchVal)}`;
+                  if (e.key === "Enter" && searchVal.trim()) {
+                    navigate(`/carte?q=${encodeURIComponent(searchVal.trim())}`);
+                    setSearchOpen(false);
+                  }
                 }}
                 className="lz-nav__search-inp"
               />
@@ -185,6 +219,20 @@ export default function Navbar() {
                   <X size={15} />
                 </button>
               )}
+              <button
+                onClick={() => {
+                  if (searchVal.trim()) {
+                    navigate(`/carte?q=${encodeURIComponent(searchVal.trim())}`);
+                    setSearchOpen(false);
+                  }
+                }}
+                style={{ display:"flex", alignItems:"center", justifyContent:"center",
+                  padding:"6px 14px", marginLeft:4, borderRadius:20, border:"none",
+                  background:"#f59e0b", color:"#fff", fontWeight:700, fontSize:13,
+                  cursor:"pointer", fontFamily:"inherit", flexShrink:0, whiteSpace:"nowrap" }}
+              >
+                Rechercher
+              </button>
             </div>
           </div>
         )}
@@ -296,6 +344,21 @@ export default function Navbar() {
         .lz-nav__icon-btn:hover { background: var(--bg); color: var(--text-primary); }
 
         /* ── Profile dropdown ── */
+        /* Bell notification */
+        .lz-nav__bell {
+          position: relative; display: flex; align-items: center; justify-content: center;
+          width: 38px; height: 38px; border-radius: 10px;
+          color: #64748b; text-decoration: none; transition: all .15s;
+          border: 1.5px solid transparent;
+        }
+        .lz-nav__bell:hover { background: #f1f5f9; color: #0f172a; border-color: #e2e8f0; }
+        .lz-nav__bell-badge {
+          position: absolute; top: -4px; right: -4px;
+          background: #ef4444; color: #fff; border-radius: 10px;
+          font-size: 9px; font-weight: 800; padding: 1px 5px;
+          border: 2px solid #fff; min-width: 16px; text-align: center; line-height: 1.4;
+        }
+
         .lz-nav__profile { position: relative; }
         .lz-nav__profile-btn {
           display: flex; align-items: center; gap: 6px;

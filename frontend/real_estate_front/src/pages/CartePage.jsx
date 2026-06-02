@@ -1,10 +1,15 @@
 ﻿import React, { useState, useEffect, useRef, useCallback } from "react";
+import ReactDOM from "react-dom";
 import API_URL from '../config';
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Search, ChevronLeft, ChevronRight, Bed, Bath, Maximize,
   MapPin, Heart, X, SlidersHorizontal, Star, School, Moon,
-  ChevronDown, Loader2, LayoutList, Map as MapIcon
+  ChevronDown, Loader2, LayoutList, Map as MapIcon,
+  Waves, Mountain, TreePine, Fence, Sun, Flower2, Droplets, ParkingCircle,
+  ArrowUpDown, Car, Package, Sofa, Users, ShieldCheck,
+  UtensilsCrossed, Wind, Thermometer, Flame, DoorClosed, LockKeyhole,
+  Fingerprint, Wifi, Monitor, RefreshCw, KeyRound, PhoneCall, Check
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import useLocalisation from "../hooks/useLocalisation";
@@ -54,6 +59,30 @@ const DEMO = [
   { id:38, titre:"Chalet balnéaire — Kelibia",       prix:2800,    devise:"TND/semaine",gouvernorat:"Nabeul",    delegation:"Kelibia",          localite:"Kelibia Plage",  beds:3, baths:2, area:120,  type:"bord_eau",    categorie:"vacances", etat:"bon_etat",   titre_foncier:false, boost:3, lat:36.842, lng:11.103, images:["https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?w=600&q=75"] },
 ];
 
+/* ─────────────────────────────────────────────────────────────
+   POI ICON HELPER — circular divIcon markers
+───────────────────────────────────────────────────────────── */
+const makePOIIcon = (L, color, svgPath) => L.divIcon({
+  className: '',
+  html: `<div style="
+    width:28px; height:28px; border-radius:50%;
+    background:${color}; border:2px solid #fff;
+    box-shadow:0 2px 6px rgba(0,0,0,.3);
+    display:flex; align-items:center; justify-content:center;
+  ">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      ${svgPath}
+    </svg>
+  </div>`,
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
+});
+
+const SCHOOL_SVG   = '<path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>';
+const MOSQUE_SVG   = '<path d="M12 2a4 4 0 0 1 4 4v2h2a2 2 0 0 1 2 2v1H4v-1a2 2 0 0 1 2-2h2V6a4 4 0 0 1 4-4z"/><rect x="4" y="11" width="16" height="9" rx="2"/>';
+const FACULTY_SVG  = '<rect x="4" y="10" width="16" height="11" rx="1"/><path d="M4 10L12 3l8 7"/><line x1="9" y1="21" x2="9" y2="10"/><line x1="15" y1="21" x2="15" y2="10"/>';
+const SURFACE_SVG  = '<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>';
+
 /* POIs — Écoles & Mosquées (démo) */
 const SCHOOLS = [
   { id:"sc1", nom:"Lycée Pilote de Tunis",        lat:36.821, lng:10.159, gov:"Tunis"   },
@@ -89,11 +118,11 @@ const MOSQUES = [
   { id:"mo14",nom:"Mosquée Kairouan Okba",         lat:35.681, lng:10.098, gov:"Kairouan"},
 ];
 
-const TYPES    = ["appartement","villa","terrain","bureau","ferme","local_commercial","bord_eau"];
+const TYPES    = ["appartement","villa_maison","terrain","bureau","ferme","local_commercial","immobiliers_divers"];
 const TYPE_LBL = {
-  appartement:"Appartement", villa:"Villa", terrain:"Terrain",
+  appartement:"Appartement", villa:"Villa", villa_maison:"Villa/Maison", terrain:"Terrain",
   bureau:"Bureau", ferme:"Ferme", local_commercial:"Local commercial",
-  bord_eau:"Bord d'eau 🌊",
+  immobiliers_divers:"Immobiliers divers",
 };
 const ETATS    = ["nouveau","bon_etat","a_renover","cours_construction"];
 const ETAT_LBL = { nouveau:"Neuf", bon_etat:"Bon état", a_renover:"À rénover", cours_construction:"En construction" };
@@ -180,8 +209,51 @@ function PriceEvalBar({ prixM2, govStats }) {
 
 /* ─── Carte de bien ─── */
 function PropCard({ p, active, onHover, onClick, govMarketStats }) {
-  const prixM2   = (p.prix > 0 && p.area > 0 && p.categorie === "vente") ? p.prix / p.area : null;
+  const prixM2   = (p.prix > 0 && p.area > 0) ? p.prix / p.area : null;
   const govStats = govMarketStats?.[p.gouvernorat] || null;
+
+  /* ── Favoris ── */
+  const [isFav, setIsFav] = React.useState(() => {
+    try { return JSON.parse(localStorage.getItem("localizi_favs")||"[]").includes(p.id); } catch { return false; }
+  });
+
+  const toggleFav = async (e) => {
+    e.stopPropagation();
+    const token = localStorage.getItem("token");
+    if (!token) {
+      window.location.href = `/login?redirect=/carte`;
+      return;
+    }
+    /* Snapshot de l'état AVANT l'action */
+    const wasOn = isFav;
+    const method = wasOn ? "DELETE" : "POST";
+    const url    = `${API_URL}/users/me/favoris/${p.id}`;
+
+    /* Mise à jour visuelle immédiate */
+    setIsFav(!wasOn);
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        /* Persister en localStorage */
+        try {
+          const favs = JSON.parse(localStorage.getItem("localizi_favs")||"[]");
+          const updated = !wasOn
+            ? [...new Set([...favs, p.id])]
+            : favs.filter(id => String(id) !== String(p.id));
+          localStorage.setItem("localizi_favs", JSON.stringify(updated));
+        } catch {}
+      } else {
+        /* Rollback propre */
+        setIsFav(wasOn);
+      }
+    } catch {
+      setIsFav(wasOn);
+    }
+  };
 
   return (
     <div className={`pc${active?" pc--active":""}`}
@@ -190,7 +262,6 @@ function PropCard({ p, active, onHover, onClick, govMarketStats }) {
     >
       <div style={{ position:"relative" }}>
         <Carousel images={p.images} />
-{/* boost badge removed */}
         <span className={`pc__cat-badge pc__cat-badge--${p.categorie}`}>{CAT_LBL[p.categorie]}</span>
       </div>
       <div className="pc__body">
@@ -199,12 +270,16 @@ function PropCard({ p, active, onHover, onClick, govMarketStats }) {
             <p className="pc__price">{fmtFull(p.prix)} <span className="pc__devise">{p.devise}</span></p>
             <p className="pc__title">{p.titre}</p>
           </div>
-          <button className="pc__fav" onClick={(e)=>e.stopPropagation()}><Heart size={14}/></button>
+          <button
+            className={`pc__fav${isFav ? " pc__fav--on" : ""}`}
+            onClick={toggleFav}
+            title={isFav ? "Retirer des favoris" : "Ajouter aux favoris"}
+          >
+            <Heart size={14} fill={isFav ? "#ef4444" : "none"}/>
+          </button>
         </div>
-        {/* Barre d'évaluation prix (vente uniquement — toujours affichée) */}
-        {p.categorie === "vente" && (
-          <PriceEvalBar prixM2={prixM2} govStats={govStats} />
-        )}
+        {/* Barre d'évaluation prix — toujours affichée */}
+        <PriceEvalBar prixM2={prixM2} govStats={govStats} />
         <p className="pc__loc"><MapPin size={10}/> {p.delegation} · {p.localite}</p>
         <div className="pc__specs">
           {p.beds  != null && <span><Bed      size={11}/> {p.beds} ch.</span>}
@@ -217,21 +292,44 @@ function PropCard({ p, active, onHover, onClick, govMarketStats }) {
 }
 
 /* ─── Carte Leaflet ─── */
-function PropertyMap({ properties, activeId, selectedGov, onPinClick, onBoundsChange, showSchools, showMosques, showFaculties, liveSchools = [], liveMosques = [], liveFaculties = [] }) {
-  const containerRef = useRef(null);
-  const mapRef       = useRef(null);
-  const markersRef   = useRef({});
-  const geoLayerRef  = useRef(null);
-  const poiLayersRef = useRef({ schools: [], mosques: [], faculties: [] });
-  const prevGov      = useRef(null);
+function PropertyMap({ properties, activeId, selectedGov, onPinClick, onBoundsChange, showSchools, showMosques, showFaculties, showGrandSurfaces, liveSchools = [], liveMosques = [], liveFaculties = [], liveGrandSurfaces = [], onPinHover }) {
+  const containerRef    = useRef(null);
+  const mapRef          = useRef(null);
+  const markersRef      = useRef({});
+  const geoLayerRef     = useRef(null);
+  const poiLayersRef    = useRef({ schools: [], mosques: [], faculties: [], grandSurfaces: [] });
+  const prevGov         = useRef(null);
+  const hoverTimerRef   = useRef(null);
+  const selectedGovRef  = useRef(selectedGov);
+  /* Ref vers onPinHover — toujours à jour, évite les closures stales dans drawPins */
+  const onPinHoverRef   = useRef(onPinHover);
+  useEffect(() => { selectedGovRef.current = selectedGov; }, [selectedGov]);
+  useEffect(() => { onPinHoverRef.current  = onPinHover;  }, [onPinHover]);
+
+  const drawBoundary = useCallback(async (L, map, gov) => {
+    if (geoLayerRef.current) { geoLayerRef.current.remove(); geoLayerRef.current = null; }
+    if (!gov) { map.setView([34.5,9.5], 6); return; }
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent("gouvernorat "+gov+", Tunisie")}&format=geojson&polygon_geojson=1&countrycodes=tn&limit=1`,
+        { headers:{ "Accept-Language":"fr", "User-Agent":"Localizi/1.0" } }
+      );
+      const gj = await res.json();
+      if (!gj.features?.length) return;
+      geoLayerRef.current = L.geoJSON(gj.features[0], {
+        style: { color:"#7c1a2e", weight:1.2, fillColor:"#9b2335", fillOpacity:0.13, dashArray:"none" }
+      }).addTo(map);
+      map.fitBounds(geoLayerRef.current.getBounds(), { padding:[40,40], maxZoom:12 });
+    } catch { /* silencieux */ }
+  }, []);
 
   const drawPins = useCallback((L, map, props, active) => {
     Object.values(markersRef.current).forEach((m) => m.remove());
     markersRef.current = {};
-    props.forEach((p) => {
-      if (!p.lat || !p.lng) return;
+
+    // Helper: add a single pin with hover popup
+    const addSinglePin = (p) => {
       const isA    = active === p.id;
-      /* Couleur par catégorie */
       const catCls = p.categorie ? `pin-dot--${p.categorie}` : "pin-dot--std";
       const cls    = `pin-dot ${catCls}${isA ? " pin-dot--active" : ""}`;
       const icon = L.divIcon({
@@ -241,7 +339,148 @@ function PropertyMap({ properties, activeId, selectedGov, onPinClick, onBoundsCh
       });
       const m = L.marker([p.lat, p.lng], { icon }).addTo(map);
       m.on("click", () => onPinClick(p.id));
+
+      /* Hover via onPinHoverRef — jamais stale, disparaît immédiatement */
+      m.on('mouseover', (e) => {
+        clearTimeout(hoverTimerRef.current);
+        const mapEl = e.originalEvent?.target?.closest?.(".leaflet-container");
+        const rect  = mapEl ? mapEl.getBoundingClientRect() : { left:0, top:0 };
+        const px = e.originalEvent.clientX - rect.left;
+        const py = e.originalEvent.clientY - rect.top;
+        onPinHoverRef.current?.({ ...p, _px: px, _py: py });
+      });
+      m.on('mouseout', () => {
+        /* Petit délai (40ms) pour éviter le clignotement inter-pins, mais disparaît vite */
+        hoverTimerRef.current = setTimeout(() => onPinHoverRef.current?.(null), 40);
+      });
+
       markersRef.current[p.id] = m;
+    };
+
+    // Group pins by exact lat/lng for clustering
+    const grouped = {};
+    props.forEach(p => {
+      if (!p.lat || !p.lng) return;
+      const key = `${p.lat}_${p.lng}`;
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(p);
+    });
+
+    Object.values(grouped).forEach(group => {
+      if (group.length === 1) {
+        addSinglePin(group[0]);
+      } else {
+        // Cluster pin — couleur selon catégorie dominante
+        const cluster = group[0];
+        const count = group.length;
+        // Catégorie dominante (plus fréquente dans le groupe)
+        const catCount = {};
+        group.forEach(p => { catCount[p.categorie||"std"] = (catCount[p.categorie||"std"]||0)+1; });
+        const dominantCat = Object.entries(catCount).sort((a,b)=>b[1]-a[1])[0][0];
+        const clusterColor = dominantCat === "vente" ? "#4f46e5"
+          : dominantCat === "location" ? "#16a34a"
+          : dominantCat === "vacances" ? "#f59e0b"
+          : "#9b1c2e";
+        const clusterHtml = `
+          <div style="
+            display:inline-flex; align-items:center; gap:5px;
+            background:${clusterColor}; color:#fff;
+            border-radius:16px; padding:5px 10px 5px 8px;
+            border:2.5px solid #fff;
+            box-shadow:0 3px 10px rgba(0,0,0,.30);
+            white-space:nowrap; cursor:pointer;
+            font-family:system-ui,sans-serif;
+          ">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="white" stroke="none">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+              <polyline points="9 22 9 12 15 12 15 22" stroke="white" stroke-width="2" fill="none"/>
+            </svg>
+            <span style="font-size:12px;font-weight:700;line-height:1;">${count}</span>
+          </div>
+        `;
+        const clusterIcon = L.divIcon({
+          className: '',
+          html: clusterHtml,
+          iconSize: null,
+          iconAnchor: [0, 0],
+        });
+
+        const marker = L.marker([cluster.lat, cluster.lng], { icon: clusterIcon }).addTo(map);
+
+        /* ── Popup cluster : image GAUCHE, texte DROITE, navigation stable ── */
+        let currentIdx = 0;
+        const catColor = { vente:"#4f46e5", location:"#16a34a", vacances:"#f59e0b" };
+        const catLabel = { vente:"Vente", location:"Location", vacances:"Vacances" };
+
+        const buildPopup = () => {
+          const pin = group[currentIdx];
+          const img = (pin.images && pin.images[0]) || "";
+          const cc  = catColor[pin.categorie] || "#475569";
+          const cl  = catLabel[pin.categorie] || pin.categorie || "";
+          return `
+            <div style="width:420px;font-family:system-ui,sans-serif;display:flex;overflow:hidden;min-height:170px;">
+              <!-- Image GAUCHE -->
+              <div style="width:170px;flex-shrink:0;position:relative;background:#f1f5f9;overflow:hidden;">
+                ${img
+                  ? `<img src="${img}" style="width:100%;height:100%;object-fit:cover;display:block;"
+                       onerror="this.src='https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400&q=60'"/>`
+                  : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:40px;">🏠</div>`
+                }
+                <span style="position:absolute;bottom:8px;left:8px;background:${cc};color:#fff;
+                  font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:16px;">${cl}</span>
+              </div>
+              <!-- Texte DROITE -->
+              <div style="flex:1;padding:14px 16px 12px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;">
+                <!-- Titre + prix -->
+                <div>
+                  <div style="font-size:13.5px;font-weight:800;color:#0f172a;margin-bottom:6px;line-height:1.3;
+                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                    ${pin.titre || "Bien immobilier"}
+                  </div>
+                  <div style="font-size:17px;font-weight:900;color:${cc};margin-bottom:7px;">
+                    ${(pin.prix||0).toLocaleString("fr-TN")}
+                    <span style="font-size:11.5px;font-weight:600;color:#64748b;margin-left:3px;">${pin.devise||"DT"}</span>
+                  </div>
+                  <div style="display:flex;gap:10px;font-size:12px;color:#64748b;flex-wrap:wrap;">
+                    ${pin.area  ? `<span>📐 ${pin.area} m²</span>` : ""}
+                    ${pin.beds  != null ? `<span>🛏 ${pin.beds}</span>` : ""}
+                    ${pin.baths != null ? `<span>🚿 ${pin.baths}</span>` : ""}
+                  </div>
+                  ${pin.delegation ? `<div style="font-size:11px;color:#94a3b8;margin-top:5px;">📍 ${pin.delegation}</div>` : ""}
+                </div>
+                <!-- Navigation -->
+                ${count > 1 ? `
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:8px;border-top:1px solid #f1f5f9;">
+                    <button onclick="event.stopPropagation();window._clPrev_${cluster.lat.toFixed(5).replace('.','_')}()"
+                      style="width:32px;height:32px;border-radius:50%;border:1.5px solid #e5e7eb;
+                        background:#fff;cursor:pointer;font-size:18px;font-weight:700;
+                        display:flex;align-items:center;justify-content:center;line-height:1;">‹</button>
+                    <span style="font-size:11.5px;color:#64748b;font-weight:600;">${currentIdx+1} / ${count}</span>
+                    <button onclick="event.stopPropagation();window._clNext_${cluster.lat.toFixed(5).replace('.','_')}()"
+                      style="width:32px;height:32px;border-radius:50%;border:1.5px solid #e5e7eb;
+                        background:#fff;cursor:pointer;font-size:18px;font-weight:700;
+                        display:flex;align-items:center;justify-content:center;line-height:1;">›</button>
+                  </div>
+                ` : ""}
+              </div>
+            </div>
+          `;
+        };
+
+        const clKey = cluster.lat.toFixed(5).replace('.','_');
+        window[`_clPrev_${clKey}`] = () => { currentIdx=(currentIdx-1+count)%count; marker.setPopupContent(buildPopup()); };
+        window[`_clNext_${clKey}`] = () => { currentIdx=(currentIdx+1)%count;       marker.setPopupContent(buildPopup()); };
+
+        marker.bindPopup(buildPopup(), {
+          maxWidth:440, closeButton:true, className:"cluster-popup",
+          offset:L.point(0,-12), autoPan:true,
+        });
+        /* stopPropagation → empêche map.click de fermer le popup */
+        marker.on("click", (e) => { L.DomEvent.stopPropagation(e); marker.openPopup(); });
+
+        // Store under a cluster key
+        markersRef.current[`cluster_${cluster.lat}_${cluster.lng}`] = marker;
+      }
     });
   }, [onPinClick]);
 
@@ -261,6 +500,12 @@ function PropertyMap({ properties, activeId, selectedGov, onPinClick, onBoundsCh
       setTimeout(()=>map.invalidateSize(), 80);
       drawPins(L, map, properties, activeId);
 
+      /* Si un gouvernorat est déjà sélectionné au montage (ex: URL homepage), dessiner la limite */
+      if (selectedGovRef.current) {
+        prevGov.current = selectedGovRef.current;
+        drawBoundary(L, map, selectedGovRef.current);
+      }
+
       /* ── Mise à jour de la liste au zoom/déplacement ── */
       const emitBounds = () => {
         if (onBoundsChange) onBoundsChange(map.getBounds());
@@ -276,44 +521,15 @@ function PropertyMap({ properties, activeId, selectedGov, onPinClick, onBoundsCh
     import("leaflet").then(({default:L}) => drawPins(L, mapRef.current, properties, activeId));
   }, [properties, activeId, drawPins]);
 
-  /* zoom région + GeoJSON polygon */
+  /* zoom région + GeoJSON polygon — fires on mount and whenever selectedGov changes */
   useEffect(() => {
     if (!mapRef.current || selectedGov === prevGov.current) return;
     prevGov.current = selectedGov;
-
-    import("leaflet").then(async ({default:L}) => {
-      const map = mapRef.current;
-      if (!map) return;
-
-      if (geoLayerRef.current) { geoLayerRef.current.remove(); geoLayerRef.current = null; }
-
-      if (!selectedGov) {
-        map.setView([34.5,9.5], 6);
-        return;
-      }
-
-      try {
-        const res  = await fetch(
-          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent("gouvernorat "+selectedGov+", Tunisie")}&format=geojson&polygon_geojson=1&countrycodes=tn&limit=1`,
-          { headers:{ "Accept-Language":"fr", "User-Agent":"Localizi/1.0" } }
-        );
-        const gj = await res.json();
-        if (!gj.features?.length) return;
-
-        geoLayerRef.current = L.geoJSON(gj.features[0], {
-          style: {
-            color:       "#7c1a2e",
-            weight:      1.2,
-            fillColor:   "#9b2335",
-            fillOpacity: 0.13,
-            dashArray:   "none",
-          }
-        }).addTo(map);
-
-        map.fitBounds(geoLayerRef.current.getBounds(), { padding:[40,40], maxZoom:12 });
-      } catch { /* silencieux */ }
+    import("leaflet").then(({default:L}) => {
+      if (!mapRef.current) return;
+      drawBoundary(L, mapRef.current, selectedGov);
     });
-  }, [selectedGov]);
+  }, [selectedGov, drawBoundary]);
 
   /* POIs écoles */
   useEffect(() => {
@@ -326,12 +542,8 @@ function PropertyMap({ properties, activeId, selectedGov, onPinClick, onBoundsCh
       const src = liveSchools.length > 0
         ? liveSchools
         : (selectedGov ? SCHOOLS.filter(s=>s.gov===selectedGov) : SCHOOLS);
+      const icon = makePOIIcon(L, "#3b82f6", SCHOOL_SVG);
       src.forEach(s=>{
-        const icon = L.divIcon({
-          className:"",
-          html:`<div class="poi-icon poi-icon--school" title="${s.nom}"><span>🏫</span></div>`,
-          iconSize:[28,28], iconAnchor:[14,14],
-        });
         poiLayersRef.current.schools.push(L.marker([s.lat,s.lng],{icon}).addTo(mapRef.current)
           .bindPopup(`<b>École</b><br>${s.nom}`));
       });
@@ -349,12 +561,8 @@ function PropertyMap({ properties, activeId, selectedGov, onPinClick, onBoundsCh
       const src = liveMosques.length > 0
         ? liveMosques
         : (selectedGov ? MOSQUES.filter(m=>m.gov===selectedGov) : MOSQUES);
+      const icon = makePOIIcon(L, "#16a34a", MOSQUE_SVG);
       src.forEach(s=>{
-        const icon = L.divIcon({
-          className:"",
-          html:`<div class="poi-icon poi-icon--mosque" title="${s.nom}"><span>🕌</span></div>`,
-          iconSize:[28,28], iconAnchor:[14,14],
-        });
         poiLayersRef.current.mosques.push(L.marker([s.lat,s.lng],{icon}).addTo(mapRef.current)
           .bindPopup(`<b>Mosquée</b><br>${s.nom}`));
       });
@@ -368,17 +576,28 @@ function PropertyMap({ properties, activeId, selectedGov, onPinClick, onBoundsCh
       poiLayersRef.current.faculties.forEach(m=>m.remove());
       poiLayersRef.current.faculties = [];
       if (!showFaculties) return;
+      const icon = makePOIIcon(L, "#7c3aed", FACULTY_SVG);
       liveFaculties.forEach(s=>{
-        const icon = L.divIcon({
-          className:"",
-          html:`<div class="poi-icon poi-icon--faculty" title="${s.nom}"><span>🎓</span></div>`,
-          iconSize:[28,28], iconAnchor:[14,14],
-        });
         poiLayersRef.current.faculties.push(L.marker([s.lat,s.lng],{icon}).addTo(mapRef.current)
           .bindPopup(`<b>Faculté / Université</b><br>${s.nom}`));
       });
     });
   }, [showFaculties, liveFaculties]);
+
+  /* POIs grandes surfaces */
+  useEffect(() => {
+    if (!mapRef.current) return;
+    import("leaflet").then(({default:L}) => {
+      poiLayersRef.current.grandSurfaces.forEach(m=>m.remove());
+      poiLayersRef.current.grandSurfaces = [];
+      if (!showGrandSurfaces) return;
+      const icon = makePOIIcon(L, "#f59e0b", SURFACE_SVG);
+      liveGrandSurfaces.forEach(s=>{
+        poiLayersRef.current.grandSurfaces.push(L.marker([s.lat,s.lng],{icon}).addTo(mapRef.current)
+          .bindPopup(`<b>Grande surface</b><br>${s.nom}`));
+      });
+    });
+  }, [showGrandSurfaces, liveGrandSurfaces]);
 
   return <div ref={containerRef} style={{ width:"100%", height:"100%" }} />;
 }
@@ -504,14 +723,16 @@ function LocationCascade({ govId, delId, locId, govNom, delNom, locNom, onChange
 const INIT_F = {
   query:"", govId:"", govNom:"", delId:"", delNom:"", locId:"", locNom:"",
   categories:[], type:"",
-  prixMin:"", prixMax:"", superficieMin:"", bedsMin:"", etat:"", titre_foncier:"",
+  prixMin:"", prixMax:"", superficieMin:"", superficieMax:"", bedsMin:"", piecesMin:"", chambresMin:"", etat:"", titre_foncier:"",
+  features:[],
 };
 
-function FilterPanel({ filters, onChange, showSchools, showMosques, showFaculties,
-                       onToggleSchools, onToggleMosques, onToggleFaculties, poiLoading,
-                       liveSchoolCount, liveMosqueCount, liveFacultyCount }) {
-  const [local,    setLocal]    = useState(filters);
-  const [advanced, setAdvanced] = useState(false);
+function FilterPanel({ filters, onChange, showSchools, showMosques, showFaculties, showGrandSurfaces,
+                       onToggleSchools, onToggleMosques, onToggleFaculties, onToggleGrandSurfaces, poiLoading,
+                       liveSchoolCount, liveMosqueCount, liveFacultyCount, liveGrandSurfaceCount }) {
+  const [local,         setLocal]         = useState(filters);
+  const [advanced,      setAdvanced]      = useState(false);
+  const [showFeatModal, setShowFeatModal] = useState(false);
 
   /* Resync si les filtres changent depuis l'extérieur (ex : navigation via la navbar) */
   useEffect(() => { setLocal(filters); }, [filters]);
@@ -633,6 +854,19 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
               <span className="fp__poi-count">{liveFacultyCount}</span>
             )}
           </button>
+          <button
+            className={`fp__poi-btn fp__poi-btn--surface${showGrandSurfaces?" fp__poi-btn--on":""}`}
+            onClick={onToggleGrandSurfaces}
+          >
+            {poiLoading && showGrandSurfaces
+              ? <Loader2 size={13} className="lc__spin"/>
+              : <span>🏬</span>
+            }
+            Grandes surfaces
+            {showGrandSurfaces && liveGrandSurfaceCount > 0 && (
+              <span className="fp__poi-count">{liveGrandSurfaceCount}</span>
+            )}
+          </button>
         </div>
       </div>
 
@@ -664,6 +898,24 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
             <input type="number" placeholder="0" value={local.superficieMin}
               onChange={(e)=>set("superficieMin",e.target.value)} className="fp__adv-inp"/>
           </div>
+          <div className="fp__adv-group">
+            <label className="fp__adv-label">Surface max (m²)</label>
+            <input className="fp__adv-inp" type="number" placeholder="∞" min="0"
+              value={local.superficieMax || ""}
+              onChange={e => set("superficieMax", e.target.value)}/>
+          </div>
+          <div className="fp__adv-group">
+            <label className="fp__adv-label">Pièces min</label>
+            <input className="fp__adv-inp" type="number" placeholder="0" min="0" max="20"
+              value={local.piecesMin || ""}
+              onChange={e => set("piecesMin", e.target.value)}/>
+          </div>
+          <div className="fp__adv-group">
+            <label className="fp__adv-label">Chambres min</label>
+            <input className="fp__adv-inp" type="number" placeholder="0" min="0" max="20"
+              value={local.chambresMin || ""}
+              onChange={e => set("chambresMin", e.target.value)}/>
+          </div>
           {/* Chambres — masqué pour terrain */}
           {local.type !== "terrain" && (
             <div className="fp__adv-group">
@@ -692,9 +944,171 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
               </label>
             </div>
           )}
+          {/* Autres critères */}
+          <button
+            className={`fp__adv-btn${(local.features||[]).length > 0 ? " fp__adv-btn--on" : ""}`}
+            type="button"
+            onClick={() => setShowFeatModal(true)}
+            style={{ alignSelf:"flex-end" }}
+          >
+            Autres critères{(local.features||[]).length > 0 ? ` (${local.features.length})` : " +"}
+          </button>
           {/* Reset */}
           <button className="fp__reset" onClick={reset}><X size={11}/> Réinitialiser</button>
         </div>
+      )}
+
+      {/* ── Modal "Autres critères" — icônes comme dans la création d'annonce ── */}
+      {showFeatModal && ReactDOM.createPortal(
+        <div style={{
+          position:"fixed", inset:0, background:"rgba(0,0,0,.60)", zIndex:999999,
+          display:"flex", alignItems:"center", justifyContent:"center", padding:"16px"
+        }} onClick={e=>{ if(e.target===e.currentTarget) setShowFeatModal(false); }}>
+          <div style={{
+            background:"#fff", borderRadius:20, width:"100%", maxWidth:760,
+            maxHeight:"88vh", overflow:"hidden", display:"flex", flexDirection:"column",
+            boxShadow:"0 24px 80px rgba(0,0,0,.30)",
+            fontFamily:"'Inter',system-ui,sans-serif"
+          }}>
+            {/* Header */}
+            <div style={{
+              display:"flex", alignItems:"center", justifyContent:"space-between",
+              padding:"22px 28px 18px", borderBottom:"1px solid #f1f5f9", flexShrink:0
+            }}>
+              <div>
+                <h3 style={{fontSize:19,fontWeight:800,color:"#0f172a",margin:0}}>Caractéristiques</h3>
+                <p style={{fontSize:13,color:"#64748b",margin:"4px 0 0"}}>Sélectionnez les équipements souhaités</p>
+              </div>
+              <button onClick={()=>setShowFeatModal(false)}
+                style={{width:34,height:34,borderRadius:"50%",background:"#f1f5f9",border:"none",
+                  cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:"#64748b"}}>
+                <X size={16}/>
+              </button>
+            </div>
+
+            {/* Body scrollable */}
+            <div style={{flex:1,overflowY:"auto",padding:"20px 28px"}}>
+              {[
+                { section:"🌅 Vue", items:[
+                  {k:"vue_mer",     l:"Vue sur mer",    Ico:Waves       },
+                  {k:"vue_montagne",l:"Vue montagne",   Ico:Mountain    },
+                  {k:"vue_foret",   l:"Vue forêt",      Ico:TreePine    },
+                ]},
+                { section:"🏡 Espaces extérieurs", items:[
+                  {k:"jardin",   l:"Jardin",   Ico:Fence        },
+                  {k:"terrasse", l:"Terrasse", Ico:Sun          },
+                  {k:"balcon",   l:"Balcon",   Ico:Flower2      },
+                  {k:"piscine",  l:"Piscine",  Ico:Droplets     },
+                  {k:"parking",  l:"Parking",  Ico:ParkingCircle},
+                ]},
+                { section:"🏢 Commodités", items:[
+                  {k:"ascenseur",    l:"Ascenseur",       Ico:ArrowUpDown},
+                  {k:"garage",       l:"Garage",          Ico:Car        },
+                  {k:"cellier",      l:"Chambre rangement",Ico:Package   },
+                  {k:"meuble",       l:"Meublé",          Ico:Sofa       },
+                  {k:"concierge",    l:"Concierge",       Ico:Users      },
+                  {k:"gardien",      l:"Gardien",         Ico:ShieldCheck},
+                  {k:"animaux_admis",l:"Animaux admis",   Ico:Heart      },
+                ]},
+                { section:"🛋️ Intérieur & équipements", items:[
+                  {k:"cuisine_equipee",  l:"Cuisine équipée",  Ico:UtensilsCrossed},
+                  {k:"climatisation",    l:"Climatisation",    Ico:Wind           },
+                  {k:"chauffage_centrale",l:"Chauffage central",Ico:Thermometer  },
+                  {k:"cheminee",         l:"Cheminée",         Ico:Flame          },
+                  {k:"double_vitrage",   l:"Double vitrage",   Ico:DoorClosed     },
+                  {k:"porte_blindee",    l:"Porte blindée",    Ico:LockKeyhole    },
+                  {k:"securite",         l:"Sécurité",         Ico:Fingerprint    },
+                  {k:"internet",         l:"Internet",         Ico:Wifi           },
+                  {k:"tv",               l:"TV",               Ico:Monitor        },
+                  {k:"machine_laver",    l:"Machine à laver",  Ico:RefreshCw      },
+                  {k:"digicode",         l:"Digicode",         Ico:KeyRound       },
+                  {k:"interphone",       l:"Interphone",       Ico:PhoneCall      },
+                ]},
+              ].map(({section, items}) => (
+                <div key={section} style={{marginBottom:28}}>
+                  <div style={{
+                    fontSize:11,fontWeight:700,color:"#64748b",textTransform:"uppercase",
+                    letterSpacing:".6px",marginBottom:14,display:"flex",alignItems:"center",gap:8
+                  }}>{section}</div>
+                  <div style={{
+                    display:"grid",
+                    gridTemplateColumns:"repeat(auto-fill,minmax(110px,1fr))",
+                    gap:10
+                  }}>
+                    {items.map(({k, l, Ico}) => {
+                      const isOn = (local.features||[]).includes(k);
+                      return (
+                        <button key={k} type="button"
+                          onClick={() => {
+                            const cur = local.features||[];
+                            set("features", isOn ? cur.filter(f=>f!==k) : [...cur,k]);
+                          }}
+                          style={{
+                            position:"relative",
+                            display:"flex",flexDirection:"column",alignItems:"center",
+                            gap:7,padding:"18px 8px 14px",
+                            borderRadius:14,border:"none",
+                            background: isOn ? "#eef2ff" : "transparent",
+                            cursor:"pointer",fontFamily:"inherit",
+                            transition:"background .15s,transform .15s",
+                            minHeight:90,
+                          }}
+                          onMouseEnter={e=>{ if(!isOn) e.currentTarget.style.background="#f8faff"; }}
+                          onMouseLeave={e=>{ if(!isOn) e.currentTarget.style.background="transparent"; }}
+                        >
+                          <Ico size={36} strokeWidth={1.4}
+                            style={{color: isOn?"#4f46e5":"#94a3b8",transition:"color .15s"}}/>
+                          <span style={{
+                            fontSize:11.5,fontWeight:600,textAlign:"center",lineHeight:1.3,
+                            color:isOn?"#4f46e5":"#6b7280"
+                          }}>{l}</span>
+                          {isOn && (
+                            <div style={{
+                              position:"absolute",top:7,right:7,
+                              width:16,height:16,borderRadius:"50%",
+                              background:"#4f46e5",display:"flex",alignItems:"center",justifyContent:"center"
+                            }}>
+                              <Check size={10} color="#fff" strokeWidth={3}/>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Footer */}
+            <div style={{
+              display:"flex",gap:12,justifyContent:"space-between",alignItems:"center",
+              padding:"16px 28px 20px",borderTop:"1px solid #f1f5f9",flexShrink:0,
+              background:"#fafafa"
+            }}>
+              <span style={{fontSize:13,color:"#64748b"}}>
+                {(local.features||[]).length > 0
+                  ? `${local.features.length} critère${local.features.length>1?"s":""} sélectionné${local.features.length>1?"s":""}`
+                  : "Aucun critère sélectionné"}
+              </span>
+              <div style={{display:"flex",gap:10}}>
+                <button type="button"
+                  onClick={() => set("features",[])}
+                  style={{padding:"10px 18px",borderRadius:10,border:"1.5px solid #e5e7eb",
+                    background:"#fff",color:"#374151",fontWeight:600,cursor:"pointer",
+                    fontSize:13,fontFamily:"inherit"}}
+                >Tout effacer</button>
+                <button type="button"
+                  onClick={() => { onChange({...local}); setShowFeatModal(false); }}
+                  style={{padding:"10px 22px",borderRadius:10,border:"none",
+                    background:"#0f172a",color:"#fff",fontWeight:700,cursor:"pointer",
+                    fontSize:13,fontFamily:"inherit",
+                    boxShadow:"0 4px 14px rgba(15,23,42,.25)"}}
+                >Voir les résultats</button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -744,7 +1158,7 @@ function transformApiAnnonce(a) {
     beds:          a.nb_chambres   || null,
     baths:         a.nb_salles_bain|| null,
     area:          a.superficie    || 0,
-    type:          a.type_bien,
+    type:          a.type_bien === "maison" ? "villa_maison" : (a.type_bien || ""),
     categorie:     a.categorie,
     etat:          a.etat_bien     || null,
     titre_foncier: a.titre_foncier || false,
@@ -790,9 +1204,13 @@ export default function CartePage() {
     prixMin:       sp.get("prixMin")     || "",
     prixMax:       sp.get("prixMax")     || "",
     superficieMin: sp.get("sMin")        || "",
+    superficieMax: sp.get("sMax")        || "",
     bedsMin:       sp.get("beds")        || "",
+    piecesMin:     sp.get("pMin")        || "",
+    chambresMin:   sp.get("cMin")        || "",
     etat:          sp.get("etat")        || "",
     titre_foncier: sp.get("tf")          || "",
+    features:      (sp.get("feat") || "").split(",").map(s=>s.trim()).filter(Boolean),
   }), []);
 
   /* ── État initial : URL d'abord, sessionStorage en fallback ── */
@@ -867,23 +1285,29 @@ export default function CartePage() {
     if (f.prixMin)          sp.set("prixMin",     f.prixMin);
     if (f.prixMax)          sp.set("prixMax",     f.prixMax);
     if (f.superficieMin)    sp.set("sMin",        f.superficieMin);
+    if (f.superficieMax)    sp.set("sMax",        f.superficieMax);
     if (f.bedsMin)          sp.set("beds",        f.bedsMin);
+    if (f.piecesMin)        sp.set("pMin",        f.piecesMin);
+    if (f.chambresMin)      sp.set("cMin",        f.chambresMin);
     if (f.etat)             sp.set("etat",        f.etat);
     if (f.titre_foncier)    sp.set("tf",          f.titre_foncier);
+    if (f.features && f.features.length > 0) sp.set("feat", f.features.join(","));
     /* setSearchParams déclenche le useEffect ci-dessus qui met à jour filters */
     setSearchParams(sp, { replace: true });
   }, [setSearchParams]);
 
-  const [showSchools,    setShowSchools]    = useState(false);
-  const [showMosques,    setShowMosques]    = useState(false);
-  const [showFaculties,  setShowFaculties]  = useState(false);
-  const [listMode,       setListMode]       = useState(searchParams.get("vue") === "liste");
-  const [livePOIs,       setLivePOIs]       = useState({ schools: [], mosques: [], faculties: [], loading: false });
+  const [showSchools,      setShowSchools]      = useState(false);
+  const [showMosques,      setShowMosques]      = useState(false);
+  const [showFaculties,    setShowFaculties]    = useState(false);
+  const [showGrandSurfaces,setShowGrandSurfaces]= useState(false);
+  const [listMode,         setListMode]         = useState(searchParams.get("vue") === "liste");
+  const [livePOIs,         setLivePOIs]         = useState({ schools: [], mosques: [], faculties: [], grandSurfaces: [], loading: false });
+  const [hoveredPin,       setHoveredPin]       = useState(null);
 
   /* ── Fetch POIs from Overpass API ── */
   const fetchPOIs = useCallback(async (govNom) => {
-    if (!govNom) { setLivePOIs({ schools: [], mosques: [], faculties: [], loading: false }); return; }
-    setLivePOIs({ schools: [], mosques: [], faculties: [], loading: true });
+    if (!govNom) { setLivePOIs({ schools: [], mosques: [], faculties: [], grandSurfaces: [], loading: false }); return; }
+    setLivePOIs({ schools: [], mosques: [], faculties: [], grandSurfaces: [], loading: true });
     try {
       /* 1 — bounding box via Nominatim */
       const nomRes = await fetch(
@@ -892,12 +1316,12 @@ export default function CartePage() {
       );
       const nomData = await nomRes.json();
       if (!nomData.length || !nomData[0].boundingbox) {
-        setLivePOIs({ schools: [], mosques: [], faculties: [], loading: false }); return;
+        setLivePOIs({ schools: [], mosques: [], faculties: [], grandSurfaces: [], loading: false }); return;
       }
       const [south, north, west, east] = nomData[0].boundingbox;
       const bbox = `${south},${west},${north},${east}`;
 
-      /* 2 — Overpass query (écoles + mosquées + facultés) */
+      /* 2 — Overpass query (écoles + mosquées + facultés + grandes surfaces) */
       const query =
         `[out:json][timeout:35];\n` +
         `(\n` +
@@ -909,6 +1333,8 @@ export default function CartePage() {
         `  way["amenity"="university"](${bbox});\n` +
         `  node["amenity"="college"](${bbox});\n` +
         `  way["amenity"="college"](${bbox});\n` +
+        `  node["shop"~"supermarket|mall|department_store"](${bbox});\n` +
+        `  way["shop"~"supermarket|mall|department_store"](${bbox});\n` +
         `);\nout center;`;
 
       const ovRes = await fetch("https://overpass-api.de/api/interpreter", {
@@ -937,20 +1363,25 @@ export default function CartePage() {
         .map(e => ({ id:`ov_fac_${e.id}`, nom: e.tags?.name || "Faculté", ...toPoint(e) }))
         .filter(e => e.lat && e.lng);
 
-      setLivePOIs({ schools, mosques, faculties, loading: false });
+      const grandSurfaces = elements
+        .filter(e => e.tags?.shop && /supermarket|mall|department_store/.test(e.tags.shop))
+        .map(e => ({ id:`ov_gs_${e.id}`, nom: e.tags?.name || "Grande surface", ...toPoint(e) }))
+        .filter(e => e.lat && e.lng);
+
+      setLivePOIs({ schools, mosques, faculties, grandSurfaces, loading: false });
     } catch {
-      setLivePOIs({ schools: [], mosques: [], faculties: [], loading: false });
+      setLivePOIs({ schools: [], mosques: [], faculties: [], grandSurfaces: [], loading: false });
     }
   }, []);
 
   /* Trigger fetch when gouvernorat or POI toggles change */
   useEffect(() => {
-    if (filters.govNom && (showSchools || showMosques || showFaculties)) {
+    if (filters.govNom && (showSchools || showMosques || showFaculties || showGrandSurfaces)) {
       fetchPOIs(filters.govNom);
     } else {
-      setLivePOIs({ schools: [], mosques: [], faculties: [], loading: false });
+      setLivePOIs({ schools: [], mosques: [], faculties: [], grandSurfaces: [], loading: false });
     }
-  }, [filters.govNom, showSchools, showMosques, showFaculties, fetchPOIs]);
+  }, [filters.govNom, showSchools, showMosques, showFaculties, showGrandSurfaces, fetchPOIs]);
 
   useEffect(() => {
     fetch(`${API_URL}/annonces/public?limit=100`)
@@ -960,6 +1391,22 @@ export default function CartePage() {
           .map(transformApiAnnonce)
           .filter(a => a.lat && a.lng);
         setApiProps(transformed);
+      })
+      .catch(() => {});
+  }, []);
+
+  /* Sync favoris API → localStorage au montage (si connecté) */
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    fetch(`${API_URL}/users/me/favoris`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!Array.isArray(data)) return;
+        const ids = data.map(f => f.annonce_id || f.id).filter(Boolean);
+        localStorage.setItem("localizi_favs", JSON.stringify(ids));
       })
       .catch(() => {});
   }, []);
@@ -990,13 +1437,30 @@ export default function CartePage() {
       if (filters.locNom && p.localite    !== filters.locNom)   return false;
       const cats = filters.categories || [];
       if (cats.length > 0 && !cats.includes(p.categorie))       return false;
-      if (filters.type   && p.type !== filters.type)             return false;
+      if (filters.type) {
+        if (filters.type === "villa_maison") {
+          if (!["villa","maison","villa_maison"].includes(p.type)) return false;
+        } else {
+          if (p.type !== filters.type) return false;
+        }
+      }
       if (filters.prixMin && p.prix < +filters.prixMin)          return false;
       if (filters.prixMax && p.prix > +filters.prixMax)          return false;
       if (filters.superficieMin && p.area < +filters.superficieMin) return false;
+      if (filters.superficieMax && p.area > +filters.superficieMax) return false;
       if (filters.bedsMin && (p.beds==null||p.beds < +filters.bedsMin)) return false;
+      if (filters.piecesMin && (p.beds==null||p.beds < +filters.piecesMin)) return false;
+      if (filters.chambresMin && (p.beds==null||p.beds < +filters.chambresMin)) return false;
       if (filters.etat && p.etat !== filters.etat)               return false;
       if (filters.titre_foncier==="1" && !p.titre_foncier)       return false;
+      if (filters.features && filters.features.length > 0) {
+        const hasAll = filters.features.every(feat => {
+          // Support both boolean property flags and features array
+          if (Array.isArray(p.features)) return p.features.includes(feat);
+          return p[feat] === true;
+        });
+        if (!hasAll) return false;
+      }
       return true;
     })
     .sort((a, b) => computeScore(b) - computeScore(a));
@@ -1021,6 +1485,7 @@ export default function CartePage() {
     filters.prixMax    && { label:`≤ ${fmtFull(+filters.prixMax)} TND`, key:"prixMax", color:"#1d4ed8" },
     filters.bedsMin    && { label:`${filters.bedsMin}+ ch.`, key:"bedsMin", color:"#be185d" },
     filters.titre_foncier && { label:"Titre foncier",     key:"titre_foncier", color:"#15803d" },
+    ...(filters.features||[]).map(k => ({ label: k.replace(/_/g," "), key:`feat_${k}`, color:"#7c3aed" })),
   ].filter(Boolean);
 
   /* Click pin → scroll vers la carte */
@@ -1040,6 +1505,10 @@ export default function CartePage() {
       const cat = key.replace("cat_","");
       newF = { ...filters, categories: (filters.categories||[]).filter(c => c !== cat) };
     }
+    else if (key.startsWith("feat_")) {
+      const feat = key.replace("feat_","");
+      newF = { ...filters, features: (filters.features||[]).filter(f => f !== feat) };
+    }
     else newF = { ...filters, [key]: "" };
     applyFilters(newF);
   };
@@ -1050,14 +1519,16 @@ export default function CartePage() {
 
       <FilterPanel
         filters={filters} onChange={applyFilters}
-        showSchools={showSchools} showMosques={showMosques} showFaculties={showFaculties}
+        showSchools={showSchools} showMosques={showMosques} showFaculties={showFaculties} showGrandSurfaces={showGrandSurfaces}
         onToggleSchools={()=>setShowSchools(v=>!v)}
         onToggleMosques={()=>setShowMosques(v=>!v)}
         onToggleFaculties={()=>setShowFaculties(v=>!v)}
+        onToggleGrandSurfaces={()=>setShowGrandSurfaces(v=>!v)}
         poiLoading={livePOIs.loading}
         liveSchoolCount={livePOIs.schools.length}
         liveMosqueCount={livePOIs.mosques.length}
         liveFacultyCount={livePOIs.faculties.length}
+        liveGrandSurfaceCount={(livePOIs.grandSurfaces||[]).length}
       />
 
       {/* Barre compteur + tags */}
@@ -1112,7 +1583,9 @@ export default function CartePage() {
       ) : (
         <div className="cp-layout">
           {/* Carte — occupe tout l'espace restant */}
-          <div className="cp-map">
+          <div className="cp-map" style={{ position:"relative" }}
+            onMouseLeave={() => setHoveredPin(null)}
+          >
             <PropertyMap
               properties={results}
               activeId={active}
@@ -1122,10 +1595,73 @@ export default function CartePage() {
               showSchools={showSchools}
               showMosques={showMosques}
               showFaculties={showFaculties}
+              showGrandSurfaces={showGrandSurfaces}
               liveSchools={livePOIs.schools}
               liveMosques={livePOIs.mosques}
               liveFaculties={livePOIs.faculties}
+              liveGrandSurfaces={livePOIs.grandSurfaces||[]}
+              onPinHover={setHoveredPin}
             />
+            {/* ── Tooltip hover — purement visuel, aucun bouton interactif ── */}
+            {hoveredPin && (() => {
+              const px    = hoveredPin._px || 20;
+              const py    = hoveredPin._py || 100;
+              const mapEl = document.querySelector(".leaflet-container");
+              const mapW  = mapEl?.clientWidth  || 800;
+              const cardW = 300;
+              const left  = Math.min(px + 16, mapW - cardW - 12);
+              const top   = Math.max(py - 140, 10);
+              const img   = hoveredPin.images?.[0] || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=500&q=70";
+              const catColors = { vente:"#4f46e5", location:"#16a34a", vacances:"#f59e0b" };
+              const catLabels = { vente:"Vente", location:"Location", vacances:"Vacances" };
+              const cc = catColors[hoveredPin.categorie] || "#475569";
+              return (
+                <div style={{
+                  position:"absolute", left, top, width:cardW, zIndex:9100,
+                  pointerEvents:"none",  /* critique — aucun événement souris capté */
+                  background:"#fff", borderRadius:14, overflow:"hidden",
+                  boxShadow:"0 14px 44px rgba(0,0,0,.28)",
+                  animation:"hoverFadeIn .12s ease",
+                  border:"1px solid rgba(0,0,0,.07)"
+                }}>
+                  {/* Image */}
+                  <div style={{position:"relative",height:156,overflow:"hidden"}}>
+                    <img src={img} alt="" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}
+                      onError={e => { e.currentTarget.src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=500&q=70"; }}
+                    />
+                    <span style={{
+                      position:"absolute",top:10,left:10,
+                      background:cc,color:"#fff",fontSize:11,fontWeight:700,
+                      padding:"3px 9px",borderRadius:20
+                    }}>{catLabels[hoveredPin.categorie] || hoveredPin.categorie}</span>
+                  </div>
+                  {/* Corps */}
+                  <div style={{padding:"12px 14px 14px"}}>
+                    <p style={{fontSize:13,fontWeight:700,color:"#0f172a",margin:"0 0 5px",lineHeight:1.35,
+                      whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                      {hoveredPin.titre}
+                    </p>
+                    <p style={{fontSize:16,fontWeight:900,color:cc,margin:"0 0 8px"}}>
+                      {(hoveredPin.prix||0).toLocaleString("fr-TN")}
+                      <span style={{fontSize:12,fontWeight:600,color:"#64748b",marginLeft:4}}>
+                        {hoveredPin.devise||"DT"}
+                      </span>
+                    </p>
+                    <div style={{display:"flex",gap:12,fontSize:11.5,color:"#64748b"}}>
+                      {hoveredPin.area  && <span>📐 {hoveredPin.area} m²</span>}
+                      {hoveredPin.beds  != null && <span>🛏 {hoveredPin.beds}</span>}
+                      {hoveredPin.baths != null && <span>🚿 {hoveredPin.baths}</span>}
+                    </div>
+                    {hoveredPin.delegation && (
+                      <p style={{fontSize:11,color:"#94a3b8",margin:"6px 0 0",display:"flex",alignItems:"center",gap:3}}>
+                        📍 {hoveredPin.delegation}{hoveredPin.gouvernorat ? ` · ${hoveredPin.gouvernorat}` : ""}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+            )}
           </div>
 
           {/* Liste à droite — filtrée par zone visible sur la carte */}
@@ -1286,6 +1822,7 @@ export default function CartePage() {
         .lc__ico--loc { color: #06b6d4; }
         .lc__spin { animation: spin .7s linear infinite; color: #9ca3af; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes hoverFadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
 
         .lc__sel {
           border: none; outline: none; background: transparent;
@@ -1322,6 +1859,8 @@ export default function CartePage() {
           background: #7c3aed; color: #fff; border-color: #7c3aed;
           box-shadow: 0 2px 8px rgba(147,51,234,.35);
         }
+        .fp__poi-btn--surface { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+        .fp__poi-btn--surface.fp__poi-btn--on { background: #f59e0b; color: #fff; border-color: #f59e0b; box-shadow: 0 2px 8px rgba(245,158,11,.35); }
         .fp__poi-count {
           display: inline-flex; align-items: center; justify-content: center;
           min-width: 18px; height: 18px; padding: 0 5px;
@@ -1459,6 +1998,7 @@ export default function CartePage() {
           transition: all .15s;
         }
         .pc__fav:hover { color: #ef4444; background: #fee2e2; }
+        .pc__fav--on   { color: #ef4444 !important; background: #fee2e2 !important; }
         .pc__loc {
           display: flex; align-items: center; gap: 3px;
           font-size: 11.5px; color: #94a3b8; margin-bottom: 9px;
@@ -1473,6 +2013,11 @@ export default function CartePage() {
         }
 
         /* ── Barre évaluation prix ── */
+        /* Cluster popup — supprimer le padding interne de Leaflet */
+        .cluster-popup .leaflet-popup-content-wrapper { padding: 0; border-radius: 14px; overflow: hidden; box-shadow: 0 12px 40px rgba(0,0,0,.2); }
+        .cluster-popup .leaflet-popup-content { margin: 0; width: auto !important; }
+        .cluster-popup .leaflet-popup-tip-container { display: block; }
+
         .peb {
           display: flex; flex-direction: column; gap: 4px;
           margin: 5px 0 7px; padding-top: 7px;

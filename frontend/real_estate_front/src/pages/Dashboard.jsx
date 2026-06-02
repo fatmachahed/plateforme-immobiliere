@@ -1,11 +1,12 @@
 ﻿import { useState, useEffect, useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { useToast } from "../components/Toast";
 import API_URL from "../config";
 import {
   Home, Plus, Eye, Edit2, Trash2, MapPin, TrendingUp,
-  Clock, CheckCircle, XCircle, AlertCircle, X, Search, Zap
+  Clock, CheckCircle, XCircle, AlertCircle, X, Search, Zap,
+  Bell, Phone, Mail, MessageSquare
 } from "lucide-react";
 
 
@@ -29,7 +30,15 @@ export default function Dashboard() {
   const [annonces, setAnnonces]     = useState([]);
   const [loading,  setLoading]      = useState(true);
   const [delItem,  setDelItem]      = useState(null);
+  const [soldConfirm, setSoldConfirm] = useState(null);
   const [search,   setSearch]       = useState("");
+  /* ── Onglet actif : "annonces" ou "contacts" ── */
+  const [searchParams]              = useSearchParams();
+  const [activeTab, setActiveTab]   = useState(searchParams.get("tab") === "contacts" ? "contacts" : "annonces");
+  /* ── Demandes de contact reçues ── */
+  const [contactRequests, setContactRequests] = useState([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
+
   const navigate = useNavigate();
   const toast    = useToast();
 
@@ -39,7 +48,32 @@ export default function Dashboard() {
   useEffect(() => {
     if (!token) { navigate("/login"); return; }
     fetchAnnonces();
+    fetchContactRequests();
   }, []);
+
+  async function fetchContactRequests() {
+    setLoadingContacts(true);
+    try {
+      const res = await fetch(`${API_URL}/users/me/contact-requests`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setContactRequests(Array.isArray(data) ? data : []);
+      }
+    } catch {}
+    finally { setLoadingContacts(false); }
+  }
+
+  async function markAsRead(id) {
+    try {
+      await fetch(`${API_URL}/users/me/contact-requests/${id}/lu`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setContactRequests(prev => prev.map(r => r.id === id ? {...r, lu:true} : r));
+    } catch {}
+  }
 
   async function fetchAnnonces() {
     setLoading(true);
@@ -109,24 +143,190 @@ export default function Dashboard() {
         <div className="db-header">
           <div className="db-header__inner">
             <div>
-              <h1 className="db-header__title">Mes annonces</h1>
-              <p className="db-header__sub">Gérez toutes vos publications immobilières</p>
+              <h1 className="db-header__title">
+                {activeTab === "contacts" ? "Demandes de contact" : "Mes annonces"}
+              </h1>
+              <p className="db-header__sub">
+                {activeTab === "contacts"
+                  ? "Visiteurs qui souhaitent vous contacter via vos annonces anonymes"
+                  : "Gérez toutes vos publications immobilières"}
+              </p>
             </div>
             <div style={{display:"flex",gap:10}}>
-{/* Boost désactivé temporairement
-              <Link to="/booster" className="db-btn-boost">
-                <Zap size={16}/> Booster mes annonces
-              </Link>
-*/}
-              <Link to="/creer_annonce" className="db-btn-primary">
-                <Plus size={17}/> Nouvelle annonce
-              </Link>
+              {activeTab === "annonces" && (
+                <Link to="/creer_annonce" className="db-btn-primary">
+                  <Plus size={17}/> Nouvelle annonce
+                </Link>
+              )}
             </div>
+          </div>
+
+          {/* ── Onglets ── */}
+          <div style={{display:"flex", gap:4, padding:"0 0 0 0", borderBottom:"2px solid #f1f5f9", marginTop:8}}>
+            {[
+              { key:"annonces", label:"Mes annonces",   icon:<Home size={15}/> },
+              { key:"contacts", label:"Demandes reçues", icon:<Bell size={15}/>,
+                badge: contactRequests.filter(r=>!r.lu).length },
+            ].map(tab => (
+              <button key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                style={{
+                  display:"flex", alignItems:"center", gap:6,
+                  padding:"10px 18px", border:"none", background:"none",
+                  fontSize:13.5, fontWeight:600, cursor:"pointer",
+                  fontFamily:"inherit", position:"relative",
+                  color: activeTab===tab.key ? "#4f46e5" : "#64748b",
+                  borderBottom: activeTab===tab.key ? "2.5px solid #4f46e5" : "2.5px solid transparent",
+                  marginBottom:-2, transition:"color .15s",
+                }}
+              >
+                {tab.icon} {tab.label}
+                {tab.badge > 0 && (
+                  <span style={{
+                    background:"#ef4444", color:"#fff", borderRadius:10,
+                    fontSize:10, fontWeight:800, padding:"1px 6px", minWidth:16, textAlign:"center"
+                  }}>{tab.badge}</span>
+                )}
+              </button>
+            ))}
           </div>
         </div>
 
         <div className="db-inner">
-          {/* Stats */}
+          {/* Stats (seulement sur l'onglet annonces) */}
+          {activeTab === "contacts" ? (
+            /* ── ONGLET DEMANDES DE CONTACT ── */
+            <div style={{marginTop:8}}>
+              {loadingContacts ? (
+                <div style={{textAlign:"center", padding:"60px 20px", color:"#94a3b8", fontSize:14}}>
+                  Chargement des demandes…
+                </div>
+              ) : contactRequests.length === 0 ? (
+                <div style={{
+                  textAlign:"center", padding:"60px 20px",
+                  background:"#f8fafc", borderRadius:14, margin:"16px 0",
+                  border:"1.5px dashed #e2e8f0"
+                }}>
+                  <Bell size={40} style={{color:"#d1d5db", marginBottom:12}}/>
+                  <p style={{fontSize:15, fontWeight:700, color:"#374151", marginBottom:6}}>Aucune demande de contact</p>
+                  <p style={{fontSize:13, color:"#94a3b8"}}>
+                    Les personnes intéressées par vos annonces anonymes apparaîtront ici.
+                  </p>
+                </div>
+              ) : (
+                <div style={{display:"flex", flexDirection:"column", gap:12, marginTop:8}}>
+                  {contactRequests.map(req => (
+                    <div key={req.id} style={{
+                      background: req.lu ? "#fff" : "#f0f9ff",
+                      border: `1.5px solid ${req.lu ? "#e5e7eb" : "#bae6fd"}`,
+                      borderRadius:14, padding:"18px 20px",
+                      display:"flex", flexDirection:"column", gap:10,
+                      fontFamily:"'Inter',system-ui,sans-serif"
+                    }}>
+                      <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap", gap:8}}>
+                        <div>
+                          <div style={{display:"flex", alignItems:"center", gap:8}}>
+                            <div style={{
+                              width:38, height:38, borderRadius:"50%",
+                              background:"linear-gradient(135deg,#6366f1,#818cf8)",
+                              display:"flex", alignItems:"center", justifyContent:"center",
+                              fontSize:16, fontWeight:800, color:"#fff", flexShrink:0
+                            }}>
+                              {req.nom[0].toUpperCase()}
+                            </div>
+                            <div>
+                              <p style={{fontWeight:700, fontSize:14, color:"#0f172a", margin:0}}>{req.nom}</p>
+                              <p style={{fontSize:11.5, color:"#64748b", margin:0}}>
+                                {new Date(req.created_at).toLocaleDateString("fr-TN",{day:"2-digit",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"})}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{display:"flex", gap:6, alignItems:"center", flexWrap:"wrap"}}>
+                          {!req.lu && (
+                            <span style={{background:"#0ea5e9", color:"#fff", fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:20}}>
+                              Nouveau
+                            </span>
+                          )}
+                          <span style={{
+                            background:"#f8fafc", border:"1px solid #e5e7eb",
+                            fontSize:11.5, color:"#64748b", fontWeight:600,
+                            padding:"3px 10px", borderRadius:20
+                          }}>📣 {req.annonce_titre || `Annonce #${req.annonce_id}`}</span>
+                        </div>
+                      </div>
+
+                      {/* Coordonnées */}
+                      <div style={{display:"flex", gap:10, flexWrap:"wrap"}}>
+                        {req.telephone && (
+                          <a href={`tel:${req.telephone.replace(/\s/g,"")}`}
+                            style={{
+                              display:"flex", alignItems:"center", gap:6,
+                              padding:"7px 14px", borderRadius:9,
+                              background:"#f0fdf4", border:"1px solid #bbf7d0",
+                              color:"#15803d", fontSize:13, fontWeight:600, textDecoration:"none"
+                            }}>
+                            <Phone size={13}/> {req.telephone}
+                          </a>
+                        )}
+                        {req.telephone && (
+                          <a href={`https://wa.me/${req.telephone.replace(/[\s+]/g,"").replace(/^00/,"")}?text=${encodeURIComponent(`Bonjour ${req.nom}, j'ai bien reçu votre demande de contact concernant mon annonce immobilière.`)}`}
+                            target="_blank" rel="noopener noreferrer"
+                            style={{
+                              display:"flex", alignItems:"center", gap:6,
+                              padding:"7px 14px", borderRadius:9,
+                              background:"#f0fdf4", border:"1px solid #bbf7d0",
+                              color:"#15803d", fontSize:13, fontWeight:600, textDecoration:"none"
+                            }}>
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg>
+                            WhatsApp
+                          </a>
+                        )}
+                        {req.email && (
+                          <a href={`mailto:${req.email}?subject=Réponse à votre demande de contact&body=Bonjour ${req.nom},%0A%0AJ'ai bien reçu votre demande concernant mon annonce immobilière.%0A%0ACordialement`}
+                            style={{
+                              display:"flex", alignItems:"center", gap:6,
+                              padding:"7px 14px", borderRadius:9,
+                              background:"#eff6ff", border:"1px solid #bfdbfe",
+                              color:"#1d4ed8", fontSize:13, fontWeight:600, textDecoration:"none"
+                            }}>
+                            <Mail size={13}/> {req.email}
+                          </a>
+                        )}
+                      </div>
+
+                      {/* Message */}
+                      {req.message && (
+                        <div style={{
+                          background:"#f8fafc", border:"1px solid #f1f5f9",
+                          borderRadius:9, padding:"10px 13px",
+                          fontSize:13, color:"#374151", lineHeight:1.6
+                        }}>
+                          <MessageSquare size={13} style={{marginRight:6, color:"#94a3b8"}}/>
+                          {req.message}
+                        </div>
+                      )}
+
+                      {/* Marquer comme lu */}
+                      {!req.lu && (
+                        <button onClick={() => markAsRead(req.id)}
+                          style={{
+                            alignSelf:"flex-end", padding:"6px 14px", borderRadius:8,
+                            border:"1px solid #e5e7eb", background:"#f8fafc",
+                            fontSize:12, fontWeight:600, color:"#64748b", cursor:"pointer",
+                            fontFamily:"inherit"
+                          }}>
+                          ✓ Marquer comme lu
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+          /* ── ONGLET MES ANNONCES ── */
+          <>{/* Stats */}
           <div className="db-stats">
             {[
               { icon: <Home size={20}/>,      label: "Total",       val: stats.total,    cls: "" },
@@ -217,6 +417,22 @@ export default function Dashboard() {
                       <Link to={`/modifier_annonce/${a.id}`} className="db-action db-action--edit" title="Modifier">
                         <Edit2 size={16}/>
                       </Link>
+                      {/* Bouton Déjà vendu/loué */}
+                      <button
+                        onClick={() => {
+                          const label = a.categorie === "vente" ? "vendu" : "loué";
+                          setSoldConfirm({ id: a.id, label, titre: a.titre });
+                        }}
+                        style={{
+                          padding:"6px 12px", borderRadius:8, border:"1.5px solid #fbbf24",
+                          background:"#fffbeb", color:"#92400e", fontSize:12, fontWeight:600,
+                          cursor:"pointer", fontFamily:"inherit", transition:"all .15s",
+                          whiteSpace:"nowrap"
+                        }}
+                        title={`Marquer comme ${a.categorie === "vente" ? "vendu" : "loué"}`}
+                      >
+                        {a.categorie === "vente" ? "Déjà vendu ?" : "Déjà loué ?"}
+                      </button>
                       <button className="db-action db-action--del" title="Supprimer"
                         onClick={() => setDelItem(a)}>
                         <Trash2 size={16}/>
@@ -227,7 +443,9 @@ export default function Dashboard() {
               })}
             </div>
           )}
-        </div>
+          </> /* fin fragment onglet annonces */
+          )} {/* fin ternaire activeTab */}
+        </div>{/* /db-inner */}
       </div>
 
       {/* Delete confirm */}
@@ -247,6 +465,54 @@ export default function Dashboard() {
               <button className="db-modal__cancel" onClick={() => setDelItem(null)}>Annuler</button>
               <button className="db-modal__del" onClick={() => handleDelete(delItem.id)}>
                 <Trash2 size={15}/> Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {soldConfirm && (
+        <div style={{
+          position:"fixed", inset:0, background:"rgba(0,0,0,.5)", zIndex:9999,
+          display:"flex", alignItems:"center", justifyContent:"center"
+        }}>
+          <div style={{
+            background:"#fff", borderRadius:16, padding:"32px 28px", maxWidth:400,
+            width:"90%", boxShadow:"0 20px 60px rgba(0,0,0,.25)", fontFamily:"'Inter',system-ui,sans-serif"
+          }}>
+            <div style={{fontSize:32, textAlign:"center", marginBottom:12}}>
+              {soldConfirm.label === "vendu" ? "🏡" : "🔑"}
+            </div>
+            <h3 style={{fontSize:18, fontWeight:800, color:"#0f172a", textAlign:"center", marginBottom:8}}>
+              Bien {soldConfirm.label} !
+            </h3>
+            <p style={{fontSize:14, color:"#64748b", textAlign:"center", marginBottom:24, lineHeight:1.6}}>
+              <strong>"{soldConfirm.titre}"</strong><br/>
+              En confirmant, cette annonce sera <strong>supprimée définitivement</strong>.<br/>
+              Êtes-vous sûr(e) ?
+            </p>
+            <div style={{display:"flex", gap:12, justifyContent:"center"}}>
+              <button
+                onClick={() => setSoldConfirm(null)}
+                style={{padding:"10px 22px", borderRadius:9, border:"1.5px solid #e5e7eb", background:"#fff", color:"#374151", fontWeight:600, cursor:"pointer", fontSize:14, fontFamily:"inherit"}}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={async () => {
+                  const token = localStorage.getItem("token");
+                  try {
+                    await fetch(`${API_URL}/annonces/${soldConfirm.id}`, {
+                      method:"DELETE",
+                      headers: { Authorization: `Bearer ${token}` }
+                    });
+                    setSoldConfirm(null);
+                    window.location.reload();
+                  } catch { setSoldConfirm(null); }
+                }}
+                style={{padding:"10px 22px", borderRadius:9, border:"none", background:"#dc2626", color:"#fff", fontWeight:700, cursor:"pointer", fontSize:14, fontFamily:"inherit"}}
+              >
+                Confirmer la suppression
               </button>
             </div>
           </div>

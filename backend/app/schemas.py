@@ -84,6 +84,8 @@ class AnnonceCreate(AnnonceBase):
     nb_salles_bain: Optional[int] = None
     telephone: Optional[str] = None
     annee_construction: Optional[int] = None
+    anonyme: Optional[bool] = False
+    accompagnement: Optional[bool] = False
 
 
 class AnnonceUpdate(BaseModel):
@@ -109,9 +111,29 @@ class AnnonceUpdate(BaseModel):
     nb_salles_bain: Optional[int] = None
     telephone: Optional[str] = None
     annee_construction: Optional[int] = None
+    anonyme: Optional[bool] = None
+    accompagnement: Optional[bool] = None
 
     class Config:
         from_attributes = True
+
+
+# ── Contact anonyme ──
+class ContactRequestCreate(BaseModel):
+    nom: str
+    email: Optional[str] = None
+    telephone: Optional[str] = None
+    message: Optional[str] = None
+
+class ContactRequestRead(BaseModel):
+    id: int
+    annonce_id: int
+    nom: str
+    email: Optional[str] = None
+    telephone: Optional[str] = None
+    message: Optional[str] = None
+    class Config:
+        orm_mode = True
 
 class PropertyRead(BaseModel):
     id: int

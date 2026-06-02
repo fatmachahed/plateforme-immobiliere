@@ -4,6 +4,7 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { useToast } from "../components/Toast";
 import { Heart, MapPin, Trash2, Home, ArrowRight } from "lucide-react";
+import API_URL from '../config';
 
 
 const TYPE_FR = {
@@ -22,7 +23,7 @@ export default function Favoris() {
 
   useEffect(() => {
     if (!token) { setLoading(false); return; }
-    fetch(`\/users/me/favoris`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${API_URL}/users/me/favoris`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(data => setFavoris(Array.isArray(data) ? data : []))
       .catch(() => setFavoris([]))
@@ -31,7 +32,7 @@ export default function Favoris() {
 
   const handleRemove = async (annonceId) => {
     try {
-      await fetch(`\/users/me/favoris/${annonceId}`, {
+      await fetch(`${API_URL}/users/me/favoris/${annonceId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -86,7 +87,7 @@ export default function Favoris() {
               <div key={f.id} className="fav-card">
                 <div className="fav-card__img">
                   {f.image
-                    ? <img src={f.image.startsWith("/") ? `\${f.image}` : f.image} alt={f.titre} />
+                    ? <img src={f.image.startsWith("http") ? f.image : `${API_URL}${f.image}`} alt={f.titre} />
                     : <div className="fav-card__no-img"><Home size={32} color="#cbd5e1" /></div>
                   }
                   <span className={`fav-cat fav-cat--${f.categorie}`}>

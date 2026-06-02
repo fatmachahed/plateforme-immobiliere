@@ -94,6 +94,8 @@ class Annonce(Base):
 
     exclusivite = Column(Boolean, default=False)
     modelisation_3d = Column(Boolean, default=False)
+    anonyme = Column(Boolean, default=False)         # publication anonyme
+    accompagnement = Column(Boolean, default=False)  # demande d'accompagnement professionnel
     # [SUPPRIME] avec_photo → déductible depuis property.images (évite incohérence)
     # [SUPPRIME] annonce_promoteur / annonce_agent / annonce_particulier
     #            → déductible depuis utilisateur.role (évite redondance et incohérence)
@@ -257,3 +259,20 @@ class Agency(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", backref="agency")
+
+
+# ----------------------------------------
+# Demandes de contact anonyme
+# ----------------------------------------
+class ContactRequest(Base):
+    __tablename__ = "contact_requests"
+    id           = Column(Integer, primary_key=True)
+    annonce_id   = Column(Integer, ForeignKey("annonces.id"), nullable=False)
+    nom          = Column(String, nullable=False)
+    email        = Column(String, nullable=True)
+    telephone    = Column(String, nullable=True)
+    message      = Column(String, nullable=True)
+    created_at   = Column(DateTime, default=datetime.utcnow)
+    lu           = Column(Boolean, default=False)
+
+    annonce = relationship("Annonce")
