@@ -203,14 +203,19 @@ export default function Navbar() {
               <input
                 autoFocus
                 type="text"
-                placeholder={t("nav_search_ph")}
+                placeholder={t("nav_search_ph") || "Ville, délégation, gouvernorat, adresse…"}
                 value={searchVal}
                 onChange={(e) => setSearchVal(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && searchVal.trim()) {
-                    navigate(`/carte?q=${encodeURIComponent(searchVal.trim())}`);
-                    setSearchOpen(false);
+                  if (e.key === "Enter") {
+                    const q = searchVal.trim();
+                    if (q) {
+                      navigate(`/carte?q=${encodeURIComponent(q)}`);
+                      setSearchOpen(false);
+                      setSearchVal("");
+                    }
                   }
+                  if (e.key === "Escape") { setSearchOpen(false); setSearchVal(""); }
                 }}
                 className="lz-nav__search-inp"
               />
@@ -219,20 +224,7 @@ export default function Navbar() {
                   <X size={15} />
                 </button>
               )}
-              <button
-                onClick={() => {
-                  if (searchVal.trim()) {
-                    navigate(`/carte?q=${encodeURIComponent(searchVal.trim())}`);
-                    setSearchOpen(false);
-                  }
-                }}
-                style={{ display:"flex", alignItems:"center", justifyContent:"center",
-                  padding:"6px 14px", marginLeft:4, borderRadius:20, border:"none",
-                  background:"#f59e0b", color:"#fff", fontWeight:700, fontSize:13,
-                  cursor:"pointer", fontFamily:"inherit", flexShrink:0, whiteSpace:"nowrap" }}
-              >
-                Rechercher
-              </button>
+              {/* Bouton "Rechercher" supprimé — utiliser Entrée */}
             </div>
           </div>
         )}

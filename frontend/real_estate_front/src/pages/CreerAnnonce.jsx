@@ -1504,7 +1504,7 @@ export const CreateListingForm = ({ editId = null }) => {
 
                       <div className="ca-section-label" style={{marginTop:20}}>Type d'offre <span className="ca-req">*</span></div>
                       <div className={`ca-pill-row ca-val-group${validationErrors.categorie?" ca-val-group--err":""}`}>
-                        {[{v:"vente",l:"Vente"},{v:"location",l:"Location"},{v:"vacances",l:"Vacances"}]
+                        {[{v:"vente",l:"Achat"},{v:"location",l:"Location"},{v:"vacances",l:"Vacances"}]
                           .filter(o => !(o.v==="vacances"&&(formData.type_bien==="terrain"||formData.type_bien==="local_commercial")))
                           .map(o => (
                             <button key={o.v} type="button"

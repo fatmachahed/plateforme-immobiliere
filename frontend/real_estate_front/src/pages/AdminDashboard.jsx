@@ -30,7 +30,7 @@ function TypeBienFr(t) {
 }
 
 function CatFr(c) {
-  return { vente:"Vente", location:"Location", vacances:"Vacances" }[c] || c;
+  return { vente:"Achat", location:"Location", vacances:"Vacances" }[c] || c;
 }
 
 

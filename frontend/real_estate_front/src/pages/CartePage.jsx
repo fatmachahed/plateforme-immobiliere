@@ -340,19 +340,23 @@ function PropertyMap({ properties, activeId, selectedGov, onPinClick, onBoundsCh
       const m = L.marker([p.lat, p.lng], { icon }).addTo(map);
       m.on("click", () => onPinClick(p.id));
 
-      /* Hover via onPinHoverRef — jamais stale, disparaît immédiatement */
-      m.on('mouseover', (e) => {
-        clearTimeout(hoverTimerRef.current);
-        const mapEl = e.originalEvent?.target?.closest?.(".leaflet-container");
-        const rect  = mapEl ? mapEl.getBoundingClientRect() : { left:0, top:0 };
-        const px = e.originalEvent.clientX - rect.left;
-        const py = e.originalEvent.clientY - rect.top;
-        onPinHoverRef.current?.({ ...p, _px: px, _py: py });
-      });
-      m.on('mouseout', () => {
-        /* Petit délai (40ms) pour éviter le clignotement inter-pins, mais disparaît vite */
-        hoverTimerRef.current = setTimeout(() => onPinHoverRef.current?.(null), 40);
-      });
+      /* ── Hover via événements DOM natifs mouseenter/mouseleave ──────────────────
+         getElement() est disponible immédiatement après addTo(map).
+         mouseenter/mouseleave ne bubblent pas → aucun cycle icon/shadow Leaflet. */
+      const el = m.getElement();
+      if (el) {
+        el.addEventListener('mouseenter', (e) => {
+          clearTimeout(hoverTimerRef.current);
+          const rect = containerRef.current?.getBoundingClientRect() || { left:0, top:0 };
+          const px = e.clientX - rect.left;
+          const py = e.clientY - rect.top;
+          onPinHoverRef.current?.({ ...p, _px: px, _py: py });
+        });
+        el.addEventListener('mouseleave', () => {
+          clearTimeout(hoverTimerRef.current);
+          onPinHoverRef.current?.(null);
+        });
+      }
 
       markersRef.current[p.id] = m;
     };
@@ -409,57 +413,101 @@ function PropertyMap({ properties, activeId, selectedGov, onPinClick, onBoundsCh
 
         /* ── Popup cluster : image GAUCHE, texte DROITE, navigation stable ── */
         let currentIdx = 0;
-        const catColor = { vente:"#4f46e5", location:"#16a34a", vacances:"#f59e0b" };
-        const catLabel = { vente:"Vente", location:"Location", vacances:"Vacances" };
+        /* Même palette que les badges des cartes à droite */
+        const catBgMap = { vente:"#dcfce7", location:"#dbeafe", vacances:"#fef9c3" };
+        const catFgMap = { vente:"#166534", location:"#1e40af", vacances:"#854d0e" };
+        const catColor = catFgMap; /* utilisé pour la barre couleur + bouton */
+        const catLabel = { vente:"ACHAT", location:"LOCATION", vacances:"VACANCES" };
 
         const buildPopup = () => {
           const pin = group[currentIdx];
           const img = (pin.images && pin.images[0]) || "";
-          const cc  = catColor[pin.categorie] || "#475569";
-          const cl  = catLabel[pin.categorie] || pin.categorie || "";
+          const cc  = catFgMap[pin.categorie] || "#475569";
+          const bg2 = catBgMap[pin.categorie] || "#f1f5f9";
+          const cl  = catLabel[pin.categorie] || (pin.categorie||"").toUpperCase();
+          const dev = pin.devise === "TND" ? "DT" : (pin.devise || "DT");
           return `
-            <div style="width:420px;font-family:system-ui,sans-serif;display:flex;overflow:hidden;min-height:170px;">
-              <!-- Image GAUCHE -->
-              <div style="width:170px;flex-shrink:0;position:relative;background:#f1f5f9;overflow:hidden;">
+            <div style="
+              width:480px; font-family:'Inter',system-ui,sans-serif;
+              overflow:hidden; border-radius:2px;
+            ">
+              <!-- Image pleine largeur en haut -->
+              <div style="position:relative;height:200px;overflow:hidden;background:#f1f5f9;">
                 ${img
                   ? `<img src="${img}" style="width:100%;height:100%;object-fit:cover;display:block;"
-                       onerror="this.src='https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400&q=60'"/>`
-                  : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:40px;">🏠</div>`
+                       onerror="this.src='https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=70'"/>`
+                  : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:56px;color:#cbd5e1;">🏠</div>`
                 }
-                <span style="position:absolute;bottom:8px;left:8px;background:${cc};color:#fff;
-                  font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:16px;">${cl}</span>
+                <!-- Badge catégorie — même design que les cartes à droite -->
+                <span style="
+                  position:absolute;top:8px;right:8px;
+                  background:${bg2};color:${cc};
+                  font-size:10px;font-weight:700;
+                  padding:3px 9px;border-radius:20px;letter-spacing:.04em;
+                ">${cl}</span>
+                <!-- Compteur biens (si plusieurs) -->
+                ${count > 1 ? `<span style="
+                  position:absolute;top:12px;right:12px;
+                  background:rgba(0,0,0,.6);color:#fff;
+                  font-size:11px;font-weight:700;
+                  padding:4px 10px;border-radius:3px;
+                ">${currentIdx+1} / ${count} biens</span>` : ""}
               </div>
-              <!-- Texte DROITE -->
-              <div style="flex:1;padding:14px 16px 12px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;">
-                <!-- Titre + prix -->
-                <div>
-                  <div style="font-size:13.5px;font-weight:800;color:#0f172a;margin-bottom:6px;line-height:1.3;
-                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                    ${pin.titre || "Bien immobilier"}
-                  </div>
-                  <div style="font-size:17px;font-weight:900;color:${cc};margin-bottom:7px;">
-                    ${(pin.prix||0).toLocaleString("fr-TN")}
-                    <span style="font-size:11.5px;font-weight:600;color:#64748b;margin-left:3px;">${pin.devise||"DT"}</span>
-                  </div>
-                  <div style="display:flex;gap:10px;font-size:12px;color:#64748b;flex-wrap:wrap;">
-                    ${pin.area  ? `<span>📐 ${pin.area} m²</span>` : ""}
-                    ${pin.beds  != null ? `<span>🛏 ${pin.beds}</span>` : ""}
-                    ${pin.baths != null ? `<span>🚿 ${pin.baths}</span>` : ""}
-                  </div>
-                  ${pin.delegation ? `<div style="font-size:11px;color:#94a3b8;margin-top:5px;">📍 ${pin.delegation}</div>` : ""}
+
+              <!-- Corps texte -->
+              <div style="padding:16px 18px 14px;border-top:2px solid ${cc};">
+                <!-- Titre -->
+                <div style="
+                  font-size:15px;font-weight:800;color:#0f172a;
+                  margin-bottom:6px;line-height:1.3;
+                  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+                ">${pin.titre || "Bien immobilier"}</div>
+
+                <!-- Prix -->
+                <div style="font-size:20px;font-weight:900;color:#0f172a;margin-bottom:10px;letter-spacing:-.02em;">
+                  ${(pin.prix||0).toLocaleString("fr-TN")}
+                  <span style="font-size:13px;font-weight:600;color:#64748b;margin-left:5px;">${dev}</span>
                 </div>
-                <!-- Navigation -->
+
+                <!-- Specs -->
+                <div style="display:flex;gap:14px;font-size:12.5px;color:#475569;margin-bottom:8px;flex-wrap:wrap;">
+                  ${pin.area  ? `<span style="display:flex;align-items:center;gap:4px;">📐 ${pin.area} m²</span>` : ""}
+                  ${pin.beds  != null ? `<span>🛏 ${pin.beds} ch.</span>` : ""}
+                  ${pin.baths != null ? `<span>🚿 ${pin.baths}</span>` : ""}
+                </div>
+
+                <!-- Localisation -->
+                ${pin.delegation ? `
+                  <div style="font-size:11.5px;color:#94a3b8;display:flex;align-items:center;gap:4px;">
+                    📍 ${pin.delegation}${pin.gouvernorat ? ` · ${pin.gouvernorat}` : ""}
+                  </div>
+                ` : ""}
+
+                <!-- Navigation entre biens -->
                 ${count > 1 ? `
-                  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:8px;border-top:1px solid #f1f5f9;">
+                  <div style="
+                    display:flex;align-items:center;justify-content:space-between;
+                    margin-top:14px;padding-top:12px;border-top:1px solid #f1f5f9;
+                  ">
                     <button onclick="event.stopPropagation();window._clPrev_${cluster.lat.toFixed(5).replace('.','_')}()"
-                      style="width:32px;height:32px;border-radius:50%;border:1.5px solid #e5e7eb;
-                        background:#fff;cursor:pointer;font-size:18px;font-weight:700;
-                        display:flex;align-items:center;justify-content:center;line-height:1;">‹</button>
-                    <span style="font-size:11.5px;color:#64748b;font-weight:600;">${currentIdx+1} / ${count}</span>
+                      style="
+                        display:flex;align-items:center;gap:5px;
+                        padding:7px 16px;border:1.5px solid #e5e7eb;border-radius:4px;
+                        background:#f8fafc;cursor:pointer;
+                        font-size:13px;font-weight:700;color:#374151;
+                        font-family:inherit;
+                      ">← Précédent</button>
+                    <span style="font-size:12px;color:#94a3b8;font-weight:600;">
+                      Bien ${currentIdx+1} sur ${count}
+                    </span>
                     <button onclick="event.stopPropagation();window._clNext_${cluster.lat.toFixed(5).replace('.','_')}()"
-                      style="width:32px;height:32px;border-radius:50%;border:1.5px solid #e5e7eb;
-                        background:#fff;cursor:pointer;font-size:18px;font-weight:700;
-                        display:flex;align-items:center;justify-content:center;line-height:1;">›</button>
+                      style="
+                        display:flex;align-items:center;gap:5px;
+                        padding:7px 16px;border:none;border-radius:4px;
+                        background:${cc};cursor:pointer;
+                        font-size:13px;font-weight:700;color:#fff;
+                        font-family:inherit;
+                      ">Suivant →</button>
                   </div>
                 ` : ""}
               </div>
@@ -472,10 +520,39 @@ function PropertyMap({ properties, activeId, selectedGov, onPinClick, onBoundsCh
         window[`_clNext_${clKey}`] = () => { currentIdx=(currentIdx+1)%count;       marker.setPopupContent(buildPopup()); };
 
         marker.bindPopup(buildPopup(), {
-          maxWidth:440, closeButton:true, className:"cluster-popup",
-          offset:L.point(0,-12), autoPan:true,
+          maxWidth:500, closeButton:true, className:"cluster-popup",
+          offset:L.point(0,-8), autoPan:true, autoPanPadding:[20,20],
         });
-        /* stopPropagation → empêche map.click de fermer le popup */
+        /* Cluster : ouvre le grand popup au hover (pas au clic) ──────────────────
+           Le popup reste ouvert quand le curseur se déplace vers les boutons Prev/Next.
+           Il se ferme seulement quand le curseur quitte à la fois le marker ET le popup. */
+        const clEl = marker.getElement();
+        const clTimer = { id: null };
+
+        const openCluster = () => {
+          clearTimeout(clTimer.id);
+          onPinHoverRef.current?.(null); // s'assurer qu'aucune hover-card simple n'est visible
+          marker.openPopup();
+        };
+        const closeCluster = (delay = 220) => {
+          clTimer.id = setTimeout(() => marker.closePopup(), delay);
+        };
+
+        if (clEl) {
+          clEl.addEventListener('mouseenter', openCluster);
+          clEl.addEventListener('mouseleave', () => closeCluster());
+        }
+
+        /* Garder le popup ouvert quand la souris entre dans son contenu */
+        marker.on('popupopen', () => {
+          const popupEl = marker.getPopup()?.getElement();
+          if (popupEl) {
+            popupEl.addEventListener('mouseenter', () => clearTimeout(clTimer.id));
+            popupEl.addEventListener('mouseleave', () => closeCluster(80));
+          }
+        });
+
+        /* Clic = ouvre aussi (si l'utilisateur clique directement sans hover) */
         marker.on("click", (e) => { L.DomEvent.stopPropagation(e); marker.openPopup(); });
 
         // Store under a cluster key
@@ -824,7 +901,7 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
               : <School size={13}/>
             }
             Écoles
-            {showSchools && liveSchoolCount > 0 && (
+            {liveSchoolCount > 0 && (
               <span className="fp__poi-count">{liveSchoolCount}</span>
             )}
           </button>
@@ -837,7 +914,7 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
               : <Moon size={13}/>
             }
             Mosquées
-            {showMosques && liveMosqueCount > 0 && (
+            {liveMosqueCount > 0 && (
               <span className="fp__poi-count">{liveMosqueCount}</span>
             )}
           </button>
@@ -850,7 +927,7 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
               : <span style={{fontSize:13}}>🎓</span>
             }
             Facultés
-            {showFaculties && liveFacultyCount > 0 && (
+            {liveFacultyCount > 0 && (
               <span className="fp__poi-count">{liveFacultyCount}</span>
             )}
           </button>
@@ -863,7 +940,7 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
               : <span>🏬</span>
             }
             Grandes surfaces
-            {showGrandSurfaces && liveGrandSurfaceCount > 0 && (
+            {liveGrandSurfaceCount > 0 && (
               <span className="fp__poi-count">{liveGrandSurfaceCount}</span>
             )}
           </button>
@@ -1230,8 +1307,13 @@ export default function CartePage() {
 
   /* ── Sync URL params → filters (navigation externe / retour navigateur) ── */
   useEffect(() => {
-    setFilters({ ...INIT_F, ...readFiltersFromUrl(searchParams) });
-  }, [searchParams, readFiltersFromUrl]);
+    const fromUrl = { ...INIT_F, ...readFiltersFromUrl(searchParams) };
+    setFilters(fromUrl);
+    /* Si la navigation externe a mis un ?q= (ex: depuis la navbar), lancer la détection */
+    if (fromUrl.query && !fromUrl.govNom && !fromUrl.delNom && !fromUrl.locNom) {
+      applyFilters(fromUrl);
+    }
+  }, [searchParams]); // eslint-disable-line
 
   /* ── Sauvegarde sessionStorage (restauration au retour depuis le détail) ── */
   useEffect(() => {
@@ -1243,18 +1325,18 @@ export default function CartePage() {
     let f = { ...newFilters };
     const q = (f.query || "").trim();
     if (q) {
-      // Clear existing location filters first
-      f = { ...f, govNom:"", govId:"", delNom:"", delId:"", locNom:"", locId:"" };
-
+      /* ── Règle : on n'écrase la hiérarchie QUE si on trouve quelque chose à mettre
+         à sa place. Une adresse libre ("15 avenue Bourguiba") conserve gov/del/loc
+         existants et filtre uniquement sur le texte de l'adresse.              ── */
       try {
         const res = await fetch(`${API_URL}/localisation/search?q=${encodeURIComponent(q)}`);
         if (res.ok) {
           const data = await res.json();
           if (data) {
-            // Found in hierarchy → update all levels, clear text query
+            /* Localisation reconnue → on remplace la cascade par les nouvelles valeurs.
+               Le texte reste visible dans la barre (query non effacé). */
             f = {
               ...f,
-              query: "",
               govNom:  data.gouvernorat  || "",
               govId:   data.gouvernorat_id ? String(data.gouvernorat_id) : "",
               delNom:  data.delegation   || "",
@@ -1263,10 +1345,12 @@ export default function CartePage() {
               locId:   data.localite_id    ? String(data.localite_id)    : "",
             };
           }
-          // If data is null → no match found, f.query stays (text search, no chip)
+          /* data === null → terme non reconnu dans la hiérarchie (ex: "15 avenue Bourguiba")
+             → les filtres gov/del/loc EXISTANTS sont conservés
+             → le filtre texte s'applique sur titre/adresse/localite/delegation/gouvernorat */
         }
       } catch {
-        // Network error → keep text search silently
+        /* Erreur réseau → on garde tout en l'état, filtre texte seul */
       }
     }
 
@@ -1374,14 +1458,35 @@ export default function CartePage() {
     }
   }, []);
 
-  /* Trigger fetch when gouvernorat or POI toggles change */
-  useEffect(() => {
-    if (filters.govNom && (showSchools || showMosques || showFaculties || showGrandSurfaces)) {
-      fetchPOIs(filters.govNom);
-    } else {
-      setLivePOIs({ schools: [], mosques: [], faculties: [], grandSurfaces: [], loading: false });
+  /* ── POI : fetch uniquement quand l'utilisateur active un bouton ── */
+  /* L'useEffect automatique est supprimé — plus de recherche en arrière-plan */
+
+  /* Zone géographique pour les requêtes Overpass — préférer le gouvernorat, sinon bbox */
+  const poiZoneRef = useRef(null);
+  useEffect(() => { poiZoneRef.current = filters.govNom || null; }, [filters.govNom]);
+
+  const handleTogglePOI = useCallback((type, currentState) => {
+    const next = !currentState;
+    /* Désactivation → retirer les marqueurs */
+    if (!next) {
+      if (type === "schools")       { setShowSchools(false);       setLivePOIs(p => ({...p, schools:[]})); }
+      if (type === "mosques")       { setShowMosques(false);       setLivePOIs(p => ({...p, mosques:[]})); }
+      if (type === "faculties")     { setShowFaculties(false);     setLivePOIs(p => ({...p, faculties:[]})); }
+      if (type === "grandSurfaces") { setShowGrandSurfaces(false); setLivePOIs(p => ({...p, grandSurfaces:[]})); }
+      return;
     }
-  }, [filters.govNom, showSchools, showMosques, showFaculties, showGrandSurfaces, fetchPOIs]);
+    /* Activation → afficher le bouton + déclencher le fetch si une zone est connue */
+    if (type === "schools")       setShowSchools(true);
+    if (type === "mosques")       setShowMosques(true);
+    if (type === "faculties")     setShowFaculties(true);
+    if (type === "grandSurfaces") setShowGrandSurfaces(true);
+
+    if (poiZoneRef.current) {
+      fetchPOIs(poiZoneRef.current);
+    }
+    /* Pas de gouvernorat sélectionné → les marqueurs s'afficheront quand
+       l'utilisateur sélectionnera un gouvernorat */
+  }, [fetchPOIs]);
 
   useEffect(() => {
     fetch(`${API_URL}/annonces/public?limit=100`)
@@ -1430,8 +1535,12 @@ export default function CartePage() {
   /* Filtrage complet (carte + liste) */
   const results = allProperties
     .filter((p) => {
-      if (filters.query && !`${p.titre} ${p.delegation} ${p.gouvernorat} ${p.localite} ${p.address||""}`
-        .toLowerCase().includes(filters.query.toLowerCase())) return false;
+      /* Si une localisation est détectée (govNom/delNom/locNom), on ne réapplique pas
+         le filtre texte (la cascade est plus précise et évite les doublons) */
+      const hasLocationFilter = filters.govNom || filters.delNom || filters.locNom;
+      if (filters.query && !hasLocationFilter &&
+          !`${p.titre} ${p.delegation} ${p.gouvernorat} ${p.localite} ${p.address||""}`
+          .toLowerCase().includes(filters.query.toLowerCase())) return false;
       if (filters.govNom && p.gouvernorat !== filters.govNom)   return false;
       if (filters.delNom && p.delegation  !== filters.delNom)   return false;
       if (filters.locNom && p.localite    !== filters.locNom)   return false;
@@ -1520,15 +1629,15 @@ export default function CartePage() {
       <FilterPanel
         filters={filters} onChange={applyFilters}
         showSchools={showSchools} showMosques={showMosques} showFaculties={showFaculties} showGrandSurfaces={showGrandSurfaces}
-        onToggleSchools={()=>setShowSchools(v=>!v)}
-        onToggleMosques={()=>setShowMosques(v=>!v)}
-        onToggleFaculties={()=>setShowFaculties(v=>!v)}
-        onToggleGrandSurfaces={()=>setShowGrandSurfaces(v=>!v)}
+        onToggleSchools={()=>handleTogglePOI("schools",      showSchools)}
+        onToggleMosques={()=>handleTogglePOI("mosques",      showMosques)}
+        onToggleFaculties={()=>handleTogglePOI("faculties",  showFaculties)}
+        onToggleGrandSurfaces={()=>handleTogglePOI("grandSurfaces", showGrandSurfaces)}
         poiLoading={livePOIs.loading}
-        liveSchoolCount={livePOIs.schools.length}
-        liveMosqueCount={livePOIs.mosques.length}
-        liveFacultyCount={livePOIs.faculties.length}
-        liveGrandSurfaceCount={(livePOIs.grandSurfaces||[]).length}
+        liveSchoolCount={showSchools       ? livePOIs.schools.length           : 0}
+        liveMosqueCount={showMosques       ? livePOIs.mosques.length           : 0}
+        liveFacultyCount={showFaculties    ? livePOIs.faculties.length         : 0}
+        liveGrandSurfaceCount={showGrandSurfaces ? (livePOIs.grandSurfaces||[]).length : 0}
       />
 
       {/* Barre compteur + tags */}
@@ -1608,52 +1717,68 @@ export default function CartePage() {
               const py    = hoveredPin._py || 100;
               const mapEl = document.querySelector(".leaflet-container");
               const mapW  = mapEl?.clientWidth  || 800;
-              const cardW = 300;
-              const left  = Math.min(px + 16, mapW - cardW - 12);
-              const top   = Math.max(py - 140, 10);
-              const img   = hoveredPin.images?.[0] || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=500&q=70";
-              const catColors = { vente:"#4f46e5", location:"#16a34a", vacances:"#f59e0b" };
-              const catLabels = { vente:"Vente", location:"Location", vacances:"Vacances" };
-              const cc = catColors[hoveredPin.categorie] || "#475569";
+              const mapH  = mapEl?.clientHeight || 600;
+              const cardW = 340;
+              const cardH = 230; /* hauteur estimée pour rester dans la carte */
+              /* Positionner à droite du pin par défaut, basculer à gauche si trop près du bord */
+              const left  = (px + 18 + cardW > mapW - 8) ? Math.max(px - cardW - 14, 8) : px + 18;
+              const top   = Math.min(Math.max(py - 80, 8), mapH - cardH - 8);
+              const img   = hoveredPin.images?.[0] || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=75";
+              /* Mêmes couleurs/design que les badges des cartes à droite */
+              const catBg   = { vente:"#dcfce7", location:"#dbeafe", vacances:"#fef9c3" };
+              const catFg   = { vente:"#166534", location:"#1e40af", vacances:"#854d0e" };
+              const catLabels = { vente:"Achat", location:"Location", vacances:"Vacances" };
+              const bg = catBg[hoveredPin.categorie] || "#f1f5f9";
+              const cc = catFg[hoveredPin.categorie] || "#475569";
               return (
                 <div style={{
                   position:"absolute", left, top, width:cardW, zIndex:9100,
-                  pointerEvents:"none",  /* critique — aucun événement souris capté */
-                  background:"#fff", borderRadius:14, overflow:"hidden",
-                  boxShadow:"0 14px 44px rgba(0,0,0,.28)",
-                  animation:"hoverFadeIn .12s ease",
-                  border:"1px solid rgba(0,0,0,.07)"
+                  pointerEvents:"none",
+                  background:"#fff",
+                  borderRadius:4,           /* rectangle quasi-rigide */
+                  overflow:"hidden",
+                  boxShadow:"0 8px 32px rgba(0,0,0,.32), 0 2px 8px rgba(0,0,0,.16)",
+                  animation:"hoverFadeIn .10s ease",
+                  border:"1.5px solid #e2e8f0"
                 }}>
                   {/* Image */}
-                  <div style={{position:"relative",height:156,overflow:"hidden"}}>
-                    <img src={img} alt="" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}
-                      onError={e => { e.currentTarget.src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=500&q=70"; }}
+                  <div style={{position:"relative",height:170,overflow:"hidden",flexShrink:0}}>
+                    <img src={img} alt=""
+                      style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}
+                      onError={e => { e.currentTarget.src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=75"; }}
                     />
                     <span style={{
-                      position:"absolute",top:10,left:10,
-                      background:cc,color:"#fff",fontSize:11,fontWeight:700,
-                      padding:"3px 9px",borderRadius:20
+                      position:"absolute", top:8, right:8,
+                      background:bg, color:cc,
+                      fontSize:10, fontWeight:700,
+                      padding:"3px 9px", borderRadius:20,
+                      letterSpacing:".03em", textTransform:"uppercase"
                     }}>{catLabels[hoveredPin.categorie] || hoveredPin.categorie}</span>
                   </div>
                   {/* Corps */}
-                  <div style={{padding:"12px 14px 14px"}}>
-                    <p style={{fontSize:13,fontWeight:700,color:"#0f172a",margin:"0 0 5px",lineHeight:1.35,
-                      whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                      {hoveredPin.titre}
-                    </p>
-                    <p style={{fontSize:16,fontWeight:900,color:cc,margin:"0 0 8px"}}>
+                  <div style={{padding:"13px 15px 14px",borderTop:"1px solid #f1f5f9"}}>
+                    <p style={{
+                      fontSize:13.5,fontWeight:700,color:"#0f172a",
+                      margin:"0 0 5px",lineHeight:1.3,
+                      whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"
+                    }}>{hoveredPin.titre}</p>
+                    <p style={{fontSize:18,fontWeight:900,color:"#0f172a",margin:"0 0 8px",letterSpacing:"-.01em"}}>
                       {(hoveredPin.prix||0).toLocaleString("fr-TN")}
-                      <span style={{fontSize:12,fontWeight:600,color:"#64748b",marginLeft:4}}>
-                        {hoveredPin.devise||"DT"}
+                      <span style={{fontSize:12,fontWeight:400,color:"#94a3b8",marginLeft:4}}>
+                        {hoveredPin.devise === "TND" ? "DT" : (hoveredPin.devise||"DT")}
                       </span>
                     </p>
-                    <div style={{display:"flex",gap:12,fontSize:11.5,color:"#64748b"}}>
+                    <div style={{display:"flex",gap:14,fontSize:12,color:"#64748b",flexWrap:"wrap"}}>
                       {hoveredPin.area  && <span>📐 {hoveredPin.area} m²</span>}
-                      {hoveredPin.beds  != null && <span>🛏 {hoveredPin.beds}</span>}
+                      {hoveredPin.beds  != null && <span>🛏 {hoveredPin.beds} ch.</span>}
                       {hoveredPin.baths != null && <span>🚿 {hoveredPin.baths}</span>}
                     </div>
                     {hoveredPin.delegation && (
-                      <p style={{fontSize:11,color:"#94a3b8",margin:"6px 0 0",display:"flex",alignItems:"center",gap:3}}>
+                      <p style={{
+                        fontSize:11,color:"#94a3b8",margin:"7px 0 0",
+                        display:"flex",alignItems:"center",gap:3,
+                        whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"
+                      }}>
                         📍 {hoveredPin.delegation}{hoveredPin.gouvernorat ? ` · ${hoveredPin.gouvernorat}` : ""}
                       </p>
                     )}
@@ -2014,9 +2139,22 @@ export default function CartePage() {
 
         /* ── Barre évaluation prix ── */
         /* Cluster popup — supprimer le padding interne de Leaflet */
-        .cluster-popup .leaflet-popup-content-wrapper { padding: 0; border-radius: 14px; overflow: hidden; box-shadow: 0 12px 40px rgba(0,0,0,.2); }
-        .cluster-popup .leaflet-popup-content { margin: 0; width: auto !important; }
-        .cluster-popup .leaflet-popup-tip-container { display: block; }
+        /* Cluster popup — rectangle rigide, grande taille */
+        .cluster-popup .leaflet-popup-content-wrapper {
+          padding: 0; border-radius: 3px; overflow: hidden;
+          box-shadow: 0 10px 40px rgba(0,0,0,.28), 0 2px 8px rgba(0,0,0,.14);
+          border: 1.5px solid #e2e8f0;
+        }
+        .cluster-popup .leaflet-popup-content { margin: 0; width: auto !important; line-height: 1; }
+        .cluster-popup .leaflet-popup-tip-container { display: none; } /* pas de flèche pointue */
+        .cluster-popup .leaflet-popup-close-button {
+          top: 8px !important; right: 8px !important;
+          background: rgba(0,0,0,.45) !important; color: #fff !important;
+          width: 22px !important; height: 22px !important;
+          border-radius: 50% !important; font-size: 16px !important;
+          display: flex !important; align-items: center !important; justify-content: center !important;
+          line-height: 1 !important;
+        }
 
         .peb {
           display: flex; flex-direction: column; gap: 4px;

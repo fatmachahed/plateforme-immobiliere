@@ -33,7 +33,7 @@ const DEMO = [
 ];
 
 const TYPE_FR  = { appartement:"Appartement", villa:"Villa", maison:"Maison", terrain:"Terrain", bureau:"Bureau", local_commercial:"Local commercial", ferme:"Ferme" };
-const CAT_FR   = { vente:"Vente", location:"Location", vacances:"Vacances" };
+const CAT_FR   = { vente:"Achat", location:"Location", vacances:"Vacances" };
 const ETAT_FR  = { nouveau:"Neuf", bon_etat:"Bon état", a_renover:"À rénover", cours_construction:"En construction" };
 
 function normalizeApi(a) {

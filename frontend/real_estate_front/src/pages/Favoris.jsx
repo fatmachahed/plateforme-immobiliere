@@ -11,7 +11,7 @@ const TYPE_FR = {
   appartement: "Appartement", villa: "Villa", maison: "Maison",
   terrain: "Terrain", bureau: "Bureau", local_commercial: "Local com.", ferme: "Ferme",
 };
-const CAT_FR = { vente: "Vente", location: "Location", vacances: "Vacances" };
+const CAT_FR = { vente: "Achat", location: "Location", vacances: "Vacances" };
 
 export default function Favoris() {
   const [favoris,  setFavoris]  = useState([]);

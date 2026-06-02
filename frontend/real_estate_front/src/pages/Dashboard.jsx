@@ -22,7 +22,7 @@ function typeBienLabel(t) {
   return map[t] || t;
 }
 function categorieLabel(c) {
-  const map = { vente:"Vente", location:"Location", vacances:"Vacances" };
+  const map = { vente:"Achat", location:"Location", vacances:"Vacances" };
   return map[c] || c;
 }
 
