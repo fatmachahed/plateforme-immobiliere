@@ -719,6 +719,10 @@ export const CreateListingForm = ({ editId = null }) => {
       if (formData.type_bien === "terrain" && !formData.titre_foncier) {
         errors.titre_foncier = true;
       }
+      /* Durée de location obligatoire pour vacances */
+      if (formData.categorie === "vacances" && !formData.duree_type) {
+        errors.duree_type = true;
+      }
       /* Incompatibilité type ↔ vocation bloque le passage */
       if (vocIncompat) {
         errors.vocation_terrain = true;
@@ -848,6 +852,39 @@ export const CreateListingForm = ({ editId = null }) => {
         nb_salles_bain:    formData.nb_salles_bain || null,
         anonyme:           formData.anonyme || false,
         accompagnement:    formData.accompagnement || false,
+        /* ── Caractéristiques générales ── */
+        jardin:            formData.jardin      || false,
+        terrasse:          formData.terrasse    || false,
+        balcon:            formData.balcon      || false,
+        parking:           formData.parking     || false,
+        garage:            formData.garage      || false,
+        ascenseur:         formData.ascenseur   || false,
+        vue_mer:           formData.vue_mer     || false,
+        vue_montagne:      formData.vue_montagne|| false,
+        vue_foret:         formData.vue_foret   || false,
+        piscine:           formData.piscine     || false,
+        concierge:         formData.concierge   || false,
+        cellier:           formData.cellier     || false,
+        meuble:            formData.meuble      || false,
+        digicode:          formData.digicode    || false,
+        interphone:        formData.interphone  || false,
+        gardien:           formData.gardien     || false,
+        relie_onas:        formData.relie_onas  || false,
+        animaux_admis:     formData.animaux_admis|| false,
+        /* ── Caractéristiques intérieures ── */
+        salon_americain:   formData.salon_americain  || false,
+        fibre_optique:     formData.fibre_optique    || false,
+        cheminee:          formData.cheminee          || false,
+        climatisation:     formData.climatisation     || false,
+        chauffage_centrale:formData.chauffage_centrale|| false,
+        securite:          formData.securite          || false,
+        double_vitrage:    formData.double_vitrage    || false,
+        porte_blindee:     formData.porte_blindee     || false,
+        internet:          formData.internet          || false,
+        tv:                formData.tv                || false,
+        machine_laver:     formData.machine_laver     || false,
+        /* ── Cuisine ── */
+        cuisine_equipee:   formData.cuisine_equipee   || false,
       };
 
       /* ── EDIT MODE branch ── */
@@ -1321,7 +1358,7 @@ export const CreateListingForm = ({ editId = null }) => {
                             <select className="ca-select" value={formData.etage}
                               onChange={e => handleInputChange("etage", e.target.value)}>
                               <option value="">Sélectionner…</option>
-                              <option value="0">Rez-de-chaussée</option>
+                              <option value="0">RDC (Rez-de-chaussée)</option>
                               <option value="1">1er étage</option>
                               <option value="2">2ème étage</option>
                               <option value="3">3ème étage</option>
@@ -1338,7 +1375,8 @@ export const CreateListingForm = ({ editId = null }) => {
                           <select className="ca-select" value={formData.etage}
                             onChange={e => handleInputChange("etage", e.target.value)}>
                             <option value="">Sélectionner…</option>
-                            <option value="0">Rez-de-chaussée (R)</option>
+                            <option value="-1">Sous-sol</option>
+                            <option value="0">RDC (Rez-de-chaussée)</option>
                             <option value="1">R+1</option>
                             <option value="2">R+2</option>
                             <option value="3">R+3</option>
@@ -1520,9 +1558,11 @@ export const CreateListingForm = ({ editId = null }) => {
                         <div className="ca-row-2" style={{marginTop:12}}>
                           <div className="ca-field">
                             <label className="ca-label">Durée</label>
-                            <select className="ca-select" value={formData.duree_type||""}
-                              onChange={e => handleInputChange("duree_type", e.target.value)}>
-                              <option value="">Sélectionner…</option>
+                            <select
+                              className={`ca-select${validationErrors.duree_type ? " ca-select--err" : ""}`}
+                              value={formData.duree_type||""}
+                              onChange={e => { handleInputChange("duree_type", e.target.value); setValidationErrors(v=>({...v,duree_type:false})); }}>
+                              <option value="">Sélectionner… *</option>
                               <option value="nuit">Par nuitée</option>
                               <option value="semaine">Par semaine</option>
                               <option value="mois">Par mois</option>

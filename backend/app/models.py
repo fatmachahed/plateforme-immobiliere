@@ -104,6 +104,8 @@ class Annonce(Base):
     terrain_viabilise = Column(Boolean, default=False)
     open_space = Column(Boolean, default=False)
     annee_construction = Column(Integer, nullable=True)
+    duree_type   = Column(String, nullable=True)  # nuit/semaine/mois/annee
+    duree_valeur = Column(String, nullable=True)  # ex: '3'
 
     # Boost / abonnement (0=gratuit, 1=standard, 2=premium, 3=boost)
     boost_level = Column(Integer, default=0)
@@ -155,8 +157,8 @@ class CaractereGeneral(Base):
     interphone = Column(Boolean, default=False)
     gardien = Column(Boolean, default=False)
     travaux_prevoir = Column(Boolean, default=False)
-    # [SUPPRIME] fibre_optique → déplacé uniquement dans CaracteristiqueInterieure
     relie_onas = Column(Boolean, default=False)
+    animaux_admis = Column(Boolean, default=False)
 
 
 class CaracteristiqueInterieure(Base):
@@ -175,6 +177,8 @@ class CaracteristiqueInterieure(Base):
     vitrage_aluminium = Column(Boolean, default=False)
     double_vitrage = Column(Boolean, default=False)
     porte_blink = Column(Boolean, default=False)
+    internet = Column(Boolean, default=False)
+    tv = Column(Boolean, default=False)
 
 
 class CuisineEquipee(Base):

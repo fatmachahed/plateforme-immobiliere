@@ -65,6 +65,17 @@ def search_annonces_public(
         desc(models.Annonce.date_creation)
     ).offset(skip).limit(limit).all()
 
+    # Même mapping que get_annonce_detail
+    FEAT_GEN = {"jardin":"Jardin","terrasse":"Terrasse","balcon":"Balcon","parking":"Parking",
+        "garage":"Garage","ascenseur":"Ascenseur","vue_mer":"Vue sur mer","vue_montagne":"Vue montagne",
+        "vue_foret":"Vue forêt","piscine":"Piscine","concierge":"Concierge","cellier":"Chambre rangement",
+        "meuble":"Meublé","digicode":"Digicode","interphone":"Interphone","gardien":"Gardien",
+        "relie_onas":"Relié ONAS","animaux_admis":"Animaux admis"}
+    FEAT_INT = {"salon_americain":"Salon américain","fibre_optique":"Fibre optique",
+        "cheminee":"Cheminée","climatisation":"Climatisation","chauffage_central":"Chauffage central",
+        "securite":"Sécurité","double_vitrage":"Double vitrage","porte_blink":"Porte blindée",
+        "internet":"Internet","tv":"TV"}
+
     result = []
     for a in annonces:
         lat = lng = img = None
@@ -83,6 +94,19 @@ def search_annonces_public(
             loc = a.localite.nom
         if a.property:
             addr = a.property.address
+
+        # Calculer les features
+        feats = []
+        if a.caractere_general:
+            for k, lbl in FEAT_GEN.items():
+                if getattr(a.caractere_general, k, False): feats.append(lbl)
+        if a.caracteristique_interieure:
+            for k, lbl in FEAT_INT.items():
+                if getattr(a.caracteristique_interieure, k, False): feats.append(lbl)
+        if a.cuisine_equipee:
+            if a.cuisine_equipee.cuisine_equipee: feats.append("Cuisine équipée")
+            if getattr(a.cuisine_equipee, "machine_laver", False): feats.append("Machine à laver")
+
         result.append(schemas.AnnoncePublic(
             id=a.id, titre=a.titre, prix=float(a.prix), devise=a.devise.value if hasattr(a.devise, 'value') else a.devise,
             superficie=a.superficie, categorie=a.categorie.value if hasattr(a.categorie, 'value') else a.categorie,
@@ -91,7 +115,8 @@ def search_annonces_public(
             date_creation=a.date_creation, latitude=lat, longitude=lng,
             image_principale=img, gouvernorat=gov, delegation=dele,
             localite=loc, address=addr,
-            nb_pieces=a.nb_pieces, nb_chambres=a.nb_chambres
+            nb_pieces=a.nb_pieces, nb_chambres=a.nb_chambres, duree_type=a.duree_type,
+            features=feats
         ))
     return result
 
@@ -174,9 +199,9 @@ def get_annonce_detail(annonce_id: int, db: Session = Depends(get_db)):
         "jardin":"Jardin","terrasse":"Terrasse","balcon":"Balcon","parking":"Parking",
         "garage":"Garage","ascenseur":"Ascenseur","vue_mer":"Vue sur mer",
         "vue_montagne":"Vue montagne","vue_foret":"Vue forêt","piscine":"Piscine",
-        "concierge":"Concierge","cellier":"Cellier","meuble":"Meublé",
+        "concierge":"Concierge","cellier":"Chambre rangement","meuble":"Meublé",
         "digicode":"Digicode","interphone":"Interphone","gardien":"Gardien",
-        "relie_onas":"Relié ONAS",
+        "relie_onas":"Relié ONAS","animaux_admis":"Animaux admis",
     }
     if a.caractere_general:
         for k, label in feat_labels.items():
@@ -187,13 +212,15 @@ def get_annonce_detail(annonce_id: int, db: Session = Depends(get_db)):
         "cheminee":"Cheminée","climatisation":"Climatisation",
         "chauffage_central":"Chauffage central","securite":"Sécurité",
         "double_vitrage":"Double vitrage","porte_blink":"Porte blindée",
+        "internet":"Internet","tv":"TV",
     }
     if a.caracteristique_interieure:
         for k, label in ci_labels.items():
             if getattr(a.caracteristique_interieure, k, False):
                 features.append(label)
-    if a.cuisine_equipee and a.cuisine_equipee.cuisine_equipee:
-        features.append("Cuisine équipée")
+    if a.cuisine_equipee:
+        if a.cuisine_equipee.cuisine_equipee: features.append("Cuisine équipée")
+        if a.cuisine_equipee.machine_laver:   features.append("Machine à laver")
 
     # Images (main first, then extras)
     images = []

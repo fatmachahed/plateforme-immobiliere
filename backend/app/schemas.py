@@ -86,6 +86,39 @@ class AnnonceCreate(AnnonceBase):
     annee_construction: Optional[int] = None
     anonyme: Optional[bool] = False
     accompagnement: Optional[bool] = False
+    # ── Caractéristiques générales ──
+    jardin: Optional[bool] = False
+    terrasse: Optional[bool] = False
+    balcon: Optional[bool] = False
+    parking: Optional[bool] = False
+    garage: Optional[bool] = False
+    ascenseur: Optional[bool] = False
+    vue_mer: Optional[bool] = False
+    vue_montagne: Optional[bool] = False
+    vue_foret: Optional[bool] = False
+    piscine: Optional[bool] = False
+    concierge: Optional[bool] = False
+    cellier: Optional[bool] = False
+    meuble: Optional[bool] = False
+    digicode: Optional[bool] = False
+    interphone: Optional[bool] = False
+    gardien: Optional[bool] = False
+    relie_onas: Optional[bool] = False
+    animaux_admis: Optional[bool] = False
+    # ── Caractéristiques intérieures ──
+    salon_americain: Optional[bool] = False
+    fibre_optique: Optional[bool] = False
+    cheminee: Optional[bool] = False
+    climatisation: Optional[bool] = False
+    chauffage_centrale: Optional[bool] = False
+    securite: Optional[bool] = False
+    double_vitrage: Optional[bool] = False
+    porte_blindee: Optional[bool] = False
+    internet: Optional[bool] = False
+    tv: Optional[bool] = False
+    machine_laver: Optional[bool] = False
+    # ── Cuisine ──
+    cuisine_equipee: Optional[bool] = False
 
 
 class AnnonceUpdate(BaseModel):
@@ -113,6 +146,39 @@ class AnnonceUpdate(BaseModel):
     annee_construction: Optional[int] = None
     anonyme: Optional[bool] = None
     accompagnement: Optional[bool] = None
+    duree_type: Optional[str] = None
+    duree_valeur: Optional[str] = None
+    # ── Caractéristiques (même liste que AnnonceCreate) ──
+    jardin: Optional[bool] = None
+    terrasse: Optional[bool] = None
+    balcon: Optional[bool] = None
+    parking: Optional[bool] = None
+    garage: Optional[bool] = None
+    ascenseur: Optional[bool] = None
+    vue_mer: Optional[bool] = None
+    vue_montagne: Optional[bool] = None
+    vue_foret: Optional[bool] = None
+    piscine: Optional[bool] = None
+    concierge: Optional[bool] = None
+    cellier: Optional[bool] = None
+    meuble: Optional[bool] = None
+    digicode: Optional[bool] = None
+    interphone: Optional[bool] = None
+    gardien: Optional[bool] = None
+    relie_onas: Optional[bool] = None
+    animaux_admis: Optional[bool] = None
+    salon_americain: Optional[bool] = None
+    fibre_optique: Optional[bool] = None
+    cheminee: Optional[bool] = None
+    climatisation: Optional[bool] = None
+    chauffage_centrale: Optional[bool] = None
+    securite: Optional[bool] = None
+    double_vitrage: Optional[bool] = None
+    porte_blindee: Optional[bool] = None
+    internet: Optional[bool] = None
+    tv: Optional[bool] = None
+    machine_laver: Optional[bool] = None
+    cuisine_equipee: Optional[bool] = None
 
     class Config:
         from_attributes = True
@@ -178,6 +244,8 @@ class AnnoncePublic(BaseModel):
     address: Optional[str] = None
     nb_pieces: Optional[int] = None
     nb_chambres: Optional[int] = None
+    duree_type: Optional[str] = None   # nuit/semaine/mois/annee — pour location/vacances
+    features: List[str] = []           # liste des caractéristiques (Jardin, Piscine, ...)
 
     class Config:
         from_attributes = True

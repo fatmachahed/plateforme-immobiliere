@@ -75,6 +75,18 @@ export default function Dashboard() {
     } catch {}
   }
 
+  async function markAsUnread(id) {
+    try {
+      await fetch(`${API_URL}/users/me/contact-requests/${id}/lu?lu=false`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setContactRequests(prev => prev.map(r => r.id === id ? {...r, lu:false} : r));
+    } catch {}
+  }
+
+  const [expandedMsg, setExpandedMsg] = useState(null);
+
   async function fetchAnnonces() {
     setLoading(true);
     try {
@@ -214,113 +226,99 @@ export default function Dashboard() {
                   </p>
                 </div>
               ) : (
-                <div style={{display:"flex", flexDirection:"column", gap:12, marginTop:8}}>
+                <div style={{marginTop:8, overflowX:"auto"}}>
+                  <table style={{width:"100%", borderCollapse:"collapse", fontFamily:"'Inter',system-ui,sans-serif", fontSize:13}}>
+                    <thead>
+                      <tr style={{borderBottom:"2px solid #e5e7eb", background:"#f8fafc"}}>
+                        <th style={{padding:"10px 14px", textAlign:"left", fontWeight:700, color:"#374151", fontSize:11.5, textTransform:"uppercase", letterSpacing:".05em", whiteSpace:"nowrap"}}>Contact</th>
+                        <th style={{padding:"10px 14px", textAlign:"left", fontWeight:700, color:"#374151", fontSize:11.5, textTransform:"uppercase", letterSpacing:".05em", whiteSpace:"nowrap"}}>Annonce</th>
+                        <th style={{padding:"10px 14px", textAlign:"left", fontWeight:700, color:"#374151", fontSize:11.5, textTransform:"uppercase", letterSpacing:".05em", whiteSpace:"nowrap"}}>Téléphone</th>
+                        <th style={{padding:"10px 14px", textAlign:"left", fontWeight:700, color:"#374151", fontSize:11.5, textTransform:"uppercase", letterSpacing:".05em", whiteSpace:"nowrap"}}>Email</th>
+                        <th style={{padding:"10px 14px", textAlign:"left", fontWeight:700, color:"#374151", fontSize:11.5, textTransform:"uppercase", letterSpacing:".05em", whiteSpace:"nowrap"}}>Message</th>
+                        <th style={{padding:"10px 14px", textAlign:"left", fontWeight:700, color:"#374151", fontSize:11.5, textTransform:"uppercase", letterSpacing:".05em", whiteSpace:"nowrap"}}>Date</th>
+                        <th style={{padding:"10px 14px", textAlign:"left", fontWeight:700, color:"#374151", fontSize:11.5, textTransform:"uppercase", letterSpacing:".05em"}}>Statut</th>
+                      </tr>
+                    </thead>
+                    <tbody>
                   {contactRequests.map(req => (
-                    <div key={req.id} style={{
+                    <tr key={req.id} style={{
                       background: req.lu ? "#fff" : "#f0f9ff",
-                      border: `1.5px solid ${req.lu ? "#e5e7eb" : "#bae6fd"}`,
-                      borderRadius:14, padding:"18px 20px",
-                      display:"flex", flexDirection:"column", gap:10,
-                      fontFamily:"'Inter',system-ui,sans-serif"
+                      borderBottom:"1px solid #f1f5f9",
+                      transition:"background .15s"
                     }}>
-                      <div style={{display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap", gap:8}}>
-                        <div>
-                          <div style={{display:"flex", alignItems:"center", gap:8}}>
-                            <div style={{
-                              width:38, height:38, borderRadius:"50%",
-                              background:"linear-gradient(135deg,#6366f1,#818cf8)",
-                              display:"flex", alignItems:"center", justifyContent:"center",
-                              fontSize:16, fontWeight:800, color:"#fff", flexShrink:0
-                            }}>
-                              {req.nom[0].toUpperCase()}
-                            </div>
-                            <div>
-                              <p style={{fontWeight:700, fontSize:14, color:"#0f172a", margin:0}}>{req.nom}</p>
-                              <p style={{fontSize:11.5, color:"#64748b", margin:0}}>
-                                {new Date(req.created_at).toLocaleDateString("fr-TN",{day:"2-digit",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"})}
-                              </p>
-                            </div>
+                      {/* Contact */}
+                      <td style={{padding:"12px 14px", verticalAlign:"middle"}}>
+                        <div style={{display:"flex", alignItems:"center", gap:8}}>
+                          <div style={{width:32,height:32,borderRadius:"50%",background:"linear-gradient(135deg,#6366f1,#818cf8)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:800,color:"#fff",flexShrink:0}}>
+                            {req.nom[0]?.toUpperCase()}
                           </div>
+                          <span style={{fontWeight:600, color:"#0f172a"}}>{req.nom}</span>
                         </div>
-                        <div style={{display:"flex", gap:6, alignItems:"center", flexWrap:"wrap"}}>
-                          {!req.lu && (
-                            <span style={{background:"#0ea5e9", color:"#fff", fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:20}}>
-                              Nouveau
-                            </span>
+                      </td>
+                      {/* Annonce */}
+                      <td style={{padding:"12px 14px", verticalAlign:"middle", color:"#6366f1", fontWeight:600, maxWidth:160}}>
+                        <span style={{whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"block"}}>
+                          {req.annonce_titre || `Annonce #${req.annonce_id}`}
+                        </span>
+                      </td>
+                      {/* Téléphone */}
+                      <td style={{padding:"12px 14px", verticalAlign:"middle", whiteSpace:"nowrap"}}>
+                        {req.telephone ? (
+                          <div style={{display:"flex",gap:6}}>
+                            <a href={`tel:${req.telephone.replace(/\s/g,"")}`} style={{color:"#15803d",fontWeight:600,textDecoration:"none"}}><Phone size={12}/> {req.telephone}</a>
+                            <a href={`https://wa.me/${req.telephone.replace(/[\s+]/g,"").replace(/^00/,"")}?text=${encodeURIComponent(`Bonjour ${req.nom}, j'ai bien reçu votre demande.`)}`} target="_blank" rel="noopener noreferrer" style={{color:"#15803d",fontWeight:600,textDecoration:"none"}}>WhatsApp</a>
+                          </div>
+                        ) : <span style={{color:"#cbd5e1"}}>—</span>}
+                      </td>
+                      {/* Email */}
+                      <td style={{padding:"12px 14px", verticalAlign:"middle"}}>
+                        {req.email ? (
+                          <a href={`mailto:${req.email}?subject=Réponse demande&body=Bonjour ${req.nom},`} style={{color:"#1d4ed8",fontWeight:600,textDecoration:"none"}}><Mail size={12}/> {req.email}</a>
+                        ) : <span style={{color:"#cbd5e1"}}>—</span>}
+                      </td>
+                      {/* Message — cliquable pour voir la suite */}
+                      <td style={{padding:"12px 14px", verticalAlign:"middle", maxWidth:220, color:"#64748b", cursor: req.message ? "pointer" : "default"}}
+                        onClick={() => req.message && setExpandedMsg(expandedMsg === req.id ? null : req.id)}>
+                        {expandedMsg === req.id ? (
+                          <span style={{display:"block", lineHeight:1.5, fontSize:12.5}}>{req.message}</span>
+                        ) : (
+                          <span style={{display:"block",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                            {req.message || <span style={{color:"#cbd5e1"}}>—</span>}
+                          </span>
+                        )}
+                        {req.message && req.message.length > 40 && (
+                          <span style={{fontSize:10,color:"#6366f1",fontWeight:600}}>
+                            {expandedMsg === req.id ? "▲ Réduire" : "▼ Voir tout"}
+                          </span>
+                        )}
+                      </td>
+                      {/* Date */}
+                      <td style={{padding:"12px 14px", verticalAlign:"middle", color:"#94a3b8", whiteSpace:"nowrap", fontSize:12}}>
+                        {new Date(req.created_at).toLocaleDateString("fr-TN",{day:"2-digit",month:"short",year:"numeric"})}
+                      </td>
+                      {/* Statut + actions */}
+                      <td style={{padding:"12px 14px", verticalAlign:"middle"}}>
+                        <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                          {!req.lu ? (
+                            <button onClick={() => markAsRead(req.id)}
+                              style={{padding:"4px 9px",borderRadius:6,border:"none",background:"#0ea5e9",color:"#fff",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
+                              ✓ Marquer lu
+                            </button>
+                          ) : (
+                            <>
+                              <span style={{fontSize:11,color:"#16a34a",fontWeight:600,padding:"4px 0"}}>✓ Lu</span>
+                              <button onClick={() => markAsUnread(req.id)}
+                                style={{padding:"3px 8px",borderRadius:6,border:"1px solid #e5e7eb",background:"#f8fafc",color:"#64748b",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
+                                Non lu
+                              </button>
+                            </>
                           )}
-                          <span style={{
-                            background:"#f8fafc", border:"1px solid #e5e7eb",
-                            fontSize:11.5, color:"#64748b", fontWeight:600,
-                            padding:"3px 10px", borderRadius:20
-                          }}>📣 {req.annonce_titre || `Annonce #${req.annonce_id}`}</span>
                         </div>
-                      </div>
-
-                      {/* Coordonnées */}
-                      <div style={{display:"flex", gap:10, flexWrap:"wrap"}}>
-                        {req.telephone && (
-                          <a href={`tel:${req.telephone.replace(/\s/g,"")}`}
-                            style={{
-                              display:"flex", alignItems:"center", gap:6,
-                              padding:"7px 14px", borderRadius:9,
-                              background:"#f0fdf4", border:"1px solid #bbf7d0",
-                              color:"#15803d", fontSize:13, fontWeight:600, textDecoration:"none"
-                            }}>
-                            <Phone size={13}/> {req.telephone}
-                          </a>
-                        )}
-                        {req.telephone && (
-                          <a href={`https://wa.me/${req.telephone.replace(/[\s+]/g,"").replace(/^00/,"")}?text=${encodeURIComponent(`Bonjour ${req.nom}, j'ai bien reçu votre demande de contact concernant mon annonce immobilière.`)}`}
-                            target="_blank" rel="noopener noreferrer"
-                            style={{
-                              display:"flex", alignItems:"center", gap:6,
-                              padding:"7px 14px", borderRadius:9,
-                              background:"#f0fdf4", border:"1px solid #bbf7d0",
-                              color:"#15803d", fontSize:13, fontWeight:600, textDecoration:"none"
-                            }}>
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg>
-                            WhatsApp
-                          </a>
-                        )}
-                        {req.email && (
-                          <a href={`mailto:${req.email}?subject=Réponse à votre demande de contact&body=Bonjour ${req.nom},%0A%0AJ'ai bien reçu votre demande concernant mon annonce immobilière.%0A%0ACordialement`}
-                            style={{
-                              display:"flex", alignItems:"center", gap:6,
-                              padding:"7px 14px", borderRadius:9,
-                              background:"#eff6ff", border:"1px solid #bfdbfe",
-                              color:"#1d4ed8", fontSize:13, fontWeight:600, textDecoration:"none"
-                            }}>
-                            <Mail size={13}/> {req.email}
-                          </a>
-                        )}
-                      </div>
-
-                      {/* Message */}
-                      {req.message && (
-                        <div style={{
-                          background:"#f8fafc", border:"1px solid #f1f5f9",
-                          borderRadius:9, padding:"10px 13px",
-                          fontSize:13, color:"#374151", lineHeight:1.6
-                        }}>
-                          <MessageSquare size={13} style={{marginRight:6, color:"#94a3b8"}}/>
-                          {req.message}
-                        </div>
-                      )}
-
-                      {/* Marquer comme lu */}
-                      {!req.lu && (
-                        <button onClick={() => markAsRead(req.id)}
-                          style={{
-                            alignSelf:"flex-end", padding:"6px 14px", borderRadius:8,
-                            border:"1px solid #e5e7eb", background:"#f8fafc",
-                            fontSize:12, fontWeight:600, color:"#64748b", cursor:"pointer",
-                            fontFamily:"inherit"
-                          }}>
-                          ✓ Marquer comme lu
-                        </button>
-                      )}
-                    </div>
+                      </td>
+                    </tr>
                   ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>

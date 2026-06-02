@@ -291,6 +291,7 @@ def get_my_contact_requests(
 @router.put("/me/contact-requests/{request_id}/lu")
 def mark_contact_request_lu(
     request_id: int,
+    lu: bool = True,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
@@ -305,6 +306,6 @@ def mark_contact_request_lu(
     ).first()
     if not annonce:
         raise HTTPException(403, "Action interdite")
-    req.lu = True
+    req.lu = lu
     db.commit()
-    return {"detail": "Marqué comme lu"}
+    return {"detail": "Marqué comme lu" if lu else "Marqué comme non lu"}

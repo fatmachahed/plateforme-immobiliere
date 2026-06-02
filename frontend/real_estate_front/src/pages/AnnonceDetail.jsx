@@ -5,7 +5,11 @@ import {
   ChevronLeft, ChevronRight, ArrowLeft, MapPin,
   Bed, Bath, Maximize, Phone, Mail, Heart, Share2,
   CheckCircle, Calendar, Tag, Home, Loader,
-  Languages, Navigation, Eye
+  Languages, Navigation, Eye,
+  Waves, Mountain, TreePine, Fence, Sun, Flower2, Droplets, ParkingCircle,
+  ArrowUpDown, Car, Package, Sofa, Users, ShieldCheck,
+  UtensilsCrossed, Wind, Thermometer, Flame, DoorClosed, LockKeyhole,
+  Fingerprint, Wifi, Monitor, RefreshCw, KeyRound, PhoneCall
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import { useToast } from "../components/Toast";
@@ -308,16 +312,47 @@ export default function AnnonceDetail() {
           </div>
 
           {/* Features */}
-          {prop.features?.length > 0 && (
-            <div className="ad-section">
-              <h2 className="ad-section__title">Caractéristiques</h2>
-              <div className="ad-features">
-                {prop.features.map(f => (
-                  <span key={f} className="ad-feature"><CheckCircle size={13}/> {f}</span>
-                ))}
+          {prop.features?.length > 0 && (() => {
+            /* Mapping label → icône (même icônes que dans CreerAnnonce) */
+            const FEAT_ICONS = {
+              "Vue sur mer":       Waves,        "Vue montagne":      Mountain,
+              "Vue forêt":         TreePine,     "Jardin":            Fence,
+              "Terrasse":          Sun,          "Balcon":            Flower2,
+              "Piscine":           Droplets,     "Parking":           ParkingCircle,
+              "Ascenseur":         ArrowUpDown,  "Garage":            Car,
+              "Chambre rangement": Package,      "Meublé":            Sofa,
+              "Concierge":         Users,        "Gardien":           ShieldCheck,
+              "Animaux admis":     Heart,        "Cuisine équipée":   UtensilsCrossed,
+              "Climatisation":     Wind,         "Chauffage central": Thermometer,
+              "Cheminée":          Flame,        "Double vitrage":    DoorClosed,
+              "Porte blindée":     LockKeyhole,  "Sécurité":          Fingerprint,
+              "Internet":          Wifi,         "TV":                Monitor,
+              "Machine à laver":   RefreshCw,    "Digicode":          KeyRound,
+              "Interphone":        PhoneCall,    "Relié ONAS":        Droplets,
+              "Salon américain":   Monitor,      "Fibre optique":     Wifi,
+            };
+            return (
+              <div className="ad-section">
+                <h2 className="ad-section__title">Caractéristiques du bien</h2>
+                <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))", gap:"10px 8px"}}>
+                  {prop.features.map(f => {
+                    const Ico = FEAT_ICONS[f] || CheckCircle;
+                    return (
+                      <div key={f} style={{
+                        display:"flex", alignItems:"center", gap:8,
+                        padding:"9px 11px", borderRadius:8,
+                        background:"#f8fafc", border:"1px solid #e5e7eb",
+                        fontSize:12.5, fontWeight:600, color:"#374151",
+                      }}>
+                        <Ico size={16} strokeWidth={1.6} style={{color:"#4f46e5",flexShrink:0}}/>
+                        {f}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
 
         {/* Right column */}
@@ -418,9 +453,9 @@ export default function AnnonceDetail() {
                     <div style={{
                       background:"#fffbeb", border:"1px solid #fde68a", borderRadius:9,
                       padding:"9px 13px", fontSize:12.5, color:"#92400e", marginBottom:12,
-                      display:"flex", alignItems:"center", gap:7
+                      lineHeight:1.5
                     }}>
-                      🔒 Votre annonce est publiée <strong>anonymement</strong> — les visiteurs ne voient pas vos coordonnées.
+                      🔒 Votre annonce est publiée <strong>anonymement</strong>.<br/>Les visiteurs ne voient pas vos coordonnées.
                     </div>
                   )}
                   {!isOwner && (

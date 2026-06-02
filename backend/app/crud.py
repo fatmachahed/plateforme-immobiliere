@@ -98,20 +98,54 @@ def get_localites(db: Session, delegation_id: int = None):
 # ===============================
 # ANNONCE
 # ===============================
+def _extract_caract(data: dict) -> tuple:
+    CARACT_GEN = [
+        "jardin","terrasse","balcon","parking","garage","ascenseur",
+        "vue_mer","vue_montagne","vue_foret","piscine","concierge","cellier",
+        "meuble","digicode","interphone","gardien","relie_onas","animaux_admis",
+    ]
+    CARACT_INT_MAP = {
+        "salon_americain":"salon_americain","fibre_optique":"fibre_optique",
+        "cheminee":"cheminee","climatisation":"climatisation",
+        "chauffage_centrale":"chauffage_central","securite":"securite",
+        "double_vitrage":"double_vitrage","porte_blindee":"porte_blink",
+        "internet":"internet","tv":"tv",
+    }
+    cg  = {k: data.pop(k, False) for k in CARACT_GEN}
+    ci  = {mv: data.pop(sk, False) for sk, mv in CARACT_INT_MAP.items()}
+    ml  = data.pop("machine_laver", False)
+    ceq = data.pop("cuisine_equipee", False)
+    return cg, ci, ml, ceq
+
+
+def _safe_set(obj, key, value):
+    if hasattr(type(obj), key):
+        setattr(obj, key, value)
+
+
 def create_annonce(
     db: Session,
-    annonce: schemas.AnnonceCreate,
+    annonce,
     utilisateur_id: int
 ):
-    db_annonce = models.Annonce(
-        **annonce.dict(),
-        utilisateur_id=utilisateur_id
-    )
+    data = annonce.dict()
+    cg, ci, ml, ceq = _extract_caract(data)
+    db_annonce = models.Annonce(**data, utilisateur_id=utilisateur_id)
     db.add(db_annonce)
+    db.flush()
+    cg_obj = models.CaractereGeneral(annonce_id=db_annonce.id)
+    db.add(cg_obj)
+    for k, v in cg.items(): _safe_set(cg_obj, k, v)
+    ci_obj = models.CaracteristiqueInterieure(annonce_id=db_annonce.id)
+    db.add(ci_obj)
+    for k, v in ci.items(): _safe_set(ci_obj, k, v)
+    ce_obj = models.CuisineEquipee(annonce_id=db_annonce.id)
+    db.add(ce_obj)
+    _safe_set(ce_obj, "cuisine_equipee", ceq)
+    _safe_set(ce_obj, "machine_laver", ml)
     db.commit()
     db.refresh(db_annonce)
     return db_annonce
-
 def get_annonces_by_user(db: Session, user_id: int, skip: int = 0, limit: int = 100):
     return db.query(models.Annonce).filter(models.Annonce.utilisateur_id == user_id).offset(skip).limit(limit).all()
 
@@ -125,12 +159,33 @@ def update_annonce(db: Session, annonce_id: int, update_data: dict):
     db_annonce = get_annonce(db, annonce_id)
     if not db_annonce:
         return None
+    cg, ci, ml, ceq = _extract_caract(update_data)
+    # Mise à jour champs principaux
     for key, value in update_data.items():
-        setattr(db_annonce, key, value)
+        if hasattr(db_annonce, key):
+            setattr(db_annonce, key, value)
+    # CaractereGeneral
+    cg_obj = db_annonce.caractere_general
+    if cg_obj is None:
+        cg_obj = models.CaractereGeneral(annonce_id=annonce_id)
+        db.add(cg_obj)
+    for k, v in cg.items(): _safe_set(cg_obj, k, v)
+    # CaracteristiqueInterieure
+    ci_obj = db_annonce.caracteristique_interieure
+    if ci_obj is None:
+        ci_obj = models.CaracteristiqueInterieure(annonce_id=annonce_id)
+        db.add(ci_obj)
+    for k, v in ci.items(): _safe_set(ci_obj, k, v)
+    # CuisineEquipee
+    ce_obj = db_annonce.cuisine_equipee
+    if ce_obj is None:
+        ce_obj = models.CuisineEquipee(annonce_id=annonce_id)
+        db.add(ce_obj)
+    _safe_set(ce_obj, "cuisine_equipee", ceq)
+    _safe_set(ce_obj, "machine_laver", ml)
     db.commit()
     db.refresh(db_annonce)
     return db_annonce
-
 def delete_annonce(db: Session, annonce_id: int):
     db_annonce = get_annonce(db, annonce_id)
     if not db_annonce:

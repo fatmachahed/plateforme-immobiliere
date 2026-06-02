@@ -78,10 +78,22 @@ const makePOIIcon = (L, color, svgPath) => L.divIcon({
   iconAnchor: [14, 14],
 });
 
-const SCHOOL_SVG   = '<path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>';
-const MOSQUE_SVG   = '<path d="M12 2a4 4 0 0 1 4 4v2h2a2 2 0 0 1 2 2v1H4v-1a2 2 0 0 1 2-2h2V6a4 4 0 0 1 4-4z"/><rect x="4" y="11" width="16" height="9" rx="2"/>';
-const FACULTY_SVG  = '<rect x="4" y="10" width="16" height="11" rx="1"/><path d="M4 10L12 3l8 7"/><line x1="9" y1="21" x2="9" y2="10"/><line x1="15" y1="21" x2="15" y2="10"/>';
+/* SVG paths — partagés entre les marqueurs de carte ET les boutons filtres */
+/* Écoles : livre ouvert */
+const SCHOOL_SVG   = '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>';
+const MOSQUE_SVG   = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+/* Faculté : chapeau académique (mortier) */
+const FACULTY_SVG  = '<path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>';
+/* Grande surface : chariot de supermarché (ancien, restauré) */
 const SURFACE_SVG  = '<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>';
+
+/* Petit SVG React pour les boutons (même chemin que les marqueurs de carte) */
+const PoiSvg = ({ path, size=13 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+    dangerouslySetInnerHTML={{ __html: path }}
+  />
+);
 
 /* POIs — Écoles & Mosquées (démo) */
 const SCHOOLS = [
@@ -118,6 +130,35 @@ const MOSQUES = [
   { id:"mo14",nom:"Mosquée Kairouan Okba",         lat:35.681, lng:10.098, gov:"Kairouan"},
 ];
 
+/* POIs statiques — Facultés & Grandes surfaces (fallback si Overpass indisponible) */
+const FACULTIES = [
+  { id:"fac1", nom:"Université Tunis El Manar",        lat:36.838, lng:10.168, gov:"Tunis"    },
+  { id:"fac2", nom:"Faculté des Sciences de Tunis",    lat:36.835, lng:10.172, gov:"Tunis"    },
+  { id:"fac3", nom:"INSAT Tunis",                      lat:36.855, lng:10.197, gov:"Tunis"    },
+  { id:"fac4", nom:"Université Carthage",              lat:36.870, lng:10.184, gov:"Tunis"    },
+  { id:"fac5", nom:"ISSAT Sousse",                     lat:35.822, lng:10.631, gov:"Sousse"   },
+  { id:"fac6", nom:"Faculté de Médecine Sousse",       lat:35.840, lng:10.647, gov:"Sousse"   },
+  { id:"fac7", nom:"Université de Sfax",               lat:34.749, lng:10.758, gov:"Sfax"     },
+  { id:"fac8", nom:"FSEG Sfax",                        lat:34.740, lng:10.752, gov:"Sfax"     },
+  { id:"fac9", nom:"IPEIM Monastir",                   lat:35.778, lng:10.826, gov:"Monastir" },
+  { id:"fac10",nom:"Université Manouba",               lat:36.828, lng:10.093, gov:"Manouba"  },
+  { id:"fac11",nom:"ISG Tunis",                        lat:36.812, lng:10.147, gov:"Tunis"    },
+  { id:"fac12",nom:"Faculté Droit Sciences Politiques",lat:36.795, lng:10.181, gov:"Tunis"    },
+];
+
+const GRAND_SURFACES = [
+  { id:"gs1", nom:"Carrefour Lac Tunis",               lat:36.841, lng:10.237, gov:"Tunis"    },
+  { id:"gs2", nom:"Géant Casino Ennasr",               lat:36.859, lng:10.192, gov:"Ariana"   },
+  { id:"gs3", nom:"Monoprix Menzah",                   lat:36.848, lng:10.207, gov:"Tunis"    },
+  { id:"gs4", nom:"Carrefour Market Ariana",           lat:36.866, lng:10.199, gov:"Ariana"   },
+  { id:"gs5", nom:"Azur Sousse",                       lat:35.834, lng:10.641, gov:"Sousse"   },
+  { id:"gs6", nom:"Carrefour Market Sfax",             lat:34.741, lng:10.763, gov:"Sfax"     },
+  { id:"gs7", nom:"Géant Hammamet",                    lat:36.405, lng:10.624, gov:"Nabeul"   },
+  { id:"gs8", nom:"Monoprix Centre-ville Tunis",       lat:36.803, lng:10.180, gov:"Tunis"    },
+  { id:"gs9", nom:"Carrefour Ben Arous",               lat:36.741, lng:10.226, gov:"Ben Arous" },
+  { id:"gs10",nom:"MG Monastir",                       lat:35.781, lng:10.831, gov:"Monastir" },
+];
+
 const TYPES    = ["appartement","villa_maison","terrain","bureau","ferme","local_commercial","immobiliers_divers"];
 const TYPE_LBL = {
   appartement:"Appartement", villa:"Villa", villa_maison:"Villa/Maison", terrain:"Terrain",
@@ -127,7 +168,7 @@ const TYPE_LBL = {
 const ETATS    = ["nouveau","bon_etat","a_renover","cours_construction"];
 const ETAT_LBL = { nouveau:"Neuf", bon_etat:"Bon état", a_renover:"À rénover", cours_construction:"En construction" };
 const CAT_LBL    = { vente:"Achat", location:"Location", vacances:"Vacances" };
-const CAT_COLORS = { vente:"#4f46e5", location:"#16a34a", vacances:"#f59e0b" }; // indigo / vert / ambre
+const CAT_COLORS = { vente:"#166534", location:"#1e40af", vacances:"#d97706" }; // vert / bleu / ambre
 
 function fmtPin(p)  { return p >= 1e6 ? `${(p/1e6).toFixed(1)}M` : p >= 1000 ? `${Math.round(p/1000)}k` : `${p}`; }
 function fmtFull(p) { return p.toLocaleString("fr-TN"); }
@@ -267,7 +308,20 @@ function PropCard({ p, active, onHover, onClick, govMarketStats }) {
       <div className="pc__body">
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
           <div>
-            <p className="pc__price">{fmtFull(p.prix)} <span className="pc__devise">{p.devise}</span></p>
+            <p className="pc__price">
+              {fmtFull(p.prix)}
+              <span className="pc__devise">
+                {p.devise === "TND" ? "DT" : p.devise}
+                {p.categorie === "location" ? " /mois"
+                  : p.categorie === "vacances" ? (
+                    p.duree_type === "nuit"   ? " /nuit."
+                    : p.duree_type === "semaine" ? " /sem."
+                    : p.duree_type === "mois"    ? " /mois"
+                    : p.duree_type === "annee"   ? " /an"
+                    : ""
+                  ) : ""}
+              </span>
+            </p>
             <p className="pc__title">{p.titre}</p>
           </div>
           <button
@@ -292,9 +346,10 @@ function PropCard({ p, active, onHover, onClick, govMarketStats }) {
 }
 
 /* ─── Carte Leaflet ─── */
-function PropertyMap({ properties, activeId, selectedGov, onPinClick, onBoundsChange, showSchools, showMosques, showFaculties, showGrandSurfaces, liveSchools = [], liveMosques = [], liveFaculties = [], liveGrandSurfaces = [], onPinHover }) {
+function PropertyMap({ properties, activeId, selectedGov, onPinClick, onBoundsChange, showSchools, showMosques, showFaculties, showGrandSurfaces, liveSchools = [], liveMosques = [], liveFaculties = [], liveGrandSurfaces = [], onPinHover, sharedHoverTimer, centerTarget }) {
   const containerRef    = useRef(null);
   const mapRef          = useRef(null);
+  const leafletRef      = useRef(null);   /* ← Leaflet stocké ici dès son chargement */
   const markersRef      = useRef({});
   const geoLayerRef     = useRef(null);
   const poiLayersRef    = useRef({ schools: [], mosques: [], faculties: [], grandSurfaces: [] });
@@ -305,6 +360,26 @@ function PropertyMap({ properties, activeId, selectedGov, onPinClick, onBoundsCh
   const onPinHoverRef   = useRef(onPinHover);
   useEffect(() => { selectedGovRef.current = selectedGov; }, [selectedGov]);
   useEffect(() => { onPinHoverRef.current  = onPinHover;  }, [onPinHover]);
+
+  /* ── Zoom automatique quand un filtre de localisation est sélectionné ── */
+  const lastCenterQuery = useRef(null);
+  useEffect(() => {
+    if (!centerTarget || !mapRef.current) return;
+    if (centerTarget.query === lastCenterQuery.current) return; // déjà centré ici
+    lastCenterQuery.current = centerTarget.query;
+    fetch(
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(centerTarget.query)}&format=json&countrycodes=tn&limit=1`,
+      { headers: { "Accept-Language": "fr", "User-Agent": "Localizi/1.0" } }
+    )
+      .then(r => r.json())
+      .then(data => {
+        if (!data.length || !data[0].lat) return;
+        const lat = parseFloat(data[0].lat);
+        const lng = parseFloat(data[0].lon);
+        mapRef.current?.flyTo([lat, lng], centerTarget.zoom, { duration: 1.0 });
+      })
+      .catch(() => {});
+  }, [centerTarget]);
 
   const drawBoundary = useCallback(async (L, map, gov) => {
     if (geoLayerRef.current) { geoLayerRef.current.remove(); geoLayerRef.current = null; }
@@ -353,8 +428,14 @@ function PropertyMap({ properties, activeId, selectedGov, onPinClick, onBoundsCh
           onPinHoverRef.current?.({ ...p, _px: px, _py: py });
         });
         el.addEventListener('mouseleave', () => {
-          clearTimeout(hoverTimerRef.current);
-          onPinHoverRef.current?.(null);
+          /* Délai 120ms : laisse le temps de déplacer le curseur vers la carte hover */
+          const timerRef = sharedHoverTimer || hoverTimerRef;
+          clearTimeout(timerRef.current);
+          timerRef.current = setTimeout(() => onPinHoverRef.current?.(null), 120);
+        });
+        el.addEventListener('mouseenter', () => {
+          const timerRef = sharedHoverTimer || hoverTimerRef;
+          clearTimeout(timerRef.current);
         });
       }
 
@@ -381,9 +462,9 @@ function PropertyMap({ properties, activeId, selectedGov, onPinClick, onBoundsCh
         const catCount = {};
         group.forEach(p => { catCount[p.categorie||"std"] = (catCount[p.categorie||"std"]||0)+1; });
         const dominantCat = Object.entries(catCount).sort((a,b)=>b[1]-a[1])[0][0];
-        const clusterColor = dominantCat === "vente" ? "#4f46e5"
-          : dominantCat === "location" ? "#16a34a"
-          : dominantCat === "vacances" ? "#f59e0b"
+        const clusterColor = dominantCat === "vente" ? "#166534"
+          : dominantCat === "location" ? "#1e40af"
+          : dominantCat === "vacances" ? "#d97706"
           : "#9b1c2e";
         const clusterHtml = `
           <div style="
@@ -445,13 +526,7 @@ function PropertyMap({ properties, activeId, selectedGov, onPinClick, onBoundsCh
                   font-size:10px;font-weight:700;
                   padding:3px 9px;border-radius:20px;letter-spacing:.04em;
                 ">${cl}</span>
-                <!-- Compteur biens (si plusieurs) -->
-                ${count > 1 ? `<span style="
-                  position:absolute;top:12px;right:12px;
-                  background:rgba(0,0,0,.6);color:#fff;
-                  font-size:11px;font-weight:700;
-                  padding:4px 10px;border-radius:3px;
-                ">${currentIdx+1} / ${count} biens</span>` : ""}
+                <!-- Compteur biens supprimé — affiché en bas dans la navigation -->
               </div>
 
               <!-- Corps texte -->
@@ -568,6 +643,7 @@ function PropertyMap({ properties, activeId, selectedGov, onPinClick, onBoundsCh
     (async () => {
       const L = (await import("leaflet")).default;
       if (!live || !containerRef.current) return;
+      leafletRef.current = L;   /* ← stocker pour usage synchrone dans les effets POI */
       const map = L.map(containerRef.current, { zoomControl:false })
         .setView([34.5,9.5], 6);
       mapRef.current = map;
@@ -608,73 +684,55 @@ function PropertyMap({ properties, activeId, selectedGov, onPinClick, onBoundsCh
     });
   }, [selectedGov, drawBoundary]);
 
-  /* POIs écoles */
-  useEffect(() => {
-    if (!mapRef.current) return;
-    import("leaflet").then(({default:L}) => {
-      poiLayersRef.current.schools.forEach(m=>m.remove());
-      poiLayersRef.current.schools = [];
-      if (!showSchools) return;
-      /* Use live Overpass data if available, else fall back to static demo */
-      const src = liveSchools.length > 0
-        ? liveSchools
-        : (selectedGov ? SCHOOLS.filter(s=>s.gov===selectedGov) : SCHOOLS);
-      const icon = makePOIIcon(L, "#3b82f6", SCHOOL_SVG);
-      src.forEach(s=>{
-        poiLayersRef.current.schools.push(L.marker([s.lat,s.lng],{icon}).addTo(mapRef.current)
-          .bindPopup(`<b>École</b><br>${s.nom}`));
+  /* ── Helper pour dessiner une couche POI — avec flag `cancelled` pour éviter la race condition ── */
+  const makePOIEffect = (layerKey, show, liveData, staticFallback, label, svgPath) => {
+    let cancelled = false;
+    if (!mapRef.current) return () => { cancelled = true; };
+    import("leaflet").then(({ default: L }) => {
+      if (cancelled) return; /* effet suivant déjà lancé — abandonner */
+      poiLayersRef.current[layerKey].forEach(m => m.remove());
+      poiLayersRef.current[layerKey] = [];
+      if (!show) return;
+      const src = liveData.length > 0 ? liveData : staticFallback;
+      const icon = makePOIIcon(L, "#475569", svgPath);
+      src.forEach(s => {
+        if (!s.lat || !s.lng) return;
+        poiLayersRef.current[layerKey].push(
+          L.marker([s.lat, s.lng], { icon }).addTo(mapRef.current)
+           .bindPopup(`<b>${label}</b><br>${s.nom}`)
+        );
       });
     });
-  }, [showSchools, selectedGov, liveSchools]);
+    return () => { cancelled = true; }; /* cleanup = annule le callback en cours */
+  };
+
+  /* POIs écoles */
+  useEffect(() => makePOIEffect(
+    "schools", showSchools, liveSchools,
+    selectedGov ? SCHOOLS.filter(s=>s.gov===selectedGov) : SCHOOLS,
+    "École", SCHOOL_SVG
+  ), [showSchools, liveSchools, selectedGov]);
 
   /* POIs mosquées */
-  useEffect(() => {
-    if (!mapRef.current) return;
-    import("leaflet").then(({default:L}) => {
-      poiLayersRef.current.mosques.forEach(m=>m.remove());
-      poiLayersRef.current.mosques = [];
-      if (!showMosques) return;
-      /* Use live Overpass data if available, else fall back to static demo */
-      const src = liveMosques.length > 0
-        ? liveMosques
-        : (selectedGov ? MOSQUES.filter(m=>m.gov===selectedGov) : MOSQUES);
-      const icon = makePOIIcon(L, "#16a34a", MOSQUE_SVG);
-      src.forEach(s=>{
-        poiLayersRef.current.mosques.push(L.marker([s.lat,s.lng],{icon}).addTo(mapRef.current)
-          .bindPopup(`<b>Mosquée</b><br>${s.nom}`));
-      });
-    });
-  }, [showMosques, selectedGov, liveMosques]);
+  useEffect(() => makePOIEffect(
+    "mosques", showMosques, liveMosques,
+    selectedGov ? MOSQUES.filter(m=>m.gov===selectedGov) : MOSQUES,
+    "Mosquée", MOSQUE_SVG
+  ), [showMosques, liveMosques, selectedGov]);
 
   /* POIs facultés */
-  useEffect(() => {
-    if (!mapRef.current) return;
-    import("leaflet").then(({default:L}) => {
-      poiLayersRef.current.faculties.forEach(m=>m.remove());
-      poiLayersRef.current.faculties = [];
-      if (!showFaculties) return;
-      const icon = makePOIIcon(L, "#7c3aed", FACULTY_SVG);
-      liveFaculties.forEach(s=>{
-        poiLayersRef.current.faculties.push(L.marker([s.lat,s.lng],{icon}).addTo(mapRef.current)
-          .bindPopup(`<b>Faculté / Université</b><br>${s.nom}`));
-      });
-    });
-  }, [showFaculties, liveFaculties]);
+  useEffect(() => makePOIEffect(
+    "faculties", showFaculties, liveFaculties,
+    selectedGov ? FACULTIES.filter(f=>f.gov===selectedGov) : FACULTIES,
+    "Faculté / Université", FACULTY_SVG
+  ), [showFaculties, liveFaculties, selectedGov]);
 
   /* POIs grandes surfaces */
-  useEffect(() => {
-    if (!mapRef.current) return;
-    import("leaflet").then(({default:L}) => {
-      poiLayersRef.current.grandSurfaces.forEach(m=>m.remove());
-      poiLayersRef.current.grandSurfaces = [];
-      if (!showGrandSurfaces) return;
-      const icon = makePOIIcon(L, "#f59e0b", SURFACE_SVG);
-      liveGrandSurfaces.forEach(s=>{
-        poiLayersRef.current.grandSurfaces.push(L.marker([s.lat,s.lng],{icon}).addTo(mapRef.current)
-          .bindPopup(`<b>Grande surface</b><br>${s.nom}`));
-      });
-    });
-  }, [showGrandSurfaces, liveGrandSurfaces]);
+  useEffect(() => makePOIEffect(
+    "grandSurfaces", showGrandSurfaces, liveGrandSurfaces,
+    selectedGov ? GRAND_SURFACES.filter(g=>g.gov===selectedGov) : GRAND_SURFACES,
+    "Grande surface", SURFACE_SVG
+  ), [showGrandSurfaces, liveGrandSurfaces, selectedGov]);
 
   return <div ref={containerRef} style={{ width:"100%", height:"100%" }} />;
 }
@@ -802,6 +860,7 @@ const INIT_F = {
   categories:[], type:"",
   prixMin:"", prixMax:"", superficieMin:"", superficieMax:"", bedsMin:"", piecesMin:"", chambresMin:"", etat:"", titre_foncier:"",
   features:[],
+  type_terrain:"", vocation_terrain:"",
 };
 
 function FilterPanel({ filters, onChange, showSchools, showMosques, showFaculties, showGrandSurfaces,
@@ -898,7 +957,7 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
           >
             {poiLoading && showSchools
               ? <Loader2 size={13} className="lc__spin"/>
-              : <School size={13}/>
+              : <PoiSvg path={SCHOOL_SVG}/>
             }
             Écoles
             {liveSchoolCount > 0 && (
@@ -911,7 +970,7 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
           >
             {poiLoading && showMosques
               ? <Loader2 size={13} className="lc__spin"/>
-              : <Moon size={13}/>
+              : <PoiSvg path={MOSQUE_SVG}/>
             }
             Mosquées
             {liveMosqueCount > 0 && (
@@ -924,7 +983,7 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
           >
             {poiLoading && showFaculties
               ? <Loader2 size={13} className="lc__spin"/>
-              : <span style={{fontSize:13}}>🎓</span>
+              : <PoiSvg path={FACULTY_SVG}/>
             }
             Facultés
             {liveFacultyCount > 0 && (
@@ -937,7 +996,7 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
           >
             {poiLoading && showGrandSurfaces
               ? <Loader2 size={13} className="lc__spin"/>
-              : <span>🏬</span>
+              : <PoiSvg path={SURFACE_SVG}/>
             }
             Grandes surfaces
             {liveGrandSurfaceCount > 0 && (
@@ -981,36 +1040,72 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
               value={local.superficieMax || ""}
               onChange={e => set("superficieMax", e.target.value)}/>
           </div>
-          <div className="fp__adv-group">
-            <label className="fp__adv-label">Pièces min</label>
-            <input className="fp__adv-inp" type="number" placeholder="0" min="0" max="20"
-              value={local.piecesMin || ""}
-              onChange={e => set("piecesMin", e.target.value)}/>
-          </div>
-          <div className="fp__adv-group">
-            <label className="fp__adv-label">Chambres min</label>
-            <input className="fp__adv-inp" type="number" placeholder="0" min="0" max="20"
-              value={local.chambresMin || ""}
-              onChange={e => set("chambresMin", e.target.value)}/>
-          </div>
-          {/* Chambres — masqué pour terrain */}
+          {/* Pièces min — masqué pour terrain */}
           {local.type !== "terrain" && (
             <div className="fp__adv-group">
-              <label className="fp__adv-label">Chambres min</label>
-              <select className="fp__adv-sel" value={local.bedsMin} onChange={(e)=>set("bedsMin",e.target.value)}>
+              <label className="fp__adv-label">Pièces min</label>
+              <select className="fp__adv-sel" value={local.piecesMin||""} onChange={e=>set("piecesMin",e.target.value)}>
                 <option value="">Peu importe</option>
-                {[1,2,3,4,5].map(n=><option key={n} value={n}>{n}+</option>)}
+                <option value="1">1+</option>
+                <option value="2">2+</option>
+                <option value="3">3+</option>
+                <option value="4">4+</option>
+                <option value="5">5+</option>
+                <option value="6">6+</option>
               </select>
             </div>
           )}
-          {/* État */}
-          <div className="fp__adv-group">
-            <label className="fp__adv-label">État du bien</label>
-            <select className="fp__adv-sel" value={local.etat} onChange={(e)=>set("etat",e.target.value)}>
-              <option value="">Tous</option>
-              {ETATS.map(e=><option key={e} value={e}>{ETAT_LBL[e]}</option>)}
-            </select>
-          </div>
+          {/* Chambres min — masqué pour terrain */}
+          {local.type !== "terrain" && (
+            <div className="fp__adv-group">
+              <label className="fp__adv-label">Chambres min</label>
+              <select className="fp__adv-sel" value={local.chambresMin||""} onChange={e=>set("chambresMin",e.target.value)}>
+                <option value="">Peu importe</option>
+                <option value="1">1+</option>
+                <option value="2">2+</option>
+                <option value="3">3+</option>
+                <option value="4">4+</option>
+                <option value="5">5+</option>
+              </select>
+            </div>
+          )}
+          {/* État du bien — masqué pour terrain */}
+          {local.type !== "terrain" && (
+            <div className="fp__adv-group">
+              <label className="fp__adv-label">État du bien</label>
+              <select className="fp__adv-sel" value={local.etat} onChange={(e)=>set("etat",e.target.value)}>
+                <option value="">Tous</option>
+                {ETATS.map(e=><option key={e} value={e}>{ETAT_LBL[e]}</option>)}
+              </select>
+            </div>
+          )}
+          {/* Terrain : type et vocation */}
+          {local.type === "terrain" && (<>
+            <div className="fp__adv-group">
+              <label className="fp__adv-label">Type de terrain</label>
+              <select className="fp__adv-sel" value={local.type_terrain||""} onChange={e=>set("type_terrain",e.target.value)}>
+                <option value="">Tous</option>
+                <option value="agricole">Agricole</option>
+                <option value="nu">Nu</option>
+                <option value="zone_verte">Zone verte</option>
+                <option value="lotissement">Lotissement</option>
+                <option value="commercial">Commercial</option>
+                <option value="industriel">Industriel</option>
+              </select>
+            </div>
+            <div className="fp__adv-group">
+              <label className="fp__adv-label">Vocation</label>
+              <select className="fp__adv-sel" value={local.vocation_terrain||""} onChange={e=>set("vocation_terrain",e.target.value)}>
+                <option value="">Toutes</option>
+                <option value="residentielle">Résidentielle</option>
+                <option value="commerciale">Commerciale</option>
+                <option value="industrielle">Industrielle</option>
+                <option value="agricole">Agricole</option>
+                <option value="touristique">Touristique</option>
+                <option value="mixte">Mixte</option>
+              </select>
+            </div>
+          </>)}
           {/* Titre foncier — affiché seulement pour terrain */}
           {local.type === "terrain" && (
             <div className="fp__adv-group fp__adv-group--check">
@@ -1237,6 +1332,7 @@ function transformApiAnnonce(a) {
     area:          a.superficie    || 0,
     type:          a.type_bien === "maison" ? "villa_maison" : (a.type_bien || ""),
     categorie:     a.categorie,
+    duree_type:    a.duree_type    || null,
     etat:          a.etat_bien     || null,
     titre_foncier: a.titre_foncier || false,
     boost:         a.boost_level   || 0,
@@ -1249,9 +1345,26 @@ function transformApiAnnonce(a) {
       : a.image_principale
         ? [a.image_principale.startsWith("http") ? a.image_principale : `${API_URL}${a.image_principale}`]
         : ["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=75"],
+    features:      a.features || [],
     isReal: true,
   };
 }
+
+/* Mapping clé filtre → label feature (pour le filtre "Autres critères") */
+const FEAT_KEY_TO_LABEL = {
+  jardin:"Jardin", terrasse:"Terrasse", balcon:"Balcon", parking:"Parking",
+  garage:"Garage", ascenseur:"Ascenseur", vue_mer:"Vue sur mer",
+  vue_montagne:"Vue montagne", vue_foret:"Vue forêt", piscine:"Piscine",
+  concierge:"Concierge", cellier:"Chambre rangement", meuble:"Meublé",
+  gardien:"Gardien", animaux_admis:"Animaux admis",
+  cuisine_equipee:"Cuisine équipée", climatisation:"Climatisation",
+  chauffage_centrale:"Chauffage central", cheminee:"Cheminée",
+  double_vitrage:"Double vitrage", porte_blindee:"Porte blindée",
+  securite:"Sécurité", internet:"Internet", tv:"TV",
+  machine_laver:"Machine à laver", digicode:"Digicode", interphone:"Interphone",
+  salon_americain:"Salon américain", relie_onas:"Relié ONAS",
+  fibre_optique:"Fibre optique",
+};
 
 export default function CartePage() {
   const navigate                   = useNavigate();
@@ -1288,6 +1401,8 @@ export default function CartePage() {
     etat:          sp.get("etat")        || "",
     titre_foncier: sp.get("tf")          || "",
     features:      (sp.get("feat") || "").split(",").map(s=>s.trim()).filter(Boolean),
+    type_terrain:    sp.get("tterrain") || "",
+    vocation_terrain:sp.get("vterrain") || "",
   }), []);
 
   /* ── État initial : URL d'abord, sessionStorage en fallback ── */
@@ -1375,6 +1490,8 @@ export default function CartePage() {
     if (f.chambresMin)      sp.set("cMin",        f.chambresMin);
     if (f.etat)             sp.set("etat",        f.etat);
     if (f.titre_foncier)    sp.set("tf",          f.titre_foncier);
+    if (f.type_terrain)     sp.set("tterrain", f.type_terrain);
+    if (f.vocation_terrain) sp.set("vterrain", f.vocation_terrain);
     if (f.features && f.features.length > 0) sp.set("feat", f.features.join(","));
     /* setSearchParams déclenche le useEffect ci-dessus qui met à jour filters */
     setSearchParams(sp, { replace: true });
@@ -1387,25 +1504,14 @@ export default function CartePage() {
   const [listMode,         setListMode]         = useState(searchParams.get("vue") === "liste");
   const [livePOIs,         setLivePOIs]         = useState({ schools: [], mosques: [], faculties: [], grandSurfaces: [], loading: false });
   const [hoveredPin,       setHoveredPin]       = useState(null);
+  /* Timer partagé : PropertyMap (mouseleave pin) ET hover card (onMouseEnter) l'utilisent */
+  const sharedHoverTimer = useRef(null);
 
-  /* ── Fetch POIs from Overpass API ── */
-  const fetchPOIs = useCallback(async (govNom) => {
-    if (!govNom) { setLivePOIs({ schools: [], mosques: [], faculties: [], grandSurfaces: [], loading: false }); return; }
+  /* ── Fetch POIs depuis Overpass (bbox visible de la carte) ── */
+  const fetchPOIs = useCallback(async (bbox) => {
+    if (!bbox) return;
     setLivePOIs({ schools: [], mosques: [], faculties: [], grandSurfaces: [], loading: true });
     try {
-      /* 1 — bounding box via Nominatim */
-      const nomRes = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent("gouvernorat " + govNom + ", Tunisie")}&format=json&countrycodes=tn&limit=1`,
-        { headers: { "Accept-Language": "fr", "User-Agent": "Localizi/1.0" } }
-      );
-      const nomData = await nomRes.json();
-      if (!nomData.length || !nomData[0].boundingbox) {
-        setLivePOIs({ schools: [], mosques: [], faculties: [], grandSurfaces: [], loading: false }); return;
-      }
-      const [south, north, west, east] = nomData[0].boundingbox;
-      const bbox = `${south},${west},${north},${east}`;
-
-      /* 2 — Overpass query (écoles + mosquées + facultés + grandes surfaces) */
       const query =
         `[out:json][timeout:35];\n` +
         `(\n` +
@@ -1458,34 +1564,58 @@ export default function CartePage() {
     }
   }, []);
 
-  /* ── POI : fetch uniquement quand l'utilisateur active un bouton ── */
-  /* L'useEffect automatique est supprimé — plus de recherche en arrière-plan */
+  /* Ref vers la bbox courante de la carte (mis à jour à chaque zoom/pan) */
+  const mapBboxRef = useRef(null);
 
-  /* Zone géographique pour les requêtes Overpass — préférer le gouvernorat, sinon bbox */
-  const poiZoneRef = useRef(null);
-  useEffect(() => { poiZoneRef.current = filters.govNom || null; }, [filters.govNom]);
+  /* Conversion Leaflet bounds → string bbox Overpass */
+  const boundsToOverpassBbox = useCallback((bounds) => {
+    if (!bounds || !bounds.getSouth) return null;
+    return `${bounds.getSouth().toFixed(6)},${bounds.getWest().toFixed(6)},${bounds.getNorth().toFixed(6)},${bounds.getEast().toFixed(6)}`;
+  }, []);
+
+  /* ── Re-fetch quand la bbox change ET qu'au moins un bouton est actif ── */
+  useEffect(() => {
+    if (!mapBounds) return;
+    const newBbox = boundsToOverpassBbox(mapBounds);
+    mapBboxRef.current = newBbox;
+    const anyActive = showSchools || showMosques || showFaculties || showGrandSurfaces;
+    if (!anyActive) return;
+    const timer = setTimeout(() => {
+      if (mapBboxRef.current) fetchPOIs(mapBboxRef.current);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [mapBounds]); // eslint-disable-line
+
+  const livePOIsRef = useRef({ schools:[], mosques:[], faculties:[], grandSurfaces:[] });
+  livePOIsRef.current = livePOIs;
 
   const handleTogglePOI = useCallback((type, currentState) => {
     const next = !currentState;
-    /* Désactivation → retirer les marqueurs */
+
+    /* ── Désactiver : juste masquer les marqueurs, PAS de re-fetch ── */
     if (!next) {
-      if (type === "schools")       { setShowSchools(false);       setLivePOIs(p => ({...p, schools:[]})); }
-      if (type === "mosques")       { setShowMosques(false);       setLivePOIs(p => ({...p, mosques:[]})); }
-      if (type === "faculties")     { setShowFaculties(false);     setLivePOIs(p => ({...p, faculties:[]})); }
-      if (type === "grandSurfaces") { setShowGrandSurfaces(false); setLivePOIs(p => ({...p, grandSurfaces:[]})); }
+      if (type === "schools")       setShowSchools(false);
+      if (type === "mosques")       setShowMosques(false);
+      if (type === "faculties")     setShowFaculties(false);
+      if (type === "grandSurfaces") setShowGrandSurfaces(false);
       return;
     }
-    /* Activation → afficher le bouton + déclencher le fetch si une zone est connue */
+
+    /* ── Activer : afficher + fetch seulement si pas encore de données ── */
     if (type === "schools")       setShowSchools(true);
     if (type === "mosques")       setShowMosques(true);
     if (type === "faculties")     setShowFaculties(true);
     if (type === "grandSurfaces") setShowGrandSurfaces(true);
 
-    if (poiZoneRef.current) {
-      fetchPOIs(poiZoneRef.current);
+    const current = livePOIsRef.current;
+    const hasData  = current.schools.length > 0 || current.mosques.length > 0
+                  || current.faculties.length > 0 || current.grandSurfaces.length > 0;
+
+    if (!hasData) {
+      /* Première activation : fetch Overpass pour la zone visible */
+      fetchPOIs(mapBboxRef.current || "30.2,7.5,37.8,11.8");
     }
-    /* Pas de gouvernorat sélectionné → les marqueurs s'afficheront quand
-       l'utilisateur sélectionnera un gouvernorat */
+    /* Si données déjà chargées → les effets de dessin les afficheront automatiquement */
   }, [fetchPOIs]);
 
   useEffect(() => {
@@ -1519,6 +1649,16 @@ export default function CartePage() {
   /* Annonces réelles uniquement */
   const allProperties = [...apiProperties];
   allPropertiesRef.current = allProperties; // toujours à jour pour applyFilters
+
+  /* ── Cible de zoom carte selon la hiérarchie sélectionnée ──
+     Plus on précise (gov → del → loc), plus le zoom est élevé. */
+  const centerTarget = React.useMemo(() => {
+    const { locNom, delNom, govNom } = filters;
+    if (!govNom && !delNom && !locNom) return null;
+    const parts = [locNom, delNom, govNom].filter(Boolean);
+    const zoom  = locNom ? 14 : delNom ? 12 : 10;
+    return { query: parts.join(", ") + ", Tunisie", zoom };
+  }, [filters.govNom, filters.delNom, filters.locNom]);
 
   /* Stats marché : prix moyen/m² par gouvernorat (vente uniquement) */
   const govMarketStats = React.useMemo(() => {
@@ -1562,10 +1702,16 @@ export default function CartePage() {
       if (filters.chambresMin && (p.beds==null||p.beds < +filters.chambresMin)) return false;
       if (filters.etat && p.etat !== filters.etat)               return false;
       if (filters.titre_foncier==="1" && !p.titre_foncier)       return false;
+      if (filters.type_terrain && p.type_terrain !== filters.type_terrain) return false;
+      if (filters.vocation_terrain && p.vocation_terrain !== filters.vocation_terrain) return false;
       if (filters.features && filters.features.length > 0) {
         const hasAll = filters.features.every(feat => {
-          // Support both boolean property flags and features array
-          if (Array.isArray(p.features)) return p.features.includes(feat);
+          /* Convertir la clé filtre en label (ex: "jardin" → "Jardin") */
+          const label = FEAT_KEY_TO_LABEL[feat] || feat;
+          if (Array.isArray(p.features) && p.features.length > 0) {
+            return p.features.includes(label);
+          }
+          /* Fallback : vérifier le booléen direct (données démo) */
           return p[feat] === true;
         });
         if (!hasAll) return false;
@@ -1634,10 +1780,10 @@ export default function CartePage() {
         onToggleFaculties={()=>handleTogglePOI("faculties",  showFaculties)}
         onToggleGrandSurfaces={()=>handleTogglePOI("grandSurfaces", showGrandSurfaces)}
         poiLoading={livePOIs.loading}
-        liveSchoolCount={showSchools       ? livePOIs.schools.length           : 0}
-        liveMosqueCount={showMosques       ? livePOIs.mosques.length           : 0}
-        liveFacultyCount={showFaculties    ? livePOIs.faculties.length         : 0}
-        liveGrandSurfaceCount={showGrandSurfaces ? (livePOIs.grandSurfaces||[]).length : 0}
+        liveSchoolCount={livePOIs.schools.length}
+        liveMosqueCount={livePOIs.mosques.length}
+        liveFacultyCount={livePOIs.faculties.length}
+        liveGrandSurfaceCount={(livePOIs.grandSurfaces||[]).length}
       />
 
       {/* Barre compteur + tags */}
@@ -1710,6 +1856,8 @@ export default function CartePage() {
               liveFaculties={livePOIs.faculties}
               liveGrandSurfaces={livePOIs.grandSurfaces||[]}
               onPinHover={setHoveredPin}
+              sharedHoverTimer={sharedHoverTimer}
+              centerTarget={centerTarget}
             />
             {/* ── Tooltip hover — purement visuel, aucun bouton interactif ── */}
             {hoveredPin && (() => {
@@ -1731,16 +1879,21 @@ export default function CartePage() {
               const bg = catBg[hoveredPin.categorie] || "#f1f5f9";
               const cc = catFg[hoveredPin.categorie] || "#475569";
               return (
-                <div style={{
-                  position:"absolute", left, top, width:cardW, zIndex:9100,
-                  pointerEvents:"none",
-                  background:"#fff",
-                  borderRadius:4,           /* rectangle quasi-rigide */
-                  overflow:"hidden",
-                  boxShadow:"0 8px 32px rgba(0,0,0,.32), 0 2px 8px rgba(0,0,0,.16)",
-                  animation:"hoverFadeIn .10s ease",
-                  border:"1.5px solid #e2e8f0"
-                }}>
+                <div
+                  style={{
+                    position:"absolute", left, top, width:cardW, zIndex:9100,
+                    pointerEvents:"auto", cursor:"pointer",
+                    background:"#fff", borderRadius:4, overflow:"hidden",
+                    boxShadow:"0 8px 32px rgba(0,0,0,.32), 0 2px 8px rgba(0,0,0,.16)",
+                    animation:"hoverFadeIn .10s ease", border:"1.5px solid #e2e8f0"
+                  }}
+                  onClick={() => {
+                    const realId = hoveredPin.id.toString().replace("api_","");
+                    navigate(`/annonce/${realId}`);
+                  }}
+                  onMouseEnter={() => clearTimeout(sharedHoverTimer.current)}
+                  onMouseLeave={() => { clearTimeout(sharedHoverTimer.current); setHoveredPin(null); }}
+                >
                   {/* Image */}
                   <div style={{position:"relative",height:170,overflow:"hidden",flexShrink:0}}>
                     <img src={img} alt=""
@@ -1782,6 +1935,12 @@ export default function CartePage() {
                         📍 {hoveredPin.delegation}{hoveredPin.gouvernorat ? ` · ${hoveredPin.gouvernorat}` : ""}
                       </p>
                     )}
+                    <div style={{
+                      marginTop:8, paddingTop:7, borderTop:"1px solid #f1f5f9",
+                      fontSize:11.5, fontWeight:600, color:cc, textAlign:"center"
+                    }}>
+                      Voir le détail →
+                    </div>
                   </div>
                 </div>
               );
@@ -1963,29 +2122,20 @@ export default function CartePage() {
           font-weight: 600; cursor: pointer; font-family: inherit;
           border: 1.5px solid transparent; transition: all .15s;
         }
-        .fp__poi-btn--school {
-          background: #eff6ff; color: #3b82f6; border-color: #bfdbfe;
+        /* POI buttons — UNE seule couleur slate, icônes différentes, clair/foncé */
+        .fp__poi-btn--school,
+        .fp__poi-btn--mosque,
+        .fp__poi-btn--faculty,
+        .fp__poi-btn--surface {
+          background: #f8fafc; color: #475569; border-color: #cbd5e1;
         }
-        .fp__poi-btn--school.fp__poi-btn--on {
-          background: #3b82f6; color: #fff; border-color: #3b82f6;
-          box-shadow: 0 2px 8px rgba(59,130,246,.35);
+        .fp__poi-btn--school.fp__poi-btn--on,
+        .fp__poi-btn--mosque.fp__poi-btn--on,
+        .fp__poi-btn--faculty.fp__poi-btn--on,
+        .fp__poi-btn--surface.fp__poi-btn--on {
+          background: #334155; color: #fff; border-color: #334155;
+          box-shadow: 0 2px 8px rgba(51,65,85,.4);
         }
-        .fp__poi-btn--mosque {
-          background: #f0fdf4; color: #16a34a; border-color: #bbf7d0;
-        }
-        .fp__poi-btn--mosque.fp__poi-btn--on {
-          background: #16a34a; color: #fff; border-color: #16a34a;
-          box-shadow: 0 2px 8px rgba(22,163,74,.35);
-        }
-        .fp__poi-btn--faculty {
-          background: #f5f3ff; color: #7c3aed; border-color: #ddd6fe;
-        }
-        .fp__poi-btn--faculty.fp__poi-btn--on {
-          background: #7c3aed; color: #fff; border-color: #7c3aed;
-          box-shadow: 0 2px 8px rgba(147,51,234,.35);
-        }
-        .fp__poi-btn--surface { background: #fffbeb; color: #92400e; border-color: #fde68a; }
-        .fp__poi-btn--surface.fp__poi-btn--on { background: #f59e0b; color: #fff; border-color: #f59e0b; box-shadow: 0 2px 8px rgba(245,158,11,.35); }
         .fp__poi-count {
           display: inline-flex; align-items: center; justify-content: center;
           min-width: 18px; height: 18px; padding: 0 5px;
@@ -2182,35 +2332,35 @@ export default function CartePage() {
         }
         .pin-dot:hover, .pin-dot--active { transform: scale(1.4); z-index: 999 !important; }
 
-        /* ── Achat / vente — indigo ── */
+        /* ── Achat / vente — vert (comme badge carte) ── */
         .pin-dot--vente {
           width: 20px; height: 20px;
-          background: #4f46e5;
-          box-shadow: 0 2px 8px rgba(79,70,229,.50);
+          background: #166534;
+          box-shadow: 0 2px 8px rgba(22,101,52,.50);
         }
         .pin-dot--vente:hover, .pin-dot--vente.pin-dot--active {
-          background: #3730a3;
-          box-shadow: 0 3px 14px rgba(79,70,229,.70);
+          background: #14532d;
+          box-shadow: 0 3px 14px rgba(22,101,52,.70);
         }
-        /* ── Location — vert émeraude ── */
+        /* ── Location — bleu indigo (comme badge carte) ── */
         .pin-dot--location {
           width: 20px; height: 20px;
-          background: #16a34a;
-          box-shadow: 0 2px 8px rgba(22,163,74,.50);
+          background: #1e40af;
+          box-shadow: 0 2px 8px rgba(30,64,175,.50);
         }
         .pin-dot--location:hover, .pin-dot--location.pin-dot--active {
-          background: #15803d;
-          box-shadow: 0 3px 14px rgba(22,163,74,.70);
+          background: #1e3a8a;
+          box-shadow: 0 3px 14px rgba(30,64,175,.70);
         }
         /* ── Vacances — ambre ── */
         .pin-dot--vacances {
           width: 20px; height: 20px;
-          background: #f59e0b;
-          box-shadow: 0 2px 8px rgba(245,158,11,.50);
+          background: #d97706;
+          box-shadow: 0 2px 8px rgba(217,119,6,.50);
         }
         .pin-dot--vacances:hover, .pin-dot--vacances.pin-dot--active {
-          background: #d97706;
-          box-shadow: 0 3px 14px rgba(245,158,11,.70);
+          background: #b45309;
+          box-shadow: 0 3px 14px rgba(217,119,6,.70);
         }
         /* ── Fallback bordeaux ── */
         .pin-dot--std {

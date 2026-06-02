@@ -31,6 +31,11 @@ with engine.connect() as conn:
         # Champ anonyme sur les annonces (publication anonyme)
         "ALTER TABLE annonces ADD COLUMN IF NOT EXISTS anonyme BOOLEAN DEFAULT FALSE;",
         "ALTER TABLE annonces ADD COLUMN IF NOT EXISTS accompagnement BOOLEAN DEFAULT FALSE;",
+        "ALTER TABLE annonces ADD COLUMN IF NOT EXISTS duree_type VARCHAR;",
+        "ALTER TABLE annonces ADD COLUMN IF NOT EXISTS duree_valeur VARCHAR;",
+        "ALTER TABLE caractere_general ADD COLUMN IF NOT EXISTS animaux_admis BOOLEAN DEFAULT FALSE;",
+        "ALTER TABLE caracteristique_interieure ADD COLUMN IF NOT EXISTS internet BOOLEAN DEFAULT FALSE;",
+        "ALTER TABLE caracteristique_interieure ADD COLUMN IF NOT EXISTS tv BOOLEAN DEFAULT FALSE;",
         # Table des demandes de contact anonyme
         """
         CREATE TABLE IF NOT EXISTS contact_requests (
