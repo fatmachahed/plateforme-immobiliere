@@ -531,12 +531,14 @@ function PropertyMap({ properties, activeId, selectedGov, onPinClick, onBoundsCh
 
               <!-- Corps texte -->
               <div style="padding:16px 18px 14px;border-top:2px solid ${cc};">
-                <!-- Titre -->
-                <div style="
-                  font-size:15px;font-weight:800;color:#0f172a;
-                  margin-bottom:6px;line-height:1.3;
-                  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-                ">${pin.titre || "Bien immobilier"}</div>
+                <!-- Titre cliquable → page de détail -->
+                <div onclick="window.location.href='/annonce/${pin._realId || pin.id.toString().replace('api_','')}'"
+                  style="
+                    font-size:15px;font-weight:800;color:#0f172a;
+                    margin-bottom:6px;line-height:1.3;
+                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+                    cursor:pointer; text-decoration:underline; text-underline-offset:2px;
+                  ">${pin.titre || "Bien immobilier"}</div>
 
                 <!-- Prix -->
                 <div style="font-size:20px;font-weight:900;color:#0f172a;margin-bottom:10px;letter-spacing:-.02em;">
@@ -553,10 +555,17 @@ function PropertyMap({ properties, activeId, selectedGov, onPinClick, onBoundsCh
 
                 <!-- Localisation -->
                 ${pin.delegation ? `
-                  <div style="font-size:11.5px;color:#94a3b8;display:flex;align-items:center;gap:4px;">
+                  <div style="font-size:11.5px;color:#94a3b8;display:flex;align-items:center;gap:4px;margin-bottom:6px;">
                     📍 ${pin.delegation}${pin.gouvernorat ? ` · ${pin.gouvernorat}` : ""}
                   </div>
                 ` : ""}
+                <!-- Bouton voir le détail -->
+                <button onclick="window.location.href='/annonce/${pin._realId || pin.id.toString().replace('api_','')}';"
+                  style="
+                    margin-top:8px;padding:7px 16px;border-radius:6px;border:none;
+                    background:${cc};color:#fff;font-size:12.5px;font-weight:700;
+                    cursor:pointer;font-family:inherit;width:100%;text-align:center;
+                  ">Voir le détail →</button>
 
                 <!-- Navigation entre biens -->
                 ${count > 1 ? `
@@ -1116,7 +1125,8 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
               </label>
             </div>
           )}
-          {/* Autres critères */}
+          {/* Autres critères — masqué pour terrain (non pertinent) */}
+          {local.type !== "terrain" && (
           <button
             className={`fp__adv-btn${(local.features||[]).length > 0 ? " fp__adv-btn--on" : ""}`}
             type="button"
@@ -1125,6 +1135,7 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
           >
             Autres critères{(local.features||[]).length > 0 ? ` (${local.features.length})` : " +"}
           </button>
+          )}
           {/* Reset */}
           <button className="fp__reset" onClick={reset}><X size={11}/> Réinitialiser</button>
         </div>
@@ -1422,51 +1433,71 @@ export default function CartePage() {
 
   /* ── Sync URL params → filters (navigation externe / retour navigateur) ── */
   useEffect(() => {
-    const fromUrl = { ...INIT_F, ...readFiltersFromUrl(searchParams) };
-    setFilters(fromUrl);
-    /* Si la navigation externe a mis un ?q= (ex: depuis la navbar), lancer la détection */
-    if (fromUrl.query && !fromUrl.govNom && !fromUrl.delNom && !fromUrl.locNom) {
-      applyFilters(fromUrl);
-    }
-  }, [searchParams]); // eslint-disable-line
+    setFilters({ ...INIT_F, ...readFiltersFromUrl(searchParams) });
+  }, [searchParams, readFiltersFromUrl]);
 
   /* ── Sauvegarde sessionStorage (restauration au retour depuis le détail) ── */
   useEffect(() => {
     sessionStorage.setItem("localizi_carte_filters", JSON.stringify(filters));
   }, [filters]);
 
-  /* ── Écriture URL → ALL filtres sérialisés (source de vérité) ── */
-  const applyFilters = useCallback(async (newFilters) => {
+  /* ── Écriture URL → ALL filtres sérialisés ──
+     Détection de localisation dans le texte saisi (synchrone, sur les données chargées). */
+  const applyFilters = useCallback((newFilters) => {
     let f = { ...newFilters };
     const q = (f.query || "").trim();
+
     if (q) {
-      /* ── Règle : on n'écrase la hiérarchie QUE si on trouve quelque chose à mettre
-         à sa place. Une adresse libre ("15 avenue Bourguiba") conserve gov/del/loc
-         existants et filtre uniquement sur le texte de l'adresse.              ── */
-      try {
-        const res = await fetch(`${API_URL}/localisation/search?q=${encodeURIComponent(q)}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data) {
-            /* Localisation reconnue → on remplace la cascade par les nouvelles valeurs.
-               Le texte reste visible dans la barre (query non effacé). */
-            f = {
-              ...f,
-              govNom:  data.gouvernorat  || "",
-              govId:   data.gouvernorat_id ? String(data.gouvernorat_id) : "",
-              delNom:  data.delegation   || "",
-              delId:   data.delegation_id  ? String(data.delegation_id)  : "",
-              locNom:  data.localite     || "",
-              locId:   data.localite_id    ? String(data.localite_id)    : "",
-            };
-          }
-          /* data === null → terme non reconnu dans la hiérarchie (ex: "15 avenue Bourguiba")
-             → les filtres gov/del/loc EXISTANTS sont conservés
-             → le filtre texte s'applique sur titre/adresse/localite/delegation/gouvernorat */
-        }
-      } catch {
-        /* Erreur réseau → on garde tout en l'état, filtre texte seul */
+      /* Efface l'ancienne hiérarchie pour repartir proprement */
+      f = { ...f, govNom:"", govId:"", delNom:"", delId:"", locNom:"", locId:"" };
+
+      const props = allPropertiesRef.current;
+      const ql    = q.toLowerCase();
+      let detected = false;
+
+      /* 1 — Correspondance EXACTE dans les annonces chargées (localité > délégation > gouvernorat) */
+      const locExact = props.find(p => p.localite   && p.localite.toLowerCase()   === ql);
+      const delExact = props.find(p => p.delegation  && p.delegation.toLowerCase()  === ql);
+      const govExact = props.find(p => p.gouvernorat && p.gouvernorat.toLowerCase() === ql);
+
+      if (locExact) {
+        f = { ...f, query:"", locNom:locExact.localite, delNom:locExact.delegation||"", govNom:locExact.gouvernorat||"", locId:"", delId:"", govId:"" };
+        detected = true;
+      } else if (delExact) {
+        f = { ...f, query:"", delNom:delExact.delegation, govNom:delExact.gouvernorat||"", locNom:"", delId:"", govId:"", locId:"" };
+        detected = true;
+      } else if (govExact) {
+        f = { ...f, query:"", govNom:govExact.gouvernorat, delNom:"", locNom:"", govId:"", delId:"", locId:"" };
+        detected = true;
       }
+
+      /* 2 — Correspondance PARTIELLE dans les annonces */
+      if (!detected) {
+        const locPart = props.find(p => p.localite   && p.localite.toLowerCase().includes(ql));
+        const delPart = props.find(p => p.delegation  && p.delegation.toLowerCase().includes(ql));
+        const govPart = props.find(p => p.gouvernorat && p.gouvernorat.toLowerCase().includes(ql));
+
+        if (locPart) {
+          f = { ...f, query:"", locNom:locPart.localite, delNom:locPart.delegation||"", govNom:locPart.gouvernorat||"", locId:"", delId:"", govId:"" };
+          detected = true;
+        } else if (delPart) {
+          f = { ...f, query:"", delNom:delPart.delegation, govNom:delPart.gouvernorat||"", locNom:"", delId:"", govId:"", locId:"" };
+          detected = true;
+        } else if (govPart) {
+          f = { ...f, query:"", govNom:govPart.gouvernorat, delNom:"", locNom:"", govId:"", delId:"", locId:"" };
+          detected = true;
+        }
+      }
+
+      /* 3 — Fallback : liste complète des gouvernorats (même sans annonces chargées) */
+      if (!detected) {
+        const govFull = govListRef.current.find(g => g.label.toLowerCase() === ql);
+        if (govFull) {
+          f = { ...f, query:"", govNom:govFull.label, govId:String(govFull.value), delNom:"", locNom:"", delId:"", locId:"" };
+          detected = true;
+        }
+      }
+      /* Si rien trouvé → texte libre, la recherche multi-champs gère le reste */
     }
 
     setFilters(f);

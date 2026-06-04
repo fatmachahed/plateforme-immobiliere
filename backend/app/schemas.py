@@ -219,6 +219,8 @@ class AnnonceRead(AnnonceBase):
     boost_level: int = 0
     views_count: int = 0
     properties: List[PropertyRead] = []
+    anonyme: Optional[bool] = False
+    accompagnement: Optional[bool] = False
 
     class Config:
         orm_mode = True

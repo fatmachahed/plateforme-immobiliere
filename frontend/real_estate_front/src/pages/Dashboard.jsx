@@ -6,9 +6,20 @@ import API_URL from "../config";
 import {
   Home, Plus, Eye, Edit2, Trash2, MapPin, TrendingUp,
   Clock, CheckCircle, XCircle, AlertCircle, X, Search, Zap,
-  Bell, Phone, Mail, MessageSquare
+  Bell, Phone, Mail, MessageSquare, Sparkles
 } from "lucide-react";
 
+/* ── Tracking switch pour l'onglet Accompagnements ── */
+const TrackSwitch = ({ val, onChange }) => (
+  <div style={{display:"flex",alignItems:"center",gap:6}}>
+    <span style={{fontSize:11,fontWeight:700,color:val?"#16a34a":"#94a3b8",minWidth:22}}>{val?"Oui":"Non"}</span>
+    <label style={{position:"relative",display:"inline-block",width:36,height:20,flexShrink:0}}>
+      <input type="checkbox" checked={val} onChange={e=>onChange(e.target.checked)} style={{opacity:0,width:0,height:0}}/>
+      <span style={{position:"absolute",inset:0,background:val?"#6366f1":"#e5e7eb",borderRadius:20,transition:".2s",cursor:"pointer"}}/>
+      <span style={{position:"absolute",width:14,height:14,background:"#fff",borderRadius:"50%",top:3,left:val?19:3,transition:".2s"}}/>
+    </label>
+  </div>
+);
 
 function statusBadge(s) {
   if (s === "approuvee")    return { label: "Approuvée",     cls: "db-badge--ok",   icon: <CheckCircle size={12}/> };
@@ -32,9 +43,24 @@ export default function Dashboard() {
   const [delItem,  setDelItem]      = useState(null);
   const [soldConfirm, setSoldConfirm] = useState(null);
   const [search,   setSearch]       = useState("");
-  /* ── Onglet actif : "annonces" ou "contacts" ── */
+  /* ── Onglet actif : "annonces", "contacts" ou "accompagnements" ── */
   const [searchParams]              = useSearchParams();
-  const [activeTab, setActiveTab]   = useState(searchParams.get("tab") === "contacts" ? "contacts" : "annonces");
+  const [activeTab, setActiveTab]   = useState(
+    searchParams.get("tab") === "contacts" ? "contacts"
+    : searchParams.get("tab") === "accompagnements" ? "accompagnements"
+    : "annonces"
+  );
+  /* ── Suivi accompagnements (localStorage) ── */
+  const [accomTracking, setAccomTracking] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("localizi_accom_tracking") || "{}"); } catch { return {}; }
+  });
+  const updateAccomTracking = (annonceId, field, value) => {
+    setAccomTracking(prev => {
+      const next = { ...prev, [annonceId]: { ...(prev[annonceId] || {}), [field]: value } };
+      try { localStorage.setItem("localizi_accom_tracking", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
   /* ── Demandes de contact reçues ── */
   const [contactRequests, setContactRequests] = useState([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
@@ -156,11 +182,15 @@ export default function Dashboard() {
           <div className="db-header__inner">
             <div>
               <h1 className="db-header__title">
-                {activeTab === "contacts" ? "Demandes de contact" : "Mes annonces"}
+                {activeTab === "contacts" ? "Demandes de contact"
+                  : activeTab === "accompagnements" ? "Accompagnements"
+                  : "Mes annonces"}
               </h1>
               <p className="db-header__sub">
                 {activeTab === "contacts"
                   ? "Visiteurs qui souhaitent vous contacter via vos annonces anonymes"
+                  : activeTab === "accompagnements"
+                  ? "Suivi des annonces avec accompagnement activé"
                   : "Gérez toutes vos publications immobilières"}
               </p>
             </div>
@@ -204,9 +234,102 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="db-inner">
+        <div className={activeTab === "contacts" ? "db-inner db-inner--wide" : "db-inner"}>
           {/* Stats (seulement sur l'onglet annonces) */}
-          {activeTab === "contacts" ? (
+          {activeTab === "accompagnements" ? (
+            /* ── ONGLET ACCOMPAGNEMENTS ── */
+            <div style={{marginTop:8}}>
+              {(() => {
+                const accomAnnonces = annonces.filter(a => a.accompagnement);
+                if (loading) return (
+                  <div style={{textAlign:"center", padding:"60px 20px", color:"#94a3b8", fontSize:14}}>
+                    Chargement…
+                  </div>
+                );
+                if (accomAnnonces.length === 0) return (
+                  <div style={{
+                    textAlign:"center", padding:"60px 20px",
+                    background:"#f8fafc", borderRadius:14, margin:"16px 0",
+                    border:"1.5px dashed #e2e8f0"
+                  }}>
+                    <Sparkles size={40} style={{color:"#d1d5db", marginBottom:12}}/>
+                    <p style={{fontSize:15, fontWeight:700, color:"#374151", marginBottom:6}}>Aucune annonce avec accompagnement</p>
+                    <p style={{fontSize:13, color:"#94a3b8"}}>
+                      Activez l'accompagnement lors de la création d'une annonce pour la voir apparaître ici.
+                    </p>
+                  </div>
+                );
+                return (
+                  <div style={{overflowX:"auto"}}>
+                    <table style={{width:"100%", borderCollapse:"collapse", fontFamily:"'Inter',system-ui,sans-serif", fontSize:13}}>
+                      <thead>
+                        <tr style={{borderBottom:"2px solid #e5e7eb", background:"#f8fafc"}}>
+                          <th style={{padding:"10px 14px", textAlign:"left", fontWeight:700, color:"#374151", fontSize:11.5, textTransform:"uppercase", letterSpacing:".05em", whiteSpace:"nowrap"}}>Annonce</th>
+                          <th style={{padding:"10px 14px", textAlign:"left", fontWeight:700, color:"#374151", fontSize:11.5, textTransform:"uppercase", letterSpacing:".05em", whiteSpace:"nowrap"}}>Type</th>
+                          <th style={{padding:"10px 14px", textAlign:"left", fontWeight:700, color:"#374151", fontSize:11.5, textTransform:"uppercase", letterSpacing:".05em", whiteSpace:"nowrap"}}>Agence</th>
+                          <th style={{padding:"10px 14px", textAlign:"left", fontWeight:700, color:"#374151", fontSize:11.5, textTransform:"uppercase", letterSpacing:".05em", whiteSpace:"nowrap"}}>Réponse</th>
+                          <th style={{padding:"10px 14px", textAlign:"left", fontWeight:700, color:"#374151", fontSize:11.5, textTransform:"uppercase", letterSpacing:".05em", whiteSpace:"nowrap"}}>Contact</th>
+                          <th style={{padding:"10px 14px", textAlign:"left", fontWeight:700, color:"#374151", fontSize:11.5, textTransform:"uppercase", letterSpacing:".05em"}}>Remarque</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {accomAnnonces.map(a => {
+                          const t = accomTracking[a.id] || {};
+                          return (
+                            <tr key={a.id} style={{borderBottom:"1px solid #f1f5f9", transition:"background .15s"}}
+                              onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"}
+                              onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
+                              <td style={{padding:"12px 14px", verticalAlign:"middle", maxWidth:200}}>
+                                <div style={{fontWeight:700, color:"#0f172a", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis"}}>{a.titre}</div>
+                                <div style={{fontSize:11, color:"#94a3b8", marginTop:2}}>
+                                  {new Date(a.date_creation).toLocaleDateString("fr-TN",{day:"2-digit",month:"short",year:"numeric"})}
+                                </div>
+                              </td>
+                              <td style={{padding:"12px 14px", verticalAlign:"middle", whiteSpace:"nowrap"}}>
+                                <span style={{fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:".04em", color:"#6366f1", background:"#eef2ff", padding:"3px 7px", borderRadius:6}}>
+                                  {typeBienLabel(a.type_bien)}
+                                </span>
+                                <span style={{marginLeft:6, fontSize:11, color:"#64748b", background:"#f1f5f9", padding:"3px 7px", borderRadius:6}}>
+                                  {categorieLabel(a.categorie)}
+                                </span>
+                              </td>
+                              <td style={{padding:"12px 14px", verticalAlign:"middle"}}>
+                                <TrackSwitch val={!!t.agence} onChange={v => updateAccomTracking(a.id, "agence", v)}/>
+                              </td>
+                              <td style={{padding:"12px 14px", verticalAlign:"middle"}}>
+                                <TrackSwitch val={!!t.reponse} onChange={v => updateAccomTracking(a.id, "reponse", v)}/>
+                              </td>
+                              <td style={{padding:"12px 14px", verticalAlign:"middle"}}>
+                                <TrackSwitch val={!!t.contact} onChange={v => updateAccomTracking(a.id, "contact", v)}/>
+                              </td>
+                              <td style={{padding:"12px 14px", verticalAlign:"middle", minWidth:180}}>
+                                <input
+                                  type="text"
+                                  value={t.remarque || ""}
+                                  onChange={e => updateAccomTracking(a.id, "remarque", e.target.value)}
+                                  placeholder="Ajouter une remarque…"
+                                  style={{
+                                    width:"100%", padding:"6px 10px",
+                                    border:"1.5px solid #e2e8f0", borderRadius:8,
+                                    fontSize:12.5, fontFamily:"inherit", outline:"none",
+                                    color:"#0f172a", background:"#f8fafc",
+                                    transition:"border-color .15s",
+                                    boxSizing:"border-box"
+                                  }}
+                                  onFocus={e=>e.target.style.borderColor="#6366f1"}
+                                  onBlur={e=>e.target.style.borderColor="#e2e8f0"}
+                                />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
+            </div>
+          ) : activeTab === "contacts" ? (
             /* ── ONGLET DEMANDES DE CONTACT ── */
             <div style={{marginTop:8}}>
               {loadingContacts ? (
@@ -277,17 +400,21 @@ export default function Dashboard() {
                         ) : <span style={{color:"#cbd5e1"}}>—</span>}
                       </td>
                       {/* Message — cliquable pour voir la suite */}
-                      <td style={{padding:"12px 14px", verticalAlign:"middle", maxWidth:220, color:"#64748b", cursor: req.message ? "pointer" : "default"}}
-                        onClick={() => req.message && setExpandedMsg(expandedMsg === req.id ? null : req.id)}>
-                        {expandedMsg === req.id ? (
-                          <span style={{display:"block", lineHeight:1.5, fontSize:12.5}}>{req.message}</span>
-                        ) : (
-                          <span style={{display:"block",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                            {req.message || <span style={{color:"#cbd5e1"}}>—</span>}
-                          </span>
-                        )}
-                        {req.message && req.message.length > 40 && (
-                          <span style={{fontSize:10,color:"#6366f1",fontWeight:600}}>
+                      <td style={{padding:"12px 14px", verticalAlign:"top", minWidth:300, maxWidth:480, color:"#374151"}}>
+                        {/* Message affiché en entier — clic pour réduire si long */}
+                        <span style={{
+                          display:"block", lineHeight:1.6, fontSize:13,
+                          whiteSpace: expandedMsg !== req.id && req.message?.length > 120 ? "nowrap" : "normal",
+                          overflow: expandedMsg !== req.id && req.message?.length > 120 ? "hidden" : "visible",
+                          textOverflow: expandedMsg !== req.id && req.message?.length > 120 ? "ellipsis" : "unset",
+                          cursor: req.message?.length > 120 ? "pointer" : "default",
+                        }}
+                          onClick={() => req.message?.length > 120 && setExpandedMsg(expandedMsg === req.id ? null : req.id)}>
+                          {req.message || <span style={{color:"#cbd5e1"}}>—</span>}
+                        </span>
+                        {req.message && req.message.length > 120 && (
+                          <span style={{fontSize:10.5, color:"#6366f1", fontWeight:600, cursor:"pointer", marginTop:2, display:"block"}}
+                            onClick={() => setExpandedMsg(expandedMsg === req.id ? null : req.id)}>
                             {expandedMsg === req.id ? "▲ Réduire" : "▼ Voir tout"}
                           </span>
                         )}
@@ -498,15 +625,20 @@ export default function Dashboard() {
               </button>
               <button
                 onClick={async () => {
-                  const token = localStorage.getItem("token");
+                  const tok = localStorage.getItem("token");
                   try {
-                    await fetch(`${API_URL}/annonces/${soldConfirm.id}`, {
+                    const res = await fetch(`${API_URL}/annonces/${soldConfirm.id}`, {
                       method:"DELETE",
-                      headers: { Authorization: `Bearer ${token}` }
+                      headers: { Authorization: `Bearer ${tok}` }
                     });
+                    if (!res.ok) throw new Error();
+                    setAnnonces(prev => prev.filter(a => a.id !== soldConfirm.id));
                     setSoldConfirm(null);
-                    window.location.reload();
-                  } catch { setSoldConfirm(null); }
+                    toast("Annonce supprimée avec succès.");
+                  } catch {
+                    toast("Erreur lors de la suppression.", "error");
+                    setSoldConfirm(null);
+                  }
                 }}
                 style={{padding:"10px 22px", borderRadius:9, border:"none", background:"#dc2626", color:"#fff", fontWeight:700, cursor:"pointer", fontSize:14, fontFamily:"inherit"}}
               >
@@ -544,6 +676,7 @@ export default function Dashboard() {
         .db-btn-boost:hover { background: #6366f1; color: #fff; border-color: #6366f1; }
 
         .db-inner { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+        .db-inner--wide { max-width: 100% !important; padding: 24px 32px; }
 
         .db-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
         .db-stat {

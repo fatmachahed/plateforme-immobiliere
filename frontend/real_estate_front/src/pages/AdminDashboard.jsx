@@ -8,7 +8,7 @@ import {
   Eye, Trash2, RefreshCw, Home, BarChart3, X, Check, Building, Plus,
   CreditCard, ShieldCheck, ShieldOff, Mail, Phone,
   DollarSign, Activity, Filter, Calendar, Edit3,
-  TrendingUp, MapPin,
+  TrendingUp, MapPin, Sparkles,
 } from "lucide-react";
 
 
@@ -48,6 +48,26 @@ export default function AdminDashboard() {
   /* Agences state */
   const [agencies,      setAgencies]     = useState([]);
   const [agencyModal,   setAgencyModal]  = useState(false);
+
+  /* Accompagnements tracking (stocké en localStorage) */
+  const [accomTracking, setAccomTracking] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("adm_accom_tracking")||"{}"); } catch { return {}; }
+  });
+  const updateAccomTracking = (id, key, val) => {
+    const next = {...accomTracking, [id]: {...(accomTracking[id]||{}), [key]: val}};
+    setAccomTracking(next);
+    localStorage.setItem("adm_accom_tracking", JSON.stringify(next));
+  };
+  const TrackSwitch = ({ val, onChange }) => (
+    <div style={{display:"flex",alignItems:"center",gap:6}}>
+      <span style={{fontSize:11,fontWeight:700,color:val?"#16a34a":"#94a3b8",minWidth:22}}>{val?"Oui":"Non"}</span>
+      <label style={{position:"relative",display:"inline-block",width:36,height:20,flexShrink:0,cursor:"pointer"}}>
+        <input type="checkbox" checked={val} onChange={e=>onChange(e.target.checked)} style={{opacity:0,width:0,height:0}}/>
+        <span style={{position:"absolute",inset:0,background:val?"#6366f1":"#e5e7eb",borderRadius:20,transition:".2s"}}/>
+        <span style={{position:"absolute",width:14,height:14,background:"#fff",borderRadius:"50%",top:3,left:val?19:3,transition:".2s",pointerEvents:"none"}}/>
+      </label>
+    </div>
+  );
   const [agencyForm,    setAgencyForm]   = useState({
     nom:"", email:"", telephone:"", adresse:"",
     matricule:"", frais_mensuel:"50", username:"", password:"",
@@ -77,7 +97,8 @@ export default function AdminDashboard() {
     if (tab === "annonces") loadAnnonces();
     if (tab === "users")    loadUsers();
     if (tab === "stats")    { if (allAnnonces.length === 0) loadAllAnnonces(); }
-    if (tab === "agences")  { loadAgencies(); if (allAnnonces.length === 0) loadAllAnnonces(); }
+    if (tab === "agences")        { loadAgencies(); if (allAnnonces.length === 0) loadAllAnnonces(); }
+    if (tab === "accompagnements"){ loadAllAnnonces(); if (users.length === 0) loadUsers(); }
   }, [tab, filter]);
 
   async function authFetch(url, opts = {}) {
@@ -334,10 +355,11 @@ export default function AdminDashboard() {
             <LayoutDashboard size={18}/> Admin
           </div>
           {[
-            { id:"annonces", icon:<FileText size={16}/>,  label:"Annonces" },
-            { id:"stats",    icon:<BarChart3 size={16}/>, label:"Statistiques" },
-            { id:"users",    icon:<Users size={16}/>,     label:"Utilisateurs" },
-            { id:"agences",  icon:<Building size={16}/>,  label:"Agences" },
+            { id:"annonces",       icon:<FileText size={16}/>,  label:"Annonces" },
+            { id:"stats",          icon:<BarChart3 size={16}/>, label:"Statistiques" },
+            { id:"users",          icon:<Users size={16}/>,     label:"Utilisateurs" },
+            { id:"agences",        icon:<Building size={16}/>,  label:"Agences" },
+            { id:"accompagnements",icon:<Sparkles size={16}/>,  label:"Accompagnements" },
           ].map(item => (
             <button key={item.id}
               className={`adm-nav${tab === item.id ? " adm-nav--active" : ""}`}
@@ -361,7 +383,8 @@ export default function AdminDashboard() {
               {tab === "annonces" && "Gestion des annonces"}
               {tab === "stats"    && "Statistiques & Tendances"}
               {tab === "users"    && "Utilisateurs"}
-              {tab === "agences"  && "Comptes Agences"}
+              {tab === "agences"          && "Comptes Agences"}
+              {tab === "accompagnements" && "Accompagnements"}
             </h1>
             <button className="adm-refresh" onClick={loadAll}><RefreshCw size={15}/></button>
           </div>
@@ -887,6 +910,76 @@ export default function AdminDashboard() {
               )}
             </div>
           )}
+
+          {/* ── Onglet Accompagnements ── */}
+          {tab === "accompagnements" && (
+            <div style={{fontFamily:"'Inter',system-ui,sans-serif"}}>
+              <div style={{marginBottom:20}}>
+                <h2 style={{fontSize:18, fontWeight:800, color:"#0f172a", margin:0}}>Suivi des demandes d'accompagnement</h2>
+                <p style={{fontSize:13, color:"#64748b", margin:"4px 0 0"}}>
+                  Annonces dont les propriétaires souhaitent être accompagnés par un professionnel.
+                </p>
+              </div>
+              {allAnnonces.filter(a => a.accompagnement).length === 0 ? (
+                <div style={{textAlign:"center",padding:"60px 20px",background:"#f8fafc",borderRadius:14,border:"1.5px dashed #e2e8f0"}}>
+                  <Sparkles size={40} style={{color:"#d1d5db",marginBottom:12}}/>
+                  <p style={{fontWeight:700,color:"#374151",marginBottom:6,fontSize:15}}>Aucune demande d'accompagnement</p>
+                  <p style={{fontSize:13,color:"#94a3b8"}}>Les annonces avec "Je souhaite être accompagné" cochée apparaîtront ici.</p>
+                </div>
+              ) : (
+                <div style={{overflowX:"auto"}}>
+                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+                    <thead>
+                      <tr style={{borderBottom:"2px solid #e5e7eb",background:"#f8fafc"}}>
+                        {["Annonce","Propriétaire","Type","Agence contactée","Réponse reçue","Contact effectué","Remarques"].map(h => (
+                          <th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:700,color:"#374151",fontSize:11.5,textTransform:"uppercase",letterSpacing:".05em",whiteSpace:"nowrap"}}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allAnnonces.filter(a => a.accompagnement).map(a => {
+                        const t = accomTracking[a.id] || {};
+                        const u = users?.find(u => u.id === a.utilisateur_id);
+                        return (
+                          <tr key={a.id} style={{borderBottom:"1px solid #f1f5f9"}}
+                            onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"}
+                            onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
+                            <td style={{padding:"12px 14px",verticalAlign:"middle",maxWidth:220}}>
+                              <div style={{fontWeight:700,color:"#0f172a",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{a.titre}</div>
+                              <div style={{fontSize:11,color:"#94a3b8"}}>{a.date_creation ? new Date(a.date_creation).toLocaleDateString("fr-TN",{day:"2-digit",month:"short",year:"numeric"}) : ""}</div>
+                            </td>
+                            <td style={{padding:"12px 14px",verticalAlign:"middle",whiteSpace:"nowrap",fontSize:12,color:"#374151"}}>
+                              {u?.username || a.user_name || `ID ${a.utilisateur_id}`}
+                            </td>
+                            <td style={{padding:"12px 14px",verticalAlign:"middle",whiteSpace:"nowrap"}}>
+                              <span style={{fontSize:11,fontWeight:700,textTransform:"uppercase",color:"#6366f1",background:"#eef2ff",padding:"3px 7px",borderRadius:6}}>
+                                {(a.type_bien||"").replace(/_/g," ")}
+                              </span>
+                            </td>
+                            <td style={{padding:"12px 14px",verticalAlign:"middle"}}>
+                              <TrackSwitch val={!!t.agence} onChange={v=>updateAccomTracking(a.id,"agence",v)}/>
+                            </td>
+                            <td style={{padding:"12px 14px",verticalAlign:"middle"}}>
+                              <TrackSwitch val={!!t.reponse} onChange={v=>updateAccomTracking(a.id,"reponse",v)}/>
+                            </td>
+                            <td style={{padding:"12px 14px",verticalAlign:"middle"}}>
+                              <TrackSwitch val={!!t.contact} onChange={v=>updateAccomTracking(a.id,"contact",v)}/>
+                            </td>
+                            <td style={{padding:"12px 14px",verticalAlign:"middle",minWidth:200}}>
+                              <input type="text" value={t.remarque||""} onChange={e=>updateAccomTracking(a.id,"remarque",e.target.value)}
+                                placeholder="Ajouter une remarque…"
+                                style={{width:"100%",padding:"6px 10px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:12.5,fontFamily:"inherit",outline:"none",background:"#f8fafc",boxSizing:"border-box"}}/>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
         </main>
       </div>
 
@@ -1115,6 +1208,76 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+
+      {/* ── Onglet Accompagnements (déplacé dans <main>) ── */}
+      {false && (() => {
+        return (
+          <div>
+            <div style={{padding:"20px 0 14px"}}>
+              <h2 style={{fontSize:18, fontWeight:800, color:"#0f172a", margin:0}}>Suivi des demandes d'accompagnement</h2>
+              <p style={{fontSize:13, color:"#64748b", margin:"4px 0 0"}}>
+                Annonces dont les propriétaires souhaitent être accompagnés par un professionnel.
+              </p>
+            </div>
+            {accomAnnonces.length === 0 ? (
+              <div style={{textAlign:"center",padding:"60px 20px",background:"#f8fafc",borderRadius:14,border:"1.5px dashed #e2e8f0"}}>
+                <Sparkles size={40} style={{color:"#d1d5db",marginBottom:12}}/>
+                <p style={{fontWeight:700,color:"#374151",marginBottom:6}}>Aucune demande d'accompagnement</p>
+              </div>
+            ) : (
+              <div style={{overflowX:"auto"}}>
+                <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+                  <thead>
+                    <tr style={{borderBottom:"2px solid #e5e7eb",background:"#f8fafc"}}>
+                      {["Annonce","Propriétaire","Type","Agence contactée","Réponse reçue","Contact effectué","Remarques"].map(h => (
+                        <th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:700,color:"#374151",fontSize:11.5,textTransform:"uppercase",letterSpacing:".05em",whiteSpace:"nowrap"}}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {accomAnnonces.map(a => {
+                      const t = accomTracking[a.id] || {};
+                      const user = users?.find(u => u.id === a.utilisateur_id);
+                      return (
+                        <tr key={a.id} style={{borderBottom:"1px solid #f1f5f9"}}
+                          onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"}
+                          onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
+                          <td style={{padding:"12px 14px",verticalAlign:"middle",maxWidth:200}}>
+                            <div style={{fontWeight:700,color:"#0f172a",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{a.titre}</div>
+                            <div style={{fontSize:11,color:"#94a3b8"}}>{new Date(a.date_creation).toLocaleDateString("fr-TN",{day:"2-digit",month:"short",year:"numeric"})}</div>
+                          </td>
+                          <td style={{padding:"12px 14px",verticalAlign:"middle",whiteSpace:"nowrap",fontSize:12,color:"#374151"}}>
+                            {user?.username || `ID ${a.utilisateur_id}`}
+                          </td>
+                          <td style={{padding:"12px 14px",verticalAlign:"middle",whiteSpace:"nowrap"}}>
+                            <span style={{fontSize:11,fontWeight:700,textTransform:"uppercase",color:"#6366f1",background:"#eef2ff",padding:"3px 7px",borderRadius:6}}>
+                              {a.type_bien?.replace("_"," ")}
+                            </span>
+                          </td>
+                          <td style={{padding:"12px 14px",verticalAlign:"middle"}}>
+                            <TrackSwitch val={!!t.agence} onChange={v=>updateAccomTracking(a.id,"agence",v)}/>
+                          </td>
+                          <td style={{padding:"12px 14px",verticalAlign:"middle"}}>
+                            <TrackSwitch val={!!t.reponse} onChange={v=>updateAccomTracking(a.id,"reponse",v)}/>
+                          </td>
+                          <td style={{padding:"12px 14px",verticalAlign:"middle"}}>
+                            <TrackSwitch val={!!t.contact} onChange={v=>updateAccomTracking(a.id,"contact",v)}/>
+                          </td>
+                          <td style={{padding:"12px 14px",verticalAlign:"middle",minWidth:200}}>
+                            <input type="text" value={t.remarque||""} onChange={e=>updateAccomTracking(a.id,"remarque",e.target.value)}
+                              placeholder="Ajouter une remarque…"
+                              style={{width:"100%",padding:"6px 10px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:12.5,fontFamily:"inherit",outline:"none",background:"#f8fafc",boxSizing:"border-box"}}/>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       <style>{`
         /* ── Layout ── */

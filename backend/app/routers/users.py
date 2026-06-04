@@ -309,3 +309,4 @@ def mark_contact_request_lu(
     req.lu = lu
     db.commit()
     return {"detail": "Marqué comme lu" if lu else "Marqué comme non lu"}
+

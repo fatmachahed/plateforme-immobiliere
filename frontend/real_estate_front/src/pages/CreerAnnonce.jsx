@@ -900,26 +900,46 @@ export const CreateListingForm = ({ editId = null }) => {
           return;
         }
 
-        /* Upload new images if any were added */
+        /* Upload new images and link them to the property */
         if (formData.allImages.length > 0) {
-          const orderedImages = [
-            formData.allImages[formData.mainImageIndex] || formData.allImages[0],
-            ...formData.allImages.filter((_, i) => i !== formData.mainImageIndex)
-          ];
-          for (let i = 0; i < orderedImages.length; i++) {
-            try {
-              const imgForm = new FormData();
-              imgForm.append("file", orderedImages[i]);
-              await fetch(`${API_URL}/upload/image`, {
-                method: "POST",
-                headers: { Authorization: `Bearer ${token}` },
-                body: imgForm,
-              });
-            } catch { /* non-bloquant */ }
+          if (!editPropertyIdState) {
+            toast("Avertissement : impossible de lier les images (propriété introuvable).", "error");
+          } else {
+            let mainImageUrl = null;
+            for (let i = 0; i < formData.allImages.length; i++) {
+              try {
+                const imgForm = new FormData();
+                imgForm.append("file", formData.allImages[i]);
+                const imgRes = await fetch(`${API_URL}/upload/image`, {
+                  method: "POST",
+                  headers: { Authorization: `Bearer ${token}` },
+                  body: imgForm,
+                });
+                if (imgRes.ok) {
+                  const imgData = await imgRes.json();
+                  if (i === formData.mainImageIndex) mainImageUrl = imgData.url;
+                  await fetch(`${API_URL}/properties/${editPropertyIdState}/images`, {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({ image: imgData.url }),
+                  });
+                }
+              } catch { /* non-bloquant */ }
+            }
+            /* Update image_principale if the selected main image was uploaded */
+            if (mainImageUrl) {
+              try {
+                await fetch(`${API_URL}/properties/${editPropertyIdState}`, {
+                  method: "PUT",
+                  headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                  body: JSON.stringify({ image_principale: mainImageUrl }),
+                });
+              } catch { /* non-bloquant */ }
+            }
           }
         }
 
-        /* Update property */
+        /* Update property location */
         if (editPropertyIdState) {
           await fetch(`${API_URL}/properties/${editPropertyIdState}`, {
             method: "PUT",

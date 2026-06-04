@@ -49,6 +49,17 @@ with engine.connect() as conn:
             created_at TIMESTAMP DEFAULT NOW()
         );
         """,
+        # Table des messages du formulaire de contact
+        """
+        CREATE TABLE IF NOT EXISTS contact_messages (
+            id SERIAL PRIMARY KEY,
+            nom VARCHAR NOT NULL,
+            email VARCHAR,
+            sujet VARCHAR,
+            message VARCHAR,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+        """,
     ]
     for sql in migrations:
         try:
@@ -71,7 +82,34 @@ app.include_router(catalogue.router,   tags=["Catalogue"])
 app.include_router(upload.router,      tags=["Upload"])
 app.include_router(admin.router,       tags=["Admin"])
 
-# 5. Routes de test CORS
+# 5. Route formulaire de contact (POST /contact)
+from fastapi import Depends
+from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from typing import Optional
+from app import models
+
+class ContactBody(BaseModel):
+    nom:     str
+    email:   Optional[str] = None
+    sujet:   Optional[str] = None
+    message: Optional[str] = None
+
+@app.post("/contact", tags=["Contact"])
+def submit_contact(body: ContactBody, db: Session = Depends(get_db)):
+    """Enregistre un message depuis le formulaire de contact."""
+    msg = models.ContactMessage(
+        nom=body.nom,
+        email=body.email,
+        sujet=body.sujet,
+        message=body.message,
+    )
+    db.add(msg)
+    db.commit()
+    db.refresh(msg)
+    return {"detail": "Message enregistré avec succès.", "id": msg.id}
+
+# Routes de test CORS
 @app.get("/")
 def root():
     return {"message": "API avec CORS activé!"}

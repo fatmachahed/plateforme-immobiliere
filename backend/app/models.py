@@ -280,3 +280,16 @@ class ContactRequest(Base):
     lu           = Column(Boolean, default=False)
 
     annonce = relationship("Annonce")
+
+
+# ----------------------------------------
+# Messages de contact (formulaire Contact)
+# ----------------------------------------
+class ContactMessage(Base):
+    __tablename__ = "contact_messages"
+    id         = Column(Integer, primary_key=True)
+    nom        = Column(String, nullable=False)
+    email      = Column(String, nullable=True)
+    sujet      = Column(String, nullable=True)
+    message    = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)

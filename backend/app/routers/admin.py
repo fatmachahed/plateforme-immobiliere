@@ -95,9 +95,11 @@ def list_annonces(
             "latitude":     prop.latitude  if prop else None,
             "longitude":    prop.longitude if prop else None,
             "address":      prop.address   if prop else None,
-            "boost_level":  a.boost_level or 0,
-            "views_count":  a.views_count  or 0,
-            "description":  a.description,
+            "boost_level":    a.boost_level or 0,
+            "views_count":    a.views_count  or 0,
+            "description":    a.description,
+            "accompagnement": a.accompagnement or False,
+            "anonyme":        a.anonyme or False,
         })
     return result
 

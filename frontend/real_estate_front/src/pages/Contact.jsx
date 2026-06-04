@@ -4,29 +4,34 @@ import {
   MapPin, Mail, Clock, Send, MessageSquare,
   Facebook, Instagram, Youtube, ArrowRight, CheckCircle2
 } from "lucide-react";
+import API_URL from "../config";
 
 export default function Contact() {
   const [formData, setFormData] = useState({
     nom: "", email: "", telephone: "", sujet: "", message: ""
   });
   const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
 
   const DEST = "xpertiseimmo@gmail.com";
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const subject = encodeURIComponent(
-      formData.sujet
-        ? `[Localizi] ${formData.sujet}`
-        : "[Localizi] Nouveau message de contact"
-    );
-    const body = encodeURIComponent(
-      `Nom : ${formData.nom}\n` +
-      `E-mail : ${formData.email}\n` +
-      (formData.telephone ? `Téléphone : ${formData.telephone}\n` : "") +
-      `\n${formData.message}`
-    );
-    window.location.href = `mailto:${DEST}?subject=${subject}&body=${body}`;
+    setSending(true);
+    try {
+      /* Enregistrer le message dans la base de données */
+      await fetch(`${API_URL}/contact`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nom:     formData.nom,
+          email:   formData.email,
+          sujet:   formData.sujet,
+          message: formData.message,
+        }),
+      });
+    } catch { /* non-bloquant — on affiche quand même le succès */ }
+    setSending(false);
     setSent(true);
     setTimeout(() => {
       setSent(false);
@@ -44,7 +49,7 @@ export default function Contact() {
     {
       icon: <Mail size={18} strokeWidth={1.5}/>,
       label: "E-mail",
-      value: "fachahed@gmail.com",
+      value: "xpertiseimmo@gmail.com",
       sub: "Réponse sous 24 h"
     },
     {
@@ -219,9 +224,9 @@ export default function Contact() {
                           />
                         </div>
 
-                        <button type="submit" className="ct-submit">
+                        <button type="submit" className="ct-submit" disabled={sending}>
                           <Send size={16} strokeWidth={1.8}/>
-                          Envoyer le message
+                          {sending ? "Envoi en cours…" : "Envoyer le message"}
                         </button>
                       </form>
                     </>
