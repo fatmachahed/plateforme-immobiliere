@@ -850,6 +850,8 @@ export const CreateListingForm = ({ editId = null }) => {
         nb_pieces:         formData.nb_pieces    || null,
         nb_chambres:       formData.nb_chambres  || null,
         nb_salles_bain:    formData.nb_salles_bain || null,
+        duree_type:        formData.duree_type  || null,
+        duree_valeur:      formData.duree_valeur || null,
         anonyme:           formData.anonyme || false,
         accompagnement:    formData.accompagnement || false,
         /* ── Caractéristiques générales ── */
@@ -1031,7 +1033,7 @@ export const CreateListingForm = ({ editId = null }) => {
       }
 
       clearFormStorage();
-      toast("Annonce créée et publiée sur la carte !");
+      toast("Annonce enregistrée — approuvée dans les délais de 24h !");
       setTimeout(() => { window.location.href = "/dashboard"; }, 1200);
     } catch (err) {
       if (err.message !== "session_expired") {
@@ -1134,7 +1136,7 @@ export const CreateListingForm = ({ editId = null }) => {
 
       // ── Phrase de clôture ──
       if (formData.prix) {
-        desc += `Affiché au prix de ${Number(formData.prix).toLocaleString("fr-TN")} ${formData.devise}, `;
+        desc += `Affiché au prix de ${Number(formData.prix).toLocaleString("fr-TN")} ${formData.devise === "TND" ? "DT" : formData.devise}, `;
       }
       desc += "ce bien constitue une opportunité à saisir. N'hésitez pas à nous contacter pour obtenir plus d'informations ou convenir d'une visite.";
 
@@ -1149,7 +1151,7 @@ export const CreateListingForm = ({ editId = null }) => {
     formData.categorie && { label: "Offre", value: formData.categorie.charAt(0).toUpperCase() + formData.categorie.slice(1) },
     hierarchy.gouvernorat && { label: "Gouvernorat", value: gouvernorats.find(g => g.value === hierarchy.gouvernorat)?.label || hierarchy.gouvernorat },
     formData.superficie && { label: "Superficie", value: `${formData.superficie} m²` },
-    formData.prix && { label: "Prix", value: `${Number(formData.prix).toLocaleString('fr-TN')} ${formData.devise}` },
+    formData.prix && { label: "Prix", value: `${Number(formData.prix).toLocaleString('fr-TN')} ${formData.devise === "TND" ? "DT" : formData.devise}` },
   ].filter(Boolean);
 
   const TYPE_CARDS = [

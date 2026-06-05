@@ -314,7 +314,7 @@ function PropCard({ p, active, onHover, onClick, govMarketStats }) {
                 {p.devise === "TND" ? "DT" : p.devise}
                 {p.categorie === "location" ? " /mois"
                   : p.categorie === "vacances" ? (
-                    p.duree_type === "nuit"   ? " /nuit."
+                    p.duree_type === "nuit"   ? " /nuitée"
                     : p.duree_type === "semaine" ? " /sem."
                     : p.duree_type === "mois"    ? " /mois"
                     : p.duree_type === "annee"   ? " /an"
@@ -548,7 +548,7 @@ function PropertyMap({ properties, activeId, selectedGov, onPinClick, onBoundsCh
 
                 <!-- Specs -->
                 <div style="display:flex;gap:14px;font-size:12.5px;color:#475569;margin-bottom:8px;flex-wrap:wrap;">
-                  ${pin.area  ? `<span style="display:flex;align-items:center;gap:4px;">📐 ${pin.area} m²</span>` : ""}
+                  ${pin.area  ? `<span style="display:flex;align-items:center;gap:4px;">▫ ${pin.area} m²</span>` : ""}
                   ${pin.beds  != null ? `<span>🛏 ${pin.beds} ch.</span>` : ""}
                   ${pin.baths != null ? `<span>🚿 ${pin.baths}</span>` : ""}
                 </div>
@@ -1115,12 +1115,20 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
               </select>
             </div>
           </>)}
-          {/* Titre foncier — affiché seulement pour terrain */}
+          {/* Titre foncier — aligné comme les autres filtres */}
           {local.type === "terrain" && (
-            <div className="fp__adv-group fp__adv-group--check">
-              <label className="fp__adv-label fp__adv-label--check">
+            <div className="fp__adv-group" style={{alignSelf:"flex-end"}}>
+              <label className="fp__adv-label">Titre foncier</label>
+              <label style={{
+                display:"flex", alignItems:"center", gap:8, cursor:"pointer",
+                padding:"7px 10px", border:"1.5px solid #e5e7eb", borderRadius:8,
+                background: local.titre_foncier==="1" ? "#f0fdf4" : "#fff",
+                borderColor: local.titre_foncier==="1" ? "#bbf7d0" : "#e5e7eb",
+                fontSize:13, fontFamily:"inherit", color:"#374151", whiteSpace:"nowrap",
+              }}>
                 <input type="checkbox" checked={local.titre_foncier==="1"}
-                  onChange={(e)=>set("titre_foncier",e.target.checked?"1":"")}/>
+                  onChange={(e)=>set("titre_foncier",e.target.checked?"1":"")}
+                  style={{accentColor:"#16a34a", width:14, height:14}}/>
                 Titre foncier uniquement
               </label>
             </div>
@@ -1137,6 +1145,13 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
           </button>
           )}
           {/* Reset */}
+          <button className="fp__save-search" onClick={() => {
+            const saved = JSON.parse(localStorage.getItem("localizi_saved_searches")||"[]");
+            const entry = { ...local, savedAt: new Date().toISOString(), id: Date.now() };
+            saved.unshift(entry);
+            localStorage.setItem("localizi_saved_searches", JSON.stringify(saved.slice(0,10)));
+            alert("Recherche enregistrée ! Vous serez alerté quand des annonces correspondantes seront disponibles.");
+          }}>💾 Enregistrer la recherche</button>
           <button className="fp__reset" onClick={reset}><X size={11}/> Réinitialiser</button>
         </div>
       )}
@@ -1953,7 +1968,7 @@ export default function CartePage() {
                       </span>
                     </p>
                     <div style={{display:"flex",gap:14,fontSize:12,color:"#64748b",flexWrap:"wrap"}}>
-                      {hoveredPin.area  && <span>📐 {hoveredPin.area} m²</span>}
+                      {hoveredPin.area  && <span style={{display:"flex",alignItems:"center",gap:3}}><Maximize size={11}/> {hoveredPin.area} m²</span>}
                       {hoveredPin.beds  != null && <span>🛏 {hoveredPin.beds} ch.</span>}
                       {hoveredPin.baths != null && <span>🚿 {hoveredPin.baths}</span>}
                     </div>
@@ -2202,6 +2217,14 @@ export default function CartePage() {
         }
         .fp__adv-inp::placeholder { color: #9ca3af; }
         .fp__adv-group--check { justify-content: flex-end; }
+        .fp__save-search {
+          display: flex; align-items: center; gap: 5px;
+          padding: 7px 13px; border-radius: 8px; font-size: 12.5px;
+          font-weight: 600; cursor: pointer; font-family: inherit;
+          border: 1.5px solid #bbf7d0; background: #f0fdf4; color: #16a34a;
+          transition: all .15s; align-self: flex-end;
+        }
+        .fp__save-search:hover { background: #dcfce7; border-color: #86efac; }
         .fp__reset {
           display: flex; align-items: center; gap: 5px;
           padding: 7px 13px; border-radius: 8px; font-size: 12.5px;

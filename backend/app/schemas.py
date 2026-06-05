@@ -86,6 +86,8 @@ class AnnonceCreate(AnnonceBase):
     annee_construction: Optional[int] = None
     anonyme: Optional[bool] = False
     accompagnement: Optional[bool] = False
+    duree_type: Optional[str] = None
+    duree_valeur: Optional[str] = None
     # ── Caractéristiques générales ──
     jardin: Optional[bool] = False
     terrasse: Optional[bool] = False
@@ -218,12 +220,24 @@ class AnnonceRead(AnnonceBase):
     date_mise_a_jour: datetime
     boost_level: int = 0
     views_count: int = 0
-    properties: List[PropertyRead] = []
+    properties: List[PropertyRead] = []   # compatibilité frontend
     anonyme: Optional[bool] = False
     accompagnement: Optional[bool] = False
+    # Accès direct à l'image principale via la relation property (1-to-1)
+    image_principale: Optional[str] = None
 
     class Config:
         orm_mode = True
+
+    @classmethod
+    def from_orm(cls, obj):
+        # Copier image_principale depuis la relation property
+        instance = super().from_orm(obj)
+        if hasattr(obj, 'property') and obj.property:
+            instance.image_principale = obj.property.image_principale
+            # Construire la liste properties pour la compatibilité
+            instance.properties = [PropertyRead.from_orm(obj.property)]
+        return instance
 
 class AnnoncePublic(BaseModel):
     """Données publiques pour l'affichage liste/carte."""

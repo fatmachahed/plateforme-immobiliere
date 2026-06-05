@@ -258,9 +258,24 @@ export default function AnnonceDetail() {
             <Heart size={15} fill={isFavori ? "currentColor" : "none"} />
             {isFavori ? "Sauvegardé" : "Sauvegarder"}
           </button>
-          <button className="ad-action" onClick={() => {
-            if (navigator.share) navigator.share({ title: prop.titre, url: window.location.href });
-            else { navigator.clipboard.writeText(window.location.href); toast("Lien copié !"); }
+          <button className="ad-action" onClick={async () => {
+            const url = window.location.href;
+            const title = prop.titre;
+            try {
+              if (navigator.share) {
+                await navigator.share({ title, url, text: `${title} - Localizi` });
+              } else if (navigator.clipboard) {
+                await navigator.clipboard.writeText(url);
+                toast("Lien copié dans le presse-papier !");
+              } else {
+                /* Fallback ultime */
+                const el = document.createElement("textarea");
+                el.value = url; document.body.appendChild(el);
+                el.select(); document.execCommand("copy");
+                document.body.removeChild(el);
+                toast("Lien copié !");
+              }
+            } catch { toast("Lien : " + url); }
           }}>
             <Share2 size={15} /> Partager
           </button>
@@ -381,7 +396,7 @@ export default function AnnonceDetail() {
             </div>
             <p className="ad-card__price">
               {Number(prop.prix).toLocaleString("fr-TN")}
-              <span> {prop.devise}</span>
+              <span> {prop.devise === "TND" ? "DT" : prop.devise}</span>
             </p>
 
             <div className="ad-specs">
@@ -572,7 +587,7 @@ export default function AnnonceDetail() {
                   <div className="ad-ncard__body">
                     <p className="ad-ncard__price">
                       {Number(a.prix).toLocaleString("fr-TN")}
-                      <span> {a.devise}</span>
+                      <span> {a.devise === "TND" ? "DT" : a.devise}</span>
                     </p>
                     <p className="ad-ncard__titre">{a.titre}</p>
                     <p className="ad-ncard__dist">
@@ -658,9 +673,10 @@ export default function AnnonceDetail() {
           padding: 3px 9px; border-radius: 20px;
           font-size: 11.5px; font-weight: 600; line-height: 1;
         }
-        .ad-addr__chip--loc { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
-        .ad-addr__chip--del { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
-        .ad-addr__chip--gov { background: #eef2ff; color: #4f46e5; border: 1px solid #c7d2fe; }
+        /* Hiérarchie : couleur unique grise/neutre pour homogénéité */
+        .ad-addr__chip--loc { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+        .ad-addr__chip--del { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+        .ad-addr__chip--gov { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
         .ad-addr__sep { font-size: 13px; color: #d1d5db; font-weight: 400; }
         .ad-card__price { font-size:28px; font-weight:900; color:#111; margin-bottom:16px; }
         .ad-card__price span { font-size:14px; font-weight:400; color:#9ca3af; }

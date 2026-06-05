@@ -163,16 +163,59 @@ def get_map_pins(
 # ===============================
 # READ ALL
 # ===============================
-@router.get("/", response_model=list[schemas.AnnonceRead])
+@router.get("/")
 def read_annonces(
     skip: int = 0,
     limit: int = 100,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
+    """Retourne les annonces avec image_principale incluse directement."""
     if current_user.role == "admin":
-        return crud.get_annonces(db, skip=skip, limit=limit)
-    return crud.get_annonces_by_user(db, user_id=current_user.id, skip=skip, limit=limit)
+        annonces = crud.get_annonces(db, skip=skip, limit=limit)
+    else:
+        annonces = crud.get_annonces_by_user(db, user_id=current_user.id, skip=skip, limit=limit)
+
+    result = []
+    for a in annonces:
+        prop = a.property  # relation 1-to-1
+        result.append({
+            "id":              a.id,
+            "titre":           a.titre,
+            "categorie":       a.categorie.value if hasattr(a.categorie, "value") else str(a.categorie),
+            "type_bien":       a.type_bien.value  if hasattr(a.type_bien,  "value") else str(a.type_bien),
+            "status":          a.status.value     if hasattr(a.status,     "value") else str(a.status),
+            "prix":            float(a.prix) if a.prix else 0,
+            "superficie":      float(a.superficie) if a.superficie else None,
+            "devise":          a.devise.value if hasattr(a.devise, "value") else str(a.devise),
+            "description":     a.description,
+            "date_creation":   a.date_creation.isoformat(),
+            "date_mise_a_jour":a.date_mise_a_jour.isoformat() if a.date_mise_a_jour else None,
+            "boost_level":     a.boost_level or 0,
+            "views_count":     a.views_count  or 0,
+            "utilisateur_id":  a.utilisateur_id,
+            "gouvernorat_id":  a.gouvernorat_id,
+            "delegation_id":   a.delegation_id,
+            "localite_id":     a.localite_id,
+            "nb_pieces":       a.nb_pieces,
+            "nb_chambres":     a.nb_chambres,
+            "nb_salles_bain":  a.nb_salles_bain,
+            "anonyme":         a.anonyme or False,
+            "accompagnement":  a.accompagnement or False,
+            "duree_type":      a.duree_type,
+            "duree_valeur":    a.duree_valeur,
+            # Image principale depuis la relation property (1-to-1)
+            "image_principale": prop.image_principale if prop else None,
+            "properties": [{
+                "id":              prop.id,
+                "annonce_id":      prop.annonce_id,
+                "address":         prop.address,
+                "latitude":        prop.latitude,
+                "longitude":       prop.longitude,
+                "image_principale":prop.image_principale,
+            }] if prop else [],
+        })
+    return result
 
 # ===============================
 # RICH DETAIL (for detail page)

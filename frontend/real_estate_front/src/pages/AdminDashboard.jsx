@@ -98,7 +98,7 @@ export default function AdminDashboard() {
     if (tab === "users")    loadUsers();
     if (tab === "stats")    { if (allAnnonces.length === 0) loadAllAnnonces(); }
     if (tab === "agences")        { loadAgencies(); if (allAnnonces.length === 0) loadAllAnnonces(); }
-    if (tab === "accompagnements"){ loadAllAnnonces(); if (users.length === 0) loadUsers(); }
+    if (tab === "accompagnements"){ loadAllAnnonces(); if (users.length === 0) loadUsers(); if (agencies.length === 0) loadAgencies(); }
   }, [tab, filter]);
 
   async function authFetch(url, opts = {}) {
@@ -914,11 +914,24 @@ export default function AdminDashboard() {
           {/* ── Onglet Accompagnements ── */}
           {tab === "accompagnements" && (
             <div style={{fontFamily:"'Inter',system-ui,sans-serif"}}>
-              <div style={{marginBottom:20}}>
-                <h2 style={{fontSize:18, fontWeight:800, color:"#0f172a", margin:0}}>Suivi des demandes d'accompagnement</h2>
-                <p style={{fontSize:13, color:"#64748b", margin:"4px 0 0"}}>
-                  Annonces dont les propriétaires souhaitent être accompagnés par un professionnel.
-                </p>
+              <div style={{marginBottom:20, display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:12, flexWrap:"wrap"}}>
+                <div>
+                  <h2 style={{fontSize:18, fontWeight:800, color:"#0f172a", margin:0}}>Suivi des demandes d'accompagnement</h2>
+                  <p style={{fontSize:13, color:"#64748b", margin:"4px 0 0"}}>
+                    Annonces dont les propriétaires souhaitent être accompagnés par un professionnel.
+                  </p>
+                </div>
+                <button
+                  onClick={() => toast("Modifications sauvegardées !")}
+                  style={{
+                    padding:"9px 18px", borderRadius:9, border:"none",
+                    background:"#16a34a", color:"#fff", fontSize:13,
+                    fontWeight:700, cursor:"pointer", fontFamily:"inherit",
+                    display:"flex", alignItems:"center", gap:6, flexShrink:0
+                  }}
+                >
+                  <Check size={14}/> Enregistrer
+                </button>
               </div>
               {allAnnonces.filter(a => a.accompagnement).length === 0 ? (
                 <div style={{textAlign:"center",padding:"60px 20px",background:"#f8fafc",borderRadius:14,border:"1.5px dashed #e2e8f0"}}>
@@ -931,7 +944,7 @@ export default function AdminDashboard() {
                   <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
                     <thead>
                       <tr style={{borderBottom:"2px solid #e5e7eb",background:"#f8fafc"}}>
-                        {["Annonce","Propriétaire","Type","Agence contactée","Réponse reçue","Contact effectué","Remarques"].map(h => (
+                        {["Annonce","Propriétaire","Type","Agence","Agence contactée","Réponse reçue","Contact effectué","Remarques"].map(h => (
                           <th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:700,color:"#374151",fontSize:11.5,textTransform:"uppercase",letterSpacing:".05em",whiteSpace:"nowrap"}}>{h}</th>
                         ))}
                       </tr>
@@ -955,6 +968,28 @@ export default function AdminDashboard() {
                               <span style={{fontSize:11,fontWeight:700,textTransform:"uppercase",color:"#6366f1",background:"#eef2ff",padding:"3px 7px",borderRadius:6}}>
                                 {(a.type_bien||"").replace(/_/g," ")}
                               </span>
+                            </td>
+                            <td style={{padding:"12px 14px",verticalAlign:"middle",minWidth:160}}>
+                              {agencies.length > 0 ? (
+                                <select
+                                  value={t.agence_name || ""}
+                                  onChange={e => updateAccomTracking(a.id, "agence_name", e.target.value)}
+                                  style={{border:"1.5px solid #e2e8f0",borderRadius:8,padding:"6px 10px",fontSize:12.5,fontFamily:"inherit",background:"#f8fafc",color:"#0f172a",outline:"none",width:"100%",boxSizing:"border-box"}}
+                                >
+                                  <option value="">— Choisir —</option>
+                                  {agencies.map(ag => (
+                                    <option key={ag.id} value={ag.nom}>{ag.nom}</option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <input
+                                  type="text"
+                                  value={t.agence_name || ""}
+                                  onChange={e => updateAccomTracking(a.id, "agence_name", e.target.value)}
+                                  placeholder="Nom agence…"
+                                  style={{width:"100%",padding:"6px 10px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:12.5,fontFamily:"inherit",outline:"none",background:"#f8fafc",boxSizing:"border-box"}}
+                                />
+                              )}
                             </td>
                             <td style={{padding:"12px 14px",verticalAlign:"middle"}}>
                               <TrackSwitch val={!!t.agence} onChange={v=>updateAccomTracking(a.id,"agence",v)}/>

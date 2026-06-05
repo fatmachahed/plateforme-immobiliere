@@ -43,6 +43,9 @@ export default function Dashboard() {
   const [delItem,  setDelItem]      = useState(null);
   const [soldConfirm, setSoldConfirm] = useState(null);
   const [search,   setSearch]       = useState("");
+  const [typeFilter,   setTypeFilter]   = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [dateFilter,   setDateFilter]   = useState("");
   /* ── Onglet actif : "annonces", "contacts" ou "accompagnements" ── */
   const [searchParams]              = useSearchParams();
   const [activeTab, setActiveTab]   = useState(
@@ -156,22 +159,57 @@ export default function Dashboard() {
     vues:     annonces.reduce((s, a) => s + (a.views_count || 0), 0),
   };
 
+  const TYPE_LABEL_MAP = {
+    appartement: "Appartement",
+    villa: "Villa/Maison", maison: "Villa/Maison",
+    terrain: "Terrain", bureau: "Bureau",
+    ferme: "Ferme", local_commercial: "Local commercial",
+  };
+  const STATUS_LABEL_MAP = {
+    approuvee: "Approuvée", en_attente: "En attente", refusee: "Refusée",
+  };
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    if (!q) return annonces;
+    const now = new Date();
+    const startOfDay   = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfWeek  = new Date(startOfDay); startOfWeek.setDate(startOfDay.getDate() - startOfDay.getDay());
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
     return annonces.filter(a => {
       const prop = a.properties?.[0];
-      return (
-        (a.titre         || "").toLowerCase().includes(q) ||
-        (a.type_bien     || "").toLowerCase().includes(q) ||
-        (a.categorie     || "").toLowerCase().includes(q) ||
-        (a.status        || "").toLowerCase().includes(q) ||
-        (prop?.address   || "").toLowerCase().includes(q) ||
-        typeBienLabel(a.type_bien).toLowerCase().includes(q) ||
-        categorieLabel(a.categorie).toLowerCase().includes(q)
-      );
+      // Text search
+      if (q) {
+        const matches =
+          (a.titre         || "").toLowerCase().includes(q) ||
+          (a.type_bien     || "").toLowerCase().includes(q) ||
+          (a.categorie     || "").toLowerCase().includes(q) ||
+          (a.status        || "").toLowerCase().includes(q) ||
+          (prop?.address   || "").toLowerCase().includes(q) ||
+          typeBienLabel(a.type_bien).toLowerCase().includes(q) ||
+          categorieLabel(a.categorie).toLowerCase().includes(q);
+        if (!matches) return false;
+      }
+      // Type filter
+      if (typeFilter) {
+        const mapped = TYPE_LABEL_MAP[a.type_bien] || typeBienLabel(a.type_bien);
+        if (mapped !== typeFilter) return false;
+      }
+      // Status filter
+      if (statusFilter) {
+        const mappedStatus = STATUS_LABEL_MAP[a.status] || a.status;
+        if (mappedStatus !== statusFilter) return false;
+      }
+      // Date filter
+      if (dateFilter) {
+        const created = new Date(a.date_creation);
+        if (dateFilter === "Aujourd'hui"  && created < startOfDay)   return false;
+        if (dateFilter === "Cette semaine" && created < startOfWeek)  return false;
+        if (dateFilter === "Ce mois"       && created < startOfMonth) return false;
+      }
+      return true;
     });
-  }, [annonces, search]);
+  }, [annonces, search, typeFilter, statusFilter, dateFilter]);
 
   return (
     <>
@@ -487,6 +525,27 @@ export default function Dashboard() {
                   </button>
                 )}
               </div>
+              <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+                style={{border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 10px",fontSize:13,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}>
+                <option value="">Tous types</option>
+                {["Appartement","Villa/Maison","Terrain","Bureau","Ferme","Local commercial"].map(t => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+                style={{border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 10px",fontSize:13,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}>
+                <option value="">Tous statuts</option>
+                <option value="En attente">En attente</option>
+                <option value="Approuvée">Approuvée</option>
+                <option value="Refusée">Refusée</option>
+              </select>
+              <select value={dateFilter} onChange={e => setDateFilter(e.target.value)}
+                style={{border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 10px",fontSize:13,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}>
+                <option value="">Toutes dates</option>
+                <option value="Aujourd'hui">Aujourd'hui</option>
+                <option value="Cette semaine">Cette semaine</option>
+                <option value="Ce mois">Ce mois</option>
+              </select>
               <span className="db-toolbar__count">
                 {filtered.length} annonce{filtered.length !== 1 ? "s" : ""}
               </span>
@@ -515,6 +574,25 @@ export default function Dashboard() {
                 const prop  = a.properties?.[0];
                 return (
                   <div key={a.id} className="db-card">
+                    {/* Image principale — directement depuis l'API */}
+                    {(() => {
+                      const rawImg = a.image_principale
+                        || prop?.image_principale
+                        || null;
+                      const imgSrc = rawImg
+                        ? (rawImg.startsWith("http") ? rawImg : `${API_URL}${rawImg}`)
+                        : null;
+                      return (
+                        <div style={{width:80,height:80,borderRadius:8,overflow:"hidden",flexShrink:0,background:"#e5e7eb"}}>
+                          {imgSrc
+                            ? <img src={imgSrc} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} loading="lazy"/>
+                            : <div style={{width:"100%",height:"100%",background:"#e5e7eb",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                                <Home size={28} style={{color:"#94a3b8"}}/>
+                              </div>
+                          }
+                        </div>
+                      );
+                    })()}
                     <div className="db-card__left">
                       <div className="db-card__type-badge">{typeBienLabel(a.type_bien)}</div>
                       <h3 className="db-card__title">{a.titre}</h3>
@@ -754,7 +832,7 @@ export default function Dashboard() {
           letter-spacing: .05em; color: #6366f1; background: #eef2ff;
           padding: 3px 8px; border-radius: 6px; margin-bottom: 6px;
         }
-        .db-card__title { font-size: 16px; font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .db-card__title { font-size: 16px; font-weight: 700; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
         .db-card__meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
         .db-badge {
           display: inline-flex; align-items: center; gap: 4px;

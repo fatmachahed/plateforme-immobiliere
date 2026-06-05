@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import API_URL from "../config";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Search, MapPin, Home, TrendingUp, Shield, Clock, Star,
@@ -253,6 +254,36 @@ export default function HomePage() {
   const [statsVisible, setStatsVisible] = useState(false);
   const statsRef = useRef(null);
   const [query, setQuery] = useState("");
+  const [recentAnnonces, setRecentAnnonces] = useState([]);
+
+  /* Charger les annonces réelles les plus récentes */
+  useEffect(() => {
+    fetch(`${API_URL}/annonces/public?limit=6`)
+      .then(r => r.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setRecentAnnonces(data.map(a => ({
+            id:       `api_${a.id}`,
+            _realId:  a.id,
+            titre:    a.titre,
+            prix:     Number(a.prix).toLocaleString("fr-TN"),
+            devise:   a.devise === "TND" ? "DT" : (a.devise || "DT"),
+            location: [a.localite, a.delegation, a.gouvernorat].filter(Boolean).join(", ") || "Tunisie",
+            beds:     a.nb_chambres,
+            baths:    null,
+            area:     a.superficie,
+            type:     a.type_bien || "",
+            categorie:a.categorie || "vente",
+            boost:    a.boost_level || 0,
+            image:    a.image_principale
+              ? (a.image_principale.startsWith("http") ? a.image_principale : `${API_URL}${a.image_principale}`)
+              : "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=80",
+            lat: a.latitude, lng: a.longitude,
+          })));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const obs = new IntersectionObserver(
@@ -357,7 +388,7 @@ export default function HomePage() {
           </div>
 
           <div className="hp-recent__grid">
-            {RECENT_PROPS.map((p, i) => <PropCard key={p.id} p={p} delay={i * 60} />)}
+            {(recentAnnonces.length > 0 ? recentAnnonces : RECENT_PROPS).map((p, i) => <PropCard key={p.id} p={p} delay={i * 60} />)}
           </div>
 
           <div className="text-center mt-24">
