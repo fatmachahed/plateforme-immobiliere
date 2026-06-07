@@ -8,6 +8,7 @@ from passlib.context import CryptContext
 from app import models, database
 from app.utils.auth import get_current_admin
 from app.enums import RoleEnum
+from app.email_utils import notify_saved_searches_for_annonce
 
 _pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -121,9 +122,15 @@ def update_annonce_status(
     a = db.query(models.Annonce).filter(models.Annonce.id == annonce_id).first()
     if not a:
         raise HTTPException(404, "Annonce non trouvée")
+    was_approved = (a.status.value if hasattr(a.status, "value") else a.status) == "approuvee"
     a.status = body.status
     db.commit()
     db.refresh(a)
+    if body.status == "approuvee" and not was_approved:
+        try:
+            notify_saved_searches_for_annonce(db, a)
+        except Exception:
+            pass
     return {"id": a.id, "status": body.status, "message": body.message}
 
 

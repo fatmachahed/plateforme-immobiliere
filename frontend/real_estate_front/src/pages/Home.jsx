@@ -12,42 +12,42 @@ import Footer from "../components/Footer";
 /* ── Static demo data (remplace par API calls) ── */
 const RECENT_PROPS = [
   {
-    id: 1, titre: "Villa Moderne Prestige", prix: "850 000", devise: "TND",
+    id: 1, titre: "Villa Moderne Prestige", prix: "850 000", devise: "DT",
     location: "La Marsa, Tunis", beds: 4, baths: 3, area: 320,
     type: "villa", categorie: "Vente", boost: 3,
     image: "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=80",
     lat: 36.879, lng: 10.325,
   },
   {
-    id: 2, titre: "Appartement S+3 Neuf", prix: "320 000", devise: "TND",
+    id: 2, titre: "Appartement S+3 Neuf", prix: "320 000", devise: "DT",
     location: "Les Berges du Lac, Tunis", beds: 3, baths: 2, area: 145,
     type: "appartement", categorie: "Vente", boost: 2,
     image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&q=80",
     lat: 36.838, lng: 10.235,
   },
   {
-    id: 3, titre: "Terrain Résidentiel Viabilisé", prix: "180 000", devise: "TND",
+    id: 3, titre: "Terrain Résidentiel Viabilisé", prix: "180 000", devise: "DT",
     location: "Sousse Nord", beds: null, baths: null, area: 500,
     type: "terrain", categorie: "Vente", boost: 0,
     image: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=600&q=80",
     lat: 35.870, lng: 10.590,
   },
   {
-    id: 4, titre: "Appartement Meublé Vue Mer", prix: "1 800", devise: "TND/mois",
+    id: 4, titre: "Appartement Meublé Vue Mer", prix: "1 800", devise: "DT/mois",
     location: "Hammamet", beds: 2, baths: 1, area: 85,
     type: "appartement", categorie: "Location", boost: 2,
     image: "https://images.unsplash.com/photo-1560448204-603b3fc33ddc?w=600&q=80",
     lat: 36.400, lng: 10.620,
   },
   {
-    id: 5, titre: "Villa avec Piscine", prix: "3 500", devise: "TND/sem.",
+    id: 5, titre: "Villa avec Piscine", prix: "3 500", devise: "DT/sem.",
     location: "Djerba", beds: 5, baths: 3, area: 280,
     type: "villa", categorie: "Vacances", boost: 3,
     image: "https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=600&q=80",
     lat: 33.830, lng: 10.870,
   },
   {
-    id: 6, titre: "Bureau Open Space Moderne", prix: "2 500", devise: "TND/mois",
+    id: 6, titre: "Bureau Open Space Moderne", prix: "2 500", devise: "DT/mois",
     location: "Centre Urbain Nord, Tunis", beds: null, baths: 2, area: 220,
     type: "bureau", categorie: "Location", boost: 1,
     image: "https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&q=80",
@@ -163,26 +163,26 @@ const FEATURES = [
 const GOV_CARDS = [
   { nom:"TUNIS",       display:"Tunis",       img:"https://upload.wikimedia.org/wikipedia/commons/9/98/Tour_de_l%27Horloge_du_centre-ville_de_Tunis_03.jpg",           color:"#1e40af" },
   { nom:"ARIANA",      display:"Ariana",      img:"https://kapitalis.com/tunisie/wp-content/uploads/2021/05/08-2-1024x768-1.jpg",                                      color:"#0e7490" },
-  { nom:"BEN AROUS",   display:"Ben Arous",   img:"https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=75",                                         color:"#4338ca" },
-  { nom:"MANOUBA",     display:"Manouba",     img:"https://images.unsplash.com/photo-1549925245-f20a1bac5222?w=600&q=75",                                         color:"#166534" },
+  { nom:"BEN AROUS",   display:"Ben Arous",   img:"https://www.nessma.tv/uploads/news/48/2026-04/412691d186bdc8d0128ff2d4d1421eda.jpg",                                         color:"#4338ca" },
+  { nom:"MANOUBA",     display:"Manouba",     img:"https://www.tunisie-tribune.com/wp-content/uploads/2017/06/agriculture-eau.jpg",                                         color:"#166534" },
   { nom:"NABEUL",      display:"Nabeul",      img:"https://www.climamed.eu/wp-content/uploads/2021/02/nabeul-1024x688.jpg",                                       color:"#0369a1" },
   { nom:"ZAGHOUAN",    display:"Zaghouan",    img:"https://www.tunisieindustrie.nat.tn/fr/images/mono/zaghouan1.jpg",                                              color:"#4d7c0f" },
   { nom:"BIZERTE",     display:"Bizerte",     img:"https://media.istockphoto.com/id/1367865863/fr/photo/bizerte-tunisie-afrique-du-nord-bateaux-de-p%C3%AAche-accostent-au-bord-de-leau-ville-portuaire.jpg?s=612x612&w=0&k=20&c=GMbVO13CE35Jv8Mc_2PlCUHKC3ikTetXRWPC0V3PWM8=", color:"#0369a1" },
   { nom:"BEJA",        display:"Béja",        img:"https://www.shutterstock.com/image-photo/beja-tunisia-april-07-2023-260nw-2272834149.jpg",                                      color:"#166534" },
-  { nom:"JENDOUBA",    display:"Jendouba",    img:"https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Bulla_Regia_-_temple_d%27Apollon.jpg/640px-Bulla_Regia_-_temple_d%27Apollon.jpg", color:"#92400e" },
-  { nom:"KEF",         display:"Le Kef",      img:"https://upload.wikimedia.org/wikipedia/commons/thumb/5/59/Le_Kef_-_Kasbah.jpg/640px-Le_Kef_-_Kasbah.jpg",    color:"#7c3aed" },
-  { nom:"SILIANA",     display:"Siliana",     img:"https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&q=75",                                      color:"#14532d" },
-  { nom:"SOUSSE",      display:"Sousse",      img:"https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=600&q=75",                                      color:"#0c4a6e" },
+  { nom:"JENDOUBA",    display:"Jendouba",    img:"https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Barrage_beni_mtir_7.jpg/1920px-Barrage_beni_mtir_7.jpg", color:"#92400e" },
+  { nom:"KEF",         display:"Le Kef",      img:"https://www.tunisie.co/uploads/images/content/kasbakef-041019-4.jpg",    color:"#7c3aed" },
+  { nom:"SILIANA",     display:"Siliana",     img:"https://i.ytimg.com/vi/RNed3a-f1b8/maxresdefault.jpg",                                      color:"#14532d" },
+  { nom:"SOUSSE",      display:"Sousse",      img:"https://www.ccicentre.org.tn/wp-content/uploads/2019/07/14216.jpg",                                      color:"#0c4a6e" },
   { nom:"MONASTIR",    display:"Monastir",    img:"https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=600&q=75",                                         color:"#1e40af" },
-  { nom:"MAHDIA",      display:"Mahdia",      img:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/38/Mahdia-TN.jpg/640px-Mahdia-TN.jpg",                  color:"#0e7490" },
-  { nom:"SFAX",        display:"Sfax",        img:"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3f/Sfax_medina.jpg/640px-Sfax_medina.jpg",             color:"#92400e" },
+  { nom:"MAHDIA",      display:"Mahdia",      img:"https://i.pinimg.com/736x/6e/34/cc/6e34cc427cfedfdc5d649b17100c9f3c.jpg",                  color:"#0e7490" },
+  { nom:"SFAX",        display:"Sfax",        img:"https://tunisie.co/uploads/images/content/sfax-060219-v.jpg",             color:"#92400e" },
   { nom:"KAIROUAN",    display:"Kairouan",    img:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQAUYc78FbsLdPCPI50CRDdRj_-liiGYo6i0Q&s", color:"#9a3412" },
-  { nom:"KASSERINE",   display:"Kasserine",   img:"https://upload.wikimedia.org/wikipedia/commons/thumb/d/d5/Sbeitla_theatre.jpg/640px-Sbeitla_theatre.jpg",      color:"#78350f" },
-  { nom:"SIDI BOUZID", display:"Sidi Bouzid", img:"https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=600&q=75",                                      color:"#166534" },
-  { nom:"GABES",       display:"Gabès",       img:"https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Gabes_oasis.jpg/640px-Gabes_oasis.jpg",             color:"#14532d" },
+  { nom:"KASSERINE",   display:"Kasserine",   img:"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQFX7EUI8bhARYGpJ4yVp6NIX7tOyfbxuDcAw&s",      color:"#78350f" },
+  { nom:"SIDI BOUZID", display:"Sidi Bouzid", img:"https://www.opinion-internationale.com/wp-content/uploads/2014/07/sidi.jpg",                                      color:"#166534" },
+  { nom:"GABES",       display:"Gabès",       img:"https://www.leconomistemaghrebin.com/wp-content/uploads/2023/02/Gabes-tourisme.jpg",             color:"#14532d" },
   { nom:"MEDENINE",    display:"Médenine",    img:"https://upload.wikimedia.org/wikipedia/commons/thumb/d/d8/Centre_ville_de_Medenine.JPG/1280px-Centre_ville_de_Medenine.JPG",           color:"#92400e" },
   { nom:"TATAOUINE",   display:"Tataouine",   img:"https://www.les-covoyageurs.com/ressources/images-lieux/photo-lieu-1540-3.jpg", color:"#78350f" },
-  { nom:"GAFSA",       display:"Gafsa",       img:"https://lapressetn.b-cdn.net/wp-content/uploads/2026/01/gafsa-sned-770x470.jpg",             color:"#9a3412" },
+  { nom:"GAFSA",       display:"Gafsa",       img:"https://dynamic-media-cdn.tripadvisor.com/media/photo-o/1c/80/a6/06/piscinas-romanas-de-gafsa.jpg?w=600&h=-1&s=1",             color:"#9a3412" },
   { nom:"TOZEUR",      display:"Tozeur",      img:"https://media.routard.com/image/95/3/pt82944.1291953.w1000.jpg",           color:"#b45309" },
   { nom:"KEBILI",      display:"Kébili",      img:"https://cdn.nawaat.org/wp-content/uploads/2012/01/rond-point_kebili.jpg",                                         color:"#92400e" },
 ];
@@ -267,7 +267,7 @@ export default function HomePage() {
             _realId:  a.id,
             titre:    a.titre,
             prix:     Number(a.prix).toLocaleString("fr-TN"),
-            devise:   a.devise === "TND" ? "DT" : (a.devise || "DT"),
+            devise:   a.devise === "DT" ? "DT" : (a.devise || "DT"),
             location: [a.localite, a.delegation, a.gouvernorat].filter(Boolean).join(", ") || "Tunisie",
             beds:     a.nb_chambres,
             baths:    null,
@@ -626,9 +626,9 @@ export default function HomePage() {
           padding: 4px 11px; border-radius: var(--r-full);
           font-size: 11px; font-weight: 700;
         }
-        .hp-card__cat--vente    { background: var(--primary); color: white; }
-        .hp-card__cat--location { background: var(--success); color: white; }
-        .hp-card__cat--vacances { background: var(--gold);    color: white; }
+        .hp-card__cat--vente    { background: #dcfce7; color: #166534;  }
+        .hp-card__cat--location { background: #dbeafe; color: #1e40af; }
+        .hp-card__cat--vacances { background: #fef9c3; color: #854d0e; }
         .hp-card .hp-badge { position: absolute; top: 12px; right: 12px; }
         .hp-card__body { padding: 18px; }
         .hp-card__title { font-weight: 700; font-size: 16px; color: var(--text-primary); margin-bottom: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

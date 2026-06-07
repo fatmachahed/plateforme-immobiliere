@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional
-import base64, uuid, os, secrets
+import base64, uuid, os, secrets, json
 from datetime import datetime, timedelta
 
 from app import schemas, crud, database, models
@@ -309,4 +309,66 @@ def mark_contact_request_lu(
     req.lu = lu
     db.commit()
     return {"detail": "Marqué comme lu" if lu else "Marqué comme non lu"}
+
+
+# ===============================
+# SAVED SEARCHES (ALERTES)
+# ===============================
+class SavedSearchBody(BaseModel):
+    nom:        Optional[str] = None
+    criteres:   dict
+    email_alert: bool = True
+
+@router.get("/me/saved-searches")
+def get_saved_searches(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    searches = db.query(models.SavedSearch).filter(models.SavedSearch.user_id == current_user.id)\
+                 .order_by(models.SavedSearch.created_at.desc()).all()
+    return [
+        {
+            "id":          s.id,
+            "nom":         s.nom,
+            "criteres":    json.loads(s.criteres) if s.criteres else {},
+            "email_alert": s.email_alert,
+            "created_at":  s.created_at.isoformat(),
+        }
+        for s in searches
+    ]
+
+@router.post("/me/saved-searches")
+def create_saved_search(body: SavedSearchBody, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    s = models.SavedSearch(
+        user_id=current_user.id,
+        nom=body.nom or "Ma recherche",
+        criteres=json.dumps(body.criteres, ensure_ascii=False),
+        email_alert=body.email_alert,
+    )
+    db.add(s)
+    db.commit()
+    db.refresh(s)
+    return {"id": s.id, "detail": "Recherche sauvegardée"}
+
+@router.delete("/me/saved-searches/{search_id}")
+def delete_saved_search(search_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    s = db.query(models.SavedSearch).filter(
+        models.SavedSearch.id == search_id,
+        models.SavedSearch.user_id == current_user.id
+    ).first()
+    if not s:
+        raise HTTPException(404, "Alerte non trouvée")
+    db.delete(s)
+    db.commit()
+    return {"detail": "Alerte supprimée"}
+
+
+# ===============================
+# AGENCES PUBLIQUES
+# ===============================
+@router.get("/agencies/public")
+def list_public_agencies(db: Session = Depends(get_db)):
+    """Retourne la liste des agences inscrites (pour dropdown accompagnement)."""
+    agencies = db.query(models.Agency).filter(models.Agency.abonnement_actif == True).all()
+    return [
+        {"id": a.id, "nom": a.nom, "email": a.email, "telephone": a.telephone}
+        for a in agencies
+    ]
 

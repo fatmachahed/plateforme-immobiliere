@@ -315,6 +315,7 @@ def get_annonce_detail(annonce_id: int, db: Session = Depends(get_db)):
         "user": {
             "id":           user.id           if user else None,
             "username":     user.username     if user else None,
+            "role":         user.role.value   if user and hasattr(user.role, "value") else (str(user.role) if user else None),
             # Si anonyme : phone/email masqués côté frontend selon le flag
             "phone_number": user.phone_number if user else None,
             "email":        user.email        if user else None,

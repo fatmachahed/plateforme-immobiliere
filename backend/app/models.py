@@ -283,6 +283,21 @@ class ContactRequest(Base):
 
 
 # ----------------------------------------
+# Recherches sauvegardées (alertes acheteur/locataire)
+# ----------------------------------------
+class SavedSearch(Base):
+    __tablename__ = "saved_searches"
+    id           = Column(Integer, primary_key=True, index=True)
+    user_id      = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    nom          = Column(String, nullable=True)
+    criteres     = Column(String, nullable=False)  # JSON string des filtres
+    email_alert  = Column(Boolean, default=True)
+    created_at   = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", backref="saved_searches")
+
+
+# ----------------------------------------
 # Messages de contact (formulaire Contact)
 # ----------------------------------------
 class ContactMessage(Base):

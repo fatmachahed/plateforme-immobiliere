@@ -5,7 +5,7 @@ import {
   ChevronLeft, ChevronRight, ArrowLeft, MapPin,
   Bed, Bath, Maximize, Phone, Mail, Heart, Share2,
   CheckCircle, Calendar, Tag, Home, Loader,
-  Languages, Navigation, Eye,
+  Languages, Navigation, Eye, BarChart2, BadgeCheck, Building2,
   Waves, Mountain, TreePine, Fence, Sun, Flower2, Droplets, ParkingCircle,
   ArrowUpDown, Car, Package, Sofa, Users, ShieldCheck,
   UtensilsCrossed, Wind, Thermometer, Flame, DoorClosed, LockKeyhole,
@@ -28,12 +28,12 @@ function haversine(lat1, lng1, lat2, lng2) {
 
 /* DEMO fallback for non-API annonces */
 const DEMO = [
-  { id:1, titre:"Villa 4 chambres — La Marsa", prix:850000, devise:"TND", location:"La Marsa, Tunis", beds:4, baths:3, area:320, type:"Villa", categorie:"Vente", etat:"Bon état", annee:2018, description:"Magnifique villa moderne de 320 m² avec jardins aménagés, piscine et double garage. Finitions haut de gamme, cuisine équipée, salon américain et vue dégagée.", features:["Jardin","Piscine","Garage","Terrasse","Cuisine équipée","Climatisation","Sécurité"], lat:36.879, lng:10.325, images:["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=900&q=80","https://images.unsplash.com/photo-1600607687939-ce8a6d338c45?w=900&q=80"], contact:{nom:"Ahmed Ben Salem",tel:"+216 55 123 456",email:"ahmed@immo.tn"} },
-  { id:2, titre:"Appartement S+3 — Lac 2", prix:320000, devise:"TND", location:"Berges du Lac, Tunis", beds:3, baths:2, area:145, type:"Appartement", categorie:"Vente", etat:"Neuf", annee:2023, description:"Appartement neuf S+3 dans résidence sécurisée avec ascenseur et parking. Lumineux, vue sur le lac.", features:["Ascenseur","Parking","Gardien","Double vitrage"], lat:36.838, lng:10.235, images:["https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=900&q=80"], contact:{nom:"Sonia Trabelsi",tel:"+216 22 987 654",email:"sonia@immo.tn"} },
-  { id:3, titre:"Terrain résidentiel — Sousse", prix:180000, devise:"TND", location:"Sousse Nord", beds:null, baths:null, area:500, type:"Terrain", categorie:"Vente", etat:"Viabilisé", annee:null, description:"Terrain résidentiel de 500 m² dans lotissement autorisé. Toutes viabilisations réalisées.", features:["Titre foncier","Viabilisé","Raccordé ONAS"], lat:35.828, lng:10.636, images:["https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=900&q=80"], contact:{nom:"Mohamed Gharbi",tel:"+216 98 456 789",email:"m.gharbi@terrain.tn"} },
-  { id:4, titre:"Appartement meublé — Hammamet", prix:1800, devise:"TND/mois", location:"Hammamet Centre", beds:2, baths:1, area:85, type:"Appartement", categorie:"Location", etat:"Meublé", annee:2015, description:"Appartement S+2 entièrement meublé à 5 min de la plage. Tout équipé.", features:["Meublé","Climatisation","Wifi","Balcon"], lat:36.400, lng:10.620, images:["https://images.unsplash.com/photo-1560448204-603b3fc33ddc?w=900&q=80"], contact:{nom:"Karim Chaabane",tel:"+216 71 234 567",email:"karim@immo.tn"} },
-  { id:5, titre:"Villa avec piscine — Gammarth", prix:1200000, devise:"TND", location:"Gammarth", beds:5, baths:4, area:420, type:"Villa", categorie:"Vente", etat:"Excellent état", annee:2020, description:"Villa de luxe R+1 avec piscine chauffée, jardin 800 m², 5 chambres.", features:["Piscine chauffée","Jardin 800m²","Gardien 24h"], lat:36.903, lng:10.299, images:["https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=900&q=80"], contact:{nom:"Agence Prestige Immo",tel:"+216 71 800 900",email:"contact@prestige.tn"} },
-  { id:6, titre:"Duplex — Ennasr", prix:290000, devise:"TND", location:"Ennasr, Ariana", beds:3, baths:2, area:165, type:"Appartement", categorie:"Vente", etat:"Bon état", annee:2016, description:"Beau duplex S+3 de 165 m² avec terrasse 40 m².", features:["Terrasse 40m²","Ascenseur","Cuisine équipée"], lat:36.860, lng:10.195, images:["https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=900&q=80"], contact:{nom:"Nadia Hajri",tel:"+216 29 111 222",email:"nadia@immo.tn"} },
+  { id:1, titre:"Villa 4 chambres — La Marsa", prix:850000, devise:"DT", location:"La Marsa, Tunis", beds:4, baths:3, area:320, type:"Villa", categorie:"Vente", etat:"Bon état", annee:2018, description:"Magnifique villa moderne de 320 m² avec jardins aménagés, piscine et double garage. Finitions haut de gamme, cuisine équipée, salon américain et vue dégagée.", features:["Jardin","Piscine","Garage","Terrasse","Cuisine équipée","Climatisation","Sécurité"], lat:36.879, lng:10.325, images:["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=900&q=80","https://images.unsplash.com/photo-1600607687939-ce8a6d338c45?w=900&q=80"], contact:{nom:"Ahmed Ben Salem",tel:"+216 55 123 456",email:"ahmed@immo.tn"} },
+  { id:2, titre:"Appartement S+3 — Lac 2", prix:320000, devise:"DT", location:"Berges du Lac, Tunis", beds:3, baths:2, area:145, type:"Appartement", categorie:"Vente", etat:"Neuf", annee:2023, description:"Appartement neuf S+3 dans résidence sécurisée avec ascenseur et parking. Lumineux, vue sur le lac.", features:["Ascenseur","Parking","Gardien","Double vitrage"], lat:36.838, lng:10.235, images:["https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=900&q=80"], contact:{nom:"Sonia Trabelsi",tel:"+216 22 987 654",email:"sonia@immo.tn"} },
+  { id:3, titre:"Terrain résidentiel — Sousse", prix:180000, devise:"DT", location:"Sousse Nord", beds:null, baths:null, area:500, type:"Terrain", categorie:"Vente", etat:"Viabilisé", annee:null, description:"Terrain résidentiel de 500 m² dans lotissement autorisé. Toutes viabilisations réalisées.", features:["Titre foncier","Viabilisé","Raccordé ONAS"], lat:35.828, lng:10.636, images:["https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=900&q=80"], contact:{nom:"Mohamed Gharbi",tel:"+216 98 456 789",email:"m.gharbi@terrain.tn"} },
+  { id:4, titre:"Appartement meublé — Hammamet", prix:1800, devise:"DT/mois", location:"Hammamet Centre", beds:2, baths:1, area:85, type:"Appartement", categorie:"Location", etat:"Meublé", annee:2015, description:"Appartement S+2 entièrement meublé à 5 min de la plage. Tout équipé.", features:["Meublé","Climatisation","Wifi","Balcon"], lat:36.400, lng:10.620, images:["https://images.unsplash.com/photo-1560448204-603b3fc33ddc?w=900&q=80"], contact:{nom:"Karim Chaabane",tel:"+216 71 234 567",email:"karim@immo.tn"} },
+  { id:5, titre:"Villa avec piscine — Gammarth", prix:1200000, devise:"DT", location:"Gammarth", beds:5, baths:4, area:420, type:"Villa", categorie:"Vente", etat:"Excellent état", annee:2020, description:"Villa de luxe R+1 avec piscine chauffée, jardin 800 m², 5 chambres.", features:["Piscine chauffée","Jardin 800m²","Gardien 24h"], lat:36.903, lng:10.299, images:["https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=900&q=80"], contact:{nom:"Agence Prestige Immo",tel:"+216 71 800 900",email:"contact@prestige.tn"} },
+  { id:6, titre:"Duplex — Ennasr", prix:290000, devise:"DT", location:"Ennasr, Ariana", beds:3, baths:2, area:165, type:"Appartement", categorie:"Vente", etat:"Bon état", annee:2016, description:"Beau duplex S+3 de 165 m² avec terrasse 40 m².", features:["Terrasse 40m²","Ascenseur","Cuisine équipée"], lat:36.860, lng:10.195, images:["https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=900&q=80"], contact:{nom:"Nadia Hajri",tel:"+216 29 111 222",email:"nadia@immo.tn"} },
 ];
 
 const TYPE_FR  = { appartement:"Appartement", villa:"Villa", maison:"Maison", terrain:"Terrain", bureau:"Bureau", local_commercial:"Local commercial", ferme:"Ferme" };
@@ -73,9 +73,13 @@ function normalizeApi(a) {
       tel:   a.user?.phone_number || "",
       email: a.user?.email        || "",
     },
+    publisher_role: a.user?.role || null,
     fromApi: true,
     utilisateur_id: a.user?.id,
     views_count: a.views_count || 0,
+    type_bien_raw: a.type_bien,
+    gouvernorat_raw: a.gouvernorat,
+    delegation_raw: a.delegation,
   };
 }
 
@@ -258,6 +262,22 @@ export default function AnnonceDetail() {
             <Heart size={15} fill={isFavori ? "currentColor" : "none"} />
             {isFavori ? "Sauvegardé" : "Sauvegarder"}
           </button>
+          <button className="ad-action" onClick={() => {
+            const cur = (() => { try { return JSON.parse(localStorage.getItem("localizi_compare")||"[]"); } catch { return []; } })();
+            const rid = String(prop.id);
+            if (cur.includes(rid)) {
+              localStorage.setItem("localizi_compare", JSON.stringify(cur.filter(id=>id!==rid)));
+              window.dispatchEvent(new Event("compare-updated"));
+            } else if (cur.length >= 4) {
+              alert("Maximum 4 annonces dans le comparateur.");
+            } else {
+              localStorage.setItem("localizi_compare", JSON.stringify([...cur, rid]));
+              window.dispatchEvent(new Event("compare-updated"));
+              toast("Ajouté au comparateur ! Allez sur la carte pour comparer.");
+            }
+          }}>
+            <BarChart2 size={15}/> Comparer
+          </button>
           <button className="ad-action" onClick={async () => {
             const url = window.location.href;
             const title = prop.titre;
@@ -396,7 +416,7 @@ export default function AnnonceDetail() {
             </div>
             <p className="ad-card__price">
               {Number(prop.prix).toLocaleString("fr-TN")}
-              <span> {prop.devise === "TND" ? "DT" : prop.devise}</span>
+              <span> {prop.devise === "DT" ? "DT" : prop.devise}</span>
             </p>
 
             <div className="ad-specs">
@@ -409,6 +429,28 @@ export default function AnnonceDetail() {
               <div className="ad-meta__item"><Tag size={13}/> <span>Type :</span> {prop.type}</div>
               {prop.etat  && <div className="ad-meta__item"><CheckCircle size={13}/><span>État :</span> {prop.etat}</div>}
               {prop.annee && <div className="ad-meta__item"><Calendar size={13}/><span>Année :</span> {prop.annee}</div>}
+              {/* ── Badge publieur ── */}
+              {!prop.anonyme && prop.publisher_role && (() => {
+                const roleMap = {
+                  particulier: { label:"Particulier", color:"#6366f1", bg:"#eef2ff", Ico: Home },
+                  agence:      { label:"Agence",      color:"#0369a1", bg:"#e0f2fe", Ico: Building2 },
+                  promoteur:   { label:"Promoteur",   color:"#7c3aed", bg:"#ede9fe", Ico: BadgeCheck },
+                  professionnel:{ label:"Professionnel", color:"#15803d", bg:"#dcfce7", Ico: BadgeCheck },
+                };
+                const r = roleMap[prop.publisher_role] || { label: prop.publisher_role, color:"#64748b", bg:"#f1f5f9", Ico: Home };
+                const { label, color, bg, Ico } = r;
+                return (
+                  <div className="ad-meta__item">
+                    <Ico size={13} style={{color}}/>
+                    <span>Publié par :</span>
+                    <span style={{
+                      display:"inline-flex", alignItems:"center", gap:4,
+                      background:bg, color, padding:"2px 10px", borderRadius:999,
+                      fontSize:12, fontWeight:700,
+                    }}>{label}</span>
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="ad-divider" />
@@ -587,7 +629,7 @@ export default function AnnonceDetail() {
                   <div className="ad-ncard__body">
                     <p className="ad-ncard__price">
                       {Number(a.prix).toLocaleString("fr-TN")}
-                      <span> {a.devise === "TND" ? "DT" : a.devise}</span>
+                      <span> {a.devise === "DT" ? "DT" : a.devise}</span>
                     </p>
                     <p className="ad-ncard__titre">{a.titre}</p>
                     <p className="ad-ncard__dist">

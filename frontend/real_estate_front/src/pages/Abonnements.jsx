@@ -162,7 +162,7 @@ function ComparisonMap() {
             font-family:'Plus Jakarta Sans',system-ui,sans-serif;
             border:2px solid rgba(255,255,255,.4);
             letter-spacing:-.3px;
-          ">${p.label} <small style="font-size:9px;opacity:.75;margin-left:2px">TND</small></div>`;
+          ">${p.label} <small style="font-size:9px;opacity:.75;margin-left:2px">DT</small></div>`;
         const icon = L.divIcon({ className: "", html, iconSize: null, iconAnchor: [0, 0] });
         L.marker([p.lat, p.lng], { icon }).addTo(map);
       });
@@ -214,7 +214,7 @@ function PlanCard({ plan, yearly, selected, onSelect }) {
           {plan.price > 0 ? (
             <>
               <span className="sub-card__price">{displayPrice}</span>
-              <span className="sub-card__period"> TND{plan.period}</span>
+              <span className="sub-card__period"> DT{plan.period}</span>
               {yearly && (
                 <span className="sub-card__discount">−20%</span>
               )}
@@ -323,7 +323,7 @@ export default function Abonnements() {
           <div className="sub-how">
             {[
               { icon: <Zap size={28} />, num: "01", title: "Choisissez une annonce", desc: "Sélectionnez l'annonce que vous souhaitez propulser en tête de liste." },
-              { icon: <TrendingUp size={28} />, num: "02", title: "Payez le boost", desc: "9 TND pour 7 jours de visibilité maximale, sans engagement d'abonnement." },
+              { icon: <TrendingUp size={28} />, num: "02", title: "Payez le boost", desc: "9 DT pour 7 jours de visibilité maximale, sans engagement d'abonnement." },
               { icon: <MapPin size={28} />, num: "03", title: "Punaise ⚡ sur la carte", desc: "Votre bien apparaît avec une punaise orange visible qui attire l'œil sur la carte." },
               { icon: <Eye size={28} />, num: "04", title: "Recevez plus de contacts", desc: "Les annonces boostées reçoivent en moyenne 5× plus de vues et 3× plus de contacts." },
             ].map((s) => (
@@ -351,9 +351,9 @@ export default function Abonnements() {
             </div>
             <div className="sub-map-compare__legend">
               {[
-                { cls: "sub-pin--boost",    label: "BOOST", desc: "Punaise orange vif, taille XXL, icône ⚡", price: "9 TND / annonce" },
-                { cls: "sub-pin--premium",  label: "PREMIUM", desc: "Punaise dorée, taille XL, étoile ★", price: "49 TND / mois" },
-                { cls: "sub-pin--standard", label: "STANDARD", desc: "Punaise bleue, taille normale", price: "19 TND / mois" },
+                { cls: "sub-pin--boost",    label: "BOOST", desc: "Punaise orange vif, taille XXL, icône ⚡", price: "9 DT / annonce" },
+                { cls: "sub-pin--premium",  label: "PREMIUM", desc: "Punaise dorée, taille XL, étoile ★", price: "49 DT / mois" },
+                { cls: "sub-pin--standard", label: "STANDARD", desc: "Punaise bleue, taille normale", price: "19 DT / mois" },
                 { cls: "sub-pin--free",     label: "Gratuit", desc: "Punaise grise standard", price: "Gratuit" },
               ].map((l) => (
                 <div key={l.label} className="sub-legend-item">

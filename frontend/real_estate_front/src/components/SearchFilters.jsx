@@ -205,7 +205,7 @@ const toggleAdvanced = () => setIsAdvancedOpen(!isAdvancedOpen);
                     className="price-input-max"
                   />
                   <select className="price-currency-select">
-                    <option>TND</option>
+                    <option>DT</option>
                     <option>EUR</option>
                     <option>USD</option>
                   </select>

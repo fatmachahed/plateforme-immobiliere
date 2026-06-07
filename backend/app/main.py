@@ -28,6 +28,17 @@ Base.metadata.create_all(bind=engine)
 from sqlalchemy import text
 with engine.connect() as conn:
     migrations = [
+        # Table des recherches sauvegardées
+        """
+        CREATE TABLE IF NOT EXISTS saved_searches (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            nom VARCHAR,
+            criteres TEXT NOT NULL,
+            email_alert BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+        """,
         # Champ anonyme sur les annonces (publication anonyme)
         "ALTER TABLE annonces ADD COLUMN IF NOT EXISTS anonyme BOOLEAN DEFAULT FALSE;",
         "ALTER TABLE annonces ADD COLUMN IF NOT EXISTS accompagnement BOOLEAN DEFAULT FALSE;",

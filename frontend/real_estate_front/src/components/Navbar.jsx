@@ -14,6 +14,7 @@ const NAV_LINK_KEYS = [
   { key: "nav_rent",     href: "/carte?categorie=location", icon: Key      },
   { key: "nav_vacation", href: "/carte?categorie=vacances", icon: Umbrella },
   { key: "nav_contact",  href: "/contact",                  icon: Phone    },
+  { key: "nav_about",    href: "/qui-sommes-nous",          icon: User     }, // Ajouté
 ];
 
 export default function Navbar() {

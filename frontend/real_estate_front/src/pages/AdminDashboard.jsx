@@ -562,7 +562,7 @@ export default function AdminDashboard() {
                   <div>
                     <div className="adm-kpi__val">
                       {statsComputed.avgPrice > 0
-                        ? Math.round(statsComputed.avgPrice).toLocaleString("fr-TN") + " TND"
+                        ? Math.round(statsComputed.avgPrice).toLocaleString("fr-TN") + " DT"
                         : "—"}
                     </div>
                     <div className="adm-kpi__lbl">Prix moyen (vente)</div>
@@ -573,7 +573,7 @@ export default function AdminDashboard() {
                   <div>
                     <div className="adm-kpi__val">
                       {statsComputed.avgPrixM2 > 0
-                        ? Math.round(statsComputed.avgPrixM2).toLocaleString("fr-TN") + " TND"
+                        ? Math.round(statsComputed.avgPrixM2).toLocaleString("fr-TN") + " DT"
                         : "—"}
                     </div>
                     <div className="adm-kpi__lbl">Prix/m² moyen</div>
@@ -747,13 +747,13 @@ export default function AdminDashboard() {
                               </td>
                               <td style={{textAlign:"right"}} className="adm-zone-prix">
                                 {row.avgPrix
-                                  ? <strong>{Math.round(row.avgPrix).toLocaleString("fr-TN")} TND</strong>
+                                  ? <strong>{Math.round(row.avgPrix).toLocaleString("fr-TN")} DT</strong>
                                   : <span style={{color:"#e2e8f0"}}>—</span>}
                               </td>
                               <td style={{textAlign:"right"}} className="adm-zone-m2">
                                 {row.avgM2
                                   ? <span className="adm-zone-m2-badge">
-                                      {Math.round(row.avgM2).toLocaleString("fr-TN")} TND/m²
+                                      {Math.round(row.avgM2).toLocaleString("fr-TN")} DT/m²
                                     </span>
                                   : <span style={{color:"#e2e8f0"}}>—</span>}
                               </td>
@@ -823,7 +823,7 @@ export default function AdminDashboard() {
                   <div className="adm-agency-plan__name">Formule Agence Pro</div>
                   <div className="adm-agency-plan__desc">Dashboard analytics · Suivi multi-annonces · Export · Support prioritaire</div>
                 </div>
-                <div className="adm-agency-plan__price">50 TND<span>/mois</span></div>
+                <div className="adm-agency-plan__price">50 DT<span>/mois</span></div>
                 <div className="adm-agency-plan__warning">
                   <ShieldOff size={13}/> Suspension automatique en cas d'impayé
                 </div>
@@ -855,7 +855,7 @@ export default function AdminDashboard() {
                         <div className="adm-agency-card__right">
                           <div className="adm-agency-card__stats">
                             <span><Eye size={12}/> {ag.nb_annonces || 0} annonces</span>
-                            <span><CreditCard size={12}/> {ag.frais_mensuel || 50} TND/mois</span>
+                            <span><CreditCard size={12}/> {ag.frais_mensuel || 50} DT/mois</span>
                           </div>
                           <span className={`adm-agency-badge${ag.abonnement_actif ? " adm-agency-badge--active" : " adm-agency-badge--off"}`}>
                             {ag.abonnement_actif ? <><ShieldCheck size={12}/> Actif</> : <><ShieldOff size={12}/> Suspendu</>}
@@ -1189,11 +1189,11 @@ export default function AdminDashboard() {
                 </div>
               </div>
               <div>
-                <label>Frais mensuel (TND)</label>
+                <label>Frais mensuel (DT)</label>
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
                   <input className="adm-modal__input" type="number" min="10" style={{width:120}}
                     value={agencyForm.frais_mensuel} onChange={e => setAgencyForm(p=>({...p,frais_mensuel:e.target.value}))}/>
-                  <span style={{fontSize:12,color:"#64748b"}}>TND / mois pour le tableau de bord avancé</span>
+                  <span style={{fontSize:12,color:"#64748b"}}>DT / mois pour le tableau de bord avancé</span>
                 </div>
               </div>
               <div className="adm-agency-warn">

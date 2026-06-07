@@ -19,6 +19,7 @@ const T = {
     nav_login:     "Se connecter",
     nav_register:  "Créer un compte",
     nav_search_ph: "Ville, gouvernorat, quartier…",
+    nav_about: "Qui sommes-nous ?",
 
     /* Home hero */
     hero_title:    "Trouvez votre bien idéal en Tunisie",

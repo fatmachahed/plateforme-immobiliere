@@ -46,13 +46,19 @@ export default function Dashboard() {
   const [typeFilter,   setTypeFilter]   = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [dateFilter,   setDateFilter]   = useState("");
-  /* ── Onglet actif : "annonces", "contacts" ou "accompagnements" ── */
+  const [dateStart,    setDateStart]    = useState("");
+  const [dateEnd,      setDateEnd]      = useState("");
+  /* ── Onglet actif ── */
   const [searchParams]              = useSearchParams();
   const [activeTab, setActiveTab]   = useState(
-    searchParams.get("tab") === "contacts" ? "contacts"
+    searchParams.get("tab") === "contacts"       ? "contacts"
     : searchParams.get("tab") === "accompagnements" ? "accompagnements"
+    : searchParams.get("tab") === "alertes"      ? "alertes"
     : "annonces"
   );
+  /* ── Mes alertes (saved searches) ── */
+  const [savedSearches, setSavedSearches] = useState([]);
+  const [loadingAlertes, setLoadingAlertes] = useState(false);
   /* ── Suivi accompagnements (localStorage) ── */
   const [accomTracking, setAccomTracking] = useState(() => {
     try { return JSON.parse(localStorage.getItem("localizi_accom_tracking") || "{}"); } catch { return {}; }
@@ -78,7 +84,30 @@ export default function Dashboard() {
     if (!token) { navigate("/login"); return; }
     fetchAnnonces();
     fetchContactRequests();
+    fetchSavedSearches();
   }, []);
+
+  async function fetchSavedSearches() {
+    setLoadingAlertes(true);
+    try {
+      const res = await fetch(`${API_URL}/users/me/saved-searches`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) setSavedSearches(await res.json());
+    } catch {}
+    finally { setLoadingAlertes(false); }
+  }
+
+  async function deleteAlert(id) {
+    try {
+      await fetch(`${API_URL}/users/me/saved-searches/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSavedSearches(prev => prev.filter(s => s.id !== id));
+      toast("Alerte supprimée.");
+    } catch { toast("Erreur lors de la suppression.", "error"); }
+  }
 
   async function fetchContactRequests() {
     setLoadingContacts(true);
@@ -175,6 +204,8 @@ export default function Dashboard() {
     const startOfDay   = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const startOfWeek  = new Date(startOfDay); startOfWeek.setDate(startOfDay.getDate() - startOfDay.getDay());
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const customStart  = dateStart ? new Date(dateStart) : null;
+    const customEnd    = dateEnd   ? new Date(dateEnd + "T23:59:59") : null;
 
     return annonces.filter(a => {
       const prop = a.properties?.[0];
@@ -207,9 +238,15 @@ export default function Dashboard() {
         if (dateFilter === "Cette semaine" && created < startOfWeek)  return false;
         if (dateFilter === "Ce mois"       && created < startOfMonth) return false;
       }
+      // Custom date range
+      if (customStart || customEnd) {
+        const created = new Date(a.date_creation);
+        if (customStart && created < customStart) return false;
+        if (customEnd   && created > customEnd)   return false;
+      }
       return true;
     });
-  }, [annonces, search, typeFilter, statusFilter, dateFilter]);
+  }, [annonces, search, typeFilter, statusFilter, dateFilter, dateStart, dateEnd]);
 
   return (
     <>
@@ -247,6 +284,8 @@ export default function Dashboard() {
               { key:"annonces", label:"Mes annonces",   icon:<Home size={15}/> },
               { key:"contacts", label:"Demandes reçues", icon:<Bell size={15}/>,
                 badge: contactRequests.filter(r=>!r.lu).length },
+              { key:"alertes",  label:"Mes Alertes",    icon:<Bell size={15}/>,
+                badge: savedSearches.length > 0 ? savedSearches.length : 0 },
             ].map(tab => (
               <button key={tab.key}
                 onClick={() => setActiveTab(tab.key)}
@@ -487,6 +526,60 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
+          ) : activeTab === "alertes" ? (
+            /* ── ONGLET MES ALERTES ── */
+            <div style={{marginTop:8}}>
+              {loadingAlertes ? (
+                <div style={{textAlign:"center",padding:"60px 20px",color:"#94a3b8",fontSize:14}}>Chargement…</div>
+              ) : savedSearches.length === 0 ? (
+                <div style={{textAlign:"center",padding:"60px 20px",background:"#f8fafc",borderRadius:14,margin:"16px 0",border:"1.5px dashed #e2e8f0"}}>
+                  <Bell size={40} style={{color:"#d1d5db",marginBottom:12}}/>
+                  <p style={{fontSize:15,fontWeight:700,color:"#374151",marginBottom:6}}>Aucune alerte enregistrée</p>
+                  <p style={{fontSize:13,color:"#94a3b8"}}>
+                    Utilisez les filtres sur la page carte et cliquez "Enregistrer la recherche" pour créer des alertes.
+                  </p>
+                </div>
+              ) : (
+                <div style={{display:"flex",flexDirection:"column",gap:12,marginTop:8}}>
+                  {savedSearches.map(s => {
+                    const c = s.criteres || {};
+                    const tags = [
+                      c.categories?.length > 0 && c.categories.join(", "),
+                      c.type && c.type,
+                      c.govNom && c.govNom,
+                      c.prixMin && `≥ ${Number(c.prixMin).toLocaleString("fr-TN")} DT`,
+                      c.prixMax && `≤ ${Number(c.prixMax).toLocaleString("fr-TN")} DT`,
+                      c.superficieMin && `≥ ${c.superficieMin} m²`,
+                    ].filter(Boolean);
+                    return (
+                      <div key={s.id} style={{
+                        background:"#fff",border:"1.5px solid #e5e7eb",borderRadius:14,
+                        padding:"16px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12
+                      }}>
+                        <div>
+                          <div style={{fontWeight:700,color:"#0f172a",fontSize:14,marginBottom:6}}>{s.nom || "Ma recherche"}</div>
+                          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                            {tags.length > 0 ? tags.map((t,i) => (
+                              <span key={i} style={{background:"#eef2ff",color:"#4f46e5",fontSize:11.5,fontWeight:600,padding:"2px 10px",borderRadius:20}}>{t}</span>
+                            )) : <span style={{color:"#94a3b8",fontSize:12}}>Tous les biens</span>}
+                          </div>
+                          <div style={{fontSize:11.5,color:"#94a3b8",marginTop:6}}>
+                            Créée le {new Date(s.created_at).toLocaleDateString("fr-TN")}
+                            {s.email_alert ? " · Alertes email activées" : ""}
+                          </div>
+                        </div>
+                        <button onClick={() => deleteAlert(s.id)}
+                          style={{padding:"7px 14px",borderRadius:8,border:"1.5px solid #fee2e2",
+                            background:"#fff",color:"#ef4444",fontSize:12,fontWeight:700,cursor:"pointer",
+                            fontFamily:"inherit",whiteSpace:"nowrap",flexShrink:0}}>
+                          Supprimer
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           ) : (
           /* ── ONGLET MES ANNONCES ── */
           <>{/* Stats */}
@@ -539,13 +632,19 @@ export default function Dashboard() {
                 <option value="Approuvée">Approuvée</option>
                 <option value="Refusée">Refusée</option>
               </select>
-              <select value={dateFilter} onChange={e => setDateFilter(e.target.value)}
+              <select value={dateFilter} onChange={e => { setDateFilter(e.target.value); setDateStart(""); setDateEnd(""); }}
                 style={{border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 10px",fontSize:13,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}>
                 <option value="">Toutes dates</option>
                 <option value="Aujourd'hui">Aujourd'hui</option>
                 <option value="Cette semaine">Cette semaine</option>
                 <option value="Ce mois">Ce mois</option>
               </select>
+              <input type="date" value={dateStart} onChange={e => { setDateStart(e.target.value); setDateFilter(""); }}
+                title="Date de début"
+                style={{border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 10px",fontSize:13,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}/>
+              <input type="date" value={dateEnd} onChange={e => { setDateEnd(e.target.value); setDateFilter(""); }}
+                title="Date de fin"
+                style={{border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 10px",fontSize:13,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}/>
               <span className="db-toolbar__count">
                 {filtered.length} annonce{filtered.length !== 1 ? "s" : ""}
               </span>

@@ -89,7 +89,7 @@ function genDescription(initialData, instruction) {
 
   /* §4 Fermeture */
   let closing = "";
-  if (d.prix) closing += `Affiché au prix de ${Number(d.prix).toLocaleString("fr-TN")} ${d.devise || "TND"}, `;
+  if (d.prix) closing += `Affiché au prix de ${Number(d.prix).toLocaleString("fr-TN")} ${d.devise || "DT"}, `;
   closing += ctx.invest
     ? "ce bien représente une opportunité d'investissement à ne pas manquer. Contactez-nous pour plus d'informations."
     : ctx.formel

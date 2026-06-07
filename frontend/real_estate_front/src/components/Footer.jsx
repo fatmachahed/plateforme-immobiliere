@@ -41,7 +41,6 @@ export default function Footer() {
               {/* <li><Link to="/abonnements"><Zap size={12} /> Booster mon annonce</Link></li> */}
               <li><Link to="/dashboard">Mon tableau de bord</Link></li>
               <li><Link to="/apropos">À propos</Link></li>
-              <li><Link to="/qui-sommes-nous">Qui sommes-nous</Link></li>
             </ul>
           </div>
 
@@ -65,7 +64,7 @@ export default function Footer() {
           <p>© {new Date().getFullYear()} Localizi. Tous droits réservés.</p>
           <div className="lz-footer__bottom-links">
             <Link to="/politique-confidentialite">Politique de confidentialité</Link>
-            <Link to="/qui-sommes-nous">Qui sommes-nous</Link>
+            <Link to="/qui-sommes-nous">Qui sommes-nous ?</Link>
             <a href="#">CGU</a>
           </div>
         </div>

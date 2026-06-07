@@ -104,6 +104,7 @@ const Header = ({ user, logo }) => {
             <a href="/">Accueil</a>
             <a href="/apropos">À propos</a>
             <a href="/contact">Contact</a>
+            <a href="/qui-sommes-nous">Qui sommes-nous ?</a>
 
             {/* Profile dropdown */}
             <div className="profile-menu">
@@ -177,6 +178,7 @@ const Header = ({ user, logo }) => {
             <a href="/" onClick={handleLinkClick}>Accueil</a>
             <a href="/apropos" onClick={handleLinkClick}>À propos</a>
             <a href="/contact" onClick={handleLinkClick}>Contact</a>
+            <a href="/qui-sommes-nous" onClick={handleLinkClick}>Qui sommes-nous ?</a>
             <div className="separator"></div>
             <a href="/recherche_annonce" onClick={handleLinkClick}>Acheter</a>
             <a href="#" onClick={handleLinkClick}>Louer</a>

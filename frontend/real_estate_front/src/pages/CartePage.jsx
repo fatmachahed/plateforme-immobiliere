@@ -16,50 +16,6 @@ import useLocalisation from "../hooks/useLocalisation";
 import "leaflet/dist/leaflet.css";
 
 /* ─────────────────────────────────────────────────────────────
-   DÉMO — 35 annonces réparties sur toute la Tunisie
-───────────────────────────────────────────────────────────── */
-const DEMO = [
-  { id:1,  titre:"Villa 4 ch. — La Marsa",         prix:850000,  devise:"TND",       gouvernorat:"Tunis",     delegation:"La Marsa",         localite:"Ain Zaghouan",   beds:4, baths:3, area:320,  type:"villa",       categorie:"vente",    etat:"bon_etat",   titre_foncier:true,  boost:3, lat:36.879, lng:10.325, images:["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=75","https://images.unsplash.com/photo-1600607687939-ce8a6d338c45?w=600&q=75","https://images.unsplash.com/photo-1605276373954-0c4a0dac5b12?w=600&q=75"] },
-  { id:2,  titre:"Appartement S+3 — Lac 2",          prix:320000,  devise:"TND",       gouvernorat:"Tunis",     delegation:"El Menzah",        localite:"Lac 2",          beds:3, baths:2, area:145,  type:"appartement", categorie:"vente",    etat:"nouveau",    titre_foncier:true,  boost:2, lat:36.838, lng:10.235, images:["https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&q=75","https://images.unsplash.com/photo-1560448204-603b3fc33ddc?w=600&q=75"] },
-  { id:3,  titre:"Terrain résidentiel — Sousse",     prix:180000,  devise:"TND",       gouvernorat:"Sousse",    delegation:"Sousse Nord",      localite:"Khezama",        beds:null,baths:null,area:500, type:"terrain",     categorie:"vente",    etat:null,         titre_foncier:true,  boost:0, lat:35.870, lng:10.590, images:["https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=600&q=75"] },
-  { id:4,  titre:"Appartement meublé vue mer",       prix:1800,    devise:"TND/mois",  gouvernorat:"Nabeul",    delegation:"Hammamet",         localite:"Hammamet Nord",  beds:2, baths:1, area:85,   type:"appartement", categorie:"location", etat:"bon_etat",   titre_foncier:false, boost:1, lat:36.400, lng:10.620, images:["https://images.unsplash.com/photo-1560448204-603b3fc33ddc?w=600&q=75","https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&q=75"] },
-  { id:5,  titre:"Villa piscine — Gammarth",         prix:1200000, devise:"TND",       gouvernorat:"Tunis",     delegation:"La Marsa",         localite:"Gammarth",       beds:5, baths:4, area:420,  type:"villa",       categorie:"vente",    etat:"nouveau",    titre_foncier:true,  boost:3, lat:36.903, lng:10.299, images:["https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=600&q=75","https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=75"] },
-  { id:6,  titre:"Duplex — Ennasr",                  prix:290000,  devise:"TND",       gouvernorat:"Ariana",    delegation:"Ariana Ville",     localite:"Ennasr 2",       beds:3, baths:2, area:165,  type:"appartement", categorie:"vente",    etat:"bon_etat",   titre_foncier:true,  boost:2, lat:36.860, lng:10.195, images:["https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=600&q=75","https://images.unsplash.com/photo-1560448075-cbc16bb4af8e?w=600&q=75"] },
-  { id:7,  titre:"Studio meublé — Centre Tunis",     prix:900,     devise:"TND/mois",  gouvernorat:"Tunis",     delegation:"Tunis Ville",      localite:"Passage",        beds:1, baths:1, area:45,   type:"appartement", categorie:"location", etat:"bon_etat",   titre_foncier:false, boost:0, lat:36.819, lng:10.165, images:["https://images.unsplash.com/photo-1560448075-cbc16bb4af8e?w=600&q=75"] },
-  { id:8,  titre:"Ferme agricole — Mornag",          prix:350000,  devise:"TND",       gouvernorat:"Ben Arous", delegation:"Mornag",           localite:"Mornag",         beds:null,baths:1, area:5000, type:"ferme",       categorie:"vente",    etat:"a_renover",  titre_foncier:true,  boost:0, lat:36.710, lng:10.280, images:["https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=600&q=75"] },
-  { id:9,  titre:"Terrain zone commerciale — Sfax",  prix:420000,  devise:"TND",       gouvernorat:"Sfax",      delegation:"Sfax Sud",         localite:"Agareb",         beds:null,baths:null,area:800, type:"terrain",     categorie:"vente",    etat:null,         titre_foncier:true,  boost:1, lat:34.710, lng:10.745, images:["https://images.unsplash.com/photo-1416331108676-a22ccb276e35?w=600&q=75"] },
-  { id:10, titre:"Villa R+1 — Sfax Centre",          prix:650000,  devise:"TND",       gouvernorat:"Sfax",      delegation:"Sfax Ville",       localite:"Centre Ville",   beds:4, baths:3, area:280,  type:"villa",       categorie:"vente",    etat:"bon_etat",   titre_foncier:true,  boost:2, lat:34.750, lng:10.770, images:["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=75","https://images.unsplash.com/photo-1605276373954-0c4a0dac5b12?w=600&q=75"] },
-  { id:11, titre:"Appartement neuf — Sfax",          prix:185000,  devise:"TND",       gouvernorat:"Sfax",      delegation:"Sfax Ville",       localite:"Sfax Ville",     beds:2, baths:1, area:95,   type:"appartement", categorie:"vente",    etat:"nouveau",    titre_foncier:true,  boost:0, lat:34.740, lng:10.760, images:["https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&q=75"] },
-  { id:12, titre:"Bureau — Centre Urbain Nord",      prix:2500,    devise:"TND/mois",  gouvernorat:"Tunis",     delegation:"El Menzah",        localite:"Centre Urbain",  beds:null,baths:1, area:120,  type:"bureau",      categorie:"location", etat:"nouveau",    titre_foncier:false, boost:1, lat:36.855, lng:10.194, images:["https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&q=75"] },
-  { id:13, titre:"Villa vacances — Djerba",          prix:3500,    devise:"TND/semaine",gouvernorat:"Médenine",  delegation:"Djerba Houmt Souk",localite:"Midoun",         beds:4, baths:2, area:200,  type:"villa",       categorie:"vacances", etat:"bon_etat",   titre_foncier:false, boost:2, lat:33.830, lng:10.870, images:["https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=600&q=75","https://images.unsplash.com/photo-1600607687939-ce8a6d338c45?w=600&q=75"] },
-  { id:14, titre:"Appartement — Sousse Corniche",    prix:250000,  devise:"TND",       gouvernorat:"Sousse",    delegation:"Sousse Ville",     localite:"Corniche",       beds:2, baths:1, area:100,  type:"appartement", categorie:"vente",    etat:"bon_etat",   titre_foncier:true,  boost:1, lat:35.826, lng:10.640, images:["https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=600&q=75"] },
-  { id:15, titre:"Terrain agricole — Grombalia",     prix:95000,   devise:"TND",       gouvernorat:"Nabeul",    delegation:"Grombalia",        localite:"Grombalia",      beds:null,baths:null,area:2000,type:"terrain",     categorie:"vente",    etat:null,         titre_foncier:true,  boost:0, lat:36.601, lng:10.504, images:["https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=600&q=75"] },
-  { id:16, titre:"Local commercial — Bizerte",       prix:3200,    devise:"TND/mois",  gouvernorat:"Bizerte",   delegation:"Bizerte Nord",     localite:"Centre Ville",   beds:null,baths:1, area:180,  type:"local_commercial",categorie:"location", etat:"bon_etat",titre_foncier:false,  boost:1, lat:37.270, lng:9.873,  images:["https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&q=75"] },
-  { id:17, titre:"Villa haut standing — Monastir",   prix:720000,  devise:"TND",       gouvernorat:"Monastir",  delegation:"Monastir",         localite:"Skanes",         beds:4, baths:3, area:310,  type:"villa",       categorie:"vente",    etat:"nouveau",    titre_foncier:true,  boost:3, lat:35.790, lng:10.800, images:["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=75","https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=600&q=75"] },
-  { id:18, titre:"S+2 meublé — Nabeul Centre",       prix:1200,    devise:"TND/mois",  gouvernorat:"Nabeul",    delegation:"Nabeul",           localite:"Centre Ville",   beds:2, baths:1, area:80,   type:"appartement", categorie:"location", etat:"bon_etat",   titre_foncier:false, boost:0, lat:36.455, lng:10.736, images:["https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&q=75"] },
-  { id:19, titre:"Terrain vue mer — Kelibia",        prix:220000,  devise:"TND",       gouvernorat:"Nabeul",    delegation:"Kelibia",          localite:"Kelibia",        beds:null,baths:null,area:750, type:"terrain",     categorie:"vente",    etat:null,         titre_foncier:true,  boost:2, lat:36.847, lng:11.109, images:["https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=600&q=75"] },
-  { id:20, titre:"Appartement S+4 — Ariana",         prix:380000,  devise:"TND",       gouvernorat:"Ariana",    delegation:"Raoued",           localite:"Raoued Plage",   beds:4, baths:2, area:190,  type:"appartement", categorie:"vente",    etat:"bon_etat",   titre_foncier:true,  boost:1, lat:36.892, lng:10.180, images:["https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=600&q=75"] },
-  { id:21, titre:"Villa balnéaire — Mahdia",         prix:550000,  devise:"TND",       gouvernorat:"Mahdia",    delegation:"Mahdia",           localite:"Cap Afrique",    beds:3, baths:2, area:220,  type:"villa",       categorie:"vente",    etat:"bon_etat",   titre_foncier:true,  boost:1, lat:35.495, lng:11.065, images:["https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=600&q=75"] },
-  { id:22, titre:"Bureau moderne — La Soukra",       prix:1800,    devise:"TND/mois",  gouvernorat:"Ariana",    delegation:"La Soukra",        localite:"La Soukra",      beds:null,baths:1, area:95,   type:"bureau",      categorie:"location", etat:"nouveau",    titre_foncier:false, boost:0, lat:36.880, lng:10.210, images:["https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&q=75"] },
-  { id:23, titre:"Maison R+1 — Kairouan",            prix:195000,  devise:"TND",       gouvernorat:"Kairouan",  delegation:"Kairouan Nord",    localite:"Centre Ville",   beds:3, baths:2, area:160,  type:"villa",       categorie:"vente",    etat:"a_renover",  titre_foncier:true,  boost:0, lat:35.680, lng:10.100, images:["https://images.unsplash.com/photo-1600607687939-ce8a6d338c45?w=600&q=75"] },
-  { id:24, titre:"Appartement S+1 — Gafsa",          prix:85000,   devise:"TND",       gouvernorat:"Gafsa",     delegation:"Gafsa Nord",       localite:"Centre",         beds:1, baths:1, area:55,   type:"appartement", categorie:"vente",    etat:"bon_etat",   titre_foncier:true,  boost:0, lat:34.422, lng:8.774,  images:["https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&q=75"] },
-  { id:25, titre:"Villa désert — Tozeur",            prix:480000,  devise:"TND",       gouvernorat:"Tozeur",    delegation:"Tozeur",           localite:"Nefta",          beds:4, baths:2, area:260,  type:"villa",       categorie:"vente",    etat:"bon_etat",   titre_foncier:true,  boost:1, lat:33.911, lng:8.126,  images:["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=75"] },
-  { id:26, titre:"Résidence touristique — Djerba",   prix:4200,    devise:"TND/semaine",gouvernorat:"Médenine",  delegation:"Djerba Houmt Souk",localite:"Houmt Souk",     beds:3, baths:2, area:150,  type:"appartement", categorie:"vacances", etat:"nouveau",    titre_foncier:false, boost:3, lat:33.875, lng:10.860, images:["https://images.unsplash.com/photo-1560448204-603b3fc33ddc?w=600&q=75","https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=600&q=75"] },
-  { id:27, titre:"Local entrepôt — Ben Arous",       prix:5000,    devise:"TND/mois",  gouvernorat:"Ben Arous", delegation:"Ezzahra",          localite:"Ezzahra",        beds:null,baths:1, area:600,  type:"local_commercial",categorie:"location",etat:"bon_etat",titre_foncier:false,  boost:0, lat:36.742, lng:10.234, images:["https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&q=75"] },
-  { id:28, titre:"S+3 neuf — Manouba",               prix:260000,  devise:"TND",       gouvernorat:"Manouba",   delegation:"Manouba",          localite:"Manouba",        beds:3, baths:2, area:130,  type:"appartement", categorie:"vente",    etat:"nouveau",    titre_foncier:true,  boost:0, lat:36.808, lng:10.098, images:["https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=600&q=75"] },
-  { id:29, titre:"Terrain — Zaghouan",               prix:70000,   devise:"TND",       gouvernorat:"Zaghouan",  delegation:"Zaghouan",         localite:"Zaghouan",       beds:null,baths:null,area:1200,type:"terrain",     categorie:"vente",    etat:null,         titre_foncier:true,  boost:0, lat:36.402, lng:10.145, images:["https://images.unsplash.com/photo-1416331108676-a22ccb276e35?w=600&q=75"] },
-  { id:30, titre:"Villa pied dans l'eau — Tabarka",  prix:890000,  devise:"TND",       gouvernorat:"Jendouba",  delegation:"Tabarka",          localite:"Tabarka",        beds:5, baths:3, area:380,  type:"villa",       categorie:"vente",    etat:"bon_etat",   titre_foncier:true,  boost:2, lat:36.955, lng:8.760,  images:["https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=600&q=75","https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=75"] },
-  { id:31, titre:"Riad rénové — Médina Tunis",       prix:420000,  devise:"TND",       gouvernorat:"Tunis",     delegation:"Tunis Ville",      localite:"Médina",         beds:4, baths:3, area:210,  type:"villa",       categorie:"vente",    etat:"bon_etat",   titre_foncier:true,  boost:1, lat:36.799, lng:10.172, images:["https://images.unsplash.com/photo-1605276373954-0c4a0dac5b12?w=600&q=75"] },
-  { id:32, titre:"Studio vue — Sidi Bou Said",       prix:1600,    devise:"TND/mois",  gouvernorat:"Tunis",     delegation:"Carthage",         localite:"Sidi Bou Said",  beds:1, baths:1, area:50,   type:"appartement", categorie:"location", etat:"bon_etat",   titre_foncier:false, boost:1, lat:36.870, lng:10.347, images:["https://images.unsplash.com/photo-1560448075-cbc16bb4af8e?w=600&q=75"] },
-  { id:33, titre:"Penthouse — Ain Zaghouan",         prix:590000,  devise:"TND",       gouvernorat:"Tunis",     delegation:"El Menzah",        localite:"Ain Zaghouan",   beds:4, baths:2, area:220,  type:"appartement", categorie:"vente",    etat:"nouveau",    titre_foncier:true,  boost:3, lat:36.843, lng:10.218, images:["https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&q=75","https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=600&q=75"] },
-  { id:34, titre:"Villa côtière — Hammamet",         prix:980000,  devise:"TND",       gouvernorat:"Nabeul",    delegation:"Hammamet",         localite:"Hammamet Sud",   beds:5, baths:4, area:400,  type:"villa",       categorie:"vente",    etat:"nouveau",    titre_foncier:true,  boost:3, lat:36.375, lng:10.562, images:["https://images.unsplash.com/photo-1600607687939-ce8a6d338c45?w=600&q=75","https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=600&q=75"] },
-  { id:35, titre:"Appartement — Sousse Kantaoui",    prix:310000,  devise:"TND",       gouvernorat:"Sousse",    delegation:"Hammam Sousse",    localite:"Port El Kantaoui",beds:3, baths:2, area:135,  type:"appartement", categorie:"vente",    etat:"bon_etat",   titre_foncier:true,  boost:1, lat:35.890, lng:10.610, images:["https://images.unsplash.com/photo-1560448204-603b3fc33ddc?w=600&q=75"] },
-  { id:36, titre:"Villa pieds dans l'eau — Tabarka", prix:920000,  devise:"TND",       gouvernorat:"Jendouba",  delegation:"Tabarka",          localite:"Tabarka",        beds:4, baths:3, area:290,  type:"bord_eau",    categorie:"vente",    etat:"bon_etat",   titre_foncier:true,  boost:2, lat:36.960, lng:8.756, images:["https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?w=600&q=75"] },
-  { id:37, titre:"Appartement front de mer — Sfax",  prix:1400,    devise:"TND/mois",  gouvernorat:"Sfax",      delegation:"Sfax Ville",       localite:"Corniche",       beds:2, baths:1, area:90,   type:"bord_eau",    categorie:"location", etat:"bon_etat",   titre_foncier:false, boost:1, lat:34.740, lng:10.775, images:["https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=75"] },
-  { id:38, titre:"Chalet balnéaire — Kelibia",       prix:2800,    devise:"TND/semaine",gouvernorat:"Nabeul",    delegation:"Kelibia",          localite:"Kelibia Plage",  beds:3, baths:2, area:120,  type:"bord_eau",    categorie:"vacances", etat:"bon_etat",   titre_foncier:false, boost:3, lat:36.842, lng:11.103, images:["https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?w=600&q=75"] },
-];
-
-/* ─────────────────────────────────────────────────────────────
    POI ICON HELPER — circular divIcon markers
 ───────────────────────────────────────────────────────────── */
 const makePOIIcon = (L, color, svgPath) => L.divIcon({
@@ -248,10 +204,30 @@ function PriceEvalBar({ prixM2, govStats }) {
   );
 }
 
+/* ─── Comparateur helpers ─── */
+function getCompare() { try { return JSON.parse(localStorage.getItem("localizi_compare")||"[]"); } catch { return []; } }
+function setCompare(arr) { localStorage.setItem("localizi_compare", JSON.stringify(arr)); window.dispatchEvent(new Event("compare-updated")); }
+
 /* ─── Carte de bien ─── */
 function PropCard({ p, active, onHover, onClick, govMarketStats }) {
   const prixM2   = (p.prix > 0 && p.area > 0) ? p.prix / p.area : null;
   const govStats = govMarketStats?.[p.gouvernorat] || null;
+  const realId   = p._realId || p.id?.toString().replace("api_","");
+
+  /* ── Comparateur ── */
+  const [inCompare, setInCompare] = React.useState(() => getCompare().includes(realId));
+  React.useEffect(() => {
+    const handler = () => setInCompare(getCompare().includes(realId));
+    window.addEventListener("compare-updated", handler);
+    return () => window.removeEventListener("compare-updated", handler);
+  }, [realId]);
+  const toggleCompare = (e) => {
+    e.stopPropagation();
+    const cur = getCompare();
+    if (inCompare) { setCompare(cur.filter(id => id !== realId)); }
+    else if (cur.length >= 4) { alert("Maximum 4 annonces dans le comparateur."); }
+    else { setCompare([...cur, realId]); }
+  };
 
   /* ── Favoris ── */
   const [isFav, setIsFav] = React.useState(() => {
@@ -311,7 +287,7 @@ function PropCard({ p, active, onHover, onClick, govMarketStats }) {
             <p className="pc__price">
               {fmtFull(p.prix)}
               <span className="pc__devise">
-                {p.devise === "TND" ? "DT" : p.devise}
+                {p.devise === "DT" ? "DT" : p.devise}
                 {p.categorie === "location" ? " /mois"
                   : p.categorie === "vacances" ? (
                     p.duree_type === "nuit"   ? " /nuitée"
@@ -322,7 +298,9 @@ function PropCard({ p, active, onHover, onClick, govMarketStats }) {
                   ) : ""}
               </span>
             </p>
-            <p className="pc__title">{p.titre}</p>
+            <p className="pc__title" style={{
+              whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis"
+            }}>{p.titre}</p>
           </div>
           <button
             className={`pc__fav${isFav ? " pc__fav--on" : ""}`}
@@ -340,6 +318,21 @@ function PropCard({ p, active, onHover, onClick, govMarketStats }) {
           {p.baths != null && <span><Bath     size={11}/> {p.baths} sdb</span>}
           {p.area          && <span><Maximize size={11}/> {p.area} m²</span>}
         </div>
+        <button
+          onClick={toggleCompare}
+          title={inCompare ? "Retirer du comparateur" : "Ajouter au comparateur"}
+          style={{
+            marginTop:8, width:"100%", padding:"5px 0",
+            borderRadius:7, border:`1.5px solid ${inCompare?"#6366f1":"#e5e7eb"}`,
+            background: inCompare ? "#eef2ff" : "#f8fafc",
+            color: inCompare ? "#4f46e5" : "#64748b",
+            fontSize:11.5, fontWeight:700, cursor:"pointer", fontFamily:"inherit",
+            display:"flex", alignItems:"center", justifyContent:"center", gap:5,
+            transition:"all .15s",
+          }}
+        >
+          {inCompare ? "✓ Dans le comparateur" : "+ Comparer"}
+        </button>
       </div>
     </div>
   );
@@ -506,14 +499,15 @@ function PropertyMap({ properties, activeId, selectedGov, onPinClick, onBoundsCh
           const cc  = catFgMap[pin.categorie] || "#475569";
           const bg2 = catBgMap[pin.categorie] || "#f1f5f9";
           const cl  = catLabel[pin.categorie] || (pin.categorie||"").toUpperCase();
-          const dev = pin.devise === "TND" ? "DT" : (pin.devise || "DT");
+          const dev = pin.devise === "DT" ? "DT" : (pin.devise || "DT");
           return `
             <div style="
               width:480px; font-family:'Inter',system-ui,sans-serif;
               overflow:hidden; border-radius:2px;
             ">
               <!-- Image pleine largeur en haut -->
-              <div style="position:relative;height:200px;overflow:hidden;background:#f1f5f9;">
+              <div style="position:relative;height:200px;overflow:hidden;background:#f1f5f9;cursor:pointer;"
+                   onclick="window.location.href='/annonce/${pin._realId || pin.id.toString().replace('api_','')}'">
                 ${img
                   ? `<img src="${img}" style="width:100%;height:100%;object-fit:cover;display:block;"
                        onerror="this.src='https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=70'"/>`
@@ -1028,12 +1022,12 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
           </div>
           {/* Prix */}
           <div className="fp__adv-group">
-            <label className="fp__adv-label">Prix min (TND)</label>
+            <label className="fp__adv-label">Prix min (DT)</label>
             <input type="number" placeholder="0" value={local.prixMin}
               onChange={(e)=>set("prixMin",e.target.value)} className="fp__adv-inp"/>
           </div>
           <div className="fp__adv-group">
-            <label className="fp__adv-label">Prix max (TND)</label>
+            <label className="fp__adv-label">Prix max (DT)</label>
             <input type="number" placeholder="∞" value={local.prixMax}
               onChange={(e)=>set("prixMax",e.target.value)} className="fp__adv-inp"/>
           </div>
@@ -1145,12 +1139,22 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
           </button>
           )}
           {/* Reset */}
-          <button className="fp__save-search" onClick={() => {
-            const saved = JSON.parse(localStorage.getItem("localizi_saved_searches")||"[]");
-            const entry = { ...local, savedAt: new Date().toISOString(), id: Date.now() };
-            saved.unshift(entry);
-            localStorage.setItem("localizi_saved_searches", JSON.stringify(saved.slice(0,10)));
-            alert("Recherche enregistrée ! Vous serez alerté quand des annonces correspondantes seront disponibles.");
+          <button className="fp__save-search" onClick={async () => {
+            const token = localStorage.getItem("token");
+            if (!token) { window.location.href = "/login?redirect=/carte"; return; }
+            const nom = prompt("Nom de cette alerte (facultatif) :", "Ma recherche") ?? "Ma recherche";
+            try {
+              const res = await fetch(`${API_URL}/users/me/saved-searches`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                body: JSON.stringify({ nom, criteres: local, email_alert: true }),
+              });
+              if (res.ok) {
+                alert("✅ Recherche enregistrée ! Vous recevrez des alertes email pour les annonces correspondantes.\nConsultez vos alertes dans Mon compte > Mes Alertes.");
+              } else {
+                alert("Erreur lors de l'enregistrement.");
+              }
+            } catch { alert("Erreur réseau."); }
           }}>💾 Enregistrer la recherche</button>
           <button className="fp__reset" onClick={reset}><X size={11}/> Réinitialiser</button>
         </div>
@@ -1391,6 +1395,45 @@ const FEAT_KEY_TO_LABEL = {
   salon_americain:"Salon américain", relie_onas:"Relié ONAS",
   fibre_optique:"Fibre optique",
 };
+
+/* ─── Bandeau comparateur flottant ─── */
+function CompareBar() {
+  const navigate = useNavigate();
+  const [ids, setIds] = React.useState(getCompare);
+  React.useEffect(() => {
+    const handler = () => setIds(getCompare());
+    window.addEventListener("compare-updated", handler);
+    return () => window.removeEventListener("compare-updated", handler);
+  }, []);
+  if (ids.length === 0) return null;
+  return (
+    <div style={{
+      position:"fixed", bottom:0, left:0, right:0, zIndex:9999,
+      background:"#0f172a", color:"#fff",
+      display:"flex", alignItems:"center", justifyContent:"center", gap:16,
+      padding:"12px 24px", boxShadow:"0 -4px 20px rgba(0,0,0,.3)",
+      fontFamily:"'Inter',system-ui,sans-serif", fontSize:13.5,
+    }}>
+      <span style={{fontWeight:700}}>{ids.length} bien{ids.length>1?"s":""} sélectionné{ids.length>1?"s":""}</span>
+      <button onClick={() => navigate(`/comparateur?ids=${ids.join(",")}`)}
+        style={{
+          padding:"8px 20px", borderRadius:8, border:"none",
+          background:"#6366f1", color:"#fff", fontWeight:700, cursor:"pointer",
+          fontSize:13, fontFamily:"inherit",
+        }}>
+        Comparer →
+      </button>
+      <button onClick={() => { setCompare([]); }}
+        style={{
+          padding:"8px 14px", borderRadius:8, border:"1px solid rgba(255,255,255,.2)",
+          background:"transparent", color:"rgba(255,255,255,.7)", fontWeight:600,
+          cursor:"pointer", fontSize:12, fontFamily:"inherit",
+        }}>
+        Vider
+      </button>
+    </div>
+  );
+}
 
 export default function CartePage() {
   const navigate                   = useNavigate();
@@ -1782,8 +1825,8 @@ export default function CartePage() {
     ...(filters.categories||[]).map(c=>({ label:CAT_LBL[c], key:`cat_${c}`, color:"#0369a1" })),
     filters.type       && { label:ucFirst(filters.type),  key:"type",    color:"#0f766e" },
     filters.etat       && { label:ETAT_LBL[filters.etat], key:"etat",    color:"#92400e" },
-    filters.prixMin    && { label:`≥ ${fmtFull(+filters.prixMin)} TND`, key:"prixMin", color:"#1d4ed8" },
-    filters.prixMax    && { label:`≤ ${fmtFull(+filters.prixMax)} TND`, key:"prixMax", color:"#1d4ed8" },
+    filters.prixMin    && { label:`≥ ${fmtFull(+filters.prixMin)} DT`, key:"prixMin", color:"#1d4ed8" },
+    filters.prixMax    && { label:`≤ ${fmtFull(+filters.prixMax)} DT`, key:"prixMax", color:"#1d4ed8" },
     filters.bedsMin    && { label:`${filters.bedsMin}+ ch.`, key:"bedsMin", color:"#be185d" },
     filters.titre_foncier && { label:"Titre foncier",     key:"titre_foncier", color:"#15803d" },
     ...(filters.features||[]).map(k => ({ label: k.replace(/_/g," "), key:`feat_${k}`, color:"#7c3aed" })),
@@ -1964,7 +2007,7 @@ export default function CartePage() {
                     <p style={{fontSize:18,fontWeight:900,color:"#0f172a",margin:"0 0 8px",letterSpacing:"-.01em"}}>
                       {(hoveredPin.prix||0).toLocaleString("fr-TN")}
                       <span style={{fontSize:12,fontWeight:400,color:"#94a3b8",marginLeft:4}}>
-                        {hoveredPin.devise === "TND" ? "DT" : (hoveredPin.devise||"DT")}
+                        {hoveredPin.devise === "DT" ? "DT" : (hoveredPin.devise||"DT")}
                       </span>
                     </p>
                     <div style={{display:"flex",gap:14,fontSize:12,color:"#64748b",flexWrap:"wrap"}}>
@@ -1991,7 +2034,7 @@ export default function CartePage() {
                 </div>
               );
             })()}
-            )}
+      
           </div>
 
           {/* Liste à droite — filtrée par zone visible sur la carte */}
@@ -2026,6 +2069,9 @@ export default function CartePage() {
           </div>
         </div>
       )}
+
+      {/* ── Bandeau comparateur flottant ── */}
+      <CompareBar />
 
       {/* ── CSS ── */}
       <style>{`
@@ -2319,7 +2365,11 @@ export default function CartePage() {
         .pc__body  { padding: 11px 13px 12px; }
         .pc__price { font-size: 18px; font-weight: 800; color: #0f172a; margin-bottom: 2px; }
         .pc__devise{ font-size: 11px; font-weight: 400; color: #94a3b8; margin-left: 2px; }
-        .pc__title { font-size: 13px; color: #334155; margin-bottom: 5px; line-height: 1.35; }
+        .pc__title {
+          font-size: 13px; color: #334155; margin-bottom: 5px; line-height: 1.35;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+          max-width: 100%;
+        }
         .pc__fav {
           width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
           display: flex; align-items: center; justify-content: center;

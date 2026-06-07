@@ -84,7 +84,7 @@ function PaymentModal({ plan, annonces, total, onClose, onSuccess }) {
           </p>
           <div className="bst-success__recap">
             <span>Plan {plan.name}</span>
-            <span className="bst-success__total">{total} TND / mois</span>
+            <span className="bst-success__total">{total} DT / mois</span>
           </div>
           <button className="bst-success__btn" onClick={() => { onSuccess(); onClose(); }}>
             Voir mes annonces <ChevronRight size={16}/>
@@ -130,9 +130,9 @@ function PaymentModal({ plan, annonces, total, onClose, onSuccess }) {
               <span style={{ color: plan.color }}>{plan.icon}</span>
               <div>
                 <div className="bst-recap__plan-name">Plan {plan.name}</div>
-                <div className="bst-recap__plan-detail">{plan.price} TND × {annonces.length} annonce{annonces.length > 1 ? "s" : ""}</div>
+                <div className="bst-recap__plan-detail">{plan.price} DT × {annonces.length} annonce{annonces.length > 1 ? "s" : ""}</div>
               </div>
-              <div className="bst-recap__plan-total" style={{ color: plan.color }}>{total} TND<span>/mois</span></div>
+              <div className="bst-recap__plan-total" style={{ color: plan.color }}>{total} DT<span>/mois</span></div>
             </div>
           </div>
 
@@ -216,7 +216,7 @@ function PaymentModal({ plan, annonces, total, onClose, onSuccess }) {
           {/* Pay button */}
           <button className="bst-pay-btn" style={{ background: plan.color }} onClick={handlePay}>
             <Lock size={15}/>
-            Payer {total} TND / mois
+            Payer {total} DT / mois
           </button>
 
           {/* Security badges */}
@@ -344,7 +344,7 @@ export default function BoosterPage() {
                   <div className="bst-plan__icon" style={{ background: p.lightColor, color: p.color }}>{p.icon}</div>
                   <div className="bst-plan__name">{p.name}</div>
                   <div className="bst-plan__price" style={{ color: selectedPlan === p.id ? p.color : "#0f172a" }}>
-                    {p.price} <span>TND</span>
+                    {p.price} <span>DT</span>
                   </div>
                   <div className="bst-plan__period">/ annonce / mois</div>
                   <ul className="bst-plan__features">
@@ -481,12 +481,12 @@ export default function BoosterPage() {
                   <strong>{selected.size}</strong> annonce{selected.size > 1 ? "s" : ""} · Plan {plan.name}
                 </div>
                 <div className="bst-sticky__detail">
-                  {plan.price} TND × {selected.size} annonce{selected.size > 1 ? "s" : ""}
+                  {plan.price} DT × {selected.size} annonce{selected.size > 1 ? "s" : ""}
                 </div>
               </div>
               <div className="bst-sticky__total">
                 <span className="bst-sticky__total-lbl">Total mensuel</span>
-                <span className="bst-sticky__total-val" style={{ color: plan.color }}>{total} TND<span>/mois</span></span>
+                <span className="bst-sticky__total-val" style={{ color: plan.color }}>{total} DT<span>/mois</span></span>
               </div>
               <button
                 className="bst-sticky__cta"

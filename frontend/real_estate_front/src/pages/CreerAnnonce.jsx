@@ -224,7 +224,7 @@ function buildPrefill(a) {
     titre:             a.titre || "",
     superficie:        a.superficie ? String(a.superficie) : "",
     prix:              a.prix ? String(a.prix) : "",
-    devise:            a.devise || "TND",
+    devise:            a.devise || "DT",
     description:       a.description || "",
     address:           a.address || "Tunis, Tunisie",
     latitude:          a.latitude ? String(a.latitude) : "36.8065",
@@ -335,7 +335,7 @@ export const CreateListingForm = ({ editId = null }) => {
     age_bien: "", surface_jardin: "", surface_terrasse: "", nb_places_garage: 1,
     gouvernorat: "", delegation: "", localite: "",
     address: "Tunis, Tunisie", latitude: "36.8065", longitude: "10.1815",
-    titre: "", superficie: "", prix: "", devise: "TND", description: "",
+    titre: "", superficie: "", prix: "", devise: "DT", description: "",
     duree_type: "", duree_valeur: "", accompagnement: false, anonyme: false,
     allImages: [], mainImageIndex: 0
   };
@@ -357,6 +357,11 @@ export const CreateListingForm = ({ editId = null }) => {
   const [editPropertyIdState,setEditPropertyIdState]= useState(null);
   /* Images existantes (edit mode) — URLs chargées depuis le backend */
   const [existingImageUrls,  setExistingImageUrls]  = useState([]);
+  /* Image principale parmi les existantes (index, -1 = aucune) */
+  const [mainExistingIdx,    setMainExistingIdx]    = useState(0);
+  /* ── Agences pour dropdown accompagnement ── */
+  const [agences, setAgences] = useState([]);
+  const [agenceChoisie, setAgenceChoisie] = useState("");
   /* ── Stats de marché (prix moyen/m² par gouvernorat) ── */
   const [marketStats, setMarketStats] = useState({});
 
@@ -365,6 +370,13 @@ export const CreateListingForm = ({ editId = null }) => {
   const [addressFilter, setAddressFilter] = useState("");
 
   /* ── Persist form state to localStorage (non-file fields only) — skip in edit mode ── */
+  useEffect(() => {
+    fetch(`${API_URL}/users/agencies/public`)
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setAgences(Array.isArray(data) ? data : []))
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (editId) return;
     try { localStorage.setItem("ca_step", String(currentStep)); } catch { /* ignore */ }
@@ -836,7 +848,7 @@ export const CreateListingForm = ({ editId = null }) => {
         description:    formData.description || null,
         superficie:     parseFloat(formData.superficie) || 0,
         prix:           parseFloat(formData.prix)       || 0,
-        devise:         formData.devise || "TND",
+        devise:         formData.devise || "DT",
         status:         "en_attente",
         type_appartement:  formData.type_bien === "appartement" ? (formData.type_appartement || null) : null,
         type_villa:        formData.type_bien === "villa"       ? (formData.type_villa       || null) : null,
@@ -941,16 +953,23 @@ export const CreateListingForm = ({ editId = null }) => {
           }
         }
 
-        /* Update property location */
+        /* Update property location + image_principale si changée parmi les existantes */
         if (editPropertyIdState) {
+          const propPayload = {
+            address:   formData.address   || "",
+            latitude:  parseFloat(formData.latitude)  || 0,
+            longitude: parseFloat(formData.longitude) || 0,
+          };
+          /* Si aucune nouvelle image ajoutée, l'image principale est celle sélectionnée parmi les existantes */
+          if (formData.allImages.length === 0 && existingImageUrls.length > 0) {
+            const selectedMainUrl = existingImageUrls[mainExistingIdx] || existingImageUrls[0];
+            const relUrl = selectedMainUrl.startsWith(API_URL) ? selectedMainUrl.slice(API_URL.length) : selectedMainUrl;
+            propPayload.image_principale = relUrl;
+          }
           await fetch(`${API_URL}/properties/${editPropertyIdState}`, {
             method: "PUT",
             headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              address:   formData.address   || "",
-              latitude:  parseFloat(formData.latitude)  || 0,
-              longitude: parseFloat(formData.longitude) || 0,
-            }),
+            body: JSON.stringify(propPayload),
           });
         }
 
@@ -1136,7 +1155,7 @@ export const CreateListingForm = ({ editId = null }) => {
 
       // ── Phrase de clôture ──
       if (formData.prix) {
-        desc += `Affiché au prix de ${Number(formData.prix).toLocaleString("fr-TN")} ${formData.devise === "TND" ? "DT" : formData.devise}, `;
+        desc += `Affiché au prix de ${Number(formData.prix).toLocaleString("fr-TN")} ${formData.devise === "DT" ? "DT" : formData.devise}, `;
       }
       desc += "ce bien constitue une opportunité à saisir. N'hésitez pas à nous contacter pour obtenir plus d'informations ou convenir d'une visite.";
 
@@ -1151,7 +1170,7 @@ export const CreateListingForm = ({ editId = null }) => {
     formData.categorie && { label: "Offre", value: formData.categorie.charAt(0).toUpperCase() + formData.categorie.slice(1) },
     hierarchy.gouvernorat && { label: "Gouvernorat", value: gouvernorats.find(g => g.value === hierarchy.gouvernorat)?.label || hierarchy.gouvernorat },
     formData.superficie && { label: "Superficie", value: `${formData.superficie} m²` },
-    formData.prix && { label: "Prix", value: `${Number(formData.prix).toLocaleString('fr-TN')} ${formData.devise === "TND" ? "DT" : formData.devise}` },
+    formData.prix && { label: "Prix", value: `${Number(formData.prix).toLocaleString('fr-TN')} ${formData.devise === "DT" ? "DT" : formData.devise}` },
   ].filter(Boolean);
 
   const TYPE_CARDS = [
@@ -1919,7 +1938,7 @@ export const CreateListingForm = ({ editId = null }) => {
                             onChange={e => { handleInputChange("prix", e.target.value); setValidationErrors(v=>({...v,prix:false})); }}/>
                           <select className="ca-currency" value={formData.devise}
                             onChange={e => handleInputChange("devise", e.target.value)}>
-                            <option value="TND">DT</option>
+                            <option value="DT">DT</option>
                             <option value="EUR">EUR</option>
                             <option value="USD">USD</option>
                           </select>
@@ -1933,7 +1952,7 @@ export const CreateListingForm = ({ editId = null }) => {
                         const prixM2  = (prixNum > 0 && surfNum > 0)
                           ? Math.round(prixNum / surfNum).toLocaleString("fr-TN")
                           : null;
-                        const devise  = formData.devise === "TND" ? "DT" : formData.devise;
+                        const devise  = formData.devise === "DT" ? "DT" : formData.devise;
                         return (
                           <div className="ca-live-preview">
                             <div className="ca-live-preview__header">
@@ -2054,39 +2073,49 @@ export const CreateListingForm = ({ editId = null }) => {
                         <span className="ca-count-badge">{existingImageUrls.length}</span>
                       </div>
                       <div className="ca-img-unified-grid">
-                        {existingImageUrls.map((url, idx) => (
-                          <div key={url} className="ca-img-uni-card" style={{border:"2px solid #e5e7eb"}}>
-                            <img src={url} alt={`Photo ${idx+1}`}
-                              style={{width:"100%",height:"100%",objectFit:"cover"}}
-                              onError={e => { e.currentTarget.style.display="none"; }}/>
-                            <div className="ca-img-overlay">
-                              <button type="button" className="ca-img-btn ca-img-btn--eye"
-                                onClick={() => window.open(url, "_blank")}>
-                                <Eye size={15}/>
-                              </button>
-                              <button type="button" className="ca-img-btn ca-img-btn--del"
-                                title="Supprimer cette photo"
-                                onClick={async () => {
-                                  const token = localStorage.getItem("token");
-                                  if (editPropertyIdState) {
-                                    try {
-                                      /* Extraire l'URL relative pour l'API */
-                                      const relUrl = url.startsWith(API_URL)
-                                        ? url.slice(API_URL.length) : url;
-                                      await fetch(`${API_URL}/properties/${editPropertyIdState}/images`, {
-                                        method: "DELETE",
-                                        headers: { Authorization:`Bearer ${token}`, "Content-Type":"application/json" },
-                                        body: JSON.stringify({ image: relUrl }),
-                                      });
-                                    } catch { /* silencieux */ }
-                                  }
-                                  setExistingImageUrls(prev => prev.filter(u => u !== url));
-                                }}>
-                                <Trash2 size={15}/>
-                              </button>
+                        {existingImageUrls.map((url, idx) => {
+                          const isMain = idx === mainExistingIdx && formData.allImages.length === 0;
+                          return (
+                            <div key={url} className={`ca-img-uni-card${isMain ? " ca-img-uni-card--main" : ""}`}
+                              style={{border: isMain ? "2px solid #6366f1" : "2px solid #e5e7eb"}}>
+                              <img src={url} alt={`Photo ${idx+1}`}
+                                style={{width:"100%",height:"100%",objectFit:"cover"}}
+                                onError={e => { e.currentTarget.style.display="none"; }}/>
+                              <div className="ca-img-overlay">
+                                <button type="button"
+                                  className={`ca-img-btn ca-img-btn--heart${isMain ? " ca-img-btn--heart-on" : ""}`}
+                                  title={isMain ? "Image principale ⭐" : "Définir comme principale"}
+                                  onClick={() => { setMainExistingIdx(idx); handleInputChange("mainImageIndex", 0); }}>
+                                  <Star size={15} fill={isMain ? "#fff" : "none"}/>
+                                </button>
+                                <button type="button" className="ca-img-btn ca-img-btn--eye"
+                                  onClick={() => window.open(url, "_blank")}>
+                                  <Eye size={15}/>
+                                </button>
+                                <button type="button" className="ca-img-btn ca-img-btn--del"
+                                  title="Supprimer cette photo"
+                                  onClick={async () => {
+                                    const token = localStorage.getItem("token");
+                                    if (editPropertyIdState) {
+                                      try {
+                                        const relUrl = url.startsWith(API_URL) ? url.slice(API_URL.length) : url;
+                                        await fetch(`${API_URL}/properties/${editPropertyIdState}/images`, {
+                                          method: "DELETE",
+                                          headers: { Authorization:`Bearer ${token}`, "Content-Type":"application/json" },
+                                          body: JSON.stringify({ image: relUrl }),
+                                        });
+                                      } catch { /* silencieux */ }
+                                    }
+                                    const newUrls = existingImageUrls.filter(u => u !== url);
+                                    setExistingImageUrls(newUrls);
+                                    if (mainExistingIdx >= newUrls.length) setMainExistingIdx(0);
+                                  }}>
+                                  <Trash2 size={15}/>
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -2273,6 +2302,23 @@ export const CreateListingForm = ({ editId = null }) => {
                         </label>
                       </div>
                     </div>
+                    {formData.accompagnement && (
+                      <div style={{marginTop:14}}>
+                        <label className="ca-label" style={{marginBottom:6, display:"block"}}>
+                          Choisir une agence
+                        </label>
+                        <select
+                          className="ca-select"
+                          value={agenceChoisie}
+                          onChange={e => { setAgenceChoisie(e.target.value); handleInputChange("agence_choisie", e.target.value); }}
+                        >
+                          <option value="">— Sélectionner une agence —</option>
+                          {agences.map(a => (
+                            <option key={a.id} value={a.id}>{a.nom}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
