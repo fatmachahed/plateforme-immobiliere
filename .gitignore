@@ -1,0 +1,41 @@
+# ── Secrets — NE JAMAIS commiter ──────────────────────────────
+.env
+.env.local
+.env.preprod
+.env.prod
+# Les exemples/templates sont OK à commiter
+!.env.dev
+!.env.*.example
+
+# ── Python / Backend ──────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+*.log
+backend/uploads/
+
+# ── Node / Frontend ───────────────────────────────────────────
+node_modules/
+frontend/real_estate_front/node_modules/
+dist/
+frontend/real_estate_front/dist/
+*.local
+
+# ── IDE / OS ──────────────────────────────────────────────────
+.vscode/settings.json
+.vscode/launch.json
+.idea/
+*.DS_Store
+Thumbs.db
+
+# ── Claude Code (sessions locales) ────────────────────────────
+.claude/
+
+# ── Divers projet ─────────────────────────────────────────────
+structure.txt
+vercel.json
