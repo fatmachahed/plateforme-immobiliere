@@ -64,10 +64,19 @@ def update_property(
 # DELETE PROPERTY
 # ===============================
 @router.delete("/{property_id}")
-def delete_property(property_id: int, db: Session = Depends(get_db)):
-    deleted = crud.delete_property(db, property_id)
-    if not deleted:
+def delete_property(
+    property_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    prop = crud.get_property(db, property_id)
+    if not prop:
         raise HTTPException(status_code=404, detail="Property not found")
+    annonce = db.query(models.Annonce).filter(models.Annonce.id == prop.annonce_id).first()
+    role_val = current_user.role.value if hasattr(current_user.role, "value") else current_user.role
+    if annonce and annonce.utilisateur_id != current_user.id and role_val != "admin":
+        raise HTTPException(status_code=403, detail="Action interdite")
+    crud.delete_property(db, property_id)
     return {"detail": "Property deleted"}
 
 # ===============================
@@ -78,10 +87,15 @@ def add_property_image(
     property_id: int,
     payload: AddImagePayload,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     prop = crud.get_property(db, property_id)
     if not prop:
         raise HTTPException(status_code=404, detail="Property not found")
+    annonce = db.query(models.Annonce).filter(models.Annonce.id == prop.annonce_id).first()
+    role_val = current_user.role.value if hasattr(current_user.role, "value") else current_user.role
+    if annonce and annonce.utilisateur_id != current_user.id and role_val != "admin":
+        raise HTTPException(status_code=403, detail="Action interdite")
     return crud.create_property_image(db, {"property_id": property_id, "image": payload.image})
 
 # ===============================
@@ -92,10 +106,15 @@ def remove_property_image(
     property_id: int,
     payload: AddImagePayload,
     db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
 ):
     prop = crud.get_property(db, property_id)
     if not prop:
         raise HTTPException(status_code=404, detail="Property not found")
+    annonce = db.query(models.Annonce).filter(models.Annonce.id == prop.annonce_id).first()
+    role_val = current_user.role.value if hasattr(current_user.role, "value") else current_user.role
+    if annonce and annonce.utilisateur_id != current_user.id and role_val != "admin":
+        raise HTTPException(status_code=403, detail="Action interdite")
     # Remove from property_images table
     img = db.query(models.PropertyImage).filter(
         models.PropertyImage.property_id == property_id,

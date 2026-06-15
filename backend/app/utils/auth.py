@@ -11,7 +11,7 @@ from app.utils.security import verify_password
 from app.config import SECRET_KEY  # import depuis config.py
 
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 jours
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24h (was 7 days — reduced for security)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")  # endpoint FastAPI pour login
 
@@ -60,6 +60,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     return user
 
 def get_current_admin(current_user: models.User = Depends(get_current_user)):
-    if current_user.role != "admin":
+    role_val = current_user.role.value if hasattr(current_user.role, "value") else current_user.role
+    if role_val != "admin":
         raise HTTPException(status_code=403, detail="Action réservée aux administrateurs")
     return current_user

@@ -528,12 +528,28 @@ def forgot_password(body: dict, db: Session = Depends(get_db)):
         "expires": datetime.utcnow() + timedelta(hours=2),
     }
 
-    # In production: send email. For now: return token in response for demo
-    return {
-        "message": "Lien de réinitialisation généré.",
-        "reset_token": token,  # Remove in production, use email
-        "demo_link": f"http://localhost:5173/reset-password?token={token}",
-    }
+    # Envoi par email (silencieux si SMTP non configuré)
+    try:
+        from app.email_utils import send_email
+        link = f"{_FRONTEND_URL}/reset-password?token={token}"
+        html = f"""
+        <div style="font-family:sans-serif;max-width:520px;margin:0 auto;color:#0f172a">
+          <div style="background:#6366f1;padding:24px 28px;border-radius:10px 10px 0 0">
+            <h2 style="color:#fff;margin:0;font-size:18px">Réinitialisation de mot de passe</h2>
+          </div>
+          <div style="background:#f8fafc;padding:28px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 10px 10px">
+            <p>Cliquez sur le bouton ci-dessous pour réinitialiser votre mot de passe.</p>
+            <a href="{link}" style="display:inline-block;background:#6366f1;color:#fff;padding:13px 28px;border-radius:10px;font-weight:700;text-decoration:none;font-size:15px">
+              Réinitialiser mon mot de passe
+            </a>
+            <p style="margin:20px 0 0;font-size:12px;color:#94a3b8">Ce lien expire dans 2 heures. Si vous n'avez pas fait cette demande, ignorez cet email.</p>
+          </div>
+        </div>"""
+        send_email(user.email, "Réinitialisation de votre mot de passe — Localizi", html)
+    except Exception:
+        pass
+
+    return {"message": "Si cet email existe, un lien de réinitialisation a été envoyé."}
 
 
 # ===============================
@@ -547,8 +563,7 @@ def reset_password(body: dict, db: Session = Depends(get_db)):
     if not token or not new_password:
         raise HTTPException(400, "Token et nouveau mot de passe requis")
 
-    if len(new_password) < 6:
-        raise HTTPException(400, "Le mot de passe doit contenir au moins 6 caractères")
+    _validate_password(new_password)
 
     token_data = _reset_tokens.get(token)
     if not token_data:
