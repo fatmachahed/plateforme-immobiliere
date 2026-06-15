@@ -3,6 +3,8 @@ import smtplib
 import json
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
 
 SMTP_HOST = os.environ.get("SMTP_HOST", "")
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
@@ -11,21 +13,43 @@ SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
 SMTP_FROM = os.environ.get("SMTP_FROM", SMTP_USER)
 
 
-def send_email(to_email: str, subject: str, html_body: str) -> bool:
+def send_email(to_email: str, subject: str, html_body: str,
+               attachment: tuple = None) -> bool:
+    """
+    Envoie un email HTML.
+    attachment : tuple optionnel (bytes, mime_type, filename)
+                 ex: (img_bytes, "image/jpeg", "capture.jpg")
+    """
     if not SMTP_HOST or not SMTP_USER or not to_email:
         return False
-    msg = MIMEMultipart("alternative")
+
+    if attachment:
+        msg = MIMEMultipart("mixed")
+    else:
+        msg = MIMEMultipart("alternative")
+
     msg["Subject"] = subject
     msg["From"] = SMTP_FROM
     msg["To"] = to_email
     msg.attach(MIMEText(html_body, "html", "utf-8"))
+
+    if attachment:
+        img_bytes, mime_type, filename = attachment
+        main_type, sub_type = mime_type.split("/", 1) if "/" in mime_type else ("application", "octet-stream")
+        part = MIMEBase(main_type, sub_type)
+        part.set_payload(img_bytes)
+        encoders.encode_base64(part)
+        part.add_header("Content-Disposition", "attachment", filename=filename)
+        msg.attach(part)
+
     try:
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
             server.starttls()
             server.login(SMTP_USER, SMTP_PASSWORD)
             server.sendmail(SMTP_FROM, [to_email], msg.as_string())
         return True
-    except Exception:
+    except Exception as e:
+        print(f"[send_email] Erreur : {e}")
         return False
 
 

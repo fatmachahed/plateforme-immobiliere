@@ -25,7 +25,7 @@ const CreateAnnonce = () => {
     titre: "",
     superficie: "",
     prix: "",
-    devise: "DT",
+    devise: "TND",
     description: "",
     image_principale: null,
     images: []

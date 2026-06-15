@@ -27,20 +27,15 @@ from sqlalchemy import func
 @router.get("/search")
 def search_localisation(q: str, db: Session = Depends(get_db)):
     """
-    Ordre de recherche : gouvernorat -> delegation -> localite.
-    On s'arrete a la premiere correspondance.
-    - Trouve dans gouvernorat  -> remplit gouvernorat seul
-    - Trouve dans delegation   -> remplit gouvernorat + delegation
-    - Trouve dans localite     -> remplit les 3 niveaux
+    Hiérarchie : gouvernorat → délégation → localité.
+    Retourne le premier niveau trouvé avec ses parents.
     """
     if not q or len(q.strip()) < 2:
         return None
     ql = f"%{q.strip().lower()}%"
 
-    # 1 — Gouvernorat en premier
-    gov = db.query(models.Gouvernorat).filter(
-        func.lower(models.Gouvernorat.nom).like(ql)
-    ).first()
+    # 1 — Gouvernorat
+    gov = db.query(Gouvernorat).filter(func.lower(Gouvernorat.nom).like(ql)).first()
     if gov:
         return {
             "type": "gouvernorat",
@@ -52,14 +47,10 @@ def search_localisation(q: str, db: Session = Depends(get_db)):
             "localite": None,
         }
 
-    # 2 — Delegation
-    delg = db.query(models.Delegation).filter(
-        func.lower(models.Delegation.nom).like(ql)
-    ).first()
+    # 2 — Délégation
+    delg = db.query(Delegation).filter(func.lower(Delegation.nom).like(ql)).first()
     if delg:
-        gouvernorat = db.query(models.Gouvernorat).filter(
-            models.Gouvernorat.id == delg.gouvernorat_id
-        ).first()
+        gouvernorat = db.query(Gouvernorat).filter(Gouvernorat.id == delg.gouvernorat_id).first()
         return {
             "type": "delegation",
             "gouvernorat_id": gouvernorat.id if gouvernorat else None,
@@ -70,16 +61,12 @@ def search_localisation(q: str, db: Session = Depends(get_db)):
             "localite": None,
         }
 
-    # 3 — Localite en dernier
-    loc = db.query(models.Localite).filter(
-        func.lower(models.Localite.nom).like(ql)
-    ).first()
+    # 3 — Localité
+    loc = db.query(Localite).filter(func.lower(Localite.nom).like(ql)).first()
     if loc:
-        delegation = db.query(models.Delegation).filter(
-            models.Delegation.id == loc.delegation_id
-        ).first()
-        gouvernorat = db.query(models.Gouvernorat).filter(
-            models.Gouvernorat.id == delegation.gouvernorat_id
+        delegation = db.query(Delegation).filter(Delegation.id == loc.delegation_id).first()
+        gouvernorat = db.query(Gouvernorat).filter(
+            Gouvernorat.id == delegation.gouvernorat_id
         ).first() if delegation else None
         return {
             "type": "localite",

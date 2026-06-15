@@ -19,7 +19,9 @@ const T = {
     nav_login:     "Se connecter",
     nav_register:  "Créer un compte",
     nav_search_ph: "Ville, gouvernorat, quartier…",
-    nav_about: "Qui sommes-nous ?",
+    nav_about:   "Qui sommes-nous ?",
+    nav_agents:  "Trouver un agent",
+    nav_sell:    "Vente",
 
     /* Home hero */
     hero_title:    "Trouvez votre bien idéal en Tunisie",
@@ -71,6 +73,7 @@ const T = {
     nav_buy:       "Buy",
     nav_rent:      "Rent",
     nav_vacation:  "Vacation",
+    nav_sell:      "Sale",
     nav_contact:   "Contact",
     nav_publish:   "+ Post",
     nav_boost:     "Boost",

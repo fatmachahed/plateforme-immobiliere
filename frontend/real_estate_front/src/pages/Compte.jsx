@@ -1,414 +1,1417 @@
-﻿import React, { useState, useRef } from "react";
-import API_URL from '../config';
-import { Link } from "react-router-dom";
-import Layout from "../components/Layout";
-import { User, Home, Heart, LogOut, Edit, Camera, Phone, Mail, Save, X } from "lucide-react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
+import API_URL, { fmtDevise, fmtPriceApprox } from "../config";
+import heroBannerImg from "../assets/hero-compte.png";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import Navbar from "../components/Navbar";
+import AlerteFiltersModal, { EMPTY_FORM } from "../components/AlerteFiltersModal";
+import {
+  User, Home, Heart, LogOut, Edit, Camera, Phone, Mail,
+  Save, X, Building2, MapPin, FileText, Briefcase, Users,
+  Eye, EyeOff, Edit2, Trash2, CheckCircle, Clock, XCircle, ArrowRight,
+  Upload, Plus, Search, TrendingUp, Bell, Sparkles, Zap, Maximize, Bed, Bath,
+  Copy, RefreshCw
+} from "lucide-react";
 import { useToast } from "../components/Toast";
 
+/* ── helpers ── */
+const TYPE_FR = {
+  appartement:"Appartement", villa:"Villa", maison:"Maison",
+  terrain:"Terrain", bureau:"Bureau", local_commercial:"Local commercial",
+  ferme:"Ferme agricole", ferme_agricole:"Ferme agricole",
+  garage_parking:"Garage / Parking", depot_stockage:"Dépôt de stockage",
+  immobiliers_divers:"Immobiliers divers",
+};
+const CAT_FR_LABEL = { vente:"Vente", location:"Location", vacances:"Vacances" };
+const CAT_FR2 = { vente:"Achat", location:"Location", vacances:"Vacances" };
+const CAT_COLOR = { vente:"#6366f1", location:"#10b981", vacances:"#f59e0b" };
+const TYPE_LABEL_MAP = {
+  appartement:"Appartement", villa:"Villa/Maison", villa_maison:"Villa/Maison", maison:"Villa/Maison",
+  immeuble:"Immeuble", terrain:"Terrain", bureau:"Bureau",
+  ferme:"Ferme agricole", ferme_agricole:"Ferme agricole", local_commercial:"Local commercial",
+  garage_parking:"Garage / Parking", depot_stockage:"Dépôt de stockage", immobiliers_divers:"Immobiliers divers",
+};
+const STATUS_LABEL_MAP = { approuvee:"Approuvée", en_attente:"En attente", refusee:"Refusée" };
+
+function typeBienLabel(t) { return TYPE_LABEL_MAP[t] || t; }
+function categorieLabel(c) { return CAT_FR_LABEL[c] || c; }
+
+function statusBadge(s) {
+  if (s === "approuvee") return { label:"Approuvée",  cls:"db-badge--ok",   icon:<CheckCircle size={12}/> };
+  if (s === "refusee")   return { label:"Refusée",    cls:"db-badge--err",  icon:<XCircle size={12}/> };
+  return                        { label:"En attente", cls:"db-badge--warn", icon:<Clock size={12}/> };
+}
+
+const TrackSwitch = ({ val, onChange }) => (
+  <div style={{display:"flex",alignItems:"center",gap:6}}>
+    <span style={{fontSize:11,fontWeight:700,color:val?"#16a34a":"#94a3b8",minWidth:22}}>{val?"Oui":"Non"}</span>
+    <label style={{position:"relative",display:"inline-block",width:36,height:20,flexShrink:0}}>
+      <input type="checkbox" checked={val} onChange={e=>onChange(e.target.checked)} style={{opacity:0,width:0,height:0}}/>
+      <span style={{position:"absolute",inset:0,background:val?"#6366f1":"#e5e7eb",borderRadius:20,transition:".2s",cursor:"pointer"}}/>
+      <span style={{position:"absolute",width:14,height:14,background:"#fff",borderRadius:"50%",top:3,left:val?19:3,transition:".2s"}}/>
+    </label>
+  </div>
+);
 
 export default function Compte() {
-  const toast = useToast();
+  const toast    = useToast();
+  const navigate = useNavigate();
 
-  const storedUser = (() => {
-    try { return JSON.parse(localStorage.getItem("user")); } catch { return null; }
-  })();
+  const storedUser = (() => { try { return JSON.parse(localStorage.getItem("user")); } catch { return null; } })();
   const token = localStorage.getItem("token");
 
-  const [editing, setEditing] = useState(false);
+  /* ── Active tab — URL-based so refresh keeps the tab ── */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get("tab") || "profil";
+  const setTab = (t) => setSearchParams({ tab: t }, { replace: false });
+
+  /* ── Équipe (agence only) ── */
+  const [agents,      setAgents]      = useState([]);
+  const [agentLoading,setAgentLoading]= useState(false);
+  const [agentLoaded, setAgentLoaded] = useState(false);
+  const [showAgentModal, setShowAgentModal] = useState(false);
+  const [deletingAgent,  setDeletingAgent]  = useState(null);
+  const [agentForm, setAgentForm] = useState({ username:"", email:"", nom:"", prenom:"", password:"" });
+  const [agentFormErr, setAgentFormErr] = useState("");
+  const [agentSaving,  setAgentSaving]  = useState(false);
+  const [showAgentPwd, setShowAgentPwd] = useState(false);
+  const [agentPwdCopied, setAgentPwdCopied] = useState(false);
+
+  const genAgentPwd = () => {
+    const chars = "abcdefghjkmnpqrstuvwxyz23456789";
+    let p = "Loc@";
+    for (let i = 0; i < 6; i++) p += chars[Math.floor(Math.random() * chars.length)];
+    return p;
+  };
+
+  /* ──────── PROFIL ──────── */
+  const [editing,   setEditing]   = useState(false);
+  const [editing2,  setEditing2]  = useState(false); // infos complémentaires (particulier)
   const [saving,  setSaving]  = useState(false);
+  const [phoneOtpModal, setPhoneOtpModal] = useState(false);
+  const [phoneOtpCode,  setPhoneOtpCode]  = useState("");
+  const [phoneOtpErr,   setPhoneOtpErr]   = useState("");
+  const [phoneOtpLoading, setPhoneOtpLoading] = useState(false);
+
   const [profile, setProfile] = useState({
-    username:        storedUser?.username        || "",
-    email:           storedUser?.email           || "",
-    phone_number:    storedUser?.phone_number    || "",
-    phone_code:      storedUser?.phone_code      || "+216",
-    profile_picture: storedUser?.profile_picture || "",
+    username:           storedUser?.username           || "",
+    email:              storedUser?.email              || "",
+    phone_number:       storedUser?.phone_number       || "",
+    phone_code:         storedUser?.phone_code         || "+216",
+    profile_picture:    storedUser?.profile_picture    || "",
+    nom:                storedUser?.nom                || "",
+    prenom:             storedUser?.prenom             || "",
+    nom_entreprise:     storedUser?.nom_entreprise     || "",
+    profil_particulier: storedUser?.profil_particulier || "",
+    sexe:               storedUser?.sexe               || "",
   });
-  const [avatarPreview, setAvatarPreview] = useState(storedUser?.profile_picture || "");
+  const [avatarPreview, setAvatarPreview]     = useState(storedUser?.profile_picture || "");
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [dragOver, setDragOver]               = useState(false);
   const fileInputRef = useRef(null);
 
-  if (!storedUser) {
-    return (
-      <Layout>
-        <div style={{ textAlign:"center", padding:"80px 20px", fontFamily:"'Inter',system-ui,sans-serif" }}>
-          <p style={{ marginBottom:16, color:"#64748b" }}>Vous n'êtes pas connecté.</p>
-          <Link to="/login" style={{ color:"#4f46e5", fontWeight:700 }}>Se connecter</Link>
-        </div>
-      </Layout>
-    );
+  const isAgent = storedUser?.role === "agent";
+  const isPro   = ["agence","promoteur","partenaire"].includes(storedUser?.role);
+  const [proEditing, setProEditing] = useState(false);
+  const [proSaving,  setProSaving]  = useState(false);
+  const [proFields, setProFields] = useState({
+    matricule_fiscal:  storedUser?.matricule_fiscal  || "",
+    registre_commerce: storedUser?.registre_commerce || "",
+    adresse:           storedUser?.adresse           || "",
+    gouvernorat:       storedUser?.gouvernorat        || "",
+    gouvernorat_id:    "",
+    delegation:        storedUser?.localite           || "",
+    delegation_id:     "",
+  });
+  const [gouvernorats, setGouvernorats] = useState([]);
+  const [delegations,  setDelegations]  = useState([]);
+
+  /* ──────── ANNONCES (dashboard) ──────── */
+  const [annonces, setAnnonces]         = useState([]);
+  const [annLoading, setAnnLoading]     = useState(false);
+  const [annLoaded,  setAnnLoaded]      = useState(false);
+  const [annonceStats,  setAnnonceStats]  = useState({});
+  const [refreshingId,  setRefreshingId]  = useState(null);
+  const [delItem,    setDelItem]        = useState(null);
+  const [soldConfirm, setSoldConfirm]   = useState(null);
+  const [search,     setSearch]         = useState("");
+  const [typeFilter, setTypeFilter]     = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [dateFilter, setDateFilter]     = useState("");
+  const [dateStart,  setDateStart]      = useState("");
+  const [dateEnd,    setDateEnd]        = useState("");
+  const [agencesList, setAgencesList]   = useState([]);
+  const [accomTracking, setAccomTracking] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("localizi_accom_tracking")||"{}"); } catch { return {}; }
+  });
+
+  /* ──────── CONTACTS ──────── */
+  const [contactRequests, setContactRequests] = useState([]);
+  const [loadingContacts, setLoadingContacts] = useState(false);
+  const [contactsLoaded,  setContactsLoaded]  = useState(false);
+  const [expandedMsg, setExpandedMsg]         = useState(null);
+
+  /* ──────── ALERTES ──────── */
+  const [savedSearches,     setSavedSearches]     = useState([]);
+  const [loadingAlertes,    setLoadingAlertes]    = useState(false);
+  const [alertesLoaded,     setAlertesLoaded]     = useState(false);
+  const [alerteModal,       setAlerteModal]       = useState(null);
+  const [alerteMatchCounts, setAlerteMatchCounts] = useState({});
+  const [alerteForm,        setAlerteForm]        = useState({...EMPTY_FORM});
+  const [alerteSaving,      setAlerteSaving]      = useState(false);
+  const [alerteAccom, setAlerteAccom] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("localizi_alerte_accom")||"{}"); } catch { return {}; }
+  });
+  const [alerteAgence, setAlerteAgence] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("localizi_alerte_agence")||"{}"); } catch { return {}; }
+  });
+
+  /* ──────── FAVORIS ──────── */
+  const [favoris,    setFavoris]    = useState([]);
+  const [compareIds, setCompareIds] = useState(() => { try { return JSON.parse(localStorage.getItem("localizi_compare")||"[]"); } catch { return []; } });
+  const [showCmpPopup, setShowCmpPopup] = useState(false);
+  const [favLoading, setFavLoading] = useState(false);
+  const [favLoaded,  setFavLoaded]  = useState(false);
+
+  /* ── Sync compareIds with localStorage ── */
+  useEffect(() => {
+    const sync = () => { try { setCompareIds(JSON.parse(localStorage.getItem("localizi_compare")||"[]")); } catch { setCompareIds([]); } };
+    window.addEventListener("compare-updated", sync);
+    return () => window.removeEventListener("compare-updated", sync);
+  }, []);
+
+  /* ── Compare popup trigger ── */
+  useEffect(() => {
+    const h = () => setShowCmpPopup(true);
+    window.addEventListener("compare-show-popup", h);
+    return () => window.removeEventListener("compare-show-popup", h);
+  }, []);
+
+  /* ── Load pro ── */
+  useEffect(() => {
+    if (!isPro) return;
+    fetch(`${API_URL}/localisation/gouvernorats`).then(r=>r.ok?r.json():[]).then(d=>setGouvernorats(Array.isArray(d)?d:[])).catch(()=>{});
+  }, [isPro]);
+
+  /* ── Load agences ── */
+  useEffect(() => {
+    fetch(`${API_URL}/users/agencies/public`).then(r=>r.ok?r.json():[]).then(d=>setAgencesList(Array.isArray(d)?d:[])).catch(()=>{});
+  }, []);
+
+  /* ── Load tab data on demand ── */
+  useEffect(() => {
+    if (!token) return;
+    if (tab === "annonces" && !annLoaded) {
+      setAnnLoading(true);
+      fetch(`${API_URL}/annonces/`, { headers:{Authorization:`Bearer ${token}`} })
+        .then(r => { if (r.status===401) navigate("/login?session=expired"); return r.ok?r.json():[]; })
+        .then(data => {
+          const s = Array.isArray(data)?[...data].sort((a,b)=>new Date(b.date_creation)-new Date(a.date_creation)):[];
+          setAnnonces(s); setAnnLoaded(true);
+          Promise.all(s.map(a =>
+            fetch(`${API_URL}/annonces/${a.id}/stats`, { headers:{Authorization:`Bearer ${token}`} })
+              .then(r=>r.ok?r.json():null).then(st=>st?[a.id,st]:null).catch(()=>null)
+          )).then(results => {
+            const map = {};
+            results.filter(Boolean).forEach(([id,st])=>{ map[id]=st; });
+            setAnnonceStats(map);
+          });
+        })
+        .catch(()=>setAnnLoaded(true)).finally(()=>setAnnLoading(false));
+    }
+    if (tab === "contacts" && !contactsLoaded) {
+      setLoadingContacts(true);
+      fetch(`${API_URL}/users/me/contact-requests`, { headers:{Authorization:`Bearer ${token}`} })
+        .then(r=>r.ok?r.json():[]).then(d=>{ setContactRequests(Array.isArray(d)?d:[]); setContactsLoaded(true); })
+        .catch(()=>setContactsLoaded(true)).finally(()=>setLoadingContacts(false));
+    }
+    if (tab === "alertes" && !alertesLoaded) {
+      setLoadingAlertes(true);
+      fetch(`${API_URL}/users/me/saved-searches`, { headers:{Authorization:`Bearer ${token}`} })
+        .then(r=>r.ok?r.json():[]).then(data=>{ setSavedSearches(Array.isArray(data)?data:[]); setAlertesLoaded(true); data.forEach(s=>fetchAlerteCount(s)); })
+        .catch(()=>setAlertesLoaded(true)).finally(()=>setLoadingAlertes(false));
+    }
+    if (tab === "favoris" && !favLoaded) {
+      setFavLoading(true);
+      fetch(`${API_URL}/users/me/favoris`, { headers:{Authorization:`Bearer ${token}`} })
+        .then(r=>r.ok?r.json():[]).then(d=>{ setFavoris(Array.isArray(d)?d:[]); setFavLoaded(true); })
+        .catch(()=>setFavLoaded(true)).finally(()=>setFavLoading(false));
+    }
+  }, [tab]);
+
+  if (!storedUser || !token) {
+    return <div style={{minHeight:"100vh"}}><Navbar/><div style={{textAlign:"center",padding:80}}><p style={{color:"#64748b",marginBottom:16}}>Vous n'êtes pas connecté.</p><Link to="/login" style={{color:"#4f46e5",fontWeight:700}}>Se connecter</Link></div></div>;
   }
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    toast("Déconnexion réussie.");
-    setTimeout(() => { window.location.href = "/"; }, 800);
-  };
+  /* ── Annonces filtered ── */
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const now = new Date();
+    const sod = new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    const sow = new Date(sod); sow.setDate(sod.getDate()-sod.getDay());
+    const som = new Date(now.getFullYear(),now.getMonth(),1);
+    const cs = dateStart ? new Date(dateStart) : null;
+    const ce = dateEnd   ? new Date(dateEnd+"T23:59:59") : null;
+    return annonces.filter(a => {
+      if (q) {
+        const ok = (a.titre||"").toLowerCase().includes(q)||(a.type_bien||"").toLowerCase().includes(q)||(a.categorie||"").toLowerCase().includes(q)||(a.status||"").toLowerCase().includes(q)||typeBienLabel(a.type_bien).toLowerCase().includes(q)||categorieLabel(a.categorie).toLowerCase().includes(q);
+        if (!ok) return false;
+      }
+      if (typeFilter) { const t = a.type_bien==="villa"||a.type_bien==="maison"?"villa_maison":a.type_bien; if(t!==typeFilter) return false; }
+      if (statusFilter) { const ms = STATUS_LABEL_MAP[a.status]||a.status; if(ms!==statusFilter) return false; }
+      if (dateFilter) {
+        const c = new Date(a.date_creation);
+        if(dateFilter==="Aujourd'hui" && c<sod) return false;
+        if(dateFilter==="Cette semaine" && c<sow) return false;
+        if(dateFilter==="Ce mois" && c<som) return false;
+      }
+      if ((cs||ce)) { const c=new Date(a.date_creation); if(cs&&c<cs) return false; if(ce&&c>ce) return false; }
+      return true;
+    });
+  }, [annonces, search, typeFilter, statusFilter, dateFilter, dateStart, dateEnd]);
 
-  const handleAvatarChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { toast("Image trop lourde (max 5 MB).", "error"); return; }
+  const stats = { total:annonces.length, publiees:annonces.filter(a=>a.status==="approuvee").length, attente:annonces.filter(a=>a.status==="en_attente").length, vues:annonces.reduce((s,a)=>s+(a.views_count||0),0) };
 
-    /* Local preview immediately */
-    const localUrl = URL.createObjectURL(file);
-    setAvatarPreview(localUrl);
+  /* ── Handlers ── */
+  const handleLogout = () => { localStorage.removeItem("token"); localStorage.removeItem("user"); toast("Déconnexion réussie."); setTimeout(()=>{ window.location.href="/"; },800); };
 
-    /* Upload to backend */
-    setUploadingAvatar(true);
+  const handleRefresh = async (id) => {
+    setRefreshingId(id);
     try {
-      const form = new FormData();
-      form.append("file", file);
-      const res = await fetch(`${API_URL}/users/me/avatar`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
-      });
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      const newPic = data.profile_picture;
-      setAvatarPreview(newPic);
-      setProfile(p => ({ ...p, profile_picture: newPic }));
-      const updated = { ...storedUser, profile_picture: newPic };
-      localStorage.setItem("user", JSON.stringify(updated));
-      toast("Photo de profil mise à jour !");
-    } catch {
-      toast("Erreur lors de l'upload.", "error");
-      setAvatarPreview(profile.profile_picture);
-    } finally {
-      setUploadingAvatar(false);
-    }
+      const res = await fetch(`${API_URL}/annonces/${id}/refresh`, { method:"PATCH", headers:{Authorization:`Bearer ${token}`} });
+      if (res.ok) {
+        setAnnonces(prev => {
+          const updated = prev.map(a => a.id===id ? {...a, date_mise_a_jour: new Date().toISOString()} : a);
+          return [...updated].sort((a,b)=>new Date(b.date_mise_a_jour||b.date_creation)-new Date(a.date_mise_a_jour||a.date_creation));
+        });
+        toast("Annonce remontée en tête de liste !");
+      }
+    } catch { toast("Erreur lors du refresh.","error"); }
+    finally { setRefreshingId(null); }
   };
+
+  const uploadFile = async (file) => {
+    if (!file||!file.type.startsWith("image/")) { toast("Fichier non supporté.","error"); return; }
+    if (file.size>5*1024*1024) { toast("Image trop lourde (max 5 MB).","error"); return; }
+    setAvatarPreview(URL.createObjectURL(file)); setUploadingAvatar(true);
+    try {
+      const form = new FormData(); form.append("file",file);
+      const res = await fetch(`${API_URL}/users/me/avatar`,{method:"POST",headers:{Authorization:`Bearer ${token}`},body:form});
+      if(!res.ok) throw new Error();
+      const data = await res.json();
+      setAvatarPreview(data.profile_picture); setProfile(p=>({...p,profile_picture:data.profile_picture}));
+      localStorage.setItem("user",JSON.stringify({...storedUser,profile_picture:data.profile_picture}));
+      toast("Photo mise à jour !");
+    } catch { toast("Erreur upload.","error"); setAvatarPreview(profile.profile_picture); }
+    finally { setUploadingAvatar(false); }
+  };
+  const handleAvatarChange = e => uploadFile(e.target.files?.[0]);
+  const handleDrop = e => { e.preventDefault(); setDragOver(false); uploadFile(e.dataTransfer.files?.[0]); };
 
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
-      const res = await fetch(`${API_URL}/users/me`, {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username:     profile.username || undefined,
-          phone_number: profile.phone_number
-            ? `${profile.phone_code || "+216"}${profile.phone_number}`
-            : undefined,
-        }),
-      });
-      if (!res.ok) throw new Error();
-      const updated = await res.json();
-      const newUser = { ...storedUser, ...updated };
-      localStorage.setItem("user", JSON.stringify(newUser));
-      setEditing(false);
-      toast("Profil mis à jour !");
-    } catch {
-      toast("Erreur lors de la sauvegarde.", "error");
-    } finally {
-      setSaving(false);
-    }
+      const newPhone = profile.phone_number ? `${profile.phone_code||"+216"}${profile.phone_number}` : undefined;
+      const currentPhone = storedUser?.phone_number || "";
+      // Si le numéro a changé → déclencher OTP avant de sauvegarder
+      if (newPhone && newPhone !== currentPhone) {
+        const otpRes = await fetch(`${API_URL}/users/me/request-phone-change`,{method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({new_phone:newPhone})});
+        if(!otpRes.ok) throw new Error();
+        setPhoneOtpModal(true); setPhoneOtpCode(""); setPhoneOtpErr(""); setSaving(false); return;
+      }
+      const res = await fetch(`${API_URL}/users/me`,{method:"PUT",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({username:profile.username||undefined,phone_number:newPhone,nom:profile.nom||null,prenom:profile.prenom||null})});
+      if(!res.ok) throw new Error();
+      const updated = await res.json(); localStorage.setItem("user",JSON.stringify({...storedUser,...updated})); setEditing(false); toast("Profil mis à jour !");
+    } catch { toast("Erreur.","error"); } finally { setSaving(false); }
   };
 
+  const handleSavePro = async () => {
+    setProSaving(true);
+    try {
+      const res = await fetch(`${API_URL}/users/me`,{method:"PUT",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({matricule_fiscal:proFields.matricule_fiscal||null,registre_commerce:proFields.registre_commerce||null,adresse:proFields.adresse||null,gouvernorat:proFields.gouvernorat||null,localite:proFields.delegation||null})});
+      if(!res.ok) throw new Error();
+      const updated = await res.json(); localStorage.setItem("user",JSON.stringify({...storedUser,...updated})); setProEditing(false); toast("Infos pro mises à jour !");
+    } catch { toast("Erreur.","error"); } finally { setProSaving(false); }
+  };
+
+  const handleProGovChange = (govId, govNom) => {
+    setProFields(p=>({...p,gouvernorat_id:govId,gouvernorat:govNom,delegation_id:"",delegation:""}));
+    if(!govId){setDelegations([]);return;}
+    fetch(`${API_URL}/localisation/delegations?gouvernorat_id=${govId}`).then(r=>r.ok?r.json():[]).then(d=>setDelegations(Array.isArray(d)?d:[])).catch(()=>{});
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      const res = await fetch(`${API_URL}/annonces/${id}`,{method:"DELETE",headers:{Authorization:`Bearer ${token}`}});
+      if(!res.ok) throw new Error();
+      setAnnonces(prev=>prev.filter(a=>a.id!==id)); setDelItem(null); toast("Annonce supprimée.");
+    } catch { toast("Erreur suppression.","error"); }
+  };
+
+  const updateAnnonceAccompagnement = async (id, accompagnement, agence_id=undefined) => {
+    try {
+      const body={accompagnement}; if(agence_id!==undefined) body.agence_id=agence_id||null;
+      const res=await fetch(`${API_URL}/annonces/${id}/accompagnement`,{method:"PATCH",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify(body)});
+      if(res.ok){const data=await res.json(); setAnnonces(prev=>prev.map(a=>a.id===id?{...a,accompagnement:data.accompagnement,accompagnement_agence_id:data.accompagnement_agence_id,accompagnement_agence_nom:data.accompagnement_agence_nom}:a));}
+    } catch {}
+  };
+
+  const updateAccomTracking = (annonceId, field, value) => {
+    setAccomTracking(prev=>{const next={...prev,[annonceId]:{...(prev[annonceId]||{}),[field]:value}};try{localStorage.setItem("localizi_accom_tracking",JSON.stringify(next));}catch{}return next;});
+  };
+
+  const markAsRead = async (id) => {
+    try{await fetch(`${API_URL}/users/me/contact-requests/${id}/lu`,{method:"PUT",headers:{Authorization:`Bearer ${token}`}});setContactRequests(prev=>prev.map(r=>r.id===id?{...r,lu:true}:r));}catch{}
+  };
+  const markAsUnread = async (id) => {
+    try{await fetch(`${API_URL}/users/me/contact-requests/${id}/lu?lu=false`,{method:"PUT",headers:{Authorization:`Bearer ${token}`}});setContactRequests(prev=>prev.map(r=>r.id===id?{...r,lu:false}:r));}catch{}
+  };
+
+  async function fetchAlerteCount(s) {
+    try {
+      const c=s.criteres||{}; const params=new URLSearchParams();
+      if(c.categories?.length===1) params.set("categorie",c.categories[0]);
+      if(c.type) params.set("type_bien",c.type); if(c.govId) params.set("gouvernorat_id",c.govId);
+      if(c.prixMin) params.set("prix_min",c.prixMin); if(c.prixMax) params.set("prix_max",c.prixMax);
+      params.set("limit","500");
+      const res=await fetch(`${API_URL}/annonces/public?${params}`); if(!res.ok) return;
+      let filtered=await res.json();
+      if(c.categories?.length>1) filtered=filtered.filter(a=>c.categories.includes(a.categorie));
+      if(c.govNom&&!c.govId) filtered=filtered.filter(a=>(a.gouvernorat||"").toLowerCase()===c.govNom.toLowerCase());
+      if(c.delNom) filtered=filtered.filter(a=>(a.delegation||"").toLowerCase()===c.delNom.toLowerCase());
+      if(c.superficieMin) filtered=filtered.filter(a=>a.superficie>=Number(c.superficieMin));
+      if(c.superficieMax) filtered=filtered.filter(a=>a.superficie<=Number(c.superficieMax));
+      if(c.bedsMin) filtered=filtered.filter(a=>(a.nb_pieces||0)>=Number(c.bedsMin));
+      setAlerteMatchCounts(prev=>({...prev,[s.id]:filtered.length}));
+    } catch {}
+  }
+
+  async function saveAlerte() {
+    if(!alerteForm.nom?.trim()){toast("Donnez un nom à cette alerte.","error");return;}
+    setAlerteSaving(true);
+    const{nom,email_alert,...criteres}=alerteForm;
+    try {
+      const isEdit=alerteModal&&alerteModal!=="new";
+      const url=isEdit?`${API_URL}/users/me/saved-searches/${alerteModal.id}`:`${API_URL}/users/me/saved-searches`;
+      const res=await fetch(url,{method:isEdit?"PUT":"POST",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify({nom,criteres,email_alert:!!email_alert})});
+      if(res.ok){toast(isEdit?"Alerte mise à jour !":"Alerte enregistrée !"); setAlerteModal(null); setAlertesLoaded(false); setSearchParams({tab:"alertes"})}
+      else toast("Erreur enregistrement.","error");
+    } catch{toast("Serveur inaccessible.","error");}
+    setAlerteSaving(false);
+  }
+
+  async function toggleAlerteEmail(id) {
+    try {
+      const res=await fetch(`${API_URL}/users/me/saved-searches/${id}/toggle`,{method:"PATCH",headers:{Authorization:`Bearer ${token}`}});
+      if(res.ok){const data=await res.json(); setSavedSearches(prev=>prev.map(s=>s.id===id?{...s,email_alert:data.email_alert}:s));}
+    } catch {}
+  }
+
+  async function deleteAlert(id) {
+    try{await fetch(`${API_URL}/users/me/saved-searches/${id}`,{method:"DELETE",headers:{Authorization:`Bearer ${token}`}}); setSavedSearches(prev=>prev.filter(s=>s.id!==id)); toast("Alerte supprimée.");}catch{toast("Erreur.","error");}
+  }
+
+  function toggleAlerteAccom(id) {
+    setAlerteAccom(prev=>{const next={...prev,[id]:!prev[id]};try{localStorage.setItem("localizi_alerte_accom",JSON.stringify(next));}catch{}return next;});
+  }
+  function setAlerteAgenceVal(alerteId, agenceId) {
+    setAlerteAgence(prev=>{const next={...prev,[alerteId]:agenceId};try{localStorage.setItem("localizi_alerte_agence",JSON.stringify(next));}catch{}return next;});
+  }
+
+  const handleRemoveFav = async (id) => {
+    try{await fetch(`${API_URL}/users/me/favoris/${id}`,{method:"DELETE",headers:{Authorization:`Bearer ${token}`}}); setFavoris(prev=>prev.filter(f=>f.id!==id)); toast("Retiré des favoris.");}catch{toast("Erreur.","error");}
+  };
+
+  /* ── Load agents (lazy, agence only) ── */
+  useEffect(() => {
+    if (tab !== "equipe" || agentLoaded || storedUser?.role !== "agence") return;
+    setAgentLoading(true);
+    fetch(`${API_URL}/users/me/agents`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : [])
+      .then(d => { setAgents(Array.isArray(d) ? d : []); setAgentLoaded(true); })
+      .catch(() => {})
+      .finally(() => setAgentLoading(false));
+  }, [tab]); // eslint-disable-line
+
+  async function handleDeleteAgent(agentId, username) {
+    if (!confirm(`Supprimer le compte de ${username} ? Cette action est irréversible.`)) return;
+    setDeletingAgent(agentId);
+    try {
+      const r = await fetch(`${API_URL}/users/me/agents/${agentId}`, { method:"DELETE", headers:{ Authorization:`Bearer ${token}` } });
+      if (!r.ok) throw new Error();
+      toast(`Compte de ${username} supprimé.`);
+      setAgents(prev => prev.filter(a => a.id !== agentId));
+    } catch { toast("Erreur lors de la suppression.", "error"); }
+    finally { setDeletingAgent(null); }
+  }
+
+  async function handleCreateAgent(e) {
+    e.preventDefault();
+    setAgentFormErr("");
+    if (!agentForm.username.trim() || !agentForm.email.trim()) { setAgentFormErr("Nom d'utilisateur et email sont obligatoires."); return; }
+    setAgentSaving(true);
+    try {
+      const res = await fetch(`${API_URL}/users/me/agents`, {
+        method:"POST", headers:{ Authorization:`Bearer ${token}`, "Content-Type":"application/json" },
+        body: JSON.stringify({ username:agentForm.username.trim(), email:agentForm.email.trim(), password:agentForm.password, nom:agentForm.nom.trim()||undefined, prenom:agentForm.prenom.trim()||undefined }),
+      });
+      if (!res.ok) { const err = await res.json().catch(()=>({})); setAgentFormErr(err.detail||"Erreur lors de la création."); return; }
+      const data = await res.json();
+      toast(`Compte agent @${data.username} créé !`);
+      setAgents(prev => [...prev, data]);
+      setShowAgentModal(false);
+      setAgentForm({ username:"", email:"", nom:"", prenom:"", password:genAgentPwd() });
+    } catch { setAgentFormErr("Erreur réseau."); }
+    finally { setAgentSaving(false); }
+  }
+
+  function buildCarteUrl(criteres) {
+    const c=criteres||{}; const p=new URLSearchParams();
+    if(c.categories?.length>0) p.set("categories",c.categories.join(","));
+    if(c.type) p.set("type",c.type); if(c.govNom) p.set("gouvernorat",c.govNom); if(c.govId) p.set("govId",c.govId);
+    if(c.delNom) p.set("delegation",c.delNom); if(c.prixMin) p.set("prixMin",c.prixMin); if(c.prixMax) p.set("prixMax",c.prixMax);
+    if(c.superficieMin) p.set("sMin",c.superficieMin); if(c.superficieMax) p.set("sMax",c.superficieMax);
+    if(c.bedsMin) p.set("beds",c.bedsMin); if(c.features?.length>0) p.set("feat",c.features.join(","));
+    return `/carte?${p.toString()}`;
+  }
+
   const initials = (profile.username || "?")[0].toUpperCase();
+  const roleLabel = { particulier:"Particulier", agent:"Agent", agence:"Agence", promoteur:"Promoteur", partenaire:"Partenaire", admin:"Admin" };
+  const unreadCount = contactRequests.filter(r=>!r.lu).length;
+
+  const NAV_ITEMS = [
+    { key:"profil",    icon:<User size={19}/>,   label:"Mon profil" },
+    { key:"annonces",  icon:<Home size={19}/>,   label:"Mes annonces" },
+    { key:"contacts",  icon:<Bell size={19}/>,   label:"Demandes reçues", badge: contactsLoaded ? unreadCount : 0 },
+    { key:"alertes",   icon:<Bell size={19}/>,   label:"Mes alertes" },
+    { key:"favoris",   icon:<Heart size={19}/>,  label:"Mes favoris" },
+    ...(storedUser?.role==="agence"?[{key:"equipe",icon:<Users size={19}/>,label:"Mon équipe"}]:[]),
+  ];
 
   return (
-    <Layout>
-      <div className="cpt-page">
-        {/* Hero banner */}
-        <div className="cpt-hero">
-          <div className="cpt-hero__inner">
-            {/* Avatar with upload button */}
-            <div className="cpt-avatar-wrap">
-              <div className="cpt-avatar">
-                {avatarPreview
-                  ? <img src={avatarPreview} alt="avatar"/>
-                  : <span className="cpt-avatar__init">{initials}</span>
-                }
-                {uploadingAvatar && <div className="cpt-avatar__spinner"/>}
-              </div>
-              <button
-                className="cpt-avatar__cam"
-                onClick={() => fileInputRef.current?.click()}
-                title="Changer la photo"
-                disabled={uploadingAvatar}
-              >
-                <Camera size={14}/>
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                style={{ display:"none" }}
-                onChange={handleAvatarChange}
-              />
-            </div>
+    <div style={{minHeight:"100vh",background:"#f4f6fa",fontFamily:"'Plus Jakarta Sans',system-ui,sans-serif"}}>
+      <Navbar/>
 
+      {/* ── Hero banner ── */}
+      <div style={{
+        position:"relative", height:260, overflow:"hidden",
+        background:"#1e293b",
+      }}>
+        <img src={heroBannerImg} alt="" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 40%",opacity:.55}}/>
+        <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",padding:"0 40px",background:"linear-gradient(90deg,rgba(15,23,42,.7) 0%,rgba(15,23,42,.15) 100%)"}}>
+          <div>
+            <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:8}}>
+              <div style={{width:56,height:56,borderRadius:"50%",overflow:"hidden",border:"3px solid rgba(255,255,255,.3)",background:"#4f46e5",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,fontWeight:800,color:"#fff",flexShrink:0}}>
+                {avatarPreview?<img src={avatarPreview} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:initials}
+              </div>
+              <div>
+                <h1 style={{color:"#fff",fontSize:22,fontWeight:800,margin:0,lineHeight:1.2}}>{profile.username}</h1>
+                <p style={{color:"rgba(255,255,255,.65)",fontSize:13,margin:"4px 0 0"}}>{profile.email}</p>
+              </div>
+            </div>
+            {storedUser?.role&&<span style={{display:"inline-block",background:"rgba(99,102,241,.85)",color:"#fff",fontSize:11.5,fontWeight:700,padding:"3px 14px",borderRadius:999,backdropFilter:"blur(4px)"}}>{roleLabel[storedUser.role]||storedUser.role}</span>}
+          </div>
+        </div>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"290px 1fr",gap:24,maxWidth:"100%",margin:"0 auto",padding:"28px 24px",alignItems:"start"}}>
+
+        {/* ══ SIDEBAR ══ */}
+        <aside style={{
+          background:"#fff", borderRadius:18, border:"1px solid #e5e7eb",
+          padding:"28px 16px 20px", position:"sticky", top:20,
+          display:"flex", flexDirection:"column", gap:4,
+          boxShadow:"0 4px 20px rgba(0,0,0,.07)",
+        }}>
+          {/* User mini */}
+          <div style={{textAlign:"center",padding:"0 8px 22px",borderBottom:"1px solid #f1f5f9",marginBottom:8}}>
+            <div style={{width:84,height:84,borderRadius:"50%",overflow:"hidden",margin:"0 auto 14px",border:"3px solid #e5e7eb",background:"#eef2ff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,fontWeight:800,color:"#4f46e5"}}>
+              {avatarPreview?<img src={avatarPreview} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:initials}
+            </div>
+            <div style={{fontWeight:800,fontSize:16,color:"#0f172a",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{profile.username}</div>
+            <div style={{fontSize:12.5,color:"#94a3b8",marginTop:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{profile.email}</div>
+            {storedUser?.role && <span style={{display:"inline-block",marginTop:8,fontSize:11.5,fontWeight:700,background:"#eef2ff",color:"#4f46e5",padding:"3px 12px",borderRadius:999}}>{roleLabel[storedUser.role]||storedUser.role}</span>}
+          </div>
+
+          {NAV_ITEMS.map(item =>
+            <Link key={item.key} to={`/compte?tab=${item.key}`} style={sideNavStyle(tab===item.key)} onClick={e=>{ e.preventDefault(); setTab(item.key); }}>
+              {item.icon}{item.label}
+              {item.badge>0&&<span style={{marginLeft:"auto",background:"#ef4444",color:"#fff",borderRadius:10,fontSize:11,fontWeight:800,padding:"2px 8px",minWidth:20,textAlign:"center"}}>{item.badge}</span>}
+            </Link>
+          )}
+
+          <div style={{height:1,background:"#f1f5f9",margin:"10px 4px"}}/>
+          <button onClick={handleLogout} style={{...sideNavStyle(false),color:"#dc2626"}}>
+            <LogOut size={18}/> Déconnexion
+          </button>
+        </aside>
+
+        {/* ══ MAIN CONTENT ══ */}
+        <main style={{minWidth:0}}>
+
+          {/* ═══════ PROFIL ═══════ */}
+          {tab==="profil" && (
+            <div style={{display:"flex",gap:20,alignItems:"flex-start"}}>
+
+              {/* ── Colonne gauche 50% : infos + infos complémentaires ── */}
+              <div style={{flex:"0 0 calc(50% - 10px)",minWidth:0,display:"flex",flexDirection:"column",gap:16}}>
+
+                {/* Section Mon profil */}
+                <div style={{...card,padding:"26px 28px 24px"}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18}}>
+                    <div>
+                      <h2 style={cardTitle}>Mon profil</h2>
+                      <p style={{fontSize:12,color:"#94a3b8",marginTop:2}}>Informations de connexion</p>
+                    </div>
+                    {!editing
+                      ?<button onClick={()=>setEditing(true)} style={btnSec}><Edit size={13}/> Modifier</button>
+                      :<button onClick={()=>setEditing(false)} style={btnSec}><X size={13}/> Annuler</button>
+                    }
+                  </div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:13}}>
+                    <F label="Nom d'utilisateur"><input style={inp(editing)} value={profile.username} readOnly={!editing} onChange={e=>setProfile(p=>({...p,username:e.target.value}))}/></F>
+                    <F label="E-mail"><input style={inp(false)} value={profile.email} readOnly/></F>
+                    <F label="Téléphone" full>
+                      <div style={{display:"flex",gap:7}}>
+                        <select style={{...inp(editing),width:148,cursor:editing?"pointer":"default",fontSize:13}} value={profile.phone_code||"+216"} disabled={!editing} onChange={e=>setProfile(p=>({...p,phone_code:e.target.value}))}>
+                          {[
+                            {code:"+216",flag:"🇹🇳",name:"Tunisie"},
+                            {code:"+33", flag:"🇫🇷",name:"France"},
+                            {code:"+1",  flag:"🇺🇸",name:"USA/Canada"},
+                            {code:"+44", flag:"🇬🇧",name:"Royaume-Uni"},
+                            {code:"+49", flag:"🇩🇪",name:"Allemagne"},
+                            {code:"+32", flag:"🇧🇪",name:"Belgique"},
+                            {code:"+41", flag:"🇨🇭",name:"Suisse"},
+                            {code:"+212",flag:"🇲🇦",name:"Maroc"},
+                            {code:"+213",flag:"🇩🇿",name:"Algérie"},
+                            {code:"+218",flag:"🇱🇾",name:"Libye"},
+                            {code:"+966",flag:"🇸🇦",name:"Arabie Saoudite"},
+                            {code:"+971",flag:"🇦🇪",name:"Émirats Arabes Unis"},
+                            {code:"+974",flag:"🇶🇦",name:"Qatar"},
+                            {code:"+90", flag:"🇹🇷",name:"Turquie"},
+                            {code:"+34", flag:"🇪🇸",name:"Espagne"},
+                            {code:"+39", flag:"🇮🇹",name:"Italie"},
+                          ].map(({code,flag,name})=><option key={code} value={code}>{flag} {code} {name}</option>)}
+                        </select>
+                        <input style={{...inp(editing),flex:1}} value={profile.phone_number||""} readOnly={!editing} placeholder="12 345 678" onChange={e=>setProfile(p=>({...p,phone_number:e.target.value}))}/>
+                      </div>
+                    </F>
+                  </div>
+                  {editing&&<button onClick={handleSaveProfile} disabled={saving} style={{...saveBtn,marginTop:16}}><Save size={14}/> {saving?"Sauvegarde…":"Enregistrer"}</button>}
+                </div>
+
+                {/* Section Informations complémentaires (selon rôle) */}
+                <div style={{...card,padding:"26px 28px 24px"}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18}}>
+                    <div>
+                      <h2 style={cardTitle}>Informations complémentaires</h2>
+                      <p style={{fontSize:12,color:"#94a3b8",marginTop:2}}>
+                        {storedUser?.role==="particulier"?"Informations personnelles":isAgent?"Informations agent":"Informations professionnelles"}
+                      </p>
+                    </div>
+                    {/* Particulier : editing2 indépendant */}
+                    {storedUser?.role==="particulier"&&(
+                      !editing2
+                        ?<button onClick={()=>setEditing2(true)} style={btnSec}><Edit size={13}/> Modifier</button>
+                        :<button onClick={()=>setEditing2(false)} style={btnSec}><X size={13}/> Annuler</button>
+                    )}
+                    {/* Agent / Pro : proEditing */}
+                    {(isAgent||isPro)&&(
+                      !proEditing
+                        ?<button onClick={()=>setProEditing(true)} style={btnSec}><Edit size={13}/> Modifier</button>
+                        :<button onClick={()=>setProEditing(false)} style={btnSec}><X size={13}/> Annuler</button>
+                    )}
+                  </div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:13}}>
+                    {/* Particulier : nom + prénom + profil + sexe */}
+                    {storedUser?.role==="particulier"&&<>
+                      <F label="Nom"><input style={inp(editing2)} value={profile.nom} readOnly={!editing2} placeholder={editing2?"Votre nom":"—"} onChange={e=>setProfile(p=>({...p,nom:e.target.value}))}/></F>
+                      <F label="Prénom"><input style={inp(editing2)} value={profile.prenom} readOnly={!editing2} placeholder={editing2?"Votre prénom":"—"} onChange={e=>setProfile(p=>({...p,prenom:e.target.value}))}/></F>
+                      <F label="Votre profil" full>
+                        {editing2
+                          ? <select style={{...inp(true),cursor:"pointer"}} value={profile.profil_particulier||""} onChange={e=>setProfile(p=>({...p,profil_particulier:e.target.value}))}>
+                              <option value="">— Sélectionner —</option>
+                              <option value="etudiant">Étudiant(e)</option>
+                              <option value="jeune_actif">Jeune actif / Premier achat</option>
+                              <option value="parent">Parent / Famille</option>
+                              <option value="couple">Couple</option>
+                              <option value="retraite">Retraité(e)</option>
+                              <option value="investisseur">Investisseur</option>
+                            </select>
+                          : <input style={inp(false)} value={profile.profil_particulier||""} readOnly placeholder="—"/>
+                        }
+                      </F>
+                      <F label="Sexe" full>
+                        {editing2
+                          ? <div style={{display:"flex",gap:8}}>
+                              {[{v:"homme",l:"Homme ♂"},{v:"femme",l:"Femme ♀"}].map(({v,l})=>(
+                                <button key={v} type="button" onClick={()=>setProfile(p=>({...p,sexe:v}))}
+                                  style={{flex:1,padding:"8px 4px",borderRadius:8,border:"1.5px solid",borderColor:profile.sexe===v?"#6366f1":"#e2e8f0",background:profile.sexe===v?"#eef2ff":"#f8fafc",color:profile.sexe===v?"#4f46e5":"#94a3b8",cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:12,transition:"all .15s"}}>
+                                  {l}
+                                </button>
+                              ))}
+                            </div>
+                          : <input style={inp(false)} value={profile.sexe==="homme"?"Homme ♂":profile.sexe==="femme"?"Femme ♀":""} readOnly placeholder="—"/>
+                        }
+                      </F>
+                    </>}
+                    {/* Agent : nom + prénom + agence + infos pro */}
+                    {isAgent&&<>
+                      <F label="Nom"><input style={inp(proEditing)} value={profile.nom} readOnly={!proEditing} placeholder={proEditing?"Votre nom":"—"} onChange={e=>setProfile(p=>({...p,nom:e.target.value}))}/></F>
+                      <F label="Prénom"><input style={inp(proEditing)} value={profile.prenom} readOnly={!proEditing} placeholder={proEditing?"Votre prénom":"—"} onChange={e=>setProfile(p=>({...p,prenom:e.target.value}))}/></F>
+                      <F label="Agence" full><input style={{...inp(false),background:"#f8fafc",color:"#64748b"}} value={profile.nom_entreprise||"—"} readOnly/></F>
+                      <F label="Matricule fiscal"><input style={inp(proEditing)} value={proFields.matricule_fiscal} readOnly={!proEditing} placeholder={proEditing?"Ex : 1234567/A/M/000":"Non renseigné"} onChange={e=>setProFields(p=>({...p,matricule_fiscal:e.target.value}))}/></F>
+                      <F label="Registre de commerce"><input style={inp(proEditing)} value={proFields.registre_commerce} readOnly={!proEditing} placeholder={proEditing?"Ex : B012345/2020":"Non renseigné"} onChange={e=>setProFields(p=>({...p,registre_commerce:e.target.value}))}/></F>
+                      <F label="Adresse" full><input style={inp(proEditing)} value={proFields.adresse} readOnly={!proEditing} placeholder={proEditing?"Ex : 12 rue de la Liberté, La Marsa":"Non renseignée"} onChange={e=>setProFields(p=>({...p,adresse:e.target.value}))}/></F>
+                      <F label="Gouvernorat">{proEditing?<select style={{...inp(true),cursor:"pointer"}} value={proFields.gouvernorat_id} onChange={e=>{const o=e.target.options[e.target.selectedIndex];handleProGovChange(e.target.value,o.text==="— Choisir —"?"":o.text);}}><option value="">— Choisir —</option>{gouvernorats.map(g=><option key={g.id} value={g.id}>{g.nom}</option>)}</select>:<input style={inp(false)} value={proFields.gouvernorat||""} readOnly placeholder="Non renseigné"/>}</F>
+                      <F label="Délégation">{proEditing&&delegations.length>0?<select style={{...inp(true),cursor:"pointer"}} value={proFields.delegation_id} onChange={e=>{const o=e.target.options[e.target.selectedIndex];setProFields(p=>({...p,delegation_id:e.target.value,delegation:o.text==="— Toutes —"?"":o.text}));}}><option value="">— Toutes —</option>{delegations.map(d=><option key={d.id} value={d.id}>{d.nom}</option>)}</select>:<input style={inp(proEditing&&delegations.length===0)} value={proFields.delegation||""} readOnly={!proEditing||delegations.length>0} placeholder={proEditing&&!proFields.gouvernorat_id?"Choisissez d'abord un gouvernorat":"Non renseignée"} onChange={e=>setProFields(p=>({...p,delegation:e.target.value}))}/>}</F>
+                    </>}
+                    {/* Promoteur / autre pro sans rôle agent */}
+                    {isPro&&!isAgent&&<>
+                      <F label="Matricule fiscal"><input style={inp(proEditing)} value={proFields.matricule_fiscal} readOnly={!proEditing} placeholder={proEditing?"Ex : 1234567/A/M/000":"Non renseigné"} onChange={e=>setProFields(p=>({...p,matricule_fiscal:e.target.value}))}/></F>
+                      <F label="Registre de commerce"><input style={inp(proEditing)} value={proFields.registre_commerce} readOnly={!proEditing} placeholder={proEditing?"Ex : B012345/2020":"Non renseigné"} onChange={e=>setProFields(p=>({...p,registre_commerce:e.target.value}))}/></F>
+                      <F label="Adresse" full><input style={inp(proEditing)} value={proFields.adresse} readOnly={!proEditing} placeholder={proEditing?"Ex : 12 rue de la Liberté, La Marsa":"Non renseignée"} onChange={e=>setProFields(p=>({...p,adresse:e.target.value}))}/></F>
+                      <F label="Gouvernorat">{proEditing?<select style={{...inp(true),cursor:"pointer"}} value={proFields.gouvernorat_id} onChange={e=>{const o=e.target.options[e.target.selectedIndex];handleProGovChange(e.target.value,o.text==="— Choisir —"?"":o.text);}}><option value="">— Choisir —</option>{gouvernorats.map(g=><option key={g.id} value={g.id}>{g.nom}</option>)}</select>:<input style={inp(false)} value={proFields.gouvernorat||""} readOnly placeholder="Non renseigné"/>}</F>
+                      <F label="Délégation">{proEditing&&delegations.length>0?<select style={{...inp(true),cursor:"pointer"}} value={proFields.delegation_id} onChange={e=>{const o=e.target.options[e.target.selectedIndex];setProFields(p=>({...p,delegation_id:e.target.value,delegation:o.text==="— Toutes —"?"":o.text}));}}><option value="">— Toutes —</option>{delegations.map(d=><option key={d.id} value={d.id}>{d.nom}</option>)}</select>:<input style={inp(proEditing&&delegations.length===0)} value={proFields.delegation||""} readOnly={!proEditing||delegations.length>0} placeholder={proEditing&&!proFields.gouvernorat_id?"Choisissez d'abord un gouvernorat":"Non renseignée"} onChange={e=>setProFields(p=>({...p,delegation:e.target.value}))}/>}</F>
+                    </>}
+                  </div>
+                  {/* Bouton Enregistrer propre à cette section */}
+                  {storedUser?.role==="particulier"&&editing2&&(
+                    <button onClick={()=>{ handleSaveProfile(); setEditing2(false); }} disabled={saving} style={{...saveBtn,marginTop:16}}><Save size={14}/> {saving?"Sauvegarde…":"Enregistrer"}</button>
+                  )}
+                  {(isPro||isAgent)&&proEditing&&(
+                    <button onClick={handleSavePro} disabled={proSaving} style={{...saveBtn,marginTop:16}}><Save size={14}/> {proSaving?"Sauvegarde…":"Enregistrer"}</button>
+                  )}
+                </div>
+
+              </div>
+
+              {/* ── Colonne droite 50% : photo de profil ── */}
+              <div style={{flex:"0 0 calc(50% - 10px)",minWidth:0}}>
+                <div style={{...card,padding:"26px 28px 24px",display:"flex",flexDirection:"column",alignItems:"center",gap:16}}>
+                  <h2 style={{...cardTitle,alignSelf:"flex-start",display:"flex",alignItems:"center",gap:8}}><Camera size={16} style={{color:"#6366f1"}}/>Photo de profil</h2>
+
+                  {/* Grande image quand renseignée */}
+                  {avatarPreview&&(
+                    <div style={{width:"100%",maxWidth:220,aspectRatio:"1/1",borderRadius:16,overflow:"hidden",border:"3px solid #e0e7ff",flexShrink:0,background:"#f8faff"}}>
+                      <img src={avatarPreview} alt="Avatar" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                    </div>
+                  )}
+
+                  {/* Zone drag & drop — grande si pas d'image, petite si image présente */}
+                  <div
+                    onDragOver={e=>{e.preventDefault();setDragOver(true);}}
+                    onDragLeave={()=>setDragOver(false)}
+                    onDrop={handleDrop}
+                    onClick={()=>fileInputRef.current?.click()}
+                    style={{
+                      width:"100%",
+                      height: avatarPreview ? 80 : undefined,
+                      aspectRatio: avatarPreview ? undefined : "4/3",
+                      borderRadius:14,
+                      border:dragOver?"2px dashed #6366f1":"2px dashed #c7d2fe",
+                      background:dragOver?"#eef2ff":"#f8faff",
+                      display:"flex",alignItems:"center",justifyContent:"center",
+                      cursor:"pointer",position:"relative",overflow:"hidden",
+                      transition:"all .2s",
+                    }}
+                  >
+                    {!avatarPreview&&(
+                      <div style={{textAlign:"center",color:"#94a3b8",padding:20}}>
+                        <Upload size={32} style={{marginBottom:10,color:"#c7d2fe"}}/>
+                        <div style={{fontSize:14,fontWeight:700,marginBottom:4,color:"#6366f1"}}>Glissez votre photo ici</div>
+                        <div style={{fontSize:12}}>ou cliquez pour sélectionner</div>
+                        <div style={{fontSize:11,marginTop:6,color:"#a5b4fc"}}>JPG, PNG, WEBP · Max 5 MB</div>
+                      </div>
+                    )}
+                    {avatarPreview&&(
+                      <div style={{display:"flex",alignItems:"center",gap:10,color:"#94a3b8",padding:"0 16px"}}>
+                        <Upload size={18} style={{color:"#c7d2fe",flexShrink:0}}/>
+                        <div>
+                          <div style={{fontSize:12,fontWeight:600,color:"#6366f1"}}>Glisser une nouvelle photo</div>
+                          <div style={{fontSize:11}}>ou cliquer pour changer</div>
+                        </div>
+                      </div>
+                    )}
+                    {uploadingAvatar&&<div style={{position:"absolute",inset:0,background:"rgba(0,0,0,.45)",display:"flex",alignItems:"center",justifyContent:"center",borderRadius:12}}><div style={{width:24,height:24,border:"3px solid transparent",borderTopColor:"#fff",borderRadius:"50%",animation:"cpt-spin .7s linear infinite"}}/></div>}
+                  </div>
+
+                  <button onClick={()=>fileInputRef.current?.click()} disabled={uploadingAvatar} style={{padding:"9px 22px",border:"1.5px solid #c7d2fe",borderRadius:10,background:"#eef2ff",color:"#4f46e5",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:8}}>
+                    <Upload size={14}/> {uploadingAvatar?"Upload…":"Choisir une photo"}
+                  </button>
+                  <input ref={fileInputRef} type="file" accept="image/*" style={{display:"none"}} onChange={handleAvatarChange}/>
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* ═══════ MES ANNONCES (dashboard exact) ═══════ */}
+          {tab==="annonces" && (
+            <div className="db-page" style={{background:"transparent"}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexWrap:"wrap",gap:12}}>
+                <div>
+                  <h1 className="db-header__title">Mes annonces</h1>
+                  <p className="db-header__sub">Gérez toutes vos publications immobilières</p>
+                </div>
+                <Link to="/creer_annonce" className="db-btn-primary"><Plus size={17}/> Nouvelle annonce</Link>
+              </div>
+
+              {/* Stats */}
+              <div className="db-stats">
+                {[{icon:<Home size={20}/>,label:"Total",val:stats.total,cls:""},{icon:<CheckCircle size={20}/>,label:"Publiées",val:stats.publiees,cls:"db-stat--green"},{icon:<Clock size={20}/>,label:"En attente",val:stats.attente,cls:"db-stat--amber"},{icon:<TrendingUp size={20}/>,label:"Vues totales",val:stats.vues,cls:"db-stat--blue"}].map(s=>(
+                  <div key={s.label} className={`db-stat ${s.cls}`}><span className="db-stat__ico">{s.icon}</span><div><p className="db-stat__val">{s.val}</p><p className="db-stat__lbl">{s.label}</p></div></div>
+                ))}
+              </div>
+
+              {/* Toolbar */}
+              {!annLoading && annonces.length>0 && (
+                <div className="db-toolbar">
+                  <div className="db-search"><Search size={15} className="db-search__ico"/><input className="db-search__input" type="text" placeholder="Rechercher…" value={search} onChange={e=>setSearch(e.target.value)}/>{search&&<button className="db-search__clear" onClick={()=>setSearch("")}><X size={13}/></button>}</div>
+                  <select value={typeFilter} onChange={e=>setTypeFilter(e.target.value)} style={{flex:1,minWidth:0,border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 8px",fontSize:12.5,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}>
+                    <option value="">Tous types</option>
+                    {[["appartement","Appartement"],["villa_maison","Villa/Maison"],["immeuble","Immeuble"],["terrain","Terrain"],["local_commercial","Local commercial"],["bureau","Bureau"],["ferme_agricole","Ferme agricole"],["garage_parking","Garage / Parking"],["depot_stockage","Dépôt de stockage"],["immobiliers_divers","Immobiliers divers"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
+                  </select>
+                  <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} style={{flex:1,minWidth:0,border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 8px",fontSize:12.5,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}>
+                    <option value="">Tous statuts</option><option value="En attente">En attente</option><option value="Approuvée">Approuvée</option><option value="Refusée">Refusée</option>
+                  </select>
+                  <select value={dateFilter} onChange={e=>{setDateFilter(e.target.value);setDateStart("");setDateEnd("");}} style={{flex:1,minWidth:0,border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 8px",fontSize:12.5,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}>
+                    <option value="">Toutes dates</option><option value="Aujourd'hui">Aujourd'hui</option><option value="Cette semaine">Cette semaine</option><option value="Ce mois">Ce mois</option>
+                  </select>
+                  <input type="date" value={dateStart} onChange={e=>{setDateStart(e.target.value);setDateFilter("");}} style={{flex:1,minWidth:0,border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 8px",fontSize:12.5,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}/>
+                  <input type="date" value={dateEnd} onChange={e=>{setDateEnd(e.target.value);setDateFilter("");}} style={{flex:1,minWidth:0,border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 8px",fontSize:12.5,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}/>
+                  <span className="db-toolbar__count">{filtered.length} annonce{filtered.length!==1?"s":""}</span>
+                </div>
+              )}
+
+              {/* List — design dashboard, 2 par ligne */}
+              {annLoading?(
+                <div className="db-empty"><div className="db-spinner"/><p>Chargement…</p></div>
+              ):annonces.length===0?(
+                <div className="db-empty"><Home size={48} strokeWidth={1.2}/><p>Aucune annonce publiée.</p><Link to="/creer_annonce" className="db-btn-primary"><Plus size={16}/> Créer ma première annonce</Link></div>
+              ):filtered.length===0?(
+                <div className="db-empty"><Search size={40} strokeWidth={1.2}/><p>Aucun résultat pour « <strong>{search}</strong> »</p><button className="db-btn-secondary" onClick={()=>setSearch("")}>Effacer</button></div>
+              ):(
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                  {filtered.map(a=>{
+                    const badge=statusBadge(a.status); const prop=a.properties?.[0];
+                    const rawImg=a.image_principale||prop?.image_principale||null;
+                    const imgSrc=rawImg?(rawImg.startsWith("http")?rawImg:`${API_URL}${rawImg}`):null;
+                    return(
+                      <div key={a.id} className="db-card" style={{flexWrap:"wrap",rowGap:10,padding:0,overflow:"hidden"}}>
+                        {/* Image collée aux bords gauche/haut/bas */}
+                        <div style={{width:100,alignSelf:"stretch",flexShrink:0,background:"#e5e7eb",overflow:"hidden",borderRadius:0}}>
+                          {imgSrc?<img src={imgSrc} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} loading="lazy"/>:<div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center"}}><Home size={26} style={{color:"#94a3b8"}}/></div>}
+                        </div>
+                        {/* Contenu avec padding rétabli */}
+                        <div style={{flex:1,display:"flex",alignItems:"center",gap:18,padding:"16px 18px",flexWrap:"wrap",rowGap:10,minWidth:0}}>
+                        <div className="db-card__left">
+                          <div className="db-card__type-badge">{typeBienLabel(a.type_bien)}</div>
+                          <h3 className="db-card__title">{a.titre}</h3>
+                          <div className="db-card__meta">
+                            <span className={`db-badge ${badge.cls}`}>{badge.icon} {badge.label}</span>
+                            <span className="db-card__cat">{categorieLabel(a.categorie)}</span>
+                            {prop?.address&&<span className="db-card__loc"><MapPin size={11}/> {prop.address}</span>}
+                          </div>
+                        </div>
+                        <div className="db-card__center">
+                          <p className="db-card__prix">{a.prix?`${Number(a.prix).toLocaleString()} ${fmtDevise(a.devise)}`:"Prix non défini"}</p>
+                          <p className="db-card__sup">{a.superficie?`${a.superficie} m²`:""}</p>
+                          <p className="db-card__date"><Clock size={11}/> {new Date(a.date_creation).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})}</p>
+                          {/* Stats vues + favoris */}
+                          {(() => { const st = annonceStats[a.id] || {}; return (
+                            <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:12,marginTop:8}}>
+                              <span style={{display:"flex",alignItems:"center",gap:4,fontSize:14,fontWeight:800,color:"#6366f1"}}>
+                                <Eye size={14}/> {st.views_count ?? a.views_count ?? 0}
+                              </span>
+                              <span style={{display:"flex",alignItems:"center",gap:4,fontSize:14,fontWeight:800,color:"#e11d48"}}>
+                                <span style={{fontSize:15}}>♥</span> {st.favoris_count ?? 0}
+                              </span>
+                            </div>
+                          ); })()}
+                        </div>
+                        <div className="db-card__actions" style={{alignItems:"center"}}>
+                          <Link to={`/annonce/${a.id}`} className="db-action db-action--view" title="Voir"><Eye size={16}/></Link>
+                          <Link to={`/modifier_annonce/${a.id}`} className="db-action db-action--edit" title="Modifier"><Edit2 size={16}/></Link>
+                          <button
+                            onClick={() => handleRefresh(a.id)}
+                            disabled={refreshingId === a.id}
+                            className="db-action db-action--refresh"
+                            title="Refresh"
+                            style={{position:"relative"}}
+                          >
+                            <RefreshCw size={15} style={{animation: refreshingId===a.id ? "spin 1s linear infinite" : "none"}}/>
+                          </button>
+                          <div style={{display:"flex",flexDirection:"column",gap:5,width:180,flexShrink:0}}>
+                            <div style={{display:"flex",alignItems:"center",gap:6}}>
+                              <label style={{position:"relative",display:"inline-block",width:36,height:20,cursor:"pointer",flexShrink:0}}>
+                                <input type="checkbox" checked={!!a.accompagnement} onChange={()=>updateAnnonceAccompagnement(a.id,!a.accompagnement)} style={{opacity:0,width:0,height:0}}/>
+                                <span style={{position:"absolute",inset:0,background:a.accompagnement?"#6366f1":"#e5e7eb",borderRadius:20,transition:".2s"}}/>
+                                <span style={{position:"absolute",width:14,height:14,background:"#fff",borderRadius:"50%",top:3,left:a.accompagnement?19:3,transition:".2s"}}/>
+                              </label>
+                              <span style={{fontSize:11.5,fontWeight:600,color:a.accompagnement?"#6366f1":"#94a3b8",whiteSpace:"nowrap"}}>Accompagnement</span>
+                            </div>
+                            <select disabled={!a.accompagnement} value={a.accompagnement_agence_id||""} onChange={e=>updateAnnonceAccompagnement(a.id,true,e.target.value?parseInt(e.target.value):null)}
+                              style={{fontSize:11.5,padding:"4px 8px",borderRadius:6,border:`1px solid ${a.accompagnement?"#c7d2fe":"#e5e7eb"}`,background:a.accompagnement?"#f5f3ff":"#f8fafc",color:a.accompagnement?"#4338ca":"#94a3b8",fontFamily:"inherit",outline:"none",width:"100%",cursor:a.accompagnement?"pointer":"not-allowed",opacity:a.accompagnement?1:0.5}}>
+                              <option value="">— Choisir un agent —</option>
+                              {agencesList.map(ag=><option key={ag.id} value={ag.id}>{ag.nom||ag.email}</option>)}
+                            </select>
+                          </div>
+                          <button onClick={()=>{const label=a.categorie==="vente"?"vendu":"loué"; setSoldConfirm({id:a.id,label,titre:a.titre});}} style={{padding:"6px 12px",borderRadius:8,border:"1.5px solid #fbbf24",background:"#fffbeb",color:"#92400e",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
+                            {a.categorie==="vente"?"Déjà vendu ?":"Déjà loué ?"}
+                          </button>
+                          <button className="db-action db-action--del" style={{alignSelf:"center"}} title="Supprimer" onClick={()=>setDelItem(a)}><Trash2 size={16}/></button>
+                        </div>
+                        </div>{/* fin wrapper contenu */}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ═══════ DEMANDES REÇUES ═══════ */}
+          {tab==="contacts" && (
+            <div style={{background:"transparent"}}>
+              <div style={{marginBottom:20}}>
+                <h1 className="db-header__title">Demandes de contact</h1>
+                <p className="db-header__sub">Visiteurs qui souhaitent vous contacter via vos annonces anonymes</p>
+              </div>
+              {loadingContacts?(
+                <div style={{textAlign:"center",padding:"60px 20px",color:"#94a3b8",fontSize:14}}>Chargement des demandes…</div>
+              ):contactRequests.length===0?(
+                <div style={{textAlign:"center",padding:"60px 20px",background:"#fff",borderRadius:14,border:"1.5px dashed #e2e8f0"}}>
+                  <Bell size={40} style={{color:"#d1d5db",marginBottom:12}}/>
+                  <p style={{fontSize:15,fontWeight:700,color:"#374151",marginBottom:6}}>Aucune demande de contact</p>
+                  <p style={{fontSize:13,color:"#94a3b8"}}>Les personnes intéressées par vos annonces anonymes apparaîtront ici.</p>
+                </div>
+              ):(
+                <div style={{overflowX:"auto",background:"#fff",borderRadius:14,border:"1px solid #e5e7eb"}}>
+                  <table style={{width:"100%",borderCollapse:"collapse",fontFamily:"'Inter',system-ui,sans-serif",fontSize:13}}>
+                    <thead><tr style={{borderBottom:"2px solid #e5e7eb",background:"#f8fafc"}}>
+                      {["Contact","Annonce","Téléphone","Email","Message","Date","Statut"].map(h=><th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:700,color:"#374151",fontSize:11.5,textTransform:"uppercase",letterSpacing:".05em",whiteSpace:"nowrap"}}>{h}</th>)}
+                    </tr></thead>
+                    <tbody>
+                      {contactRequests.map(req=>(
+                        <tr key={req.id} style={{background:req.lu?"#fff":"#f0f9ff",borderBottom:"1px solid #f1f5f9",transition:"background .15s"}}>
+                          <td style={{padding:"12px 14px",verticalAlign:"middle"}}>
+                            <div style={{display:"flex",alignItems:"center",gap:8}}>
+                              <div style={{width:32,height:32,borderRadius:"50%",background:"linear-gradient(135deg,#6366f1,#818cf8)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:800,color:"#fff",flexShrink:0}}>{req.nom[0]?.toUpperCase()}</div>
+                              <span style={{fontWeight:600,color:"#0f172a"}}>{req.nom}</span>
+                            </div>
+                          </td>
+                          <td style={{padding:"12px 14px",verticalAlign:"middle",maxWidth:200}}>
+                            <Link to={`/annonce/${req.annonce_id}`} style={{display:"flex",alignItems:"center",gap:8,textDecoration:"none"}}>
+                              <div style={{width:44,height:44,borderRadius:7,overflow:"hidden",background:"#e5e7eb",flexShrink:0,border:"1px solid #e5e7eb"}}>
+                                <img src={`${API_URL}/annonces/${req.annonce_id}/image-principale`} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";e.target.parentNode.style.display="flex";e.target.parentNode.style.alignItems="center";e.target.parentNode.style.justifyContent="center";e.target.parentNode.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>';}}/>
+                              </div>
+                              <span style={{color:"#6366f1",fontWeight:600,fontSize:12.5,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",lineHeight:1.35}}>{req.annonce_titre||`Annonce #${req.annonce_id}`}</span>
+                            </Link>
+                          </td>
+                          <td style={{padding:"12px 14px",verticalAlign:"middle",whiteSpace:"nowrap"}}>
+                            {req.telephone?<div style={{display:"flex",gap:6}}><a href={`tel:${req.telephone.replace(/\s/g,"")}`} style={{color:"#15803d",fontWeight:600,textDecoration:"none"}}><Phone size={12}/> {req.telephone}</a><a href={`https://wa.me/${req.telephone.replace(/[\s+]/g,"").replace(/^00/,"")}?text=${encodeURIComponent(`Bonjour ${req.nom}, j'ai bien reçu votre demande.`)}`} target="_blank" rel="noopener noreferrer" style={{color:"#15803d",fontWeight:600,textDecoration:"none"}}>WhatsApp</a></div>:<span style={{color:"#cbd5e1"}}>—</span>}
+                          </td>
+                          <td style={{padding:"12px 14px",verticalAlign:"middle"}}>{req.email?<a href={`mailto:${req.email}?subject=Réponse demande&body=Bonjour ${req.nom},`} style={{color:"#1d4ed8",fontWeight:600,textDecoration:"none"}}><Mail size={12}/> {req.email}</a>:<span style={{color:"#cbd5e1"}}>—</span>}</td>
+                          <td style={{padding:"12px 14px",verticalAlign:"top",minWidth:280,maxWidth:440,color:"#374151"}}>
+                            <span style={{display:"block",lineHeight:1.6,fontSize:13,whiteSpace:expandedMsg!==req.id&&req.message?.length>120?"nowrap":"normal",overflow:expandedMsg!==req.id&&req.message?.length>120?"hidden":"visible",textOverflow:expandedMsg!==req.id&&req.message?.length>120?"ellipsis":"unset",cursor:req.message?.length>120?"pointer":"default"}} onClick={()=>req.message?.length>120&&setExpandedMsg(expandedMsg===req.id?null:req.id)}>{req.message||<span style={{color:"#cbd5e1"}}>—</span>}</span>
+                            {req.message&&req.message.length>120&&<span style={{fontSize:10.5,color:"#6366f1",fontWeight:600,cursor:"pointer",marginTop:2,display:"block"}} onClick={()=>setExpandedMsg(expandedMsg===req.id?null:req.id)}>{expandedMsg===req.id?"▲ Réduire":"▼ Voir tout"}</span>}
+                          </td>
+                          <td style={{padding:"12px 14px",verticalAlign:"middle",color:"#94a3b8",whiteSpace:"nowrap",fontSize:12}}>{new Date(req.created_at).toLocaleDateString("fr-TN",{day:"2-digit",month:"short",year:"numeric"})}</td>
+                          <td style={{padding:"12px 14px",verticalAlign:"middle"}}>
+                            <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                              {!req.lu?<button onClick={()=>markAsRead(req.id)} style={{padding:"4px 9px",borderRadius:6,border:"none",background:"#0ea5e9",color:"#fff",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>✓ Marquer lu</button>:<><span style={{fontSize:11,color:"#16a34a",fontWeight:600,padding:"4px 0"}}>✓ Lu</span><button onClick={()=>markAsUnread(req.id)} style={{padding:"3px 8px",borderRadius:6,border:"1px solid #e5e7eb",background:"#f8fafc",color:"#64748b",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>Non lu</button></>}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ═══════ MES ALERTES ═══════ */}
+          {tab==="alertes" && (
+            <div style={{background:"transparent"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20,flexWrap:"wrap",gap:12}}>
+                <div>
+                  <h1 className="db-header__title">Mes alertes immobilières</h1>
+                  <p className="db-header__sub">Recevez des notifications quand de nouvelles annonces correspondent à vos critères.</p>
+                </div>
+                <button onClick={()=>{setAlerteForm({...EMPTY_FORM});setAlerteModal("new");}} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 18px",borderRadius:10,border:"none",background:"#6366f1",color:"#fff",fontWeight:700,fontSize:13.5,cursor:"pointer",fontFamily:"inherit"}}>
+                  <Plus size={16}/> Créer une alerte
+                </button>
+              </div>
+              {loadingAlertes?(
+                <div style={{textAlign:"center",padding:"60px 20px",color:"#94a3b8",fontSize:14}}>Chargement…</div>
+              ):savedSearches.length===0?(
+                <div style={{textAlign:"center",padding:"60px 20px",background:"#fff",borderRadius:14,border:"1.5px dashed #e2e8f0"}}>
+                  <Bell size={40} style={{color:"#d1d5db",marginBottom:12}}/>
+                  <p style={{fontSize:15,fontWeight:700,color:"#374151",marginBottom:6}}>Aucune alerte enregistrée</p>
+                  <p style={{fontSize:13,color:"#94a3b8"}}>Cliquez sur "+ Créer une alerte" pour définir vos critères.</p>
+                </div>
+              ):(
+                <div style={{overflowX:"auto",background:"#fff",borderRadius:14,border:"1px solid #e5e7eb"}}>
+                  <table style={{width:"100%",minWidth:900,borderCollapse:"collapse",fontFamily:"'Inter',system-ui,sans-serif",fontSize:13}}>
+                    <thead><tr style={{borderBottom:"2px solid #e5e7eb",background:"#f8fafc"}}>
+                      {["Nom","Critères","Annonces","Accompagnement","Alerte email","Actions"].map(h=><th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:700,color:"#374151",fontSize:11.5,textTransform:"uppercase",letterSpacing:".05em",whiteSpace:"nowrap"}}>{h}</th>)}
+                    </tr></thead>
+                    <tbody>
+                      {savedSearches.map(s=>{
+                        const c=s.criteres||{};
+                        const ETAT_FR={nouveau:"Neuf",bon_etat:"Bon état",a_renover:"À rénover",cours_construction:"En construction"};
+                        const FEAT_LABELS={vue_mer:"Vue sur mer",vue_montagne:"Vue sur montagne",vue_foret:"Vue sur forêt",jardin:"Jardin",terrasse:"Terrasse",balcon:"Balcon",piscine:"Piscine",parking:"Parking",ascenseur:"Ascenseur",garage:"Garage",cellier:"Ch. rangement",meuble:"Meublé",concierge:"Concierge",gardien:"Gardien",animaux_admis:"Animaux admis",cuisine_equipee:"Cuisine équipée",climatisation:"Clim.",chauffage_centrale:"Chauffage",cheminee:"Cheminée",double_vitrage:"Double vitrage",porte_blindee:"Porte blindée",securite:"Sécurité",internet:"Internet",tv:"TV",machine_laver:"Machine laver",digicode:"Digicode",interphone:"Interphone"};
+                        const tags=[c.categories?.length>0&&c.categories.map(v=>CAT_FR2[v]||v).join(" / "),c.type&&(TYPE_FR[c.type]||c.type.replace(/_/g," ")),c.locNom||c.delNom||c.govNom,c.prixMin&&`≥ ${Number(c.prixMin).toLocaleString("fr-TN")} DT`,c.prixMax&&`≤ ${Number(c.prixMax).toLocaleString("fr-TN")} DT`,c.superficieMin&&c.superficieMax?`${c.superficieMin}–${c.superficieMax} m²`:c.superficieMin?`≥ ${c.superficieMin} m²`:c.superficieMax?`≤ ${c.superficieMax} m²`:null,c.bedsMin&&`${c.bedsMin}+ pièces`,c.chambresMin&&`${c.chambresMin}+ ch.`,c.etat&&(ETAT_FR[c.etat]||c.etat.replace(/_/g," ")),...(c.features?.length>0?c.features.map(k=>FEAT_LABELS[k]||k):[])].filter(Boolean);
+                        const count=alerteMatchCounts[s.id];
+                        return(
+                          <tr key={s.id} style={{borderBottom:"1px solid #f1f5f9",transition:"background .12s"}} onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"} onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
+                            <td style={{padding:"14px 14px",verticalAlign:"middle",minWidth:140}}><div style={{fontWeight:700,color:"#0f172a",fontSize:15}}>{s.nom||"Ma recherche"}</div><div style={{fontSize:12.5,color:"#94a3b8",marginTop:3}}>{new Date(s.created_at).toLocaleDateString("fr-TN",{day:"2-digit",month:"short",year:"numeric"})}</div></td>
+                            <td style={{padding:"14px 14px",verticalAlign:"middle",maxWidth:440}}><div style={{display:"flex",flexWrap:"wrap",gap:5}}>{tags.length>0?tags.map((t,i)=><span key={i} style={{background:"#eef2ff",color:"#4f46e5",fontSize:12.5,fontWeight:600,padding:"3px 10px",borderRadius:12}}>{t}</span>):<span style={{color:"#94a3b8",fontSize:13}}>Tous les biens</span>}</div></td>
+                            <td style={{padding:"14px 14px",verticalAlign:"middle",whiteSpace:"nowrap"}}><div style={{display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:20,fontWeight:800,color:count>0?"#6366f1":"#94a3b8"}}>{count!=null?count:"…"}</span><Link to={buildCarteUrl(c)} style={{display:"inline-flex",alignItems:"center",gap:5,padding:"5px 12px",borderRadius:8,background:"#eef2ff",color:"#4f46e5",fontSize:12,fontWeight:700,textDecoration:"none"}}><Search size={11}/> Consulter</Link></div></td>
+                            <td style={{padding:"14px 14px",verticalAlign:"middle",minWidth:200}}>
+                              <div style={{display:"flex",flexDirection:"column",gap:7}}>
+                                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                                  <label style={{position:"relative",display:"inline-block",width:40,height:22,cursor:"pointer",flexShrink:0}}><input type="checkbox" checked={!!alerteAccom[s.id]} onChange={()=>toggleAlerteAccom(s.id)} style={{opacity:0,width:0,height:0}}/><span style={{position:"absolute",inset:0,background:alerteAccom[s.id]?"#6366f1":"#e5e7eb",borderRadius:20,transition:".2s"}}/><span style={{position:"absolute",width:16,height:16,background:"#fff",borderRadius:"50%",top:3,left:alerteAccom[s.id]?21:3,transition:".2s"}}/></label>
+                                  <span style={{fontSize:13,color:alerteAccom[s.id]?"#6366f1":"#94a3b8",fontWeight:600}}>{alerteAccom[s.id]?"Activé":"Désactivé"}</span>
+                                </div>
+                                {alerteAccom[s.id]&&<select value={alerteAgence[s.id]||""} onChange={e=>setAlerteAgenceVal(s.id,e.target.value)} onClick={e=>e.stopPropagation()} style={{fontSize:12,padding:"5px 8px",borderRadius:7,border:"1px solid #c7d2fe",background:"#f5f3ff",color:"#4338ca",fontFamily:"inherit",outline:"none",width:"100%"}}><option value="">— Choisir un agent —</option>{agencesList.map(ag=><option key={ag.id} value={ag.id}>{ag.nom||ag.email}</option>)}</select>}
+                              </div>
+                            </td>
+                            <td style={{padding:"14px 14px",verticalAlign:"middle"}}>
+                              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                                <label style={{position:"relative",display:"inline-block",width:40,height:22,cursor:"pointer"}}><input type="checkbox" checked={!!s.email_alert} onChange={()=>toggleAlerteEmail(s.id)} style={{opacity:0,width:0,height:0}}/><span style={{position:"absolute",inset:0,background:s.email_alert?"#6366f1":"#e5e7eb",borderRadius:20,transition:".2s"}}/><span style={{position:"absolute",width:16,height:16,background:"#fff",borderRadius:"50%",top:3,left:s.email_alert?21:3,transition:".2s"}}/></label>
+                                <span style={{fontSize:13,color:s.email_alert?"#6366f1":"#94a3b8",fontWeight:600}}>{s.email_alert?"Activée":"Désactivée"}</span>
+                              </div>
+                            </td>
+                            <td style={{padding:"14px 14px",verticalAlign:"middle",whiteSpace:"nowrap"}}>
+                              <div style={{display:"flex",gap:8}}>
+                                <button onClick={()=>{setAlerteForm({...EMPTY_FORM,...(s.criteres||{}),nom:s.nom,email_alert:s.email_alert});setAlerteModal(s);}} style={{padding:"6px 12px",borderRadius:8,border:"1.5px solid #e2e8f0",background:"#fff",color:"#374151",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Modifier</button>
+                                <button onClick={()=>deleteAlert(s.id)} style={{padding:"6px 12px",borderRadius:8,border:"1.5px solid #fee2e2",background:"#fff",color:"#ef4444",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Supprimer</button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ═══════ MES FAVORIS ═══════ */}
+          {tab==="favoris" && (
+            <div style={{background:"transparent"}}>
+              <div style={{marginBottom:20}}>
+                <h1 className="db-header__title">Mes favoris {favoris.length>0&&<span style={{marginLeft:10,fontSize:14,fontWeight:600,background:"#fff0f6",color:"#e11d48",padding:"2px 10px",borderRadius:999}}>{favoris.length}</span>}</h1>
+                <p className="db-header__sub">{favoris.length} annonce{favoris.length!==1?"s":""} sauvegardée{favoris.length!==1?"s":""}</p>
+              </div>
+              {favLoading?(
+                <div style={{textAlign:"center",padding:"60px 20px",color:"#94a3b8"}}>Chargement…</div>
+              ):favoris.length===0?(
+                <div style={{textAlign:"center",padding:"60px 20px",background:"#fff",borderRadius:14,border:"1.5px dashed #e2e8f0"}}>
+                  <Heart size={48} color="#e2e8f0" style={{margin:"0 auto 16px"}}/>
+                  <p style={{color:"#64748b",marginBottom:20,fontSize:15}}>Vous n'avez pas encore de favoris.</p>
+                  <Link to="/carte" style={{display:"inline-flex",alignItems:"center",gap:7,padding:"10px 20px",background:"#0f172a",color:"#fff",borderRadius:10,fontSize:14,fontWeight:700,textDecoration:"none"}}><MapPin size={15}/> Explorer les annonces</Link>
+                </div>
+              ):(
+                <div className="fav-grid-compte">
+                  {favoris.map(f=>{
+                    const imgSrc=f.image?(f.image.startsWith("http")?f.image:`${API_URL}${f.image}`):null;
+                    const inCompare=compareIds.includes(String(f.id));
+                    return(
+                      <div key={f.id} className="fav-card" onClick={()=>navigate(`/annonce/${f.id}`)} style={{cursor:"pointer"}}>
+                        <div className="fav-card__img">
+                          {imgSrc
+                            ?<img src={imgSrc} alt={f.titre} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                            :<div className="fav-card__no-img"><Home size={28} color="#cbd5e1"/></div>
+                          }
+                          {f.categorie==="location"&&<span className="fav-cat fav-cat--location">Location</span>}
+                          {f.categorie==="vacances"&&<span className="fav-cat fav-cat--vacances">Vacances</span>}
+                        </div>
+                        <div className="fav-card__body">
+                          <p className="fav-card__title">{f.titre}</p>
+                          <p className="fav-card__loc"><MapPin size={12}/> {f.gouvernorat||"—"}</p>
+                          {/* Specs */}
+                          {(f.nb_pieces||f.nb_chambres||f.nb_salles_bain||f.superficie)&&(
+                            <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:8}}>
+                              {f.nb_pieces!=null&&<span style={{display:"flex",alignItems:"center",gap:3,fontSize:12,color:"#374151",fontWeight:500}}><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>{f.nb_pieces} p.</span>}
+                              {f.nb_chambres!=null&&<span style={{display:"flex",alignItems:"center",gap:3,fontSize:12,color:"#374151",fontWeight:500}}><Bed size={11}/>{f.nb_chambres} ch.</span>}
+                              {f.nb_salles_bain!=null&&<span style={{display:"flex",alignItems:"center",gap:3,fontSize:12,color:"#374151",fontWeight:500}}><Bath size={11}/>{f.nb_salles_bain} sdb</span>}
+                              {f.superficie!=null&&<span style={{display:"flex",alignItems:"center",gap:3,fontSize:12,color:"#374151",fontWeight:500}}><Maximize size={11}/>{f.superficie} m²</span>}
+                            </div>
+                          )}
+                          <div className="fav-card__foot">
+                            <div>
+                              <span className="fav-card__price">{Number(f.prix||0).toLocaleString("fr-TN")} <small>{fmtDevise(f.devise)}</small></span>
+                              {f.prix&&(()=>{const approx=fmtPriceApprox(f.prix,f.devise);return approx?<div style={{fontSize:10.5,color:"#94a3b8",fontWeight:500,marginTop:1}}>{approx}</div>:null;})()}
+                            </div>
+                            <div style={{display:"flex",gap:5,flexShrink:0}}>
+                              <Link to={`/annonce/${f.id}`} onClick={e=>e.stopPropagation()} className="fav-btn fav-btn--view">Voir <ArrowRight size={12}/></Link>
+                              <button className={`fav-btn fav-btn--compare${inCompare?" fav-btn--compare-active":""}`} onClick={e=>{e.stopPropagation();const cur=(()=>{try{return JSON.parse(localStorage.getItem("localizi_compare")||"[]");}catch{return[];}})();const rid=String(f.id);if(cur.includes(rid)){const next=cur.filter(i=>i!==rid);localStorage.setItem("localizi_compare",JSON.stringify(next));window.dispatchEvent(new Event("compare-updated"));}else if(cur.length>=4){alert("Maximum 4 annonces.");}else{const next=[...cur,rid];localStorage.setItem("localizi_compare",JSON.stringify(next));const meta=(()=>{try{return JSON.parse(localStorage.getItem("localizi_compare_meta")||"[]");}catch{return[];}})();localStorage.setItem("localizi_compare_meta",JSON.stringify([...meta,{id:f.id,titre:f.titre,prix:f.prix,devise:f.devise,image:imgSrc,gouvernorat:f.gouvernorat}]));window.dispatchEvent(new Event("compare-updated"));if(next.length>=2)window.dispatchEvent(new CustomEvent("compare-show-popup"));}}} title={inCompare?"Retirer de la comparaison":"Comparer"}>⇄</button>
+                              <button className="fav-btn fav-btn--del" onClick={e=>{e.stopPropagation();handleRemoveFav(f.id);}} title="Retirer des favoris"><Trash2 size={13}/></button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+          {/* ═══════ MON ÉQUIPE (agence only) ═══════ */}
+          {tab==="equipe" && storedUser?.role==="agence" && (
             <div>
-              <h1 className="cpt-hero__name">{profile.username}</h1>
-              <p className="cpt-hero__email">{profile.email}</p>
+              <div style={{...card,padding:"0"}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"22px 26px 18px",borderBottom:"1px solid #f1f5f9"}}>
+                  <div>
+                    <h2 style={{...cardTitle,display:"flex",alignItems:"center",gap:8}}><Users size={17} style={{color:"#6366f1"}}/>Agents de l'agence</h2>
+                    <p style={{fontSize:12,color:"#94a3b8",marginTop:3}}>{agents.length} agent{agents.length!==1?"s":""} rattaché{agents.length!==1?"s":""}</p>
+                  </div>
+                  <button onClick={()=>{ setAgentForm({username:"",email:"",nom:"",prenom:"",password:genAgentPwd()}); setAgentFormErr(""); setShowAgentModal(true); }} style={{display:"flex",alignItems:"center",gap:6,padding:"9px 18px",borderRadius:10,background:"#6366f1",color:"#fff",fontSize:13,fontWeight:700,border:"none",cursor:"pointer",fontFamily:"inherit"}}>
+                    <Plus size={15}/> Créer un compte agent
+                  </button>
+                </div>
+
+                {agentLoading ? (
+                  <div style={{display:"flex",alignItems:"center",gap:10,padding:"48px 24px",color:"#94a3b8",fontSize:14,justifyContent:"center"}}>
+                    <span style={{width:20,height:20,border:"2px solid #e2e8f0",borderTopColor:"#6366f1",borderRadius:"50%",display:"inline-block",animation:"cpt-spin .7s linear infinite"}}/>Chargement…
+                  </div>
+                ) : agents.length === 0 ? (
+                  <div style={{textAlign:"center",padding:"56px 24px"}}>
+                    <Users size={40} style={{color:"#d1d5db",marginBottom:12}}/>
+                    <p style={{fontWeight:600,color:"#374151",marginBottom:6}}>Aucun agent pour l'instant</p>
+                    <p style={{fontSize:13,color:"#9ca3af"}}>Créez le premier compte agent de votre agence.</p>
+                  </div>
+                ) : (
+                  <div style={{overflowX:"auto"}}>
+                    <table style={{width:"100%",borderCollapse:"collapse",fontSize:13.5}}>
+                      <thead>
+                        <tr>
+                          {["Agent","Email","Téléphone","Statut",""].map(h=>(
+                            <th key={h} style={{padding:"10px 16px",textAlign:"left",fontSize:11,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:".04em",borderBottom:"1px solid #f1f5f9",whiteSpace:"nowrap"}}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {agents.map(a=>(
+                          <tr key={a.id} style={{borderBottom:"1px solid #f8fafc"}}>
+                            <td style={{padding:"14px 16px",verticalAlign:"middle"}}>
+                              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                                <div style={{width:36,height:36,borderRadius:"50%",background:"#e0e7ff",display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0}}>
+                                  {a.profile_picture?<img src={a.profile_picture} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:14,fontWeight:700,color:"#6366f1"}}>{(a.username||"?")[0].toUpperCase()}</span>}
+                                </div>
+                                <div>
+                                  <div style={{fontWeight:700,color:"#0f172a"}}>{a.nom&&a.prenom?`${a.prenom} ${a.nom}`:a.username}</div>
+                                  {(a.nom||a.prenom)&&<div style={{fontSize:11,color:"#94a3b8"}}>@{a.username}</div>}
+                                </div>
+                              </div>
+                            </td>
+                            <td style={{padding:"14px 16px",color:"#475569",fontSize:13,verticalAlign:"middle"}}>{a.email}</td>
+                            <td style={{padding:"14px 16px",color:"#475569",fontSize:13,verticalAlign:"middle"}}>{a.phone_number||"—"}</td>
+                            <td style={{padding:"14px 16px",verticalAlign:"middle"}}>
+                              {a.must_change_password
+                                ?<span style={{display:"inline-flex",alignItems:"center",gap:4,padding:"3px 9px",borderRadius:999,fontSize:11,fontWeight:700,background:"#fef9c3",color:"#854d0e"}}><Clock size={11}/> Connexion en attente</span>
+                                :<span style={{display:"inline-flex",alignItems:"center",gap:4,padding:"3px 9px",borderRadius:999,fontSize:11,fontWeight:700,background:"#dcfce7",color:"#166534"}}><CheckCircle size={11}/> Actif</span>
+                              }
+                            </td>
+                            <td style={{padding:"14px 16px",verticalAlign:"middle"}}>
+                              <button onClick={()=>handleDeleteAgent(a.id,a.username)} disabled={deletingAgent===a.id} style={{width:30,height:30,borderRadius:8,border:"1.5px solid #e5e7eb",background:"#f8fafc",color:"#94a3b8",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"all .15s"}}
+                                onMouseOver={e=>{e.currentTarget.style.background="#fee2e2";e.currentTarget.style.borderColor="#fca5a5";e.currentTarget.style.color="#ef4444";}}
+                                onMouseOut={e=>{e.currentTarget.style.background="#f8fafc";e.currentTarget.style.borderColor="#e5e7eb";e.currentTarget.style.color="#94a3b8";}}>
+                                {deletingAgent===a.id?<span style={{width:14,height:14,border:"2px solid transparent",borderTopColor:"#ef4444",borderRadius:"50%",display:"inline-block",animation:"cpt-spin .7s linear infinite"}}/>:<Trash2 size={14}/>}
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal création agent */}
+              {showAgentModal&&(
+                <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9000,padding:16}} onClick={e=>{if(e.target===e.currentTarget)setShowAgentModal(false);}}>
+                  <div style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:520,boxShadow:"0 24px 64px rgba(0,0,0,.22)",overflow:"hidden"}}>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"20px 24px",borderBottom:"1px solid #f1f5f9"}}>
+                      <h3 style={{fontSize:16,fontWeight:800,color:"#0f172a",margin:0,display:"flex",alignItems:"center",gap:8}}><Plus size={16} style={{color:"#6366f1"}}/>Créer un compte agent</h3>
+                      <button onClick={()=>setShowAgentModal(false)} style={{width:32,height:32,borderRadius:8,border:"none",background:"#f1f5f9",color:"#64748b",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><X size={16}/></button>
+                    </div>
+                    <form onSubmit={handleCreateAgent}>
+                      <div style={{padding:"20px 24px",display:"flex",flexDirection:"column",gap:14}}>
+                        <div style={{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:9,padding:"10px 13px",fontSize:12,color:"#1e40af",display:"flex",alignItems:"flex-start",gap:8}}>
+                          <Building2 size={14} style={{flexShrink:0,marginTop:1}}/><span>Cet agent fera partie de <strong>{storedUser?.username}</strong>. Il pourra changer son mot de passe à sa première connexion.</span>
+                        </div>
+                        <p style={{fontSize:11,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:".06em",margin:"4px 0 -4px"}}>Identité (optionnel)</p>
+                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                          <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                            <label style={{fontSize:11.5,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:".04em"}}>Prénom</label>
+                            <input value={agentForm.prenom} onChange={e=>setAgentForm(p=>({...p,prenom:e.target.value}))} placeholder="Prénom" style={{padding:"10px 13px",border:"1.5px solid #e2e8f0",borderRadius:9,fontSize:13.5,fontFamily:"inherit",color:"#0f172a",outline:"none"}}/>
+                          </div>
+                          <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                            <label style={{fontSize:11.5,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:".04em"}}>Nom</label>
+                            <input value={agentForm.nom} onChange={e=>setAgentForm(p=>({...p,nom:e.target.value}))} placeholder="Nom de famille" style={{padding:"10px 13px",border:"1.5px solid #e2e8f0",borderRadius:9,fontSize:13.5,fontFamily:"inherit",color:"#0f172a",outline:"none"}}/>
+                          </div>
+                        </div>
+                        <p style={{fontSize:11,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:".06em",margin:"4px 0 -4px"}}>Identifiants de connexion *</p>
+                        <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                          <label style={{fontSize:11.5,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:".04em"}}>Nom d'utilisateur</label>
+                          <input value={agentForm.username} onChange={e=>setAgentForm(p=>({...p,username:e.target.value}))} placeholder="ex : agent.dupont" required style={{padding:"10px 13px",border:"1.5px solid #e2e8f0",borderRadius:9,fontSize:13.5,fontFamily:"inherit",color:"#0f172a",outline:"none"}}/>
+                        </div>
+                        <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                          <label style={{fontSize:11.5,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:".04em"}}>Email</label>
+                          <input type="email" value={agentForm.email} onChange={e=>setAgentForm(p=>({...p,email:e.target.value}))} placeholder="agent@exemple.com" required style={{padding:"10px 13px",border:"1.5px solid #e2e8f0",borderRadius:9,fontSize:13.5,fontFamily:"inherit",color:"#0f172a",outline:"none"}}/>
+                        </div>
+                        <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                          <label style={{fontSize:11.5,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:".04em"}}>Agence (rattachement)</label>
+                          <input value={storedUser?.username||""} readOnly style={{padding:"10px 13px",border:"1.5px solid #e2e8f0",borderRadius:9,fontSize:13.5,fontFamily:"inherit",color:"#94a3b8",background:"#f8fafc",outline:"none"}}/>
+                        </div>
+                        <p style={{fontSize:11,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:".06em",margin:"4px 0 -4px"}}>Mot de passe provisoire</p>
+                        <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                          <label style={{fontSize:11.5,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:".04em"}}>Mot de passe à communiquer</label>
+                          <div style={{display:"flex",gap:8}}>
+                            <input type={showAgentPwd?"text":"password"} value={agentForm.password} onChange={e=>setAgentForm(p=>({...p,password:e.target.value}))} style={{flex:1,minWidth:0,padding:"10px 13px",border:"1.5px solid #e2e8f0",borderRadius:9,fontSize:13.5,fontFamily:"inherit",color:"#0f172a",outline:"none"}}/>
+                            <button type="button" onClick={()=>setShowAgentPwd(v=>!v)} style={{width:40,height:40,border:"1.5px solid #e2e8f0",borderRadius:9,background:"#f8fafc",color:"#64748b",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}>{showAgentPwd?<EyeOff size={15}/>:<Eye size={15}/>}</button>
+                            <button type="button" onClick={()=>{navigator.clipboard.writeText(agentForm.password).then(()=>{setAgentPwdCopied(true);setTimeout(()=>setAgentPwdCopied(false),1800);});}} style={{width:40,height:40,border:"1.5px solid #e2e8f0",borderRadius:9,background:"#f8fafc",color:"#64748b",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}>{agentPwdCopied?<CheckCircle size={15} style={{color:"#16a34a"}}/>:<Copy size={15}/>}</button>
+                            <button type="button" onClick={()=>setAgentForm(p=>({...p,password:genAgentPwd()}))} style={{width:40,height:40,border:"1.5px solid #e2e8f0",borderRadius:9,background:"#f8fafc",color:"#64748b",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}><RefreshCw size={15}/></button>
+                          </div>
+                          <p style={{fontSize:11,color:"#94a3b8",marginTop:2}}>L'agent devra changer ce mot de passe à sa première connexion.</p>
+                        </div>
+                        {agentFormErr&&<p style={{color:"#ef4444",fontSize:12.5,fontWeight:600,margin:0}}>{agentFormErr}</p>}
+                      </div>
+                      <div style={{padding:"16px 24px",borderTop:"1px solid #f1f5f9",display:"flex",gap:10,justifyContent:"flex-end"}}>
+                        <button type="button" onClick={()=>setShowAgentModal(false)} style={{padding:"9px 18px",borderRadius:10,border:"1.5px solid #e5e7eb",background:"#fff",color:"#475569",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Annuler</button>
+                        <button type="submit" disabled={agentSaving} style={{padding:"9px 22px",borderRadius:10,border:"none",background:"#6366f1",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:6}}>
+                          {agentSaving?<><span style={{width:13,height:13,border:"2px solid rgba(255,255,255,.3)",borderTopColor:"#fff",borderRadius:"50%",display:"inline-block",animation:"cpt-spin .7s linear infinite"}}/>Création…</>:<><Plus size={13}/>Créer l'agent</>}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+        </main>
+      </div>
+
+      {/* ── Confirm delete ── */}
+      {delItem&&(
+        <div className="db-modal-bg" onClick={()=>setDelItem(null)}>
+          <div className="db-modal db-modal--sm" onClick={e=>e.stopPropagation()}>
+            <div className="db-modal__head"><h2>Supprimer cette annonce ?</h2><button onClick={()=>setDelItem(null)}><X size={20}/></button></div>
+            <div className="db-modal__body"><p style={{color:"#4b5563"}}>« <strong>{delItem.titre}</strong> » sera définitivement supprimée. Cette action est irréversible.</p></div>
+            <div className="db-modal__foot"><button className="db-modal__cancel" onClick={()=>setDelItem(null)}>Annuler</button><button className="db-modal__del" onClick={()=>handleDelete(delItem.id)}><Trash2 size={15}/> Supprimer</button></div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Confirm sold ── */}
+      {soldConfirm&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <div style={{background:"#fff",borderRadius:16,padding:"32px 28px",maxWidth:400,width:"90%",boxShadow:"0 20px 60px rgba(0,0,0,.25)",fontFamily:"'Inter',system-ui,sans-serif"}}>
+            <div style={{fontSize:32,textAlign:"center",marginBottom:12}}>{soldConfirm.label==="vendu"?"🏡":"🔑"}</div>
+            <h3 style={{fontSize:18,fontWeight:800,color:"#0f172a",textAlign:"center",marginBottom:8}}>Bien {soldConfirm.label} !</h3>
+            <p style={{fontSize:14,color:"#64748b",textAlign:"center",marginBottom:24,lineHeight:1.6}}><strong>"{soldConfirm.titre}"</strong><br/>En confirmant, cette annonce sera <strong>supprimée définitivement</strong>.<br/>Êtes-vous sûr(e) ?</p>
+            <div style={{display:"flex",gap:12,justifyContent:"center"}}>
+              <button onClick={()=>setSoldConfirm(null)} style={{padding:"10px 22px",borderRadius:9,border:"1.5px solid #e5e7eb",background:"#fff",color:"#374151",fontWeight:600,cursor:"pointer",fontSize:14,fontFamily:"inherit"}}>Annuler</button>
+              <button onClick={async()=>{try{const res=await fetch(`${API_URL}/annonces/${soldConfirm.id}`,{method:"DELETE",headers:{Authorization:`Bearer ${token}`}});if(!res.ok) throw new Error();setAnnonces(prev=>prev.filter(a=>a.id!==soldConfirm.id));setSoldConfirm(null);toast("Annonce supprimée.");}catch{toast("Erreur.","error");setSoldConfirm(null);}}} style={{padding:"10px 22px",borderRadius:9,border:"none",background:"#dc2626",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14,fontFamily:"inherit"}}>Confirmer la suppression</button>
             </div>
           </div>
         </div>
+      )}
 
-        <div className="cpt-body">
-          {/* Sidebar */}
-          <aside className="cpt-sidebar">
-            <Link to="/dashboard" className="cpt-nav-item">
-              <Home size={17}/> Mes annonces
-            </Link>
-            <Link to="/favoris" className="cpt-nav-item">
-              <Heart size={17}/> Mes favoris
-            </Link>
-            <button className="cpt-nav-item cpt-nav-item--active">
-              <User size={17}/> Mon profil
-            </button>
-            <button className="cpt-nav-item cpt-nav-item--danger" onClick={handleLogout}>
-              <LogOut size={17}/> Déconnexion
-            </button>
-          </aside>
+      {/* ── Alerte modal ── */}
+      {alerteModal&&<AlerteFiltersModal form={alerteForm} setForm={setAlerteForm} onClose={()=>setAlerteModal(null)} onSave={saveAlerte} saving={alerteSaving} isEdit={alerteModal!=="new"}/>}
 
-          {/* Main */}
-          <main className="cpt-main">
-            {/* Profile card */}
-            <div className="cpt-card">
-              <div className="cpt-card__head">
-                <h2>Informations personnelles</h2>
-                {!editing
-                  ? <button className="cpt-btn-sec" onClick={() => setEditing(true)}>
-                      <Edit size={14}/> Modifier
-                    </button>
-                  : <button className="cpt-btn-sec" onClick={() => setEditing(false)}>
-                      <X size={14}/> Annuler
-                    </button>
-                }
-              </div>
+      <style>{`
+        @keyframes cpt-spin { to { transform: rotate(360deg); } }
+        .db-page { font-family: 'Inter', system-ui, sans-serif; }
+        .db-header__title { font-size: 22px; font-weight: 800; color: #0f172a; margin:0 0 2px; }
+        .db-header__sub { font-size: 13px; color: #94a3b8; margin: 0; }
+        .db-btn-primary { display:inline-flex;align-items:center;gap:7px;padding:10px 18px;background:#0f172a;color:#fff;border-radius:10px;font-size:14px;font-weight:700;border:none;cursor:pointer;text-decoration:none;transition:background .15s;font-family:inherit; }
+        .db-btn-primary:hover { background:#1e293b; }
+        .db-btn-secondary { display:inline-flex;align-items:center;gap:7px;padding:9px 18px;background:#f1f5f9;color:#374151;border-radius:9px;font-size:13px;font-weight:600;border:1px solid #e2e8f0;cursor:pointer;transition:background .15s; }
+        .db-btn-secondary:hover { background:#e2e8f0; }
+        .db-stats { display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px; }
+        .db-stat { background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px 18px;display:flex;align-items:center;gap:12; }
+        .db-stat__ico { width:42px;height:42px;border-radius:10px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#64748b; }
+        .db-stat--green .db-stat__ico { background:#f0fdf4;color:#16a34a; }
+        .db-stat--amber .db-stat__ico { background:#fffbeb;color:#d97706; }
+        .db-stat--blue  .db-stat__ico { background:#eff6ff;color:#2563eb; }
+        .db-stat__val { font-size:22px;font-weight:800;color:#0f172a;line-height:1; }
+        .db-stat__lbl { font-size:12px;color:#94a3b8;margin-top:3px; }
+        .db-toolbar { display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:nowrap;width:100%; }
+        .db-search { flex:0 0 calc(50% - 4px);min-width:0;display:flex;align-items:center;gap:10px;background:#fff;border:1.5px solid #e2e8f0;border-radius:10px;padding:0 12px;transition:border-color .15s; }
+        .db-search:focus-within { border-color:#6366f1; }
+        .db-search__ico { color:#94a3b8;flex-shrink:0; }
+        .db-search__input { flex:1;border:none;outline:none;background:transparent;font-size:13.5px;color:#0f172a;font-family:inherit;padding:10px 0; }
+        .db-search__input::placeholder { color:#b0bac5; }
+        .db-search__clear { background:none;border:none;cursor:pointer;color:#94a3b8;display:flex;align-items:center;padding:2px;border-radius:4px;transition:color .15s; }
+        .db-search__clear:hover { color:#ef4444; }
+        .db-toolbar__count { font-size:12.5px;font-weight:600;color:#94a3b8;white-space:nowrap; }
+        .db-empty { text-align:center;padding:80px 20px;color:#94a3b8;display:flex;flex-direction:column;align-items:center;gap:16px; }
+        .db-spinner { width:34px;height:34px;border:3px solid #e5e7eb;border-top-color:#6366f1;border-radius:50%;animation:spin .7s linear infinite; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+        .db-list { display:flex;flex-direction:column;gap:12px; }
+        .db-card { background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px 20px;display:flex;align-items:center;gap:18px;transition:box-shadow .15s; }
+        .db-card:hover { box-shadow:0 4px 20px rgba(0,0,0,.07); }
+        .db-card__left { flex:1;min-width:0; }
+        .db-card__type-badge { display:inline-block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#6366f1;background:#eef2ff;padding:3px 8px;border-radius:6px;margin-bottom:5px; }
+        .db-card__title { font-size:15px;font-weight:700;color:#0f172a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px; }
+        .db-card__meta { display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:5px; }
+        .db-badge { display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px; }
+        .db-badge--ok   { background:#f0fdf4;color:#15803d; }
+        .db-badge--warn { background:#fffbeb;color:#b45309; }
+        .db-badge--err  { background:#fef2f2;color:#b91c1c; }
+        .db-card__cat { font-size:12px;color:#64748b;background:#f1f5f9;padding:3px 8px;border-radius:6px; }
+        .db-card__loc { font-size:12px;color:#94a3b8;display:flex;align-items:center;gap:3px; }
+        .db-card__center { min-width:130px;text-align:right; }
+        .db-card__prix { font-size:19px;font-weight:800;color:#0f172a; }
+        .db-card__sup { font-size:12px;color:#64748b;margin-top:2px; }
+        .db-card__date { font-size:11px;color:#94a3b8;margin-top:5px;display:flex;align-items:center;justify-content:flex-end;gap:4px; }
+        .db-card__actions { display:flex;gap:7px;flex-shrink:0; }
+        .db-action { width:34px;height:34px;border-radius:9px;border:1px solid #e5e7eb;display:flex;align-items:center;justify-content:center;cursor:pointer;background:#fff;text-decoration:none;color:#64748b;transition:all .15s; }
+        .db-action--view:hover { border-color:#6366f1;color:#6366f1;background:#eef2ff; }
+        .db-action--refresh { color:#4338ca;border-color:#a5b4fc;background:#eef2ff; }
+        .db-action--refresh:hover { border-color:#6366f1;color:#fff;background:#6366f1; }
+        .db-action--refresh:hover::after { content:"Refresh";position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;font-size:10px;font-weight:700;padding:3px 7px;border-radius:5px;white-space:nowrap;pointer-events:none; }
+        .db-action--edit:hover { border-color:#f59e0b;color:#d97706;background:#fffbeb; }
+        .db-action--del:hover  { border-color:#ef4444;color:#dc2626;background:#fef2f2; }
+        .db-modal-bg { position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px; }
+        .db-modal { background:#fff;border-radius:16px;width:100%;max-width:520px;box-shadow:0 20px 60px rgba(0,0,0,.2);overflow:hidden; }
+        .db-modal--sm { max-width:400px; }
+        .db-modal__head { display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid #e5e7eb; }
+        .db-modal__head h2 { font-size:17px;font-weight:700;color:#0f172a; }
+        .db-modal__head button { background:none;border:none;cursor:pointer;color:#64748b;padding:4px; }
+        .db-modal__body { padding:20px 24px;display:flex;flex-direction:column;gap:14px; }
+        .db-modal__body p { color:#4b5563; }
+        .db-modal__foot { display:flex;justify-content:flex-end;gap:10px;padding:16px 24px;border-top:1px solid #e5e7eb;background:#f8fafc; }
+        .db-modal__cancel { padding:9px 18px;border-radius:9px;border:1px solid #e5e7eb;background:#fff;color:#374151;font-size:14px;cursor:pointer;font-family:inherit; }
+        .db-modal__del { display:flex;align-items:center;gap:7px;padding:9px 18px;border-radius:9px;border:none;background:#dc2626;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit; }
 
-              <div className="cpt-grid">
-                <div className="cpt-field">
-                  <label><User size={12}/> Nom d'utilisateur</label>
-                  <input
-                    className={`cpt-input${editing ? " cpt-input--edit" : ""}`}
-                    value={profile.username}
-                    readOnly={!editing}
-                    onChange={e => setProfile(p => ({...p, username: e.target.value}))}
-                  />
-                </div>
-                <div className="cpt-field">
-                  <label><Mail size={12}/> Adresse e-mail</label>
-                  <input className="cpt-input" value={profile.email} readOnly/>
-                </div>
-                <div className="cpt-field">
-                  <label><Phone size={12}/> Téléphone</label>
-                  <div className="cpt-phone-row">
-                    <select
-                      className={`cpt-input cpt-phone-code${editing ? " cpt-input--edit" : ""}`}
-                      value={profile.phone_code || "+216"}
-                      readOnly={!editing}
-                      disabled={!editing}
-                      onChange={e => setProfile(p => ({...p, phone_code: e.target.value}))}
-                    >
-                      <option value="+216">🇹🇳 +216</option>
-                      <option value="+33">🇫🇷 +33</option>
-                      <option value="+1">🇺🇸 +1</option>
-                      <option value="+49">🇩🇪 +49</option>
-                      <option value="+44">🇬🇧 +44</option>
-                      <option value="+32">🇧🇪 +32</option>
-                      <option value="+41">🇨🇭 +41</option>
-                      <option value="+212">🇲🇦 +212</option>
-                      <option value="+213">🇩🇿 +213</option>
-                      <option value="+218">🇱🇾 +218</option>
-                      <option value="+966">🇸🇦 +966</option>
-                      <option value="+971">🇦🇪 +971</option>
-                    </select>
-                    <input
-                      className={`cpt-input cpt-phone-num${editing ? " cpt-input--edit" : ""}`}
-                      value={profile.phone_number || ""}
-                      placeholder="12 345 678"
-                      readOnly={!editing}
-                      onChange={e => setProfile(p => ({...p, phone_number: e.target.value}))}
-                    />
-                  </div>
-                </div>
-                <div className="cpt-field">
-                  <label><Camera size={12}/> Photo de profil</label>
-                  <div className="cpt-avatar-mini-row">
-                    {avatarPreview
-                      ? <img className="cpt-avatar-mini" src={avatarPreview} alt=""/>
-                      : <div className="cpt-avatar-mini cpt-avatar-mini--init">{initials}</div>
-                    }
-                    <button
-                      className="cpt-btn-upload"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploadingAvatar}
-                    >
-                      {uploadingAvatar ? "Upload…" : "Changer la photo"}
-                    </button>
-                  </div>
-                </div>
-              </div>
+        /* Favoris fav-card grid */
+        .fav-grid-compte { display:grid; grid-template-columns:repeat(5,1fr); gap:18px; }
+        .fav-card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; transition:box-shadow .2s,transform .2s; }
+        .fav-card:hover { box-shadow:0 6px 20px rgba(0,0,0,.12); transform:translateY(-3px); }
+        .fav-card__img { position:relative; height:190px; overflow:hidden; background:#e5e7eb; display:flex; align-items:center; justify-content:center; }
+        .fav-card__img img { width:100%; height:100%; object-fit:cover; display:block; }
+        .fav-card__no-img { display:flex; align-items:center; justify-content:center; width:100%; height:100%; }
+        .fav-cat { position:absolute; top:10px; left:10px; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; color:#fff; }
+        .fav-cat--location { background:#1e40af; }
+        .fav-cat--vacances { background:#f59e0b; }
+        .fav-card__body { padding:14px 14px 12px; }
+        .fav-card__title { font-weight:700; font-size:14px; color:#0f172a; margin-bottom:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .fav-card__loc { display:flex; align-items:center; gap:4px; font-size:12px; color:#64748b; margin-bottom:10px; }
+        .fav-card__foot { display:flex; align-items:center; justify-content:space-between; padding-top:10px; border-top:1px solid #f1f5f9; }
+        .fav-card__price { font-size:17px; font-weight:800; color:#0f172a; }
+        .fav-card__price small { font-size:12px; font-weight:500; color:#64748b; }
+        .fav-btn { display:inline-flex; align-items:center; gap:4px; padding:6px 11px; border-radius:7px; font-size:12px; font-weight:600; border:none; cursor:pointer; font-family:inherit; text-decoration:none; }
+        .fav-btn--view { background:#ede9fe; color:#6d28d9; }
+        .fav-btn--view:hover { background:#ddd6fe; }
+        .fav-btn--compare { background:#f0fdf4; color:#16a34a; font-size:14px; }
+        .fav-btn--compare:hover { background:#dcfce7; }
+        .fav-btn--compare-active { background:#16a34a; color:#fff; }
+        .fav-btn--compare-active:hover { background:#15803d; }
+        .fav-btn--del { background:#fef2f2; color:#ef4444; }
+        .fav-btn--del:hover { background:#fee2e2; }
+        @keyframes fadeInCmp { from{opacity:0;transform:scale(.96)} to{opacity:1;transform:scale(1)} }
+      `}</style>
 
-              {editing && (
-                <button
-                  className="cpt-save-btn"
-                  onClick={handleSaveProfile}
-                  disabled={saving}
-                >
-                  <Save size={15}/> {saving ? "Sauvegarde…" : "Enregistrer les modifications"}
-                </button>
-              )}
+      {/* ── Modal OTP vérification téléphone ── */}
+      {phoneOtpModal && (
+        <div style={{position:"fixed",inset:0,zIndex:99998,background:"rgba(15,23,42,.65)",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div style={{background:"#fff",borderRadius:20,maxWidth:400,width:"100%",padding:"36px 32px",boxShadow:"0 30px 80px rgba(0,0,0,.28)",position:"relative",animation:"fadeInCmp .2s ease"}}>
+            <div style={{textAlign:"center",marginBottom:24}}>
+              <div style={{fontSize:48,marginBottom:12}}>📱</div>
+              <h2 style={{fontSize:20,fontWeight:800,color:"#0f172a",margin:"0 0 8px"}}>Vérification du numéro</h2>
+              <p style={{fontSize:13.5,color:"#64748b",lineHeight:1.6}}>Un code à 6 chiffres a été envoyé à votre adresse email. Saisissez-le ci-dessous pour confirmer le changement.</p>
             </div>
-
-            {/* Mes annonces shortcut */}
-            <div className="cpt-shortcut">
-              <Home size={20} style={{color:"#6366f1", flexShrink:0}}/>
-              <div className="cpt-shortcut__text">
-                <p className="cpt-shortcut__title">Gérer mes annonces</p>
-                <p className="cpt-shortcut__sub">Voir, modifier et supprimer vos publications</p>
-              </div>
-              <Link to="/dashboard" className="cpt-shortcut__btn">Accéder →</Link>
+            <input
+              value={phoneOtpCode}
+              onChange={e=>setPhoneOtpCode(e.target.value.replace(/\D/g,"").slice(0,6))}
+              placeholder="_ _ _ _ _ _"
+              maxLength={6}
+              style={{width:"100%",padding:"14px",textAlign:"center",fontSize:28,fontWeight:800,letterSpacing:10,border:`2px solid ${phoneOtpErr?"#ef4444":"#e2e8f0"}`,borderRadius:12,outline:"none",fontFamily:"monospace",boxSizing:"border-box",marginBottom:8}}
+            />
+            {phoneOtpErr && <p style={{color:"#ef4444",fontSize:13,textAlign:"center",marginBottom:8}}>{phoneOtpErr}</p>}
+            <div style={{display:"flex",gap:10,marginTop:16}}>
+              <button onClick={()=>{setPhoneOtpModal(false);setPhoneOtpCode("");setPhoneOtpErr("");}} style={{flex:1,padding:"12px",borderRadius:10,border:"1.5px solid #e2e8f0",background:"#f8fafc",color:"#374151",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>Annuler</button>
+              <button disabled={phoneOtpCode.length!==6||phoneOtpLoading} onClick={async()=>{
+                setPhoneOtpLoading(true); setPhoneOtpErr("");
+                try{
+                  const r=await fetch(`${API_URL}/users/me/confirm-phone-change`,{method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({otp:phoneOtpCode})});
+                  if(!r.ok){const e=await r.json().catch(()=>({}));setPhoneOtpErr(e.detail||"Code incorrect.");return;}
+                  const updated=await r.json();
+                  localStorage.setItem("user",JSON.stringify({...storedUser,...updated}));
+                  setPhoneOtpModal(false); setEditing(false); toast("Numéro de téléphone vérifié et mis à jour !");
+                }catch{setPhoneOtpErr("Erreur serveur.");}finally{setPhoneOtpLoading(false);}
+              }} style={{flex:2,padding:"12px",borderRadius:10,border:"none",background:phoneOtpCode.length===6?"#6366f1":"#e2e8f0",color:phoneOtpCode.length===6?"#fff":"#94a3b8",fontWeight:700,fontSize:14,cursor:phoneOtpCode.length===6?"pointer":"default",fontFamily:"inherit",transition:"all .2s"}}>
+                {phoneOtpLoading?"Vérification…":"Confirmer →"}
+              </button>
             </div>
-          </main>
+          </div>
         </div>
+      )}
 
-        <style>{`
-          .cpt-page { min-height:100vh; background:#f8fafc; font-family:'Inter',system-ui,sans-serif; }
-
-          /* Hero */
-          .cpt-hero { background:linear-gradient(135deg,#0f172a 0%,#312e81 100%); padding:40px 24px; }
-          .cpt-hero__inner { max-width:1100px; margin:0 auto; display:flex; align-items:center; gap:24px; }
-          .cpt-avatar-wrap { position:relative; flex-shrink:0; }
-          .cpt-avatar {
-            width:76px; height:76px; border-radius:50%; overflow:hidden;
-            background:#fff; display:flex; align-items:center; justify-content:center;
-            box-shadow:0 4px 20px rgba(0,0,0,.3); position:relative;
-          }
-          .cpt-avatar img { width:100%; height:100%; object-fit:cover; }
-          .cpt-avatar__init { font-size:28px; font-weight:800; color:#0f172a; }
-          .cpt-avatar__spinner {
-            position:absolute; inset:0; background:rgba(0,0,0,.4);
-            border-radius:50%; display:flex; align-items:center; justify-content:center;
-          }
-          .cpt-avatar__spinner::after {
-            content:""; width:24px; height:24px; border:3px solid transparent;
-            border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite;
-          }
-          .cpt-avatar__cam {
-            position:absolute; bottom:0; right:0;
-            width:26px; height:26px; border-radius:50%;
-            background:#6366f1; border:2px solid #fff; color:#fff;
-            display:flex; align-items:center; justify-content:center;
-            cursor:pointer; transition:background .15s;
-          }
-          .cpt-avatar__cam:hover { background:#4f46e5; }
-          .cpt-hero__name  { font-size:22px; font-weight:800; color:#fff; }
-          .cpt-hero__email { font-size:14px; color:rgba(255,255,255,.7); margin-top:3px; }
-
-          /* Body layout */
-          .cpt-body { max-width:1100px; margin:0 auto; padding:32px 24px; display:grid; grid-template-columns:210px 1fr; gap:22px; }
-
-          /* Sidebar */
-          .cpt-sidebar {
-            background:#fff; border:1px solid #e5e7eb; border-radius:14px;
-            padding:10px; height:fit-content; position:sticky; top:20px;
-            display:flex; flex-direction:column; gap:3px;
-          }
-          .cpt-nav-item {
-            display:flex; align-items:center; gap:10px; padding:11px 13px;
-            border-radius:9px; border:none; background:transparent;
-            font-size:14px; font-weight:500; color:#64748b; cursor:pointer;
-            text-decoration:none; transition:all .15s; text-align:left; width:100%;
-            font-family:inherit;
-          }
-          .cpt-nav-item:hover { background:#f1f5f9; color:#0f172a; }
-          .cpt-nav-item--active { background:#eef2ff; color:#4f46e5; font-weight:700; }
-          .cpt-nav-item--danger { color:#dc2626; margin-top:8px; border-top:1px solid #f1f5f9; padding-top:12px; }
-          .cpt-nav-item--danger:hover { background:#fef2f2; }
-
-          /* Main */
-          .cpt-main { display:flex; flex-direction:column; gap:16px; }
-
-          /* Card */
-          .cpt-card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:26px; }
-          .cpt-card__head { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; }
-          .cpt-card__head h2 { font-size:17px; font-weight:700; color:#0f172a; }
-          .cpt-btn-sec {
-            display:flex; align-items:center; gap:6px; padding:8px 14px;
-            border-radius:8px; border:1px solid #e5e7eb; background:#fff;
-            font-size:13px; font-weight:600; color:#374151; cursor:pointer;
-            font-family:inherit; transition:all .15s;
-          }
-          .cpt-btn-sec:hover { border-color:#6366f1; color:#4f46e5; background:#eef2ff; }
-
-          /* Form grid */
-          .cpt-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; }
-          .cpt-field { display:flex; flex-direction:column; gap:6px; }
-          .cpt-field label {
-            font-size:11px; font-weight:700; color:#64748b; display:flex;
-            align-items:center; gap:5px; text-transform:uppercase; letter-spacing:.04em;
-          }
-          .cpt-input {
-            padding:10px 13px; border:1.5px solid #e2e8f0; border-radius:9px;
-            font-size:14px; color:#0f172a; background:#f8fafc;
-            font-family:inherit; outline:none; transition:border-color .15s;
-          }
-          .cpt-input--edit { background:#fff; border-color:#c7d2fe; }
-          .cpt-input--edit:focus { border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,.1); }
-          .cpt-input[readonly] { cursor:default; }
-
-          /* Avatar upload mini */
-          .cpt-avatar-mini-row { display:flex; align-items:center; gap:12px; padding:6px 0; }
-          .cpt-avatar-mini {
-            width:40px; height:40px; border-radius:50%; object-fit:cover;
-            border:2px solid #e5e7eb;
-          }
-          .cpt-avatar-mini--init {
-            background:#eef2ff; display:flex; align-items:center; justify-content:center;
-            font-size:16px; font-weight:800; color:#4f46e5;
-          }
-          .cpt-btn-upload {
-            padding:7px 14px; border-radius:8px; border:1.5px solid #c7d2fe;
-            background:#eef2ff; color:#4f46e5; font-size:13px; font-weight:600;
-            cursor:pointer; font-family:inherit; transition:all .15s;
-          }
-          .cpt-btn-upload:hover { background:#e0e7ff; }
-          .cpt-btn-upload:disabled { opacity:.6; cursor:not-allowed; }
-
-          /* Save button */
-          .cpt-save-btn {
-            display:flex; align-items:center; gap:7px;
-            margin-top:22px; padding:11px 24px; background:#0f172a; color:#fff;
-            border:none; border-radius:10px; font-size:14px; font-weight:700;
-            cursor:pointer; font-family:inherit; transition:background .15s;
-          }
-          .cpt-save-btn:hover { background:#1e293b; }
-          .cpt-save-btn:disabled { opacity:.6; cursor:not-allowed; }
-
-          /* Shortcut */
-          .cpt-shortcut {
-            background:#fff; border:1px solid #e5e7eb; border-radius:14px;
-            padding:20px 24px; display:flex; align-items:center; gap:16px;
-          }
-          .cpt-shortcut__text { flex:1; }
-          .cpt-shortcut__title { font-weight:700; color:#0f172a; font-size:15px; }
-          .cpt-shortcut__sub   { font-size:13px; color:#94a3b8; margin-top:3px; }
-          .cpt-shortcut__btn {
-            padding:9px 18px; background:#0f172a; color:#fff;
-            border-radius:9px; font-size:14px; font-weight:700; text-decoration:none;
-            white-space:nowrap; transition:background .15s;
-          }
-          .cpt-shortcut__btn:hover { background:#1e293b; }
-
-          /* Phone row */
-          .cpt-phone-row { display: flex; gap: 8px; }
-          .cpt-phone-code { flex-shrink: 0; width: 110px; cursor: pointer; }
-          .cpt-phone-num { flex: 1; }
-
-          @keyframes spin { to { transform:rotate(360deg); } }
-
-          @media (max-width:768px) {
-            .cpt-body { grid-template-columns:1fr; }
-            .cpt-sidebar { position:static; }
-            .cpt-grid { grid-template-columns:1fr; }
-          }
-        `}</style>
-      </div>
-    </Layout>
+      {/* ── Popup comparateur ── */}
+      {showCmpPopup && (()=>{
+        const meta=(()=>{try{return JSON.parse(localStorage.getItem("localizi_compare_meta")||"[]");}catch{return[];}})();
+        return(
+          <div style={{position:"fixed",inset:0,zIndex:99999,background:"rgba(15,23,42,0.65)",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={()=>setShowCmpPopup(false)}>
+            <div style={{background:"#fff",borderRadius:20,maxWidth:520,width:"100%",padding:"32px 28px",boxShadow:"0 30px 80px rgba(0,0,0,.28)",position:"relative",animation:"fadeInCmp .2s ease"}} onClick={e=>e.stopPropagation()}>
+              <button onClick={()=>setShowCmpPopup(false)} style={{position:"absolute",top:14,right:14,background:"#f1f5f9",border:"none",borderRadius:"50%",width:32,height:32,cursor:"pointer",color:"#64748b",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>×</button>
+              <div style={{fontSize:17,fontWeight:800,color:"#0f172a",marginBottom:4}}>Sélection pour comparaison</div>
+              <div style={{fontSize:12.5,color:"#94a3b8",marginBottom:20}}>{compareIds.length} bien{compareIds.length>1?"s":""} sélectionné{compareIds.length>1?"s":""} · max 4</div>
+              <div style={{height:1,background:"#f1f5f9",marginBottom:16}}/>
+              <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:24,maxHeight:280,overflowY:"auto"}}>
+                {compareIds.map(id=>{
+                  const d=meta.find(m=>String(m.id)===String(id))||{};
+                  return(
+                    <div key={id} style={{display:"flex",alignItems:"center",gap:14,padding:"12px 14px",borderRadius:12,background:"#f8fafc",border:"1.5px solid #e5e7eb"}}>
+                      {d.image?<img src={d.image} style={{width:56,height:44,objectFit:"cover",borderRadius:8,flexShrink:0}} onError={e=>{e.target.style.display="none";}}/>:<div style={{width:56,height:44,borderRadius:8,background:"#e5e7eb",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>🏠</div>}
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:14,fontWeight:700,color:"#0f172a",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{d.titre||`Annonce #${id}`}</div>
+                        <div style={{fontSize:12,color:"#64748b",marginTop:3}}>{d.gouvernorat&&<span>📍 {d.gouvernorat}</span>}{d.prix&&<span style={{marginLeft:8,fontWeight:700,color:"#4f46e5"}}>{Number(d.prix).toLocaleString("fr-TN")} {fmtDevise(d.devise)}</span>}</div>
+                      </div>
+                      <button onClick={()=>{const next=compareIds.filter(i=>i!==id);localStorage.setItem("localizi_compare",JSON.stringify(next));const nextMeta=meta.filter(m=>String(m.id)!==String(id));localStorage.setItem("localizi_compare_meta",JSON.stringify(nextMeta));window.dispatchEvent(new Event("compare-updated"));}} style={{background:"none",border:"1.5px solid #e5e7eb",borderRadius:"50%",width:28,height:28,cursor:"pointer",color:"#94a3b8",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>×</button>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{display:"flex",gap:12}}>
+                <button onClick={()=>setShowCmpPopup(false)} style={{flex:1,padding:"12px",borderRadius:10,border:"1.5px solid #e5e7eb",background:"#f8fafc",color:"#374151",fontWeight:700,cursor:"pointer",fontSize:14,fontFamily:"inherit"}}>Continuer</button>
+                <button onClick={()=>{setShowCmpPopup(false);navigate(`/comparateur?ids=${compareIds.join(",")}`);}} style={{flex:2,padding:"12px",borderRadius:10,border:"none",background:"linear-gradient(135deg,#4f46e5,#7c3aed)",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14,fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>Aller au comparateur →</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+    </div>
   );
 }
+
+/* ── Sub-components ── */
+function F({ label, children, full }) {
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:5,gridColumn:full?"1 / -1":undefined}}>
+      <label style={{fontSize:11,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:".04em"}}>{label}</label>
+      {children}
+    </div>
+  );
+}
+
+/* ── Style objects ── */
+function sideNavStyle(active) {
+  return { display:"flex",alignItems:"center",gap:12,padding:"12px 16px",borderRadius:11,border:"none",background:active?"#eef2ff":"transparent",color:active?"#4f46e5":"#475569",fontWeight:active?700:500,fontSize:15,cursor:"pointer",textDecoration:"none",textAlign:"left",width:"100%",fontFamily:"inherit",transition:"all .15s" };
+}
+function inp(editable) {
+  return { padding:"9px 12px",borderRadius:9,fontSize:13.5,color:"#0f172a",fontFamily:"inherit",outline:"none",width:"100%",boxSizing:"border-box",border:editable?"1.5px solid #c7d2fe":"1.5px solid #e5e7eb",background:editable?"#fff":"#f8fafc",cursor:editable?"text":"default",transition:"border-color .15s" };
+}
+const card = { background:"#fff",borderRadius:16,border:"1px solid #e5e7eb",padding:"24px 28px",boxShadow:"0 2px 10px rgba(0,0,0,.04)" };
+const cardTitle = { fontSize:16,fontWeight:800,color:"#0f172a",margin:"0 0 20px" };
+const btnSec = { display:"flex",alignItems:"center",gap:6,padding:"7px 13px",borderRadius:9,border:"1px solid #e5e7eb",background:"#fff",fontSize:13,fontWeight:600,color:"#374151",cursor:"pointer",fontFamily:"inherit" };
+const saveBtn = { display:"flex",alignItems:"center",gap:7,marginTop:20,padding:"10px 22px",background:"#0f172a",color:"#fff",border:"none",borderRadius:10,fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit" };

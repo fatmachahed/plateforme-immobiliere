@@ -2,6 +2,7 @@ import React from "react";
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import "leaflet/dist/leaflet.css";
 import { ToastProvider } from "./components/Toast";
+import CookieBanner    from "./components/CookieBanner";
 import { LanguageProvider } from "./contexts/LanguageContext";
 
 /* Pages */
@@ -15,6 +16,7 @@ import Compte           from "./pages/Compte";
 import Dashboard        from "./pages/Dashboard";
 import Login            from "./pages/Login";
 import Register         from "./pages/Register";
+import VerifyEmail      from "./pages/VerifyEmail";
 import Logout           from "./pages/Logout";
 import Apropos          from "./pages/Apropos";
 import Contact          from "./pages/Contact";
@@ -27,6 +29,17 @@ import BoosterPage             from "./pages/BoosterPage";
 import QuiSommesNous          from "./pages/QuiSommesNous";
 import PolitiqueConfidentialite from "./pages/PolitiqueConfidentialite";
 import Comparateur              from "./pages/Comparateur";
+import FAQ                      from "./pages/FAQ";
+import CGU                      from "./pages/CGU";
+import TrouverUnAgent           from "./pages/TrouverUnAgent";
+import AgentProfile             from "./pages/AgentProfile";
+import CommentCaMarche          from "./pages/CommentCaMarche";
+import SignalerProbleme         from "./pages/SignalerProbleme";
+import Partenaires              from "./pages/Partenaires";
+import MentionsLegales          from "./pages/MentionsLegales";
+import Cookies                  from "./pages/Cookies";
+import VendrePage               from "./pages/VendrePage";
+import AgenceAgents             from "./pages/AgenceAgents";
 
 function App() {
   return (
@@ -54,6 +67,7 @@ function App() {
           <Route path="/favoris"   element={<Favoris />} />
           <Route path="/login"            element={<Login />} />
           <Route path="/register"         element={<Register />} />
+          <Route path="/verify-email/:token" element={<VerifyEmail />} />
           <Route path="/logout"           element={<Logout />} />
           <Route path="/forgot-password"  element={<ForgotPassword />} />
           <Route path="/reset-password"   element={<ResetPassword />} />
@@ -66,8 +80,20 @@ function App() {
           <Route path="/contact"                   element={<Contact />} />
           <Route path="/qui-sommes-nous"            element={<QuiSommesNous />} />
           <Route path="/politique-confidentialite"  element={<PolitiqueConfidentialite />} />
+          <Route path="/faq"                        element={<FAQ />} />
+          <Route path="/cgu"                        element={<CGU />} />
+          <Route path="/trouver-un-agent"           element={<TrouverUnAgent />} />
+          <Route path="/agent/:id"                  element={<AgentProfile />} />
+          <Route path="/comment-ca-marche"          element={<CommentCaMarche />} />
+          <Route path="/signaler-probleme"          element={<SignalerProbleme />} />
+          <Route path="/partenaires"               element={<Partenaires />} />
+          <Route path="/mentions-legales"          element={<MentionsLegales />} />
+          <Route path="/cookies"                   element={<Cookies />} />
+          <Route path="/vendre"                    element={<VendrePage />} />
+          <Route path="/espace-agence/agents"      element={<AgenceAgents />} />
         </Routes>
       </Router>
+      <CookieBanner />
     </ToastProvider>
     </LanguageProvider>
   );

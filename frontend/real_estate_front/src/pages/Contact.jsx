@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import Layout from "../components/Layout";
 import {
   MapPin, Mail, Clock, Send, MessageSquare,
@@ -9,8 +9,12 @@ import API_URL from "../config";
 const WHATSAPP_NUMBER = "21600000000"; // À remplacer par le vrai numéro
 
 export default function Contact() {
+  const storedUser = (() => { try { return JSON.parse(localStorage.getItem("user")); } catch { return null; } })();
   const [formData, setFormData] = useState({
-    nom: "", email: "", telephone: "", sujet: "", message: ""
+    nom:       storedUser?.username || storedUser?.nom || "",
+    email:     storedUser?.email    || "",
+    telephone: storedUser?.phone_number || "",
+    sujet: "", message: ""
   });
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
@@ -234,14 +238,14 @@ export default function Contact() {
 
                         <div style={{display:"flex",gap:10,marginTop:4}}>
                           <a
-                            href={`mailto:${DEST}?subject=${encodeURIComponent(formData.sujet||"Contact Localizi")}&body=${encodeURIComponent(formData.message||"")}`}
+                            href={`mailto:${DEST}?subject=${encodeURIComponent(formData.sujet||"Contact Localizi.tn")}&body=${encodeURIComponent(formData.message||"")}`}
                             className="ct-submit"
                             style={{background:"#6366f1",textDecoration:"none",flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}
                           >
                             <Mail size={15}/> Envoyer par e-mail
                           </a>
                           <a
-                            href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent((formData.message||"Bonjour, je vous contacte depuis Localizi."))}`}
+                            href={`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent((formData.message||"Bonjour, je vous contacte depuis Localizi.tn."))}`}
                             target="_blank" rel="noopener noreferrer"
                             className="ct-submit"
                             style={{background:"#16a34a",textDecoration:"none",flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:8}}

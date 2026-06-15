@@ -4,6 +4,7 @@ class RoleEnum(str, enum.Enum):
     admin = "admin"
     promoteur = "promoteur"
     agence = "agence"
+    agent = "agent"
     particulier = "particulier"
     professionnel = "professionnel"
     partenaire = "partenaire"
@@ -17,6 +18,7 @@ class TypeBienEnum(str, enum.Enum):
     # NOTE: PostgreSQL migration needed:
     #   ALTER TYPE typebienum ADD VALUE 'villa_maison';
     #   ALTER TYPE typebienum ADD VALUE 'immobiliers_divers';
+    #   ALTER TYPE typebienum ADD VALUE 'depot_stockage';
     #   (bord_eau and maison kept in DB for backward compat, but new entries use villa_maison/immobiliers_divers)
     appartement = "appartement"
     villa = "villa"
@@ -24,8 +26,12 @@ class TypeBienEnum(str, enum.Enum):
     bureau = "bureau"
     local_commercial = "local_commercial"
     terrain = "terrain"
-    ferme = "ferme"
+    ferme_agricole = "ferme_agricole"
+    ferme          = "ferme"          # legacy — migré vers ferme_agricole
     immobiliers_divers = "immobiliers_divers"
+    immeuble           = "immeuble"
+    garage_parking     = "garage_parking"
+    depot_stockage     = "depot_stockage"
 
 class EtatBienEnum(str, enum.Enum):
     nouveau = "nouveau"
@@ -74,6 +80,12 @@ class TitreFoncierEnum(str, enum.Enum):
     indivision = "indivision"
 
 class DeviseEnum(str, enum.Enum):
-    TND = "TND"
+    DT  = "DT"
+    TND = "TND"  # legacy alias — ancienne valeur en base, conservée pour compatibilité
     EUR = "EUR"
     USD = "USD"
+
+class StandingEnum(str, enum.Enum):
+    economique      = "economique"
+    moyen_standing  = "moyen_standing"
+    haut_standing   = "haut_standing"

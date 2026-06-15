@@ -23,7 +23,7 @@ const RecentProperties = ({ properties }) => {
                   <span><Maximize size={16} /> {property.area}m²</span>
                 </div>
                 <div className="property-footer">
-                  <div className="property-price">{property.price} DT</div>
+                  <div className="property-price">{property.price} TND</div>
                   <button className="view-button">Voir détails</button>
                 </div>
               </div>

@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect } from "react";
-import API_URL from '../config';
+import ReactDOM from "react-dom";
+import API_URL, { fmtDevise, fmtPriceApprox } from '../config';
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   ChevronLeft, ChevronRight, ArrowLeft, MapPin,
@@ -9,14 +10,18 @@ import {
   Waves, Mountain, TreePine, Fence, Sun, Flower2, Droplets, ParkingCircle,
   ArrowUpDown, Car, Package, Sofa, Users, ShieldCheck,
   UtensilsCrossed, Wind, Thermometer, Flame, DoorClosed, LockKeyhole,
-  Fingerprint, Wifi, Monitor, RefreshCw, KeyRound, PhoneCall
+  Fingerprint, Wifi, Monitor, RefreshCw, KeyRound, PhoneCall,
+  Layers, Star, Ruler, ChevronsUp, Compass,
+  MessageCircle, Info, Send, X
 } from "lucide-react";
 import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
+import Logo from "../components/Logo";
 import { useToast } from "../components/Toast";
 import { useLanguage } from "../contexts/LanguageContext";
 
 
-/* ── Haversine distance in km ── */
+/* -- Haversine distance in km -- */
 function haversine(lat1, lng1, lat2, lng2) {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -28,15 +33,15 @@ function haversine(lat1, lng1, lat2, lng2) {
 
 /* DEMO fallback for non-API annonces */
 const DEMO = [
-  { id:1, titre:"Villa 4 chambres — La Marsa", prix:850000, devise:"DT", location:"La Marsa, Tunis", beds:4, baths:3, area:320, type:"Villa", categorie:"Vente", etat:"Bon état", annee:2018, description:"Magnifique villa moderne de 320 m² avec jardins aménagés, piscine et double garage. Finitions haut de gamme, cuisine équipée, salon américain et vue dégagée.", features:["Jardin","Piscine","Garage","Terrasse","Cuisine équipée","Climatisation","Sécurité"], lat:36.879, lng:10.325, images:["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=900&q=80","https://images.unsplash.com/photo-1600607687939-ce8a6d338c45?w=900&q=80"], contact:{nom:"Ahmed Ben Salem",tel:"+216 55 123 456",email:"ahmed@immo.tn"} },
-  { id:2, titre:"Appartement S+3 — Lac 2", prix:320000, devise:"DT", location:"Berges du Lac, Tunis", beds:3, baths:2, area:145, type:"Appartement", categorie:"Vente", etat:"Neuf", annee:2023, description:"Appartement neuf S+3 dans résidence sécurisée avec ascenseur et parking. Lumineux, vue sur le lac.", features:["Ascenseur","Parking","Gardien","Double vitrage"], lat:36.838, lng:10.235, images:["https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=900&q=80"], contact:{nom:"Sonia Trabelsi",tel:"+216 22 987 654",email:"sonia@immo.tn"} },
-  { id:3, titre:"Terrain résidentiel — Sousse", prix:180000, devise:"DT", location:"Sousse Nord", beds:null, baths:null, area:500, type:"Terrain", categorie:"Vente", etat:"Viabilisé", annee:null, description:"Terrain résidentiel de 500 m² dans lotissement autorisé. Toutes viabilisations réalisées.", features:["Titre foncier","Viabilisé","Raccordé ONAS"], lat:35.828, lng:10.636, images:["https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=900&q=80"], contact:{nom:"Mohamed Gharbi",tel:"+216 98 456 789",email:"m.gharbi@terrain.tn"} },
-  { id:4, titre:"Appartement meublé — Hammamet", prix:1800, devise:"DT/mois", location:"Hammamet Centre", beds:2, baths:1, area:85, type:"Appartement", categorie:"Location", etat:"Meublé", annee:2015, description:"Appartement S+2 entièrement meublé à 5 min de la plage. Tout équipé.", features:["Meublé","Climatisation","Wifi","Balcon"], lat:36.400, lng:10.620, images:["https://images.unsplash.com/photo-1560448204-603b3fc33ddc?w=900&q=80"], contact:{nom:"Karim Chaabane",tel:"+216 71 234 567",email:"karim@immo.tn"} },
-  { id:5, titre:"Villa avec piscine — Gammarth", prix:1200000, devise:"DT", location:"Gammarth", beds:5, baths:4, area:420, type:"Villa", categorie:"Vente", etat:"Excellent état", annee:2020, description:"Villa de luxe R+1 avec piscine chauffée, jardin 800 m², 5 chambres.", features:["Piscine chauffée","Jardin 800m²","Gardien 24h"], lat:36.903, lng:10.299, images:["https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=900&q=80"], contact:{nom:"Agence Prestige Immo",tel:"+216 71 800 900",email:"contact@prestige.tn"} },
-  { id:6, titre:"Duplex — Ennasr", prix:290000, devise:"DT", location:"Ennasr, Ariana", beds:3, baths:2, area:165, type:"Appartement", categorie:"Vente", etat:"Bon état", annee:2016, description:"Beau duplex S+3 de 165 m² avec terrasse 40 m².", features:["Terrasse 40m²","Ascenseur","Cuisine équipée"], lat:36.860, lng:10.195, images:["https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=900&q=80"], contact:{nom:"Nadia Hajri",tel:"+216 29 111 222",email:"nadia@immo.tn"} },
+  { id:1, titre:"Villa 4 chambres — La Marsa", prix:850000, devise:"TND", location:"La Marsa, Tunis", beds:4, baths:3, area:320, type:"Villa", categorie:"Vente", etat:"Bon état", annee:2018, description:"Magnifique villa moderne de 320 m² avec jardins aménagés, piscine et double garage. Finitions haut de gamme, cuisine équipée, salon américain et vue dégagée.", features:["Jardin","Piscine","Garage","Terrasse","Cuisine équipée","Climatisation","Sécurité"], lat:36.879, lng:10.325, images:["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=900&q=80","https://images.unsplash.com/photo-1600607687939-ce8a6d338c45?w=900&q=80"], contact:{nom:"Ahmed Ben Salem",tel:"+216 55 123 456",email:"ahmed@immo.tn"} },
+  { id:2, titre:"Appartement S+3 — Lac 2", prix:320000, devise:"TND", location:"Berges du Lac, Tunis", beds:3, baths:2, area:145, type:"Appartement", categorie:"Vente", etat:"Neuf", annee:2023, description:"Appartement neuf S+3 dans résidence sécurisée avec ascenseur et parking. Lumineux, vue sur le lac.", features:["Ascenseur","Parking","Gardien","Double vitrage"], lat:36.838, lng:10.235, images:["https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=900&q=80"], contact:{nom:"Sonia Trabelsi",tel:"+216 22 987 654",email:"sonia@immo.tn"} },
+  { id:3, titre:"Terrain résidentiel — Sousse", prix:180000, devise:"TND", location:"Sousse Nord", beds:null, baths:null, area:500, type:"Terrain", categorie:"Vente", etat:"Viabilisé", annee:null, description:"Terrain résidentiel de 500 m² dans lotissement autorisé. Toutes viabilisations réalisées.", features:["Titre foncier","Viabilisé","Raccordé ONAS"], lat:35.828, lng:10.636, images:["https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=900&q=80"], contact:{nom:"Mohamed Gharbi",tel:"+216 98 456 789",email:"m.gharbi@terrain.tn"} },
+  { id:4, titre:"Appartement meublé — Hammamet", prix:1800, devise:"TND/mois", location:"Hammamet Centre", beds:2, baths:1, area:85, type:"Appartement", categorie:"Location", etat:"Meublé", annee:2015, description:"Appartement S+2 entièrement meublé à 5 min de la plage. Tout équipé.", features:["Meublé","Climatisation","Wifi","Balcon"], lat:36.400, lng:10.620, images:["https://images.unsplash.com/photo-1560448204-603b3fc33ddc?w=900&q=80"], contact:{nom:"Karim Chaabane",tel:"+216 71 234 567",email:"karim@immo.tn"} },
+  { id:5, titre:"Villa avec piscine — Gammarth", prix:1200000, devise:"TND", location:"Gammarth", beds:5, baths:4, area:420, type:"Villa", categorie:"Vente", etat:"Excellent état", annee:2020, description:"Villa de luxe R+1 avec piscine chauffée, jardin 800 m², 5 chambres.", features:["Piscine chauffée","Jardin 800m²","Gardien 24h"], lat:36.903, lng:10.299, images:["https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=900&q=80"], contact:{nom:"Agence Prestige Immo",tel:"+216 71 800 900",email:"contact@prestige.tn"} },
+  { id:6, titre:"Duplex — Ennasr", prix:290000, devise:"TND", location:"Ennasr, Ariana", beds:3, baths:2, area:165, type:"Appartement", categorie:"Vente", etat:"Bon état", annee:2016, description:"Beau duplex S+3 de 165 m² avec terrasse 40 m².", features:["Terrasse 40m²","Ascenseur","Cuisine équipée"], lat:36.860, lng:10.195, images:["https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=900&q=80"], contact:{nom:"Nadia Hajri",tel:"+216 29 111 222",email:"nadia@immo.tn"} },
 ];
 
-const TYPE_FR  = { appartement:"Appartement", villa:"Villa", maison:"Maison", terrain:"Terrain", bureau:"Bureau", local_commercial:"Local commercial", ferme:"Ferme" };
+const TYPE_FR  = { appartement:"Appartement", villa:"Villa", maison:"Maison", terrain:"Terrain", bureau:"Bureau", local_commercial:"Local commercial", ferme:"Ferme agricole", ferme_agricole:"Ferme agricole", garage_parking:"Garage / Parking", depot_stockage:"Dépôt de stockage", immobiliers_divers:"Immobiliers divers" };
 const CAT_FR   = { vente:"Achat", location:"Location", vacances:"Vacances" };
 const ETAT_FR  = { nouveau:"Neuf", bon_etat:"Bon état", a_renover:"À rénover", cours_construction:"En construction" };
 
@@ -73,13 +78,38 @@ function normalizeApi(a) {
       tel:   a.user?.phone_number || "",
       email: a.user?.email        || "",
     },
-    publisher_role: a.user?.role || null,
+    publisher_role:    a.user?.role            || null,
+    publisher_picture: a.user?.profile_picture || null,
     fromApi: true,
     utilisateur_id: a.user?.id,
     views_count: a.views_count || 0,
-    type_bien_raw: a.type_bien,
-    gouvernorat_raw: a.gouvernorat,
-    delegation_raw: a.delegation,
+    type_bien_raw:       a.type_bien,
+    gouvernorat_raw:     a.gouvernorat,
+    delegation_raw:      a.delegation,
+    /* -- Champs sub-type -- */
+    type_appartement:    a.type_appartement    || null,
+    type_villa:          a.type_villa          || null,
+    type_terrain:        a.type_terrain        || null,
+    type_option_villa:   a.type_option_villa   || null,
+    etage:               a.etage               != null ? a.etage : null,
+    titre_foncier:       a.titre_foncier       || null,
+    terrain_viabilise:   a.terrain_viabilise   || false,
+    exclusivite:         a.exclusivite         || false,
+    hauteur_immeuble:     a.hauteur_immeuble     || null,
+    nb_appartements:      a.nb_appartements      || null,
+    orientation_immeuble: a.orientation_immeuble || null,
+    emplacement_garage:   a.emplacement_garage   || null,
+    reference:            a.reference            || null,
+    nb_pieces:           a.nb_pieces           != null ? a.nb_pieces : null,
+    annee_construction:  a.annee_construction  || null,
+    duree_type:          a.duree_type          || null,
+    duree_valeur:        a.duree_valeur        || null,
+    colocation:          a.colocation          || false,
+    places_totales:      a.places_totales      || null,
+    places_occupees:     a.places_occupees     || null,
+    profil_coloc:        a.profil_coloc        || null,
+    genre_coloc:         Array.isArray(a.genre_coloc) ? a.genre_coloc : (a.genre_coloc ? a.genre_coloc.split(",").filter(Boolean) : []),
+    chambres_colocation: a.chambres_colocation || [],
   };
 }
 
@@ -98,11 +128,21 @@ export default function AnnonceDetail() {
   const [imgIdx,    setImgIdx]    = useState(0);
   const [showPhone,    setShowPhone]    = useState(false);
   const [showWhatsapp, setShowWhatsapp] = useState(false);
-  const [isFavori,  setIsFavori]  = useState(false);
+  const [isFavori,   setIsFavori]   = useState(false);
   const [favLoading, setFavLoading] = useState(false);
+  const [isInCompare, setIsInCompare] = useState(false);
+  const [comparePopup, setComparePopup] = useState(false);
+  const [compareItems, setCompareItems] = useState([]);
   const [nearby,    setNearby]    = useState([]);
   const [translated, setTranslated] = useState("");
   const [translating, setTranslating] = useState(false);
+  const [descExpanded, setDescExpanded] = useState(false);
+  const [featsExpanded, setFeatsExpanded] = useState(false);
+  const [wasViewed, setWasViewed] = useState(false);
+  const [satisfaction, setSatisfaction] = useState(null);
+  const [ratingAvg, setRatingAvg] = useState(null);
+  const [lightboxIdx, setLightboxIdx] = useState(null);
+  const [ratingCount, setRatingCount] = useState(0);
 
   const token    = localStorage.getItem("token");
   const userData = (() => { try { return JSON.parse(localStorage.getItem("user")); } catch { return null; } })();
@@ -117,6 +157,20 @@ export default function AnnonceDetail() {
       .then(data => {
         if (data) {
           setProp(normalizeApi(data));
+          // Track "Consulté"
+          try {
+            const viewed = JSON.parse(localStorage.getItem("localizi_viewed")||"[]");
+            setWasViewed(viewed.includes(String(id)));
+            if (!viewed.includes(String(id))) {
+              localStorage.setItem("localizi_viewed", JSON.stringify([...viewed.slice(-199), String(id)]));
+            }
+          } catch {}
+          // Load saved satisfaction rating
+          const sat = localStorage.getItem(`localizi_sat_${id}`);
+          if (sat) setSatisfaction(Number(sat));
+          // Load global rating from API data
+          if (data.rating_avg) setRatingAvg(data.rating_avg);
+          if (data.rating_count) setRatingCount(data.rating_count || 0);
         } else {
           const demo = DEMO.find(p => p.id === Number(id));
           setProp(demo || null);
@@ -128,6 +182,18 @@ export default function AnnonceDetail() {
       })
       .finally(() => setLoading(false));
   }, [id]);
+
+  /* Lightbox keyboard navigation */
+  useEffect(() => {
+    if (lightboxIdx === null || !prop) return;
+    const handler = e => {
+      if (e.key === "Escape") setLightboxIdx(null);
+      if (e.key === "ArrowRight") setLightboxIdx(i => (i+1) % prop.images.length);
+      if (e.key === "ArrowLeft")  setLightboxIdx(i => (i-1+prop.images.length) % prop.images.length);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [lightboxIdx, prop]);
 
   /* Fetch nearby annonces by proximity */
   useEffect(() => {
@@ -146,6 +212,28 @@ export default function AnnonceDetail() {
       })
       .catch(() => {});
   }, [prop, id]);
+
+  /* Sync comparateur state */
+  useEffect(() => {
+    const sync = () => {
+      try {
+        const cur  = JSON.parse(localStorage.getItem("localizi_compare")||"[]");
+        const meta = JSON.parse(localStorage.getItem("localizi_compare_meta")||"[]");
+        const seen = new Set();
+        const cleanMeta = meta.filter(m => { const k = String(m.id); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 4);
+        const cleanIds  = cleanMeta.map(m => String(m.id));
+        if (cleanMeta.length !== meta.length || cleanIds.join() !== cur.join()) {
+          localStorage.setItem("localizi_compare", JSON.stringify(cleanIds));
+          localStorage.setItem("localizi_compare_meta", JSON.stringify(cleanMeta));
+        }
+        setIsInCompare(cleanIds.includes(String(id)));
+        setCompareItems(cleanMeta);
+      } catch { setIsInCompare(false); }
+    };
+    sync();
+    window.addEventListener("compare-updated", sync);
+    return () => window.removeEventListener("compare-updated", sync);
+  }, [id]);
 
   /* Check if already saved */
   useEffect(() => {
@@ -243,6 +331,96 @@ export default function AnnonceDetail() {
     <div className="ad-root">
       <Navbar />
 
+      {/* -- Comparateur popup -- */}
+      {comparePopup && (
+        <div style={{
+          position:"fixed", inset:0, zIndex:9999,
+          background:"rgba(15,23,42,.55)", backdropFilter:"blur(4px)",
+          display:"flex", alignItems:"center", justifyContent:"center", padding:24,
+        }} onClick={() => setComparePopup(false)}>
+          <div style={{
+            background:"#fff", borderRadius:20, padding:"28px 28px 0",
+            maxWidth:560, width:"100%", maxHeight:"85vh",
+            display:"flex", flexDirection:"column", boxShadow:"0 24px 64px rgba(0,0,0,.18)",
+          }} onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexShrink:0}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <Logo variant="color" height={28} to={null} />
+                <div>
+                  <div style={{fontSize:17,fontWeight:800,color:"#0f172a"}}>Comparateur</div>
+                  <div style={{fontSize:12,color:"#94a3b8",marginTop:2}}>{compareItems.length} annonce{compareItems.length>1?"s":""} sélectionnée{compareItems.length>1?"s":""}</div>
+                </div>
+              </div>
+              <button onClick={() => setComparePopup(false)} style={{
+                background:"#f1f5f9", border:"none", cursor:"pointer", borderRadius:10,
+                width:34, height:34, display:"flex", alignItems:"center", justifyContent:"center",
+                fontSize:18, color:"#64748b", fontFamily:"inherit",
+              }}><X size={18} strokeWidth={2.5}/></button>
+            </div>
+            {/* List — scrollable */}
+            <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",gap:10,paddingBottom:4}}>
+              {compareItems.map(item => (
+                <div key={item.id} style={{
+                  display:"flex", alignItems:"center", gap:12,
+                  background:"#f8fafc", borderRadius:14, padding:"10px 12px",
+                  border:"1px solid #e2e8f0",
+                }}>
+                  {item.image ? (
+                    <img src={item.image} alt="" style={{width:64,height:52,objectFit:"cover",borderRadius:10,flexShrink:0}}/>
+                  ) : (
+                    <div style={{width:64,height:52,background:"#e2e8f0",borderRadius:10,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}><svg width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='#94a3b8' strokeWidth='1.8' strokeLinecap='round' strokeLinejoin='round'><path d='M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/><polyline points='9 22 9 12 15 12 15 22'/></svg></div>
+                  )}
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13,fontWeight:700,color:"#0f172a",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{item.titre}</div>
+                    <div style={{fontSize:12,color:"#64748b",marginTop:2}}>{item.gouvernorat}{item.delegation ? `, ${item.delegation}` : ""}</div>
+                    <div style={{fontSize:14,fontWeight:800,color:"#6366f1",marginTop:3}}>
+                      {Number(item.prix).toLocaleString("fr-TN")} <span style={{fontSize:11,fontWeight:500,color:"#94a3b8"}}>{fmtDevise(item.devise)}</span>
+                    </div>
+                  </div>
+                  <button onClick={() => {
+                    const rid = String(item.id);
+                    const cur = (() => { try { return JSON.parse(localStorage.getItem("localizi_compare")||"[]"); } catch { return []; } })();
+                    const meta = (() => { try { return JSON.parse(localStorage.getItem("localizi_compare_meta")||"[]"); } catch { return []; } })();
+                    const nextIds = cur.filter(i => i !== rid);
+                    const nextMeta = meta.filter(m => String(m.id) !== rid);
+                    localStorage.setItem("localizi_compare", JSON.stringify(nextIds));
+                    localStorage.setItem("localizi_compare_meta", JSON.stringify(nextMeta));
+                    setCompareItems(nextMeta);
+                    window.dispatchEvent(new Event("compare-updated"));
+                    if (String(prop.id) === rid) setIsInCompare(false);
+                    if (nextMeta.length < 2) setComparePopup(false);
+                  }} style={{
+                    background:"#fee2e2", border:"none", cursor:"pointer", borderRadius:8,
+                    width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center",
+                    color:"#ef4444", fontSize:16, flexShrink:0,
+                  }} title="Retirer"><X size={14} strokeWidth={2.5}/></button>
+                </div>
+              ))}
+            </div>
+            {/* Footer buttons */}
+            <div style={{display:"flex",gap:10,padding:"16px 0 24px",borderTop:"1px solid #f1f5f9",marginTop:4,flexShrink:0}}>
+              <button onClick={() => {
+                localStorage.removeItem("localizi_compare");
+                localStorage.removeItem("localizi_compare_meta");
+                setCompareItems([]);
+                setComparePopup(false);
+                setIsInCompare(false);
+                window.dispatchEvent(new Event("compare-updated"));
+              }} style={{
+                flex:1, background:"#f1f5f9", color:"#64748b", border:"none", cursor:"pointer",
+                borderRadius:12, padding:"11px 16px", fontSize:13, fontWeight:700, fontFamily:"inherit",
+              }}>Vider</button>
+              <button onClick={() => { setComparePopup(false); const ids = (() => { try { return JSON.parse(localStorage.getItem("localizi_compare")||"[]"); } catch { return []; } })(); navigate(`/comparateur${ids.length ? `?ids=${ids.join(",")}` : ""}`); }} style={{
+                flex:2, background:"linear-gradient(135deg,#6366f1,#8b5cf6)", color:"#fff", border:"none",
+                cursor:"pointer", borderRadius:12, padding:"11px 16px", fontSize:14, fontWeight:800,
+                fontFamily:"inherit", boxShadow:"0 4px 14px rgba(99,102,241,.3)",
+              }}>Aller au comparateur →</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Top bar */}
       <div className="ad-topbar">
         <button className="ad-back" onClick={() => navigate(-1)}>
@@ -262,37 +440,59 @@ export default function AnnonceDetail() {
             <Heart size={15} fill={isFavori ? "currentColor" : "none"} />
             {isFavori ? "Sauvegardé" : "Sauvegarder"}
           </button>
-          <button className="ad-action" onClick={() => {
+          <button className={`ad-action${isInCompare ? " ad-action--liked" : ""}`} onClick={() => {
             const cur = (() => { try { return JSON.parse(localStorage.getItem("localizi_compare")||"[]"); } catch { return []; } })();
+            const meta = (() => { try { return JSON.parse(localStorage.getItem("localizi_compare_meta")||"[]"); } catch { return []; } })();
             const rid = String(prop.id);
+            let nextIds;
             if (cur.includes(rid)) {
-              localStorage.setItem("localizi_compare", JSON.stringify(cur.filter(id=>id!==rid)));
+              nextIds = cur.filter(i => i !== rid);
+              localStorage.setItem("localizi_compare", JSON.stringify(nextIds));
+              localStorage.setItem("localizi_compare_meta", JSON.stringify(meta.filter(m => String(m.id) !== rid)));
+              setIsInCompare(false);
               window.dispatchEvent(new Event("compare-updated"));
+              toast("Retiré du comparateur.");
             } else if (cur.length >= 4) {
-              alert("Maximum 4 annonces dans le comparateur.");
+              const updatedMetaMax = (() => { try { return JSON.parse(localStorage.getItem("localizi_compare_meta")||"[]"); } catch { return []; } })();
+              setCompareItems(updatedMetaMax);
+              setComparePopup(true);
+              toast("Maximum 4 annonces. Retirez-en une pour ajouter celle-ci.", "error");
+              return;
             } else {
-              localStorage.setItem("localizi_compare", JSON.stringify([...cur, rid]));
+              nextIds = [...cur, rid];
+              const newMeta = [...meta.filter(m => String(m.id) !== rid), {
+                id: prop.id, titre: prop.titre,
+                prix: prop.prix, devise: prop.devise,
+                image: prop.images?.[0] || null,
+                gouvernorat: prop.gouvernorat, delegation: prop.delegation,
+              }];
+              localStorage.setItem("localizi_compare", JSON.stringify(nextIds));
+              localStorage.setItem("localizi_compare_meta", JSON.stringify(newMeta));
+              setIsInCompare(true);
               window.dispatchEvent(new Event("compare-updated"));
-              toast("Ajouté au comparateur ! Allez sur la carte pour comparer.");
             }
+            const updatedMeta = (() => { try { return JSON.parse(localStorage.getItem("localizi_compare_meta")||"[]"); } catch { return []; } })();
+            setCompareItems(updatedMeta);
+            if (updatedMeta.length >= 2) setComparePopup(true);
           }}>
-            <BarChart2 size={15}/> Comparer
+            <BarChart2 size={15}/> {isInCompare ? "Dans le comparateur" : "Comparer"}
           </button>
-          <button className="ad-action" onClick={async () => {
+          <button className="ad-action" onClick={() => {
             const url = window.location.href;
-            const title = prop.titre;
             try {
-              if (navigator.share) {
-                await navigator.share({ title, url, text: `${title} - Localizi` });
-              } else if (navigator.clipboard) {
-                await navigator.clipboard.writeText(url);
-                toast("Lien copié dans le presse-papier !");
+              if (navigator.clipboard) {
+                navigator.clipboard.writeText(url).then(() => toast("Lien copié !")).catch(() => {
+                  const el = document.createElement("textarea");
+                  el.value = url; el.style.cssText = "position:fixed;opacity:0";
+                  document.body.appendChild(el); el.select();
+                  document.execCommand("copy"); document.body.removeChild(el);
+                  toast("Lien copié !");
+                });
               } else {
-                /* Fallback ultime */
                 const el = document.createElement("textarea");
-                el.value = url; document.body.appendChild(el);
-                el.select(); document.execCommand("copy");
-                document.body.removeChild(el);
+                el.value = url; el.style.cssText = "position:fixed;opacity:0";
+                document.body.appendChild(el); el.select();
+                document.execCommand("copy"); document.body.removeChild(el);
                 toast("Lien copié !");
               }
             } catch { toast("Lien : " + url); }
@@ -307,8 +507,20 @@ export default function AnnonceDetail() {
         <div className="ad-left">
           {/* Gallery */}
           <div className="ad-gallery">
-            <div className="ad-gallery__main">
+            <div className="ad-gallery__main" style={{cursor:"zoom-in"}} onClick={() => setLightboxIdx(imgIdx)}>
               <img key={imgIdx} src={images[imgIdx]} alt={prop.titre} className="ad-gallery__img" />
+              {wasViewed && (
+                <span style={{
+                  position:"absolute", top:12, left:12, zIndex:5,
+                  background:"rgba(15,23,42,0.72)", backdropFilter:"blur(6px)",
+                  color:"#fff", fontSize:11, fontWeight:800,
+                  padding:"4px 10px", borderRadius:20,
+                  display:"flex", alignItems:"center", gap:5,
+                  letterSpacing:".08em", textTransform:"uppercase",
+                }}>
+                  <Eye size={12}/> Consulté
+                </span>
+              )}
               {images.length > 1 && (
                 <>
                   <button className="ad-gallery__btn ad-gallery__btn--l" onClick={prevImg}><ChevronLeft size={18}/></button>
@@ -328,6 +540,142 @@ export default function AnnonceDetail() {
             )}
           </div>
 
+          {/* Prix grand sous les photos */}
+          <div style={{
+            display:"flex", alignItems:"baseline", gap:20, flexWrap:"wrap",
+            padding:"18px 0 16px", borderBottom:"1.5px solid #f1f5f9", marginBottom:20,
+          }}>
+            <div style={{fontSize:38,fontWeight:900,color:"#0f172a",letterSpacing:"-.02em",lineHeight:1}}>
+              {Number(prop.prix).toLocaleString("fr-TN")}
+              <span style={{fontSize:20,fontWeight:600,color:"#64748b",marginLeft:8}}>{fmtDevise(prop.devise)}</span>
+              {prop.categorie === "location" && <span style={{fontSize:16,fontWeight:500,color:"#94a3b8",marginLeft:4}}>/mois</span>}
+              {prop.categorie === "vacances" && prop.duree_type && <span style={{fontSize:16,fontWeight:500,color:"#94a3b8",marginLeft:4}}>/{prop.duree_type === "nuit" ? "nuitée" : prop.duree_type === "semaine" ? "sem." : prop.duree_type === "mois" ? "mois" : "an"}</span>}
+            </div>
+            {prop.area > 0 && (
+              <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                <span style={{fontSize:18,fontWeight:700,color:"#475569"}}>
+                  {Math.round(Number(prop.prix) / prop.area).toLocaleString("fr-TN")} <span style={{fontSize:14,color:"#94a3b8"}}>{fmtDevise(prop.devise)}/m²</span>
+                </span>
+                <span style={{fontSize:11,color:"#94a3b8",fontWeight:500}}>Prix au m²</span>
+              </div>
+            )}
+            {prop.prix && (() => {
+              const approx = fmtPriceApprox(prop.prix, prop.devise);
+              return approx ? (
+                <span style={{fontSize:13,color:"#94a3b8",fontWeight:500,alignSelf:"flex-end"}}>{approx}</span>
+              ) : null;
+            })()}
+          </div>
+
+          {/* Colocation widget */}
+          {prop.colocation && prop.places_totales != null && (
+            <div style={{
+              background:"linear-gradient(135deg,#eef2ff 0%,#f5f3ff 100%)",
+              border:"1.5px solid #c7d2fe", borderRadius:16, padding:"20px 24px", marginBottom:24,
+            }}>
+              {/* Header */}
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8,marginBottom:14}}>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <div style={{width:36,height:36,borderRadius:10,background:"#6366f1",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    <Users size={18} color="#fff" strokeWidth={2}/>
+                  </div>
+                  <div>
+                    <div style={{fontSize:15,fontWeight:800,color:"#3730a3"}}>Colocation disponible</div>
+                    {prop.profil_coloc && prop.profil_coloc !== "tous" && (
+                      <div style={{fontSize:12,color:"#6366f1",fontWeight:600,marginTop:1}}>
+                        Profil : {prop.profil_coloc === "etudiant" ? "Étudiant(e)s" : prop.profil_coloc === "professionnel" ? "Professionnels" : prop.profil_coloc === "famille" ? "Familles" : "Peu importe"}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {/* Genre badge */}
+                {(() => {
+                  const g = prop.genre_coloc || [];
+                  const both = g.includes("homme") && g.includes("femme");
+                  const menOnly = g.includes("homme") && !g.includes("femme");
+                  const femOnly = g.includes("femme") && !g.includes("homme");
+                  if (!g.length) return null;
+                  return (
+                    <span style={{display:"inline-flex",alignItems:"center",gap:5,fontSize:12,fontWeight:700,
+                      padding:"5px 12px",borderRadius:20,
+                      background: both ? "#f0fdf4" : menOnly ? "#eff6ff" : "#fdf2f8",
+                      color: both ? "#15803d" : menOnly ? "#1d4ed8" : "#9d174d",
+                      border: `1.5px solid ${both ? "#bbf7d0" : menOnly ? "#bfdbfe" : "#fbcfe8"}`,
+                    }}>
+                      {both ? <>♂ ♀ Mixte</> : menOnly ? <>♂ Hommes</> : <>♀ Femmes</>}
+                    </span>
+                  );
+                })()}
+              </div>
+
+              {/* Table chambres */}
+              {prop.chambres_colocation && prop.chambres_colocation.length > 0 ? (
+                <div style={{overflowX:"auto"}}>
+                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+                    <thead>
+                      <tr style={{background:"#e0e7ff"}}>
+                        {["Chambre","Capacité","Occupées","Disponibles","Prix/place"].map(h => (
+                          <th key={h} style={{padding:"7px 10px",textAlign:"center",fontWeight:700,color:"#3730a3",whiteSpace:"nowrap"}}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {prop.chambres_colocation.map((ch, i) => {
+                        const dispo = Math.max(0, (ch.capacite||1) - (ch.places_occupees||0));
+                        return (
+                          <tr key={i} style={{background: i%2===0 ? "#f5f3ff" : "#fff", borderBottom:"1px solid #e0e7ff"}}>
+                            <td style={{padding:"7px 10px",textAlign:"center",fontWeight:600,color:"#4338ca"}}>Ch. {ch.numero_chambre || i+1}</td>
+                            <td style={{padding:"7px 10px",textAlign:"center"}}>{ch.capacite || 1}</td>
+                            <td style={{padding:"7px 10px",textAlign:"center",color: (ch.places_occupees||0)>0 ? "#dc2626" : "#64748b"}}>{ch.places_occupees || 0}</td>
+                            <td style={{padding:"7px 10px",textAlign:"center",fontWeight:700,color: dispo>0 ? "#16a34a" : "#dc2626"}}>{dispo}</td>
+                            <td style={{padding:"7px 10px",textAlign:"center",fontWeight:600,color:"#6366f1"}}>
+                              {ch.prix_par_place > 0 ? `${Number(ch.prix_par_place).toLocaleString("fr-TN")} TND` : "—"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      {(() => {
+                        const totCap = prop.chambres_colocation.reduce((s,c)=>s+(c.capacite||1),0);
+                        const totOcc = prop.chambres_colocation.reduce((s,c)=>s+(c.places_occupees||0),0);
+                        const totDispo = Math.max(0, totCap - totOcc);
+                        return (
+                          <tr style={{background:"#e0e7ff",fontWeight:800,color:"#3730a3"}}>
+                            <td style={{padding:"7px 10px",textAlign:"center"}}>Total</td>
+                            <td style={{padding:"7px 10px",textAlign:"center"}}>{totCap}</td>
+                            <td style={{padding:"7px 10px",textAlign:"center",color:"#dc2626"}}>{totOcc}</td>
+                            <td style={{padding:"7px 10px",textAlign:"center",color: totDispo>0?"#16a34a":"#dc2626"}}>{totDispo}</td>
+                            <td style={{padding:"7px 10px",textAlign:"center"}}>—</td>
+                          </tr>
+                        );
+                      })()}
+                    </tfoot>
+                  </table>
+                </div>
+              ) : (
+                /* Fallback: progress bar si pas de détail chambre */
+                (() => {
+                  const tot = prop.places_totales || 1;
+                  const occ = prop.places_occupees || 0;
+                  const dispo = Math.max(0, tot - occ);
+                  const pct = Math.round((occ / tot) * 100);
+                  return (
+                    <>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                        <span style={{fontSize:13,color:"#4338ca",fontWeight:600}}>{dispo} place{dispo!==1?"s":""} disponible{dispo!==1?"s":""}</span>
+                        <span style={{fontSize:12,color:"#6366f1"}}>{occ}/{tot} occupée{occ!==1?"s":""}</span>
+                      </div>
+                      <div style={{height:8,borderRadius:99,background:"#c7d2fe",overflow:"hidden"}}>
+                        <div style={{width:`${pct}%`,height:"100%",background:"#6366f1",borderRadius:99,transition:"width .4s"}}/>
+                      </div>
+                    </>
+                  );
+                })()
+              )}
+            </div>
+          )}
+
           {/* Description */}
           <div className="ad-section">
             <div className="ad-section__header">
@@ -340,7 +688,29 @@ export default function AnnonceDetail() {
                 {translated ? t("ad_original") : t("ad_translate")}
               </button>
             </div>
-            <p className="ad-desc">{translated || prop.description}</p>
+            {(() => {
+              const DESC_LIMIT = 300;
+              const descText = translated || prop.description;
+              const longDesc = descText.length > DESC_LIMIT;
+              return (
+                <>
+                  <p className="ad-desc" style={{fontSize:16,lineHeight:1.85,margin:0}}>
+                    {descExpanded || !longDesc ? descText : descText.slice(0, DESC_LIMIT) + "…"}
+                  </p>
+                  {longDesc && (
+                    <button onClick={() => setDescExpanded(p => !p)} style={{
+                      marginTop:10, background:"none", border:"none", cursor:"pointer",
+                      color:"#4f46e5", fontWeight:700, fontSize:14,
+                      display:"flex", alignItems:"center", gap:4, padding:0,
+                    }}>
+                      {descExpanded
+                        ? <><ChevronLeft size={15} style={{transform:"rotate(90deg)"}}/> Voir moins</>
+                        : <>Voir plus <ChevronRight size={15}/></>}
+                    </button>
+                  )}
+                </>
+              );
+            })()}
             {translated && (
               <p className="ad-translated-note">🌐 Traduit automatiquement · <button onClick={()=>setTranslated("")} className="ad-translated-reset">Voir l'original</button></p>
             )}
@@ -348,14 +718,14 @@ export default function AnnonceDetail() {
 
           {/* Features */}
           {prop.features?.length > 0 && (() => {
-            /* Mapping label → icône (même icônes que dans CreerAnnonce) */
+            /* Mapping label ? icône (même icônes que dans CreerAnnonce) */
             const FEAT_ICONS = {
-              "Vue sur mer":       Waves,        "Vue montagne":      Mountain,
-              "Vue forêt":         TreePine,     "Jardin":            Fence,
+              "Vue sur mer":       Waves,        "Vue sur montagne":      Mountain,
+              "Vue sur forêt":         TreePine,     "Jardin":            Fence,
               "Terrasse":          Sun,          "Balcon":            Flower2,
               "Piscine":           Droplets,     "Parking":           ParkingCircle,
               "Ascenseur":         ArrowUpDown,  "Garage":            Car,
-              "Chambre rangement": Package,      "Meublé":            Sofa,
+              "Cellier": Package,      "Meublé":            Sofa,
               "Concierge":         Users,        "Gardien":           ShieldCheck,
               "Animaux admis":     Heart,        "Cuisine équipée":   UtensilsCrossed,
               "Climatisation":     Wind,         "Chauffage central": Thermometer,
@@ -366,36 +736,58 @@ export default function AnnonceDetail() {
               "Interphone":        PhoneCall,    "Relié ONAS":        Droplets,
               "Salon américain":   Monitor,      "Fibre optique":     Wifi,
             };
+            const FEAT_LIMIT = 9;
+            const longFeats = prop.features.length > FEAT_LIMIT;
+            const shownFeats = featsExpanded || !longFeats ? prop.features : prop.features.slice(0, FEAT_LIMIT);
             return (
-              <div className="ad-section">
+              <div className="ad-section" style={{marginTop:32}}>
                 <h2 className="ad-section__title">Caractéristiques du bien</h2>
-                <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))", gap:"10px 8px"}}>
-                  {prop.features.map(f => {
+                <div style={{display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:"12px"}}>
+                  {shownFeats.map(f => {
                     const Ico = FEAT_ICONS[f] || CheckCircle;
                     return (
                       <div key={f} style={{
-                        display:"flex", alignItems:"center", gap:8,
-                        padding:"9px 11px", borderRadius:8,
-                        background:"#f8fafc", border:"1px solid #e5e7eb",
-                        fontSize:12.5, fontWeight:600, color:"#374151",
+                        display:"flex", alignItems:"center", gap:12,
+                        padding:"15px 18px", borderRadius:12,
+                        background:"#f8fafc", border:"1.5px solid #e5e7eb",
+                        fontSize:15, fontWeight:600, color:"#1e293b",
                       }}>
-                        <Ico size={16} strokeWidth={1.6} style={{color:"#4f46e5",flexShrink:0}}/>
+                        <Ico size={22} strokeWidth={1.6} style={{color:"#4f46e5",flexShrink:0}}/>
                         {f}
                       </div>
                     );
                   })}
                 </div>
+                {longFeats && (
+                  <button onClick={() => setFeatsExpanded(p => !p)} style={{
+                    marginTop:14, background:"none", border:"none", cursor:"pointer",
+                    color:"#4f46e5", fontWeight:700, fontSize:14,
+                    display:"flex", alignItems:"center", gap:4, padding:0,
+                  }}>
+                    {featsExpanded
+                      ? <><ChevronLeft size={15} style={{transform:"rotate(90deg)"}}/> Voir moins</>
+                      : <>Voir les {prop.features.length - FEAT_LIMIT} autres caractéristiques <ChevronRight size={15}/></>}
+                  </button>
+                )}
               </div>
             );
           })()}
+
         </div>
 
         {/* Right column */}
         <div className="ad-right">
           <div className="ad-card">
-            <span className={`ad-card__cat ad-card__cat--${prop.categorie?.toLowerCase()}`}>{prop.categorie}</span>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6,flexWrap:"wrap",gap:6}}>
+              <span className={`ad-card__cat ad-card__cat--${prop.categorie?.toLowerCase()}`}>{prop.categorie}</span>
+              {prop.reference && (
+                <span style={{fontSize:11.5,fontWeight:700,color:"#64748b",background:"#f1f5f9",border:"1px solid #e2e8f0",padding:"3px 10px",borderRadius:999,letterSpacing:".04em"}}>
+                  Réf : {prop.reference}
+                </span>
+              )}
+            </div>
             <h1 className="ad-card__titre">{prop.titre}</h1>
-            {/* ── Adresse complète ── */}
+            {/* -- Adresse complète -- */}
             <div className="ad-addr">
               {prop.address && (
                 <p className="ad-addr__street">
@@ -414,10 +806,7 @@ export default function AnnonceDetail() {
                 )}
               </div>
             </div>
-            <p className="ad-card__price">
-              {Number(prop.prix).toLocaleString("fr-TN")}
-              <span> {prop.devise === "DT" ? "DT" : prop.devise}</span>
-            </p>
+
 
             <div className="ad-specs">
               {prop.beds  != null && <div className="ad-spec"><Bed size={16}/><p className="ad-spec__val">{prop.beds}</p><p className="ad-spec__lbl">Chambres</p></div>}
@@ -429,11 +818,38 @@ export default function AnnonceDetail() {
               <div className="ad-meta__item"><Tag size={13}/> <span>Type :</span> {prop.type}</div>
               {prop.etat  && <div className="ad-meta__item"><CheckCircle size={13}/><span>État :</span> {prop.etat}</div>}
               {prop.annee && <div className="ad-meta__item"><Calendar size={13}/><span>Année :</span> {prop.annee}</div>}
-              {/* ── Badge publieur ── */}
+
+              {/* -- Appartement -- */}
+              {prop.type_appartement && <div className="ad-meta__item"><Layers size={13}/><span>Logement :</span> {prop.type_appartement.toUpperCase()}</div>}
+              {prop.etage != null && <div className="ad-meta__item"><ChevronsUp size={13}/><span>Étage :</span> {prop.etage === 0 ? "RDC" : `${prop.etage}e étage`}</div>}
+
+              {/* -- Villa -- */}
+              {prop.type_villa && <div className="ad-meta__item"><Home size={13}/><span>Villa :</span> {prop.type_villa.toUpperCase()}</div>}
+              {prop.type_option_villa && <div className="ad-meta__item"><Star size={13}/><span>Options :</span> {prop.type_option_villa.replace(/,/g,", ")}</div>}
+
+              {/* -- Terrain -- */}
+              {prop.type_terrain && <div className="ad-meta__item"><Ruler size={13}/><span>Terrain :</span> {prop.type_terrain.replace(/_/g," ")}</div>}
+              {prop.terrain_viabilise && <div className="ad-meta__item"><CheckCircle size={13}/><span>Viabilisé</span></div>}
+              {prop.titre_foncier && prop.titre_foncier !== "aucun" && <div className="ad-meta__item"><Tag size={13}/><span>Titre foncier :</span> {prop.titre_foncier}</div>}
+
+              {/* -- Immeuble -- */}
+              {prop.hauteur_immeuble    && <div className="ad-meta__item"><Building2 size={13}/><span>Hauteur :</span> {prop.hauteur_immeuble}</div>}
+              {prop.nb_appartements     && <div className="ad-meta__item"><Building2 size={13}/><span>Appartements :</span> {prop.nb_appartements}</div>}
+              {prop.orientation_immeuble && <div className="ad-meta__item"><Compass size={13}/><span>Orientation :</span> {prop.orientation_immeuble.replace(/_/g," ")}</div>}
+
+              {/* -- Garage/Parking -- */}
+              {prop.emplacement_garage && <div className="ad-meta__item"><Car size={13}/><span>Emplacement :</span> {prop.emplacement_garage.replace(/_/g," ")}</div>}
+
+              {/* -- Pièces -- */}
+              {prop.nb_pieces != null && prop.nb_pieces > 0 && <div className="ad-meta__item"><Package size={13}/><span>Pièces :</span> {prop.nb_pieces}</div>}
+
+              {/* -- Exclusivité -- */}
+              {prop.exclusivite && <div className="ad-meta__item" style={{color:"#7c3aed"}}><Star size={13}/><span>Exclusivité</span></div>}
+              {/* -- Badge publieur -- */}
               {!prop.anonyme && prop.publisher_role && (() => {
                 const roleMap = {
                   particulier: { label:"Particulier", color:"#6366f1", bg:"#eef2ff", Ico: Home },
-                  agence:      { label:"Agence",      color:"#0369a1", bg:"#e0f2fe", Ico: Building2 },
+                  agence:      { label:"Agence / Agent", color:"#0369a1", bg:"#e0f2fe", Ico: Building2 },
                   promoteur:   { label:"Promoteur",   color:"#7c3aed", bg:"#ede9fe", Ico: BadgeCheck },
                   professionnel:{ label:"Professionnel", color:"#15803d", bg:"#dcfce7", Ico: BadgeCheck },
                 };
@@ -455,54 +871,123 @@ export default function AnnonceDetail() {
 
             <div className="ad-divider" />
 
-            {/* ── Bloc contact Phase 1 ── */}
+            {/* -- Bloc contact Phase 1 -- */}
             <div className="ad-contact-box">
-              {/* ── Avatar + nom ── */}
-              <div className="ad-contact-box__header">
-                {prop.anonyme ? (
-                  /* Avatar anonyme — affiché pour TOUT le monde quand anonyme=true */
-                  <div style={{
-                    width:44, height:44, borderRadius:"50%",
-                    background:"linear-gradient(135deg,#94a3b8,#64748b)",
-                    display:"flex", alignItems:"center", justifyContent:"center",
-                    flexShrink:0, border:"2px solid #e2e8f0"
-                  }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-                      <circle cx="12" cy="7" r="4"/>
-                    </svg>
-                  </div>
-                ) : (() => {
-                  const storedUser = (() => { try { return JSON.parse(localStorage.getItem("user")); } catch { return null; } })();
-                  const avatarUrl = isOwner ? storedUser?.profile_picture : null;
-                  const initiale  = (prop.contact.nom||"?")[0].toUpperCase();
-                  return avatarUrl ? (
-                    <img src={avatarUrl.startsWith("http") ? avatarUrl : `${API_URL}${avatarUrl}`}
-                      alt="avatar" style={{width:44,height:44,borderRadius:"50%",objectFit:"cover",flexShrink:0,border:"2px solid #e2e8f0"}}/>
-                  ) : (
-                    <div className="ad-contact-box__avatar">{initiale}</div>
-                  );
-                })()}
-                <div>
-                  <div className="ad-contact-box__name">
-                    {prop.anonyme ? "Membre anonyme" : prop.contact.nom}
-                  </div>
-                  <div className="ad-contact-box__role">
-                    {prop.anonyme
-                      ? "Identité masquée · Publication anonyme"
-                      : (prop.fromApi ? "Propriétaire / Agent" : "Propriétaire")}
-                  </div>
-                </div>
-              </div>
+              {/* -- Helper : résout n'importe quelle URL de photo -- */}
+              {(() => {
+                const storedUser = (() => { try { return JSON.parse(localStorage.getItem("user")); } catch { return null; } })();
+                /* Priorité : photo retournée par l'API > photo du compte si owner */
+                const rawUrl  = prop.publisher_picture || (isOwner ? storedUser?.profile_picture : null);
+                /* data: et http/https ? usage direct ; chemin relatif ? préfixer API_URL */
+                const resolveUrl = url =>
+                  !url ? null
+                  : (url.startsWith("data:") || url.startsWith("http")) ? url
+                  : `${API_URL}${url}`;
+                const photoUrl  = resolveUrl(rawUrl);
+                const initiale  = (prop.contact.nom||"?")[0].toUpperCase();
+                const role      = prop.publisher_role;
 
-              {/* ── Vues (visible au propriétaire seulement) ── */}
+                const roleLabels = {
+                  particulier:   "Particulier",
+                  agence:        "Agence / Agent",
+                  promoteur:     "Promoteur",
+                  professionnel: "Professionnel",
+                  partenaire:    "Partenaire",
+                  admin:         "Administrateur",
+                };
+
+                /* -- Anonyme -- */
+                if (prop.anonyme) return (
+                  <div className="ad-contact-box__header">
+                    <div style={{
+                      width:44, height:44, borderRadius:"50%",
+                      background:"linear-gradient(135deg,#94a3b8,#64748b)",
+                      display:"flex", alignItems:"center", justifyContent:"center",
+                      flexShrink:0, border:"2px solid #e2e8f0",
+                    }}>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                        <circle cx="12" cy="7" r="4"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <div className="ad-contact-box__name">Membre anonyme</div>
+                      <div className="ad-contact-box__role">Identité masquée · Publication anonyme</div>
+                    </div>
+                  </div>
+                );
+
+                /* -- Agence / Promoteur : logo en grand -- */
+                if (role === "agence" || role === "promoteur") {
+                  const isAgence  = role === "agence";
+                  const clr       = isAgence ? "#0369a1" : "#7c3aed";
+                  const bg        = isAgence ? "#e0f2fe"  : "#ede9fe";
+                  const bgGrad    = isAgence
+                    ? "linear-gradient(135deg,#0369a1,#0ea5e9)"
+                    : "linear-gradient(135deg,#7c3aed,#a855f7)";
+                  return (
+                    <div style={{
+                      background:"#f8fafc", borderRadius:14,
+                      padding:"16px 18px", marginBottom:4,
+                      border:`1.5px solid ${bg}`,
+                    }}>
+                      <div className="ad-contact-box__name" style={{marginBottom:3}}>{prop.contact.nom}</div>
+                      <div className="ad-contact-box__role">Professionnel de l'immobilier</div>
+                      {/* Logo en grand */}
+                      <div style={{marginTop:18, textAlign:"center"}}>
+                        {photoUrl ? (
+                          <img
+                            src={photoUrl}
+                            alt="Logo"
+                            style={{
+                              width:"100%", maxHeight:150, objectFit:"contain",
+                              borderRadius:12, border:`1.5px solid ${bg}`,
+                              background:"#fff", padding:10,
+                            }}
+                          />
+                        ) : (
+                          <div style={{
+                            width:"100%", height:110, borderRadius:12,
+                            background:bgGrad,
+                            display:"flex", alignItems:"center", justifyContent:"center",
+                            fontSize:52, fontWeight:900, color:"#fff",
+                          }}>{initiale}</div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+
+                /* -- Particulier (et autres rôles) : avatar rond -- */
+                return (
+                  <div className="ad-contact-box__header">
+                    {photoUrl ? (
+                      <img
+                        src={photoUrl}
+                        alt="avatar"
+                        style={{width:44,height:44,borderRadius:"50%",objectFit:"cover",flexShrink:0,border:"2px solid #e2e8f0"}}
+                      />
+                    ) : (
+                      <div className="ad-contact-box__avatar">{initiale}</div>
+                    )}
+                    <div>
+                      <div className="ad-contact-box__name">{prop.contact.nom}</div>
+                      <div className="ad-contact-box__role">
+                        {roleLabels[role] || "Propriétaire"}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* -- Vues (visible au propriétaire seulement) -- */}
               {isOwner && prop.views_count > 0 && (
                 <div className="ad-views-row">
                   <Eye size={14}/> <span>{prop.views_count} vue{prop.views_count > 1 ? "s" : ""}</span>
                 </div>
               )}
 
-              {/* ── Contact : logique anonyme stricte ── */}
+              {/* -- Contact : logique anonyme stricte -- */}
               {prop.anonyme ? (
                 /* ANONYME — tout le monde voit ce bloc, y compris l'owner (pour preview) */
                 <div style={{marginTop:16}}>
@@ -512,7 +997,7 @@ export default function AnnonceDetail() {
                       padding:"9px 13px", fontSize:12.5, color:"#92400e", marginBottom:12,
                       lineHeight:1.5
                     }}>
-                      🔒 Votre annonce est publiée <strong>anonymement</strong>.<br/>Les visiteurs ne voient pas vos coordonnées.
+                      👁️ Votre annonce est publiée <strong>anonymement</strong>.<br/>Les visiteurs ne voient pas vos coordonnées.
                     </div>
                   )}
                   {!isOwner && (
@@ -536,7 +1021,7 @@ export default function AnnonceDetail() {
                           display:"flex", alignItems:"center", justifyContent:"center", gap:8
                         }}
                       >
-                        📩 Contacter le propriétaire
+                        <MessageCircle size={16} strokeWidth={2.5}/> Contacter le propriétaire
                       </button>
                       <p style={{fontSize:11.5, color:"#94a3b8", textAlign:"center", marginTop:8}}>
                         Laissez vos coordonnées — le propriétaire vous contactera s'il est intéressé.
@@ -545,7 +1030,7 @@ export default function AnnonceDetail() {
                   )}
                 </div>
               ) : token ? (
-                /* ── NON-ANONYME + CONNECTÉ : coordonnées visibles ── */
+                /* -- NON-ANONYME + CONNECTÉ : coordonnées visibles -- */
                 <div className="ad-contact-box__btns">
                   {prop.contact.tel && (
                     <>
@@ -553,7 +1038,7 @@ export default function AnnonceDetail() {
                         <Phone size={15}/> {prop.contact.tel}
                       </a>
                       <a
-                        href={`https://wa.me/${prop.contact.tel.replace(/[\s+]/g,"").replace(/^00/,"")}?text=${encodeURIComponent(`Bonjour, je suis intéressé(e) par votre annonce "${prop.titre}" sur Localizi.`)}`}
+                        href={`https://wa.me/${prop.contact.tel.replace(/[\s+]/g,"").replace(/^00/,"")}?text=${encodeURIComponent(`Bonjour, je suis intéressé(e) par votre annonce "${prop.titre}" sur Localizi.tn.`)}`}
                         target="_blank" rel="noopener noreferrer"
                         className="ad-cbtn ad-cbtn--whatsapp"
                       >
@@ -563,14 +1048,14 @@ export default function AnnonceDetail() {
                     </>
                   )}
                   {prop.contact.email && (
-                    <a href={`mailto:${prop.contact.email}?subject=${encodeURIComponent(`Annonce "${prop.titre}" — Localizi`)}&body=${encodeURIComponent(`Bonjour,\n\nJe suis intéressé(e) par votre annonce "${prop.titre}".\n\nCordialement`)}`}
+                    <a href={`mailto:${prop.contact.email}?subject=${encodeURIComponent(`Annonce "${prop.titre}" — Localizi.tn`)}&body=${encodeURIComponent(`Bonjour,\n\nJe suis intéressé(e) par votre annonce "${prop.titre}".\n\nCordialement`)}`}
                       className="ad-cbtn ad-cbtn--mail">
                       <Mail size={15}/> Envoyer un e-mail
                     </a>
                   )}
                 </div>
               ) : (
-                /* ── NON-ANONYME + NON CONNECTÉ : numéro flouté ── */
+                /* -- NON-ANONYME + NON CONNECTÉ : numéro flouté -- */
                 <div className="ad-contact-box__locked">
                   <button
                     className="ad-contact-box__blur-btn"
@@ -579,7 +1064,7 @@ export default function AnnonceDetail() {
                   >
                     <Phone size={14}/>
                     <span className="ad-contact-box__blur-num">+216 XX XXX XXX</span>
-                    <span className="ad-contact-box__blur-lock">🔒 Voir le numéro</span>
+                    <span className="ad-contact-box__blur-lock">📞 Voir le numéro</span>
                   </button>
                   <p className="ad-contact-box__lock-msg">
                     Connectez-vous pour accéder aux coordonnées du propriétaire
@@ -603,7 +1088,168 @@ export default function AnnonceDetail() {
         </div>
       </div>
 
-      {/* ── Nearby recommendations ── */}
+      {/* -- Signaler annonce — pleine largeur -- */}
+      <div style={{maxWidth:1200,margin:"0 auto 32px",padding:"0 24px"}}>
+        <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:16,overflow:"hidden"}}>
+          {/* Titre section */}
+          <div style={{padding:"18px 28px 14px",borderBottom:"1px solid #e5e7eb"}}>
+            <span style={{fontSize:14,fontWeight:800,color:"#0f172a",letterSpacing:"-.01em"}}>Signaler cette annonce</span>
+          </div>
+          {/* Contenu */}
+          <div style={{padding:"18px 28px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:14}}>
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              <p style={{margin:0,fontSize:13,color:"#374151",lineHeight:1.6}}>
+                Vous pensez que cette annonce est frauduleuse, trompeuse ou ne respecte pas nos conditions d'utilisation ?<br/>
+                Signalez-la et notre équipe l'examinera dans les plus brefs délais.
+              </p>
+              <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
+                {prop.id && (
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <span style={{fontSize:12,color:"#6b7280",fontWeight:600}}>Identifiant :</span>
+                    <span style={{fontWeight:700,color:"#111827",fontFamily:"monospace",fontSize:12,background:"#f3f4f6",padding:"2px 8px",borderRadius:6}}>#{prop.id}</span>
+                  </div>
+                )}
+                {prop.reference && (
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <span style={{fontSize:12,color:"#6b7280",fontWeight:600}}>Référence :</span>
+                    <span style={{fontWeight:700,color:"#111827",fontFamily:"monospace",fontSize:12,background:"#f3f4f6",padding:"2px 8px",borderRadius:6}}>{prop.reference}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                const storedUser = (() => { try { return JSON.parse(localStorage.getItem("user")); } catch { return null; } })();
+                navigate("/signaler-probleme", { state: {
+                  lienAnnonce: window.location.href,
+                  reference: prop.reference || null,
+                  type: "Annonce frauduleuse ou trompeuse",
+                  nom:   storedUser?.username || storedUser?.nom || "",
+                  email: storedUser?.email    || "",
+                }});
+              }}
+              style={{
+                display:"flex", alignItems:"center", gap:8, flexShrink:0,
+                background:"#ef4444", color:"#fff", border:"none", cursor:"pointer",
+                padding:"11px 24px", borderRadius:10, fontSize:13.5, fontWeight:700,
+                fontFamily:"inherit", transition:"background .15s", whiteSpace:"nowrap",
+              }}
+              onMouseEnter={e=>e.currentTarget.style.background="#dc2626"}
+              onMouseLeave={e=>e.currentTarget.style.background="#ef4444"}
+            >
+              🚩 Signaler l'annonce
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* -- Rapport qualité / prix — pleine largeur -- */}
+      {prop.area > 0 && nearby.length >= 2 && (() => {
+        const thisPPM = prop.prix / prop.area;
+        const nearPPMs = nearby
+          .filter(n => n.superficie > 0 && n.prix > 0)
+          .map(n => n.prix / n.superficie);
+        if (nearPPMs.length < 1) return null;
+        const avgPPM = nearPPMs.reduce((a,b) => a+b, 0) / nearPPMs.length;
+        const r = thisPPM / avgPPM;
+        const score = r >= 1.30 ? 1 : r >= 1.10 ? 2 : r >= 0.90 ? 3 : r >= 0.70 ? 4 : 5;
+        const labels = ["","Prix très élevé","Prix élevé","Prix dans la moyenne","Bon prix","Très bon prix"];
+        const colors = ["","#ef4444","#f97316","#3b82f6","#22c55e","#15803d"];
+        const bgs    = ["","#fef2f2","#fff7ed","#eff6ff","#f0fdf4","#dcfce7"];
+        return (
+          <div style={{maxWidth:1200,margin:"0 auto 32px",padding:"0 24px"}}>
+            <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:16,overflow:"hidden"}}>
+              {/* Titre section */}
+              <div style={{padding:"18px 28px 14px",borderBottom:"1px solid #e5e7eb"}}>
+                <span style={{fontSize:14,fontWeight:800,color:"#0f172a",letterSpacing:"-.01em"}}>Rapport qualité / prix</span>
+              </div>
+              {/* Contenu */}
+              <div style={{padding:"24px 28px"}}>
+                <div style={{display:"flex",gap:8,marginBottom:20}}>
+                  {[1,2,3,4,5].map(i => (
+                    <div key={i} style={{height:12,flex:1,borderRadius:8,background:i<=score?colors[score]:"#e5e7eb",transition:"all .4s"}}/>
+                  ))}
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+                  <div style={{fontSize:20,fontWeight:800,color:colors[score],background:bgs[score],padding:"7px 22px",borderRadius:20}}>
+                    {labels[score]}
+                  </div>
+                  <div style={{fontSize:13,color:"#6b7280",fontWeight:500}}>Basé sur {nearPPMs.length} bien{nearPPMs.length>1?"s":""} à proximité</div>
+                </div>
+                <p style={{margin:"14px 0 0",fontSize:13,color:"#374151",lineHeight:1.6}}>
+                  Le prix au m² de cette annonce est comparé aux biens similaires dans le même secteur géographique.
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* -- Satisfaction widget — pleine largeur -- */}
+      <div style={{maxWidth:1200,margin:"0 auto 32px",padding:"0 24px"}}>
+        <div style={{background:"linear-gradient(135deg,#f8faff,#eef2ff)",borderRadius:16,padding:"32px 40px",border:"1.5px solid #e0e7ff"}}>
+          <div style={{textAlign:"center",marginBottom:20}}>
+            <div style={{fontSize:16,fontWeight:800,color:"#0f172a",marginBottom:4}}>
+              À quel point êtes-vous satisfait de cette annonce ?
+            </div>
+            <div style={{fontSize:13,color:"#94a3b8"}}>Votre avis nous aide à améliorer l'expérience</div>
+          </div>
+          {/* Note globale */}
+          {ratingCount > 0 && (
+            <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginBottom:16}}>
+              <div style={{display:"flex",gap:2}}>
+                {[1,2,3,4,5].map(s => (
+                  <span key={s} style={{fontSize:16,opacity: s <= Math.round(ratingAvg||0) ? 1 : 0.25}}>⭐</span>
+                ))}
+              </div>
+              <span style={{fontSize:14,fontWeight:700,color:"#0f172a"}}>{(ratingAvg||0).toFixed(1)}</span>
+              <span style={{fontSize:12,color:"#94a3b8"}}>({ratingCount} avis)</span>
+            </div>
+          )}
+          <div style={{display:"flex",justifyContent:"center",gap:12,flexWrap:"wrap"}}>
+            {[
+              {emoji:"😞",label:"Très insatisfait",val:1},
+              {emoji:"😕",label:"Insatisfait",val:2},
+              {emoji:"😐",label:"Neutre",val:3},
+              {emoji:"😊",label:"Satisfait",val:4},
+              {emoji:"😄",label:"Très satisfait",val:5},
+            ].map(({emoji,label,val}) => (
+              <button key={val} onClick={() => {
+                setSatisfaction(val);
+                localStorage.setItem(`localizi_sat_${id}`, String(val));
+                // Générer une session_key anonyme stable par navigateur
+                let sk = localStorage.getItem("localizi_sk");
+                if (!sk) { sk = Math.random().toString(36).slice(2)+Date.now(); localStorage.setItem("localizi_sk", sk); }
+                fetch(`${API_URL}/annonces/${id}/reaction`, {
+                  method:"POST",
+                  headers:{"Content-Type":"application/json"},
+                  body: JSON.stringify({ session_key: sk, note: val })
+                }).then(r => r.ok ? r.json() : null).then(d => {
+                  if (d) { setRatingAvg(d.rating_avg); setRatingCount(d.rating_count); }
+                }).catch(()=>{});
+              }} title={label} style={{
+                background:satisfaction===val?"#eef2ff":"#fff",
+                border:satisfaction===val?"2px solid #6366f1":"2px solid #e5e7eb",
+                borderRadius:14, padding:"14px 18px", cursor:"pointer",
+                transform:satisfaction===val?"scale(1.12)":"scale(1)",
+                transition:"all .22s cubic-bezier(.34,1.56,.64,1)",
+                display:"flex", flexDirection:"column", alignItems:"center", gap:6,
+                minWidth:80, boxShadow:satisfaction===val?"0 4px 14px rgba(99,102,241,.2)":"none",
+              }}>
+                <span style={{fontSize:32}}>{emoji}</span>
+                <span style={{fontSize:11,color:satisfaction===val?"#6366f1":"#94a3b8",fontWeight:700,lineHeight:1.2,textAlign:"center"}}>{label}</span>
+              </button>
+            ))}
+          </div>
+          {satisfaction && (
+            <p style={{fontSize:13,color:"#6366f1",fontWeight:700,textAlign:"center",marginTop:16,marginBottom:0}}>
+              Merci pour votre retour ! 🎉
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* -- Nearby recommendations -- */}
       {nearby.length > 0 && (
         <div className="ad-nearby">
           <div className="ad-nearby__head">
@@ -622,15 +1268,21 @@ export default function AnnonceDetail() {
                 <div key={a.id} className="ad-ncard" onClick={() => { navigate(`/annonce/${a.id}`); window.scrollTo(0,0); }}>
                   <div className="ad-ncard__img-wrap">
                     <img src={img} alt={a.titre} className="ad-ncard__img" loading="lazy"/>
-                    <span className="ad-ncard__cat" style={{ background: CAT_BG[cat], color: CAT_COLOR[cat] }}>
-                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                    </span>
+                    {(cat === "location" || cat === "vacances") && (
+                      <span className="ad-ncard__cat" style={{ background: CAT_BG[cat], color: CAT_COLOR[cat] }}>
+                        {cat === "location" ? "Location" : "Vacances"}
+                      </span>
+                    )}
                   </div>
                   <div className="ad-ncard__body">
                     <p className="ad-ncard__price">
                       {Number(a.prix).toLocaleString("fr-TN")}
-                      <span> {a.devise === "DT" ? "DT" : a.devise}</span>
+                      <span> {fmtDevise(a.devise)}</span>
                     </p>
+                    {a.prix && (() => {
+                      const apx = fmtPriceApprox(a.prix, a.devise);
+                      return apx ? <p style={{fontSize:10.5,color:"#94a3b8",margin:"-2px 0 3px",lineHeight:1.3}}>{apx}</p> : null;
+                    })()}
                     <p className="ad-ncard__titre">{a.titre}</p>
                     <p className="ad-ncard__dist">
                       <MapPin size={10}/>
@@ -645,8 +1297,93 @@ export default function AnnonceDetail() {
         </div>
       )}
 
+      {/* -- Breadcrumb navigation -- */}
+      {(() => {
+        const TYPE_PLURAL = {
+          appartement:"Appartements", villa:"Villas", villa_maison:"Villas / Maisons",
+          bureau:"Bureaux", local_commercial:"Locaux commerciaux", terrain:"Terrains",
+          ferme_agricole:"Fermes agricoles", ferme:"Fermes agricoles",
+          immeuble:"Immeubles", garage_parking:"Garages / Parkings",
+          depot_stockage:"Dépôts / Stockages", immobiliers_divers:"Biens divers",
+        };
+        const CAT_ACTION = { vente:"à vendre", location:"à louer", vacances:"en vacances" };
+        const typeFr  = TYPE_PLURAL[prop.type_bien] || "Biens";
+        const catFr   = CAT_ACTION[prop.categorie]  || "";
+        const crumbs  = [
+          { label:"Immobilier",                           href:"/" },
+          { label:`${typeFr} ${catFr} en Tunisie`,        href:`/carte?categorie=${prop.categorie}` },
+          prop.gouvernorat && { label: prop.gouvernorat,  href:`/carte?gouvernorat=${encodeURIComponent(prop.gouvernorat)}&categorie=${prop.categorie}` },
+          prop.delegation  && { label: prop.delegation,   href:`/carte?delegation=${encodeURIComponent(prop.delegation)}&categorie=${prop.categorie}` },
+          { label: prop.titre || "Annonce" },
+        ].filter(Boolean);
+        return (
+          <nav style={{maxWidth:1200,margin:"8px auto 32px",padding:"0 24px"}} aria-label="fil d'Ariane">
+            <ol style={{display:"flex",flexWrap:"wrap",alignItems:"center",gap:"4px 0",listStyle:"none",padding:0,margin:0}}>
+              {crumbs.map((c, i) => (
+                <li key={i} style={{display:"flex",alignItems:"center",gap:4}}>
+                  {i > 0 && <span style={{color:"#94a3b8",fontSize:13,margin:"0 4px"}}>›</span>}
+                  {c.href ? (
+                    <Link to={c.href} style={{
+                      fontSize:13, color:"#6366f1", fontWeight:600,
+                      textDecoration:"none", transition:"color .15s",
+                    }}
+                    onMouseEnter={e=>e.target.style.textDecoration="underline"}
+                    onMouseLeave={e=>e.target.style.textDecoration="none"}
+                    >{c.label}</Link>
+                  ) : (
+                    <span style={{fontSize:13,color:"#64748b",fontWeight:500}}>{c.label}</span>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </nav>
+        );
+      })()}
+
+      <Footer />
+
+      {/* Lightbox */}
+      {lightboxIdx !== null && prop && ReactDOM.createPortal(
+        <div
+          style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(0,0,0,.92)",display:"flex",alignItems:"center",justifyContent:"center"}}
+          onClick={() => setLightboxIdx(null)}
+        >
+          {/* Close */}
+          <button onClick={() => setLightboxIdx(null)}
+            style={{position:"absolute",top:18,right:22,background:"rgba(255,255,255,.12)",border:"none",borderRadius:99,width:40,height:40,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:"#fff",zIndex:2}}>
+            <X size={22}/>
+          </button>
+          {/* Counter */}
+          <span style={{position:"absolute",top:22,left:"50%",transform:"translateX(-50%)",color:"rgba(255,255,255,.8)",fontSize:13,fontWeight:600,letterSpacing:".06em",pointerEvents:"none"}}>
+            {lightboxIdx+1} / {prop.images.length}
+          </span>
+          {/* Image */}
+          <img
+            src={prop.images[lightboxIdx]}
+            alt=""
+            onClick={e => e.stopPropagation()}
+            style={{maxWidth:"90vw",maxHeight:"85vh",objectFit:"contain",borderRadius:8,boxShadow:"0 8px 48px rgba(0,0,0,.5)",userSelect:"none"}}
+          />
+          {/* Arrows */}
+          {prop.images.length > 1 && (
+            <>
+              <button onClick={e => { e.stopPropagation(); setLightboxIdx(i => (i-1+prop.images.length)%prop.images.length); }}
+                style={{position:"absolute",left:16,top:"50%",transform:"translateY(-50%)",background:"rgba(255,255,255,.12)",border:"none",borderRadius:99,width:44,height:44,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:"#fff"}}>
+                <ChevronLeft size={26}/>
+              </button>
+              <button onClick={e => { e.stopPropagation(); setLightboxIdx(i => (i+1)%prop.images.length); }}
+                style={{position:"absolute",right:16,top:"50%",transform:"translateY(-50%)",background:"rgba(255,255,255,.12)",border:"none",borderRadius:99,width:44,height:44,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:"#fff"}}>
+                <ChevronRight size={26}/>
+              </button>
+            </>
+          )}
+        </div>,
+        document.body
+      )}
+
       <style>{`
-        .ad-root { min-height:100vh; background:#f9fafb; font-family:'Plus Jakarta Sans',system-ui,sans-serif; }
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+        .ad-root { min-height:100vh; background:#f9fafb; font-family:'Poppins',system-ui,sans-serif; font-size:11.5px; }
         .ad-loading { display:flex; flex-direction:column; align-items:center; justify-content:center; height:60vh; gap:16px; color:#94a3b8; font-size:15px; }
         @keyframes spin { to { transform:rotate(360deg); } }
         .ad-spin { animation: spin 1s linear infinite; }
@@ -689,18 +1426,18 @@ export default function AnnonceDetail() {
         .ad-gallery__thumb--on { border-color:#6366f1; opacity:1; }
         .ad-gallery__thumb:hover { opacity:1; }
         .ad-section { margin-bottom:24px; }
-        .ad-section__title { font-size:16px; font-weight:700; color:#111; margin-bottom:12px; }
-        .ad-desc { font-size:14px; color:#4b5563; line-height:1.75; }
+        .ad-section__title { font-size:20px; font-weight:800; color:#0f172a; margin-bottom:14px; }
+        .ad-desc { font-family:'Poppins',system-ui,sans-serif; font-size:12px; color:#4b5563; line-height:1.8; text-align:justify; }
         .ad-features { display:flex; flex-wrap:wrap; gap:8px; }
         .ad-feature { display:flex; align-items:center; gap:6px; padding:6px 12px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:6px; font-size:13px; color:#374151; }
         .ad-feature svg { color:#6366f1; }
         .ad-card { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:20px; margin-bottom:16px; }
-        .ad-card__cat { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; margin-bottom:10px; }
-        .ad-card__cat--vente    { background:#eef2ff; color:#6366f1; }
-        .ad-card__cat--location { background:#e6f9f3; color:#00B47D; }
-        .ad-card__cat--vacances { background:#fff8e7; color:#9a6700; }
+        .ad-card__cat { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; margin-bottom:10px; color:#fff; }
+        .ad-card__cat--achat    { background:#166534; }
+        .ad-card__cat--location { background:#1e40af; }
+        .ad-card__cat--vacances { background:#854d0e; }
         .ad-card__titre { font-size:18px; font-weight:800; color:#111; line-height:1.3; margin-bottom:6px; }
-        /* ─── Bloc adresse hiérarchique ─── */
+        /* --- Bloc adresse hiérarchique --- */
         .ad-addr { margin-bottom: 14px; display: flex; flex-direction: column; gap: 6px; }
         .ad-addr__street {
           display: flex; align-items: flex-start; gap: 5px;
@@ -733,7 +1470,7 @@ export default function AnnonceDetail() {
         .ad-meta__item svg { color:#9ca3af; }
         .ad-meta__item span { font-weight:600; color:#6b7280; }
         .ad-divider { height:1px; background:#f3f4f6; margin:16px 0; }
-        /* ── Bloc contact Phase 1 ── */
+        /* -- Bloc contact Phase 1 -- */
         .ad-contact-box {
           border: 1.5px solid #e5e7eb; border-radius: 14px;
           overflow: hidden; background: #fff;
@@ -839,7 +1576,7 @@ export default function AnnonceDetail() {
           .ad-action { padding:6px 10px; font-size:12px; }
         }
 
-        /* ─── Description header + translate ─── */
+        /* --- Description header + translate --- */
         .ad-section__header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
         .ad-section__header .ad-section__title { margin-bottom:0; }
         .ad-translate-btn {
@@ -853,7 +1590,7 @@ export default function AnnonceDetail() {
         .ad-translated-note { font-size:11.5px; color:#9ca3af; margin-top:8px; }
         .ad-translated-reset { font-size:11.5px; color:#6366f1; text-decoration:underline; cursor:pointer; background:none; border:none; font-family:inherit; padding:0; }
 
-        /* ─── Nearby recommendations ─── */
+        /* --- Nearby recommendations --- */
         .ad-nearby {
           max-width:1200px; margin:0 auto 48px; padding:0 24px;
         }
@@ -903,114 +1640,96 @@ export default function AnnonceDetail() {
         }
       `}</style>
 
-      {/* ── Modal contact anonyme ── */}
-      {showContactModal && (
-        <div style={{
-          position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:99999,
-          display:"flex",alignItems:"center",justifyContent:"center",padding:20,
-          fontFamily:"'Inter',system-ui,sans-serif"
-        }}>
-          <div style={{
-            background:"#fff",borderRadius:18,width:"100%",maxWidth:480,
-            padding:"32px 28px",boxShadow:"0 24px 80px rgba(0,0,0,.28)"
-          }}>
-            {contactSent ? (
-              <div style={{textAlign:"center",padding:"20px 0"}}>
-                <div style={{fontSize:48,marginBottom:12}}>✅</div>
-                <h3 style={{fontSize:20,fontWeight:800,color:"#0f172a",marginBottom:8}}>Demande envoyée !</h3>
-                <p style={{fontSize:14,color:"#64748b",lineHeight:1.6}}>
-                  La personne au {contactForm.telephone ? `numéro ${contactForm.telephone}` : `mail ${contactForm.email}`} souhaite vous contacter pour le bien <strong>"{prop?.titre}"</strong>. Le propriétaire dispose de vos coordonnées pour vous joindre.
-                </p>
-                <button onClick={() => { setShowContactModal(false); setContactSent(false); }}
-                  style={{marginTop:20,padding:"11px 28px",borderRadius:10,border:"none",
-                    background:"#0f172a",color:"#fff",fontWeight:700,cursor:"pointer",
-                    fontSize:14,fontFamily:"inherit"}}>Fermer</button>
-              </div>
-            ) : (<>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+      {/* -- Modal contact anonyme -- */}
+      {showContactModal && ReactDOM.createPortal(
+        <div style={{position:"fixed",inset:0,zIndex:99999,background:"rgba(15,23,42,.55)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"'Inter',system-ui,sans-serif"}}
+          onClick={e=>{if(e.target===e.currentTarget)setShowContactModal(false);}}>
+          <div style={{background:"#fff",borderRadius:20,padding:"28px 28px 0",maxWidth:500,width:"100%",maxHeight:"90vh",display:"flex",flexDirection:"column",boxShadow:"0 24px 64px rgba(0,0,0,.18)"}}
+            onClick={e=>e.stopPropagation()}>
+            {/* Header — même style que comparateur */}
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexShrink:0}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <Logo variant="color" height={28} to={null}/>
                 <div>
-                  <h3 style={{fontSize:18,fontWeight:800,color:"#0f172a",margin:0}}>Contacter le propriétaire</h3>
-                  <p style={{fontSize:13,color:"#64748b",margin:"4px 0 0"}}>
-                    Le propriétaire vous contactera directement par WhatsApp / téléphone / email selon vos informations ci-dessous.
-                  </p>
+                  <div style={{fontSize:16,fontWeight:800,color:"#0f172a"}}>Contacter le propriétaire</div>
+                  <div style={{fontSize:12,color:"#94a3b8",marginTop:2}}>Le propriétaire vous recontactera directement</div>
                 </div>
-                <button onClick={()=>setShowContactModal(false)}
-                  style={{background:"#f1f5f9",border:"none",borderRadius:"50%",
-                    width:34,height:34,cursor:"pointer",fontSize:18,color:"#64748b",
-                    display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
               </div>
-
-              {contactError && (
-                <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:9,
-                  padding:"10px 14px",fontSize:13,color:"#dc2626",marginBottom:14}}>{contactError}</div>
-              )}
-
-              {[
-                {key:"nom",       label:"Votre nom *",             type:"text",  placeholder:"Prénom Nom"},
-                {key:"telephone", label:"Votre téléphone",         type:"tel",   placeholder:"+216 XX XXX XXX"},
-                {key:"email",     label:"Votre email",             type:"email", placeholder:"vous@email.com"},
-                {key:"message",   label:"Message (optionnel)",     type:"textarea", placeholder:"Décrivez votre intérêt..."},
-              ].map(({key,label,type,placeholder}) => (
-                <div key={key} style={{marginBottom:14}}>
-                  <label style={{fontSize:12.5,fontWeight:700,color:"#374151",display:"block",marginBottom:5}}>{label}</label>
-                  {type === "textarea" ? (
-                    <textarea placeholder={placeholder}
-                      value={contactForm[key]} rows={3}
-                      onChange={e => setContactForm(f=>({...f,[key]:e.target.value}))}
-                      style={{width:"100%",padding:"10px 13px",border:"1.5px solid #e2e8f0",
-                        borderRadius:10,fontSize:13,fontFamily:"inherit",outline:"none",
-                        resize:"vertical",background:"#f8fafc",boxSizing:"border-box"}}/>
-                  ) : (
-                    <input type={type} placeholder={placeholder}
-                      value={contactForm[key]}
-                      onChange={e => setContactForm(f=>({...f,[key]:e.target.value}))}
-                      style={{width:"100%",padding:"11px 13px",border:"1.5px solid #e2e8f0",
-                        borderRadius:10,fontSize:13,fontFamily:"inherit",outline:"none",
-                        background:"#f8fafc",boxSizing:"border-box"}}/>
-                  )}
-                </div>
-              ))}
-
-              <p style={{fontSize:12,color:"#94a3b8",marginBottom:16}}>
-                📞 Renseignez au moins votre téléphone ou votre email pour que le propriétaire puisse vous contacter.
-              </p>
-
-              <button
-                disabled={contactLoading || !contactForm.nom.trim() || (!contactForm.telephone && !contactForm.email)}
-                onClick={async () => {
-                  setContactLoading(true); setContactError("");
-                  try {
-                    const res = await fetch(`${API_URL}/annonces/${prop.id}/contact-request`, {
-                      method:"POST",
-                      headers:{"Content-Type":"application/json"},
-                      body:JSON.stringify({
-                        nom:       contactForm.nom.trim(),
-                        telephone: contactForm.telephone.trim() || null,
-                        email:     contactForm.email.trim() || null,
-                        message:   contactForm.message.trim() || null,
-                      }),
-                    });
-                    const data = await res.json();
-                    if (!res.ok) throw new Error(data.detail || "Erreur");
-                    setContactSent(true);
-                  } catch(err) {
-                    setContactError(err.message || "Erreur lors de l'envoi");
-                  } finally {
-                    setContactLoading(false);
-                  }
-                }}
-                style={{
-                  width:"100%",padding:"13px",borderRadius:11,border:"none",
-                  background: contactLoading ? "#94a3b8" : "#0f172a",
-                  color:"#fff",fontSize:14,fontWeight:700,cursor:contactLoading?"not-allowed":"pointer",
-                  fontFamily:"inherit",marginTop:4
-                }}
-              >
-                {contactLoading ? "Envoi en cours…" : "📩 Envoyer ma demande"}
+              <button onClick={()=>setShowContactModal(false)} style={{background:"#f1f5f9",border:"none",cursor:"pointer",borderRadius:10,width:34,height:34,display:"flex",alignItems:"center",justifyContent:"center",color:"#64748b",flexShrink:0}}>
+                <X size={18} strokeWidth={2.5}/>
               </button>
-            </>)}
+            </div>
+
+            {/* Body scrollable */}
+            <div style={{flex:1,overflowY:"auto",paddingBottom:28}}>
+              {contactSent ? (
+                <div style={{textAlign:"center",padding:"24px 0 16px"}}>
+                  <div style={{width:60,height:60,borderRadius:"50%",background:"#f0fdf4",border:"2px solid #bbf7d0",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px"}}>
+                    <CheckCircle size={30} color="#16a34a" strokeWidth={2}/>
+                  </div>
+                  <div style={{fontSize:19,fontWeight:800,color:"#0f172a",marginBottom:8}}>Demande envoyée !</div>
+                  <p style={{fontSize:13,color:"#64748b",lineHeight:1.6,marginBottom:24}}>
+                    Le propriétaire de <strong>"{prop?.titre}"</strong> dispose de vos coordonnées et vous contactera prochainement.
+                  </p>
+                  <button onClick={()=>{setShowContactModal(false);setContactSent(false);}}
+                    style={{padding:"11px 32px",borderRadius:10,border:"none",background:"#0f172a",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14,fontFamily:"inherit"}}>
+                    Fermer
+                  </button>
+                </div>
+              ) : (<>
+                {contactError && (
+                  <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:9,padding:"10px 14px",fontSize:13,color:"#dc2626",marginBottom:14}}>{contactError}</div>
+                )}
+                {[
+                  {key:"nom",       label:"Votre nom *",         type:"text",     placeholder:"Prénom Nom"},
+                  {key:"telephone", label:"Votre téléphone",     type:"tel",      placeholder:"+216 XX XXX XXX"},
+                  {key:"email",     label:"Votre email",         type:"email",    placeholder:"vous@email.com"},
+                  {key:"message",   label:"Message (optionnel)", type:"textarea", placeholder:"Décrivez votre intérêt..."},
+                ].map(({key,label,type,placeholder}) => (
+                  <div key={key} style={{marginBottom:13}}>
+                    <label style={{fontSize:12.5,fontWeight:700,color:"#374151",display:"block",marginBottom:5}}>{label}</label>
+                    {type==="textarea" ? (
+                      <textarea placeholder={placeholder} value={contactForm[key]} rows={3}
+                        onChange={e=>setContactForm(f=>({...f,[key]:e.target.value}))}
+                        style={{width:"100%",padding:"10px 13px",border:"1.5px solid #e2e8f0",borderRadius:10,fontSize:13,fontFamily:"inherit",outline:"none",resize:"vertical",background:"#f8fafc",boxSizing:"border-box"}}/>
+                    ) : (
+                      <input type={type} placeholder={placeholder} value={contactForm[key]}
+                        onChange={e=>setContactForm(f=>({...f,[key]:e.target.value}))}
+                        style={{width:"100%",padding:"11px 13px",border:"1.5px solid #e2e8f0",borderRadius:10,fontSize:13,fontFamily:"inherit",outline:"none",background:"#f8fafc",boxSizing:"border-box"}}/>
+                    )}
+                  </div>
+                ))}
+                <p style={{fontSize:12,color:"#94a3b8",marginBottom:16,display:"flex",alignItems:"center",gap:5}}>
+                  <Info size={13} strokeWidth={2} style={{flexShrink:0}}/>
+                  Renseignez au moins votre téléphone ou votre email pour être contacté.
+                </p>
+                <button
+                  disabled={contactLoading||!contactForm.nom.trim()||(!contactForm.telephone&&!contactForm.email)}
+                  onClick={async()=>{
+                    setContactLoading(true); setContactError("");
+                    try {
+                      const res = await fetch(`${API_URL}/annonces/${prop.id}/contact-request`,{
+                        method:"POST",headers:{"Content-Type":"application/json"},
+                        body:JSON.stringify({nom:contactForm.nom.trim(),telephone:contactForm.telephone.trim()||null,email:contactForm.email.trim()||null,message:contactForm.message.trim()||null}),
+                      });
+                      const data = await res.json();
+                      if (!res.ok) throw new Error(data.detail||"Erreur");
+                      setContactSent(true);
+                    } catch(err){ setContactError(err.message||"Erreur lors de l'envoi"); }
+                    finally{ setContactLoading(false); }
+                  }}
+                  style={{width:"100%",padding:"13px",borderRadius:11,border:"none",
+                    background:contactLoading||!contactForm.nom.trim()||(!contactForm.telephone&&!contactForm.email)?"#cbd5e1":"#0f172a",
+                    color:"#fff",fontSize:14,fontWeight:700,
+                    cursor:contactLoading||!contactForm.nom.trim()||(!contactForm.telephone&&!contactForm.email)?"not-allowed":"pointer",
+                    fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                  {contactLoading ? "Envoi en cours…" : <><Send size={15} strokeWidth={2.5}/> Envoyer ma demande</>}
+                </button>
+              </>)}
+            </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

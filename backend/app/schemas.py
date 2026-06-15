@@ -10,13 +10,28 @@ class UserBase(BaseModel):
     email: str
     role: Optional[str] = "particulier"
     phone_number: Optional[str] = None
+    nom:                  Optional[str]  = None
+    prenom:               Optional[str]  = None
+    nom_entreprise:       Optional[str]  = None
+    agence_id:            Optional[int]  = None
+    must_change_password: Optional[bool] = None
     profile_picture: Optional[str] = None
+    gouvernorat: Optional[str] = None
+    localite: Optional[str] = None
+    adresse:            Optional[str] = None
+    matricule_fiscal:   Optional[str] = None
+    registre_commerce:  Optional[str] = None
+    secteur_partenaire: Optional[str] = None
 
 class UserCreate(UserBase):
     password: str  # mot de passe en clair pour la création
 
 class UserRead(UserBase):
     id: int
+    is_blocked:    Optional[bool]     = None
+    is_verified:   Optional[bool]     = None
+    created_at:    Optional[datetime] = None
+    updated_at:    Optional[datetime] = None
     class Config:
         orm_mode = True
 
@@ -72,10 +87,27 @@ class AnnonceBase(BaseModel):
     devise: str = "TND"
     status: str = "en_attente"
 
+class ChambreColocationCreate(BaseModel):
+    numero_chambre: int
+    capacite: int = 1
+    places_occupees: int = 0
+    prix_par_place: float = 0
+
+class ChambreColocationRead(BaseModel):
+    id: int
+    annonce_id: int
+    numero_chambre: int
+    capacite: int
+    places_occupees: int
+    prix_par_place: float = 0
+    class Config:
+        orm_mode = True
+
 class AnnonceCreate(AnnonceBase):
     type_appartement: Optional[str] = None
     type_villa: Optional[str] = None
     type_terrain: Optional[str] = None
+    type_bureau: Optional[str] = None
     etat_bien: Optional[str] = None
     etage: Optional[int] = None
     type_option_villa: Optional[str] = None
@@ -86,8 +118,23 @@ class AnnonceCreate(AnnonceBase):
     annee_construction: Optional[int] = None
     anonyme: Optional[bool] = False
     accompagnement: Optional[bool] = False
-    duree_type: Optional[str] = None
-    duree_valeur: Optional[str] = None
+    accompagnement_agence_id: Optional[int] = None
+    hauteur_immeuble:     Optional[str] = None
+    nb_appartements:      Optional[int] = None
+    orientation_immeuble: Optional[str] = None
+    emplacement_garage:   Optional[str] = None
+    standing:             Optional[str] = None
+    reference:            Optional[str] = None
+    duree_type:       Optional[str] = None
+    duree_valeur:     Optional[str] = None
+    capacite_accueil: Optional[int] = None
+    # ── Colocation ──
+    colocation:       Optional[bool] = False
+    places_totales:   Optional[int]  = None
+    places_occupees:  Optional[int]  = None
+    profil_coloc:     Optional[str]  = None
+    genre_coloc:      Optional[List[str]] = []
+    chambres_coloc:   Optional[List[ChambreColocationCreate]] = []
     # ── Caractéristiques générales ──
     jardin: Optional[bool] = False
     terrasse: Optional[bool] = False
@@ -138,6 +185,7 @@ class AnnonceUpdate(BaseModel):
     type_appartement: Optional[str] = None
     type_villa: Optional[str] = None
     type_terrain: Optional[str] = None
+    type_bureau: Optional[str] = None
     etat_bien: Optional[str] = None
     etage: Optional[int] = None
     type_option_villa: Optional[str] = None
@@ -146,10 +194,24 @@ class AnnonceUpdate(BaseModel):
     nb_salles_bain: Optional[int] = None
     telephone: Optional[str] = None
     annee_construction: Optional[int] = None
+    hauteur_immeuble:     Optional[str] = None
+    nb_appartements:      Optional[int] = None
+    orientation_immeuble: Optional[str] = None
+    emplacement_garage:   Optional[str] = None
+    standing:             Optional[str] = None
+    reference:            Optional[str] = None
     anonyme: Optional[bool] = None
     accompagnement: Optional[bool] = None
-    duree_type: Optional[str] = None
-    duree_valeur: Optional[str] = None
+    duree_type:       Optional[str] = None
+    duree_valeur:     Optional[str] = None
+    capacite_accueil: Optional[int] = None
+    # ── Colocation ──
+    colocation:      Optional[bool] = None
+    places_totales:  Optional[int]  = None
+    places_occupees: Optional[int]  = None
+    profil_coloc:    Optional[str]  = None
+    genre_coloc:     Optional[List[str]] = None
+    chambres_coloc:  Optional[List[ChambreColocationCreate]] = None
     # ── Caractéristiques (même liste que AnnonceCreate) ──
     jardin: Optional[bool] = None
     terrasse: Optional[bool] = None
@@ -223,6 +285,12 @@ class AnnonceRead(AnnonceBase):
     properties: List[PropertyRead] = []   # compatibilité frontend
     anonyme: Optional[bool] = False
     accompagnement: Optional[bool] = False
+    accompagnement_agence_id: Optional[int] = None
+    # ── Colocation ──
+    colocation:      Optional[bool] = False
+    places_totales:  Optional[int]  = None
+    places_occupees: Optional[int]  = None
+    profil_coloc:    Optional[str]  = None
     # Accès direct à l'image principale via la relation property (1-to-1)
     image_principale: Optional[str] = None
 
@@ -238,6 +306,17 @@ class AnnonceRead(AnnonceBase):
             # Construire la liste properties pour la compatibilité
             instance.properties = [PropertyRead.from_orm(obj.property)]
         return instance
+
+class AnnonceReactionCreate(BaseModel):
+    session_key: str
+    note: int
+
+class AnnonceStatsRead(BaseModel):
+    id: int
+    views_count: int = 0
+    favoris_count: int = 0
+    rating_avg: Optional[float] = None
+    rating_count: int = 0
 
 class AnnoncePublic(BaseModel):
     """Données publiques pour l'affichage liste/carte."""
@@ -260,8 +339,28 @@ class AnnoncePublic(BaseModel):
     address: Optional[str] = None
     nb_pieces: Optional[int] = None
     nb_chambres: Optional[int] = None
-    duree_type: Optional[str] = None   # nuit/semaine/mois/annee — pour location/vacances
-    features: List[str] = []           # liste des caractéristiques (Jardin, Piscine, ...)
+    nb_salles_bain: Optional[int] = None
+    type_appartement: Optional[str] = None
+    type_villa:       Optional[str] = None
+    type_bureau:      Optional[str] = None
+    etage:            Optional[int] = None
+    nb_appartements:  Optional[int] = None
+    hauteur_immeuble: Optional[str] = None
+    emplacement_garage: Optional[str] = None
+    duree_type:       Optional[str] = None
+    duree_valeur:     Optional[str] = None
+    capacite_accueil: Optional[int] = None
+    features: List[str] = []
+    # ── Colocation ──
+    colocation:      Optional[bool] = False
+    places_totales:  Optional[int]  = None
+    places_occupees: Optional[int]  = None
+    profil_coloc:    Optional[str]  = None
+    # ── Notes ──
+    rating_avg:   Optional[float] = None
+    rating_count: Optional[int]   = 0
+    # ── Toutes les photos ──
+    images: List[str] = []
 
     class Config:
         from_attributes = True

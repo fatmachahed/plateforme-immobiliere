@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import Layout from "../components/Layout";
 import { Shield, Eye, Lock, Database, UserCheck, Bell, Trash2, Mail, ChevronDown, ChevronUp } from "lucide-react";
 
@@ -71,7 +71,7 @@ const SECTIONS = [
       },
       {
         subtitle: "Droit à l'effacement",
-        text: "Vous pouvez demander la suppression de votre compte et de toutes vos données en nous contactant à privacy@localizi.tn. La demande sera traitée dans un délai de 7 jours ouvrés.",
+        text: "Vous pouvez demander la suppression de votre compte et de toutes vos données en nous contactant à privacy@Localizi.tn. La demande sera traitée dans un délai de 7 jours ouvrés.",
       },
       {
         subtitle: "Droit d'opposition",
@@ -111,7 +111,7 @@ const SECTIONS = [
       },
       {
         subtitle: "Obligations légales",
-        text: "Nous pouvons être amenés à divulguer vos données si la loi l'exige (réquisition judiciaire, obligation légale) ou pour protéger les droits, la propriété ou la sécurité de Localizi ou de ses utilisateurs.",
+        text: "Nous pouvons être amenés à divulguer vos données si la loi l'exige (réquisition judiciaire, obligation légale) ou pour protéger les droits, la propriété ou la sécurité de Localizi.tn ou de ses utilisateurs.",
       },
     ],
   },
@@ -156,7 +156,7 @@ export default function PolitiqueConfidentialite() {
               <span className="pc-hero__highlight">confidentialité</span>
             </h1>
             <p className="pc-hero__sub">
-              Chez Localizi, la protection de vos données personnelles est une priorité.
+              Chez Localizi.tn, la protection de vos données personnelles est une priorité.
               Cette page vous explique clairement quelles données nous collectons, comment
               nous les utilisons et quels sont vos droits.
             </p>
@@ -228,7 +228,7 @@ export default function PolitiqueConfidentialite() {
                 </div>
               </div>
               <div className="pc-contact-box__right">
-                <a href="mailto:privacy@localizi.tn" className="pc-btn pc-btn--primary">
+                <a href="mailto:privacy@Localizi.tn" className="pc-btn pc-btn--primary">
                   Contacter le DPO
                 </a>
                 <a href="/contact" className="pc-btn pc-btn--outline">

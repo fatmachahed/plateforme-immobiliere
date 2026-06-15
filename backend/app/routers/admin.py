@@ -101,6 +101,11 @@ def list_annonces(
             "description":    a.description,
             "accompagnement": a.accompagnement or False,
             "anonyme":        a.anonyme or False,
+            "accompagnement_agence_id":  a.accompagnement_agence_id,
+            "accompagnement_agence_nom": (
+                db.query(models.User.username).filter(models.User.id == a.accompagnement_agence_id).scalar()
+                if a.accompagnement_agence_id else None
+            ),
         })
     return result
 
@@ -159,15 +164,78 @@ def list_users(
     users = db.query(models.User).offset(skip).limit(limit).all()
     return [
         {
-            "id":       u.id,
-            "username": u.username,
-            "email":    u.email,
-            "role":     u.role.value if hasattr(u.role, "value") else str(u.role),
+            "id":         u.id,
+            "username":   u.username,
+            "email":      u.email,
+            "role":       u.role.value if hasattr(u.role, "value") else str(u.role),
+            "is_blocked": bool(u.is_blocked),
             "nb_annonces": db.query(func.count(models.Annonce.id))
                             .filter(models.Annonce.utilisateur_id == u.id).scalar() or 0,
         }
         for u in users
     ]
+
+
+# ── Bloquer / débloquer un utilisateur ──────────────────────
+@router.put("/users/{user_id}/block")
+def toggle_block_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(get_current_admin),
+):
+    u = db.query(models.User).filter(models.User.id == user_id).first()
+    if not u:
+        raise HTTPException(404, "Utilisateur non trouvé")
+    if u.id == admin.id:
+        raise HTTPException(400, "Impossible de bloquer votre propre compte")
+    u.is_blocked = not bool(u.is_blocked)
+    db.commit()
+    return {"id": u.id, "is_blocked": u.is_blocked}
+
+
+# ── Modifier un utilisateur ──────────────────────────────────
+class UserUpdate(BaseModel):
+    username: Optional[str] = None
+    email:    Optional[str] = None
+    role:     Optional[str] = None
+
+@router.put("/users/{user_id}")
+def update_user(
+    user_id: int,
+    body: UserUpdate,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(get_current_admin),
+):
+    u = db.query(models.User).filter(models.User.id == user_id).first()
+    if not u:
+        raise HTTPException(404, "Utilisateur non trouvé")
+    if body.username:  u.username = body.username
+    if body.email:     u.email    = body.email
+    if body.role:
+        try:
+            u.role = RoleEnum(body.role)
+        except ValueError:
+            raise HTTPException(400, f"Rôle invalide : {body.role}")
+    db.commit()
+    db.refresh(u)
+    return {"id": u.id, "username": u.username, "email": u.email, "role": u.role.value if hasattr(u.role,"value") else str(u.role)}
+
+
+# ── Supprimer un utilisateur ─────────────────────────────────
+@router.delete("/users/{user_id}")
+def delete_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(get_current_admin),
+):
+    u = db.query(models.User).filter(models.User.id == user_id).first()
+    if not u:
+        raise HTTPException(404, "Utilisateur non trouvé")
+    if u.id == admin.id:
+        raise HTTPException(400, "Impossible de supprimer votre propre compte")
+    db.delete(u)
+    db.commit()
+    return {"detail": "Utilisateur supprimé"}
 
 
 # ── Pydantic models for agencies ────────────────────────────
@@ -213,6 +281,7 @@ def list_agencies(
             "telephone":           ag.telephone,
             "adresse":             ag.adresse,
             "matricule":           ag.matricule,
+            "reference":           ag.reference,
             "frais_mensuel":       ag.frais_mensuel,
             "abonnement_actif":    ag.abonnement_actif,
             "abonnement_expire_at": ag.abonnement_expire_at.isoformat() if ag.abonnement_expire_at else None,
@@ -260,6 +329,11 @@ def create_agency(
     db.commit()
     db.refresh(agency)
 
+    # Générer la référence unique basée sur l'ID
+    agency.reference = f"AGC{str(agency.id).zfill(4)}"
+    db.commit()
+    db.refresh(agency)
+
     return {
         "id":               agency.id,
         "user_id":          user.id,
@@ -267,6 +341,7 @@ def create_agency(
         "email":            agency.email,
         "telephone":        agency.telephone,
         "matricule":        agency.matricule,
+        "reference":        agency.reference,
         "frais_mensuel":    agency.frais_mensuel,
         "abonnement_actif": True,
         "note_admin":       None,

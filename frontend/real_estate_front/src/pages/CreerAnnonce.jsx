@@ -1,8 +1,9 @@
 ﻿import React, { useState, useEffect, useRef, useCallback, useContext, createContext } from "react";
-import API_URL from '../config';
+import ReactDOM from "react-dom";
+import API_URL, { fmtPriceApprox } from '../config';
 import { useNavigate } from "react-router-dom";
 import {
-  Home, Building2, MapPin, Camera, ChevronRight, ChevronLeft, Save,
+  Home, Building2, MapPin, Camera, ChevronRight, ChevronLeft, Save, Layers, Crown,
   Check, X, Upload, Trash2, Eye, Bed, Bath, Maximize2, DollarSign,
   CheckCircle2, XCircle, Loader, Sparkles, Wand2,
   Minus, Plus, Navigation,
@@ -11,15 +12,87 @@ import {
   UtensilsCrossed, Wind, Thermometer, Compass, Wrench,
   HardHat, ThumbsUp, Hammer,
   Wifi, Flame, DoorClosed, ShieldCheck, Tv, PhoneCall, Users, KeyRound, Droplets, Signal, Heart, RefreshCw, Monitor, LockKeyhole, Fence, Fingerprint, Briefcase,
-  Tractor, LayoutGrid, Star
+  Tractor, LayoutGrid, Star, Tag, Phone, Mail, Warehouse, AlertTriangle
 } from "lucide-react";
 import Layout from "../components/Layout";
+import Logo from "../components/Logo";
 import AIDescriptionModal from '../components/AIDescriptionModal';
 import useLocalisation from "../hooks/useLocalisation";
 import { useToast } from "../components/Toast";
 import "leaflet/dist/leaflet.css";
 
-/* ── Bannière accompagnement ── */
+/* ── Normalisation légère (correspondance GADM ↔ API) ── */
+const _nCA = s => (s||"").normalize("NFD")
+  .replace(/[̀-ͯ]/g,"")
+  .toLowerCase()
+  .replace(/[\u0027\u002D\u02BC\u2010-\u2015\u2018-\u2019]+/g," ")
+  .replace(/\s+/g," ").trim();
+const normDelCA = s => _nCA(s).replace(/^(el |la |le |les |es |bou )/,"");
+
+/* ── Cache GeoJSON (gouvernorats + délégations) ── */
+const CA_GOV_CACHE = { data: null };
+const CA_DEL_CACHE = { data: null };
+async function loadCaGeo(path, cache) {
+  if (cache.data) return cache.data;
+  const r = await fetch(path);
+  cache.data = await r.json();
+  return cache.data;
+}
+
+/* ── Point-in-polygon (ray casting, coords GeoJSON [lng,lat]) ── */
+function _pip(lat, lng, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i][0], yi = ring[i][1];
+    const xj = ring[j][0], yj = ring[j][1];
+    if (((yi > lat) !== (yj > lat)) && (lng < (xj - xi) * (lat - yi) / (yj - yi) + xi))
+      inside = !inside;
+  }
+  return inside;
+}
+function pointInFeatureCA(lat, lng, feature) {
+  const { type, coordinates } = feature.geometry;
+  if (type === "Polygon") return _pip(lat, lng, coordinates[0]);
+  if (type === "MultiPolygon") return coordinates.some(p => _pip(lat, lng, p[0]));
+  return false;
+}
+
+/* ── Distance point → segment (en degrés, approximation plane) ── */
+function _distToSeg(lat, lng, lat1, lng1, lat2, lng2) {
+  const dx = lat2 - lat1, dy = lng2 - lng1;
+  if (dx === 0 && dy === 0) return Math.hypot(lat - lat1, lng - lng1);
+  const t = Math.max(0, Math.min(1, ((lat - lat1) * dx + (lng - lng1) * dy) / (dx*dx + dy*dy)));
+  return Math.hypot(lat - lat1 - t * dx, lng - lng1 - t * dy);
+}
+function _distToRing(lat, lng, ring) {
+  let d = Infinity;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const s = _distToSeg(lat, lng, ring[j][1], ring[j][0], ring[i][1], ring[i][0]);
+    if (s < d) d = s;
+  }
+  return d;
+}
+/* Retourne 'inside' | 'tolerance' | 'blocked'
+   TOLERANCE_DEG ≈ 0.07° ≈ 7 km — zone grise permissive */
+const TOLERANCE_DEG = 0.07;
+function zoneStatus(lat, lng, features) {
+  if (!features.length) return null;
+  const inside = features.some(f => pointInFeatureCA(lat, lng, f));
+  if (inside) return 'inside';
+  /* Distance minimale au bord de toutes les features */
+  let minDist = Infinity;
+  for (const f of features) {
+    const { type, coordinates } = f.geometry;
+    const rings = type === "Polygon" ? [coordinates[0]] : coordinates.map(p => p[0]);
+    for (const ring of rings) {
+      const d = _distToRing(lat, lng, ring);
+      if (d < minDist) minDist = d;
+    }
+  }
+  return minDist <= TOLERANCE_DEG ? 'tolerance' : 'blocked';
+}
+
+/* -- Bannière accompagnement -- */
 function AccompagnementBanner() {
   const [visible, setVisible] = useState(() => {
     try { return localStorage.getItem("ca_accom_dismissed") !== "1"; } catch { return true; }
@@ -56,11 +129,25 @@ function AccompagnementBanner() {
   );
 }
 
-/* ── Carte Leaflet contrôlée (position synced via prop) ── */
-function ControlledMap({ position, onLocationChange }) {
-  const containerRef = useRef(null);
-  const mapRef       = useRef(null);
-  const markerRef    = useRef(null);
+/* Styles polygone selon l'état de zone */
+const ZONE_POLY_STYLE = {
+  inside:    { color:"#3b82f6", weight:2.5, fillColor:"#3b82f6", fillOpacity:0.09, opacity:1,   dashArray:null },
+  tolerance: { color:"#93c5fd", weight:2,   fillColor:"#bfdbfe", fillOpacity:0.13, opacity:0.8, dashArray:"6,4" },
+  blocked:   { color:"#ef4444", weight:2.5, fillColor:"#ef4444", fillOpacity:0.10, opacity:1,   dashArray:null },
+};
+
+/* -- Carte Leaflet contrôlée (position synced via prop) -- */
+function ControlledMap({ position, onLocationChange, govLabel, delLabel, onZoneStatus }) {
+  const containerRef    = useRef(null);
+  const mapRef          = useRef(null);
+  const markerRef       = useRef(null);
+  const zoneLayerRef    = useRef(null);
+  const zoneFeaturesRef = useRef([]);
+  const lastValidPosRef = useRef(null); // dernière position autorisée (inside|tolerance)
+  const onZoneStatusRef = useRef(onZoneStatus);
+  const [zoneState, setZoneState] = useState(null); // null|'inside'|'tolerance'|'blocked'
+
+  useEffect(() => { onZoneStatusRef.current = onZoneStatus; }, [onZoneStatus]);
 
   const getAddress = useCallback(async (lat, lng) => {
     try {
@@ -74,6 +161,22 @@ function ControlledMap({ position, onLocationChange }) {
       return parts.join(", ") || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
     } catch { return `${lat.toFixed(5)}, ${lng.toFixed(5)}`; }
   }, []);
+
+  /* Évalue l'état de zone et met à jour le style du polygone.
+     Retourne l'état calculé pour que les handlers puissent agir. */
+  const checkZone = useCallback((lat, lng) => {
+    const feats = zoneFeaturesRef.current;
+    if (!feats.length) {
+      setZoneState(null);
+      onZoneStatusRef.current?.(null);
+      return null;
+    }
+    const st = zoneStatus(lat, lng, feats);
+    setZoneState(st);
+    onZoneStatusRef.current?.(st);
+    if (zoneLayerRef.current) zoneLayerRef.current.setStyle(ZONE_POLY_STYLE[st] || ZONE_POLY_STYLE.inside);
+    return st;
+  }, []); // eslint-disable-line
 
   /* Init map once */
   useEffect(() => {
@@ -93,21 +196,36 @@ function ControlledMap({ position, onLocationChange }) {
       const map = L.map(containerRef.current).setView([position.lat, position.lng], 13);
       mapRef.current = map;
 
-      L.tileLayer("https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
-        { attribution: "© OpenStreetMap contributors, Tiles courtesy of Humanitarian OpenStreetMap Team", maxZoom: 19 }).addTo(map);
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+        { attribution: "© OpenStreetMap © CARTO", maxZoom: 19 }).addTo(map);
 
       const marker = L.marker([position.lat, position.lng], { draggable: true }).addTo(map);
       markerRef.current = marker;
 
       marker.on("dragend", async () => {
         const { lat, lng } = marker.getLatLng();
+        const st = checkZone(lat, lng);
+        if (st === 'blocked') {
+          /* Remettre le marqueur à la dernière position valide */
+          const prev = lastValidPosRef.current;
+          if (prev) { marker.setLatLng([prev.lat, prev.lng]); return; }
+          /* Pas de position valide : remettre au centre du polygon */
+          if (zoneLayerRef.current) {
+            try { const c = zoneLayerRef.current.getBounds().getCenter(); marker.setLatLng(c); } catch {}
+          }
+          return;
+        }
+        lastValidPosRef.current = { lat, lng };
         const address = await getAddress(lat, lng);
         onLocationChange({ lat, lng, address });
       });
 
       map.on("click", async (e) => {
         const { lat, lng } = e.latlng;
+        const st = checkZone(lat, lng);
+        if (st === 'blocked') return; // ignorer le clic
         marker.setLatLng([lat, lng]);
+        lastValidPosRef.current = { lat, lng };
         const address = await getAddress(lat, lng);
         onLocationChange({ lat, lng, address });
       });
@@ -117,16 +235,86 @@ function ControlledMap({ position, onLocationChange }) {
     return () => { live = false; if (mapRef.current) { mapRef.current.remove(); mapRef.current = null; } };
   }, []); // eslint-disable-line
 
-  /* Update marker & pan when position prop changes */
+  /* Charger et afficher le polygone de la zone sélectionnée */
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      const map = mapRef.current;
+      if (zoneLayerRef.current && map) { map.removeLayer(zoneLayerRef.current); zoneLayerRef.current = null; }
+      zoneFeaturesRef.current = [];
+      lastValidPosRef.current = null;
+      setZoneState(null);
+      onZoneStatusRef.current?.(null);
+
+      if (!govLabel || !map) return;
+
+      const L = (await import("leaflet")).default;
+      if (!live) return;
+
+      const useDelLevel = !!delLabel;
+      const geo = await loadCaGeo(
+        useDelLevel ? "/tunisia-del.geojson" : "/tunisia-gov.geojson",
+        useDelLevel ? CA_DEL_CACHE : CA_GOV_CACHE
+      );
+      if (!live) return;
+
+      let features;
+      if (useDelLevel) {
+        features = geo.features.filter(f => {
+          const fg = _nCA(f.properties.govNom), fg2 = _nCA(govLabel);
+          if (fg !== fg2 && normDelCA(fg) !== normDelCA(fg2)) return false;
+          const fd = _nCA(f.properties.delNom), fd2 = _nCA(delLabel);
+          return fd === fd2 || normDelCA(fd) === normDelCA(fd2);
+        });
+      } else {
+        features = geo.features.filter(f => {
+          const fg = _nCA(f.properties.govNom), fg2 = _nCA(govLabel);
+          return fg === fg2 || normDelCA(fg) === normDelCA(fg2);
+        });
+      }
+
+      if (!features.length || !live) return;
+      zoneFeaturesRef.current = features;
+
+      const layer = L.geoJSON({ type:"FeatureCollection", features }, {
+        style: ZONE_POLY_STYLE.inside,
+        interactive: false,
+      });
+      if (!live) return;
+      layer.addTo(map);
+      zoneLayerRef.current = layer;
+
+      try { map.fitBounds(layer.getBounds(), { padding:[30,30], maxZoom:14 }); } catch {}
+
+      if (markerRef.current) {
+        const { lat, lng } = markerRef.current.getLatLng();
+        const st = checkZone(lat, lng);
+        if (st !== 'blocked') lastValidPosRef.current = { lat, lng };
+      }
+    })();
+    return () => { live = false; };
+  }, [govLabel, delLabel, checkZone]); // eslint-disable-line
+
+  /* Sync marqueur quand la position change via géocode/saisie manuelle */
   useEffect(() => {
     if (!mapRef.current || !markerRef.current) return;
     markerRef.current.setLatLng([position.lat, position.lng]);
     mapRef.current.setView([position.lat, position.lng], Math.max(mapRef.current.getZoom(), 12));
-  }, [position.lat, position.lng]);
+    const st = checkZone(position.lat, position.lng);
+    if (st !== 'blocked') lastValidPosRef.current = { lat: position.lat, lng: position.lng };
+  }, [position.lat, position.lng, checkZone]);
+
+  /* Badge du bas selon l'état */
+  const badge = zoneState === 'tolerance'
+    ? { bg:"rgba(59,130,246,0.82)", text:"Légèrement hors zone — position tolérée" }
+    : zoneState === 'blocked'
+    ? { bg:"rgba(239,68,68,0.95)",  text:"Zone trop éloignée — placement non autorisé" }
+    : null;
 
   return (
     <div style={{position:"relative", width:"100%", height:"100%", minHeight:420}}>
       <div ref={containerRef} style={{width:"100%", height:"100%", minHeight:420, borderRadius:12, overflow:"hidden"}}/>
+      {/* Hint déplacement */}
       <div style={{
         position:"absolute", top:14, left:"50%", transform:"translateX(-50%)",
         background:"rgba(255,255,255,0.96)", backdropFilter:"blur(6px)",
@@ -134,11 +322,23 @@ function ControlledMap({ position, onLocationChange }) {
         padding:"9px 20px", fontSize:14, fontWeight:700, color:"#0f172a",
         pointerEvents:"none", zIndex:999, whiteSpace:"nowrap",
         boxShadow:"0 4px 16px rgba(0,0,0,.18)",
-        display:"flex", alignItems:"center", gap:8,
-        letterSpacing:".01em"
+        display:"flex", alignItems:"center", gap:8, letterSpacing:".01em"
       }}>
-        <span style={{fontSize:16}}>📍</span> Déplacez l'emplacement
+        <span style={{fontSize:16}}>↔</span> Déplacez l'emplacement
       </div>
+      {/* Badge état zone */}
+      {badge && (
+        <div style={{
+          position:"absolute", bottom:14, left:"50%", transform:"translateX(-50%)",
+          background:badge.bg, color:"#fff",
+          borderRadius:8, padding:"8px 18px", fontSize:13, fontWeight:700,
+          zIndex:999, pointerEvents:"none", whiteSpace:"nowrap",
+          boxShadow:"0 4px 14px rgba(0,0,0,.2)",
+          display:"flex", alignItems:"center", gap:7,
+        }}>
+          <AlertTriangle size={14} style={{flexShrink:0}}/>{badge.text}
+        </div>
+      )}
     </div>
   );
 }
@@ -151,7 +351,7 @@ const STEPS = [
   { id: 5, label: "Prévisualisation",        icon: Eye },
 ];
 
-/* ── Barre évaluation prix ─────────────────────────────────── */
+/* -- Barre évaluation prix ----------------------------------- */
 const CA_EVAL_LEVELS = [
   { key:"none",  label:"Aucune évaluation", segs:0, color:"#d1d5db" },
   { key:"high3", label:"Prix très élevé",   segs:1, color:"#dc2626" },
@@ -204,10 +404,18 @@ function CaPriceEvalBar({ prixM2, govStats, devise }) {
   );
 }
 
-/* ── Helper: build prefill formData from detail API response ── */
+/* -- Helper: build prefill formData from detail API response -- */
 function buildPrefill(a) {
   const feat = a.features || [];
   return {
+    colocation:        a.colocation || false,
+    profil_coloc:      a.profil_coloc || "tous",
+    genre_coloc:       Array.isArray(a.genre_coloc) ? a.genre_coloc : (a.genre_coloc ? a.genre_coloc.split(",").filter(Boolean) : []),
+    chambres_coloc:    (a.chambres_colocation || []).map(c => ({
+      capacite:        c.capacite || 1,
+      places_occupees: c.places_occupees || 0,
+      prix_par_place:  c.prix_par_place || 0,
+    })),
     type_bien:         a.type_bien || "",
     categorie:         a.categorie || "",
     etat_bien:         a.etat_bien || "",
@@ -221,10 +429,11 @@ function buildPrefill(a) {
     nb_pieces:         a.nb_pieces || 0,
     nb_chambres:       a.nb_chambres || 0,
     nb_salles_bain:    a.nb_salles_bain || 0,
+    capacite_accueil:  a.capacite_accueil || 0,
     titre:             a.titre || "",
     superficie:        a.superficie ? String(a.superficie) : "",
     prix:              a.prix ? String(a.prix) : "",
-    devise:            a.devise || "DT",
+    devise:            a.devise || "TND",
     description:       a.description || "",
     address:           a.address || "Tunis, Tunisie",
     latitude:          a.latitude ? String(a.latitude) : "36.8065",
@@ -238,6 +447,7 @@ function buildPrefill(a) {
     nb_places_garage:  1,
     duree_type:        "",
     duree_valeur:      "",
+    standing:          a.standing || "",
     accompagnement:    a.accompagnement || false,
     anonyme:           a.anonyme || false,
     jardin:            feat.includes("Jardin"),
@@ -247,11 +457,11 @@ function buildPrefill(a) {
     garage:            feat.includes("Garage"),
     ascenseur:         feat.includes("Ascenseur"),
     vue_mer:           feat.includes("Vue sur mer"),
-    vue_montagne:      feat.includes("Vue montagne"),
-    vue_foret:         feat.includes("Vue forêt"),
+    vue_montagne:      feat.includes("Vue sur montagne"),
+    vue_foret:         feat.includes("Vue sur forêt"),
     piscine:           feat.includes("Piscine"),
     concierge:         feat.includes("Concierge"),
-    cellier:           feat.includes("Chambre rangement"),
+    cellier:           feat.includes("Cellier"),
     meuble:            feat.includes("Meublé"),
     cuisine_equipee:   feat.includes("Cuisine équipée"),
     climatisation:     feat.includes("Climatisation"),
@@ -285,13 +495,28 @@ export const CreateListingForm = ({ editId = null }) => {
   const toast    = useToast();
   const navigate = useNavigate();
 
-  /* ── Guard : doit être connecté pour publier ── */
+  /* -- Guard : doit être connecté pour publier -- */
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token) navigate("/login?redirect=/creer_annonce", { replace: true });
   }, []);
 
-  /* ── Restore step + non-file form data from localStorage ── */
+  /* -- Historique adresses utilisateur -- */
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    fetch(`${API_URL}/annonces/my-addresses`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(r => r.json())
+      .then(data => {
+        console.log("[AddressHistory]", data);
+        setAddressHistory(Array.isArray(data) ? data : []);
+      })
+      .catch(err => console.error("[AddressHistory error]", err));
+  }, []);
+
+  /* -- Restore step + non-file form data from localStorage -- */
   const [currentStep, setCurrentStep] = useState(() => {
     if (editId) return 1; // Always start at step 1 in edit mode
     try {
@@ -308,8 +533,14 @@ export const CreateListingForm = ({ editId = null }) => {
     } catch { return { lat: 36.8065, lng: 10.1815, address: "Tunis, Tunisie" }; }
   });
   const [isGeolocating, setIsGeolocating] = useState(false);
+  const [addressHistory, setAddressHistory] = useState([]); // [{address, count}]
+  const [addressWarning, setAddressWarning] = useState("");
+  const [addrDropdownOpen, setAddrDropdownOpen] = useState(false);
+  const [zoneStatus, setZoneStatus] = useState(null); // null=pas de zone | true=dedans | false=dehors
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
-  const [isAILoading, setIsAILoading] = useState(false);
+  const [isAILoading,     setIsAILoading]     = useState(false);
+  const [titleSuggestions,setTitleSuggestions]= useState([]);
+  const [descVariants,    setDescVariants]    = useState([]);
   const [hierarchy, setHierarchy] = useState(() => {
     if (editId) return { gouvernorat: "", delegation: "", localite: "" };
     try {
@@ -323,11 +554,14 @@ export const CreateListingForm = ({ editId = null }) => {
   const defaultFormData = {
     type_bien: "", categorie: "", etat_bien: "", type_terrain: "", vocation_terrain: "", titre_foncier: "",
     type_appartement: "", etage: "", type_villa: "", type_option_villa: "",
-    nb_pieces: 0, nb_chambres: 0, nb_salles_bain: 0,
+    hauteur_immeuble: "", emplacement_garage: "", standing: "", livraison_prevue: "",
+    nb_appartements: "", orientation_immeuble: "",
+    nb_pieces: 0, nb_chambres: 0, nb_salles_bain: 0, capacite_accueil: 0,
     vue_mer: false, vue_montagne: false, vue_foret: false, jardin: false,
     terrasse: false, balcon: false, ascenseur: false, garage: false, parking: false,
     cellier: false, meuble: false, cuisine_equipee: false, climatisation: false,
     chauffage_centrale: false, orientation: "",
+    fonds_de_commerce: "", pas_de_porte: "",
     piscine: false, concierge: false, digicode: false, interphone: false, gardien: false,
     relie_onas: false, salon_americain: false, fibre_optique: false, cheminee: false,
     double_vitrage: false, porte_blindee: false, securite: false, internet: false,
@@ -335,8 +569,9 @@ export const CreateListingForm = ({ editId = null }) => {
     age_bien: "", surface_jardin: "", surface_terrasse: "", nb_places_garage: 1,
     gouvernorat: "", delegation: "", localite: "",
     address: "Tunis, Tunisie", latitude: "36.8065", longitude: "10.1815",
-    titre: "", superficie: "", prix: "", devise: "DT", description: "",
+    titre: "", superficie: "", prix: "", devise: "TND", description: "",
     duree_type: "", duree_valeur: "", accompagnement: false, anonyme: false,
+    colocation: false, profil_coloc: "tous", genre_coloc: [], chambres_coloc: [],
     allImages: [], mainImageIndex: 0
   };
 
@@ -346,12 +581,14 @@ export const CreateListingForm = ({ editId = null }) => {
       const saved = localStorage.getItem("ca_formdata");
       if (!saved) return defaultFormData;
       const parsed = JSON.parse(saved);
+      if (parsed.devise === "DT") parsed.devise = "TND";
       return { ...defaultFormData, ...parsed, allImages: [], mainImageIndex: 0 };
     } catch { return defaultFormData; }
   });
 
   const [imageValidation, setImageValidation] = useState({});
-  /* ── Edit mode state ── */
+  /* -- Edit mode state -- */
+  const [showPublishModal,   setShowPublishModal]   = useState(false);
   const [loadingEdit,        setLoadingEdit]        = useState(false);
   const [loadingEditError,   setLoadingEditError]   = useState(false);
   const [editPropertyIdState,setEditPropertyIdState]= useState(null);
@@ -359,17 +596,27 @@ export const CreateListingForm = ({ editId = null }) => {
   const [existingImageUrls,  setExistingImageUrls]  = useState([]);
   /* Image principale parmi les existantes (index, -1 = aucune) */
   const [mainExistingIdx,    setMainExistingIdx]    = useState(0);
-  /* ── Agences pour dropdown accompagnement ── */
+  /* -- Agences pour dropdown accompagnement -- */
   const [agences, setAgences] = useState([]);
   const [agenceChoisie, setAgenceChoisie] = useState("");
-  /* ── Stats de marché (prix moyen/m² par gouvernorat) ── */
+  /* -- Stats de marché (prix moyen/m² par gouvernorat) -- */
   const [marketStats, setMarketStats] = useState({});
+  /* -- Index image sélectionnée dans la prévisualisation (step 5) -- */
+  const [previewImg, setPreviewImg] = useState(0);
+  /* -- Blob URLs stables pour les photos uploadées (évite la recréation à chaque render) -- */
+  const [imgUrls, setImgUrls] = useState([]);
+  useEffect(() => {
+    if (!formData.allImages || formData.allImages.length === 0) { setImgUrls([]); return; }
+    const urls = formData.allImages.map(f => URL.createObjectURL(f));
+    setImgUrls(urls);
+    return () => { urls.forEach(u => { try { URL.revokeObjectURL(u); } catch {} }); };
+  }, [formData.allImages]); // eslint-disable-line
 
   const totalSteps = 5;
 
   const [addressFilter, setAddressFilter] = useState("");
 
-  /* ── Persist form state to localStorage (non-file fields only) — skip in edit mode ── */
+  /* -- Persist form state to localStorage (non-file fields only) — skip in edit mode -- */
   useEffect(() => {
     fetch(`${API_URL}/users/agencies/public`)
       .then(r => r.ok ? r.json() : [])
@@ -400,21 +647,26 @@ export const CreateListingForm = ({ editId = null }) => {
     try { localStorage.setItem("ca_maploc", JSON.stringify(mapLocation)); } catch { /* ignore */ }
   }, [mapLocation, editId]);
 
-  /* ── Reset categorie if type_bien changes to terrain/local_commercial and categorie is vacances ── */
+  /* -- Réinitialiser l'index de l'image de preview quand on arrive à l'étape 5 -- */
   useEffect(() => {
-    if ((formData.type_bien === "terrain" || formData.type_bien === "local_commercial") && formData.categorie === "vacances") {
+    if (currentStep === 5) setPreviewImg(0);
+  }, [currentStep]);
+
+  /* -- Reset categorie if type_bien changes to terrain/local_commercial and categorie is vacances -- */
+  useEffect(() => {
+    if (["terrain","local_commercial","immeuble","garage_parking","depot_stockage","bureau"].includes(formData.type_bien) && formData.categorie === "vacances") {
       setFormData(prev => ({ ...prev, categorie: "" }));
     }
   }, [formData.type_bien]);
 
-  /* ── Reset etat_bien if categorie changes to location/vacances and etat is cours_construction ── */
+  /* -- Reset etat_bien if categorie changes to location/vacances and etat is cours_construction -- */
   useEffect(() => {
     if ((formData.categorie === "location" || formData.categorie === "vacances") && formData.etat_bien === "cours_construction") {
       setFormData(prev => ({ ...prev, etat_bien: "" }));
     }
   }, [formData.categorie]);
 
-  /* ── Fetch stats prix/m² depuis les annonces publiques ── */
+  /* -- Fetch stats prix/m² depuis les annonces publiques -- */
   useEffect(() => {
     fetch(`${API_URL}/annonces/public?limit=500`)
       .then(r => r.json())
@@ -433,7 +685,7 @@ export const CreateListingForm = ({ editId = null }) => {
       .catch(() => {});
   }, []);
 
-  /* ── Load existing annonce data when in edit mode ── */
+  /* -- Load existing annonce data when in edit mode -- */
   useEffect(() => {
     if (!editId) return;
     const token = localStorage.getItem("token");
@@ -464,9 +716,9 @@ export const CreateListingForm = ({ editId = null }) => {
       });
   }, [editId]); // eslint-disable-line
 
-  /* ── Incompatibilités terrain type ↔ vocation (calcul inline, sans toast) ── */
+  /* -- Incompatibilités terrain type ? vocation (calcul inline, sans toast) -- */
   const TERRAIN_INCOMPATIBILITIES = {
-    /* agricole → seulement agricole/mixte/non_définie autorisées */
+    /* agricole ? seulement agricole/mixte/non_définie autorisées */
     agricole:    ["commerciale","industrielle","touristique","residentielle"],
     zone_verte:  ["commerciale","industrielle","residentielle"],
     industriel:  ["agricole","touristique","residentielle"],
@@ -490,7 +742,7 @@ export const CreateListingForm = ({ editId = null }) => {
     }
   }, [formData.type_terrain]); // eslint-disable-line
 
-  /* ── Réinitialisation des champs spécifiques quand le type de bien change ── */
+  /* -- Réinitialisation des champs spécifiques quand le type de bien change -- */
   const prevTypeBienRef = useRef(formData.type_bien);
   useEffect(() => {
     const prev = prevTypeBienRef.current;
@@ -517,6 +769,7 @@ export const CreateListingForm = ({ editId = null }) => {
       nb_pieces:         0,
       nb_chambres:       0,
       nb_salles_bain:    0,
+      capacite_accueil:  0,
       orientation:       "",
     }));
     /* Effacer aussi les erreurs de validation */
@@ -526,7 +779,7 @@ export const CreateListingForm = ({ editId = null }) => {
   /* Réinitialiser aussi la catégorie si elle devient incompatible */
   useEffect(() => {
     const t = formData.type_bien;
-    if ((t === "terrain" || t === "local_commercial") && formData.categorie === "vacances") {
+    if (["terrain","local_commercial","depot_stockage","bureau"].includes(t) && formData.categorie === "vacances") {
       setFormData(f => ({ ...f, categorie: "" }));
     }
   }, [formData.type_bien]); // eslint-disable-line
@@ -539,6 +792,8 @@ export const CreateListingForm = ({ editId = null }) => {
   };
 
   const handleHierarchyChange = (level, value) => {
+    // Réinitialiser le message d'avertissement adresse quand on change de localisation
+    if (level === "gouvernorat") { setAddressWarning(""); setZoneStatus(null); }
     const newHierarchy = { ...hierarchy };
     if (level === "gouvernorat") {
       newHierarchy.gouvernorat = value;
@@ -552,7 +807,7 @@ export const CreateListingForm = ({ editId = null }) => {
     }
     setHierarchy(newHierarchy);
 
-    /* Geocode → pan map (tous les niveaux) */
+    /* Geocode ? pan map (tous les niveaux) */
     const govLabel = gouvernorats.find(g => g.value === newHierarchy.gouvernorat)?.label || "";
     const delLabel = delegations.find(d => d.id === newHierarchy.delegation)?.nom || "";
     const locLabel = localites.find(l => l.id === newHierarchy.localite)?.nom || "";
@@ -679,6 +934,28 @@ export const CreateListingForm = ({ editId = null }) => {
   };
 
   const handleInputChange = (field, value) => {
+    /* Quand nb_chambres change, redimensionner chambres_coloc si colocation activée */
+    if (field === "nb_chambres") {
+      const n = parseInt(value) || 0;
+      setFormData(prev => {
+        const cur = prev.chambres_coloc || [];
+        const newArr = prev.colocation
+          ? Array.from({length: n}, (_, i) => cur[i] || { capacite: 1, places_occupees: 0, prix_par_place: 0 })
+          : cur;
+        return { ...prev, nb_chambres: value, chambres_coloc: newArr };
+      });
+      return;
+    }
+    /* Quand colocation activée, initialiser chambres_coloc depuis nb_chambres */
+    if (field === "colocation" && value === true) {
+      setFormData(prev => {
+        const n = parseInt(prev.nb_chambres) || 0;
+        const cur = prev.chambres_coloc || [];
+        const newArr = Array.from({length: n}, (_, i) => cur[i] || { capacite: 1, places_occupees: 0, prix_par_place: 0 });
+        return { ...prev, colocation: true, chambres_coloc: newArr };
+      });
+      return;
+    }
     setFormData(prev => ({ ...prev, [field]: value }));
     if (field === 'latitude' && !isNaN(parseFloat(value))) {
       setMapLocation(prev => ({ ...prev, lat: parseFloat(value) }));
@@ -718,7 +995,7 @@ export const CreateListingForm = ({ editId = null }) => {
   };
 
 
-  /* ── Champs invalides (bordure rouge) ── */
+  /* -- Champs invalides (bordure rouge) -- */
   const [validationErrors, setValidationErrors] = useState({});
 
   const nextStep = () => {
@@ -735,24 +1012,46 @@ export const CreateListingForm = ({ editId = null }) => {
       if (formData.categorie === "vacances" && !formData.duree_type) {
         errors.duree_type = true;
       }
-      /* Incompatibilité type ↔ vocation bloque le passage */
+      /* Colocation : au moins 1 place disponible */
+      if (["location","vacances"].includes(formData.categorie) && ["appartement","villa"].includes(formData.type_bien) && formData.colocation) {
+        const rows = formData.chambres_coloc || [];
+        const totalDispo = rows.reduce((s,c) => s + Math.max(0,(c.capacite||1)-(c.places_occupees||0)), 0);
+        if (totalDispo < 1) {
+          toast("Colocation : au moins 1 place doit être disponible avant de continuer.", "error");
+          return;
+        }
+      }
+      /* Incompatibilité type ? vocation bloque le passage */
       if (vocIncompat) {
         errors.vocation_terrain = true;
         setValidationErrors(errors);
-        toast("Incompatibilité ✦ Corrigez le type et la vocation du terrain avant de continuer.", "error");
+        toast("Incompatibilité ? Corrigez le type et la vocation du terrain avant de continuer.", "error");
         return;
       }
       if (Object.keys(errors).length > 0) {
         setValidationErrors(errors);
-        toast("Champs requis ✦ Veuillez compléter les champs en rouge.", "error");
+        toast("Champs requis ? Veuillez compléter les champs en rouge.", "error");
         return;
       }
     }
     if (currentStep === 2) {
       if (!hierarchy.gouvernorat) errors.gouvernorat = true;
+      if (!hierarchy.delegation)  errors.delegation  = true;
       if (Object.keys(errors).length > 0) {
         setValidationErrors(errors);
-        toast("Champ requis ✦ Sélectionnez un gouvernorat.", "error");
+        toast("Champs requis — Sélectionnez le gouvernorat et la délégation.", "error");
+        return;
+      }
+      if (zoneStatus === 'blocked') {
+        toast("Le point est trop éloigné de la zone. Déplacez le marqueur dans la délégation sélectionnée.", "error");
+        return;
+      }
+    }
+    if (currentStep === 4) {
+      /* Au moins une photo requise (nouvelle ou existante) */
+      const totalPhotos = formData.allImages.length + existingImageUrls.length;
+      if (totalPhotos === 0) {
+        toast("Photo requise ? Ajoutez au moins une photo de votre bien.", "error");
         return;
       }
     }
@@ -765,7 +1064,7 @@ export const CreateListingForm = ({ editId = null }) => {
       if (!formData.description?.trim())                         errors.description = true;
       if (Object.keys(errors).length > 0) {
         setValidationErrors(errors);
-        toast("Champs requis ✦ Veuillez compléter les champs en rouge.", "error");
+        toast("Champs requis ? Veuillez compléter les champs en rouge.", "error");
         return;
       }
     }
@@ -791,8 +1090,9 @@ export const CreateListingForm = ({ editId = null }) => {
     if (!formData.categorie)    { toast("Veuillez sélectionner le type d'offre (étape 1).", "error"); return; }
     if (!formData.titre.trim()) { toast("Veuillez saisir un titre pour l'annonce (étape 3).", "error"); return; }
     if (!hierarchy.gouvernorat) { toast("Veuillez sélectionner un gouvernorat (étape 2).", "error"); return; }
+    if (!hierarchy.delegation)  { toast("Veuillez sélectionner une délégation (étape 2).", "error"); return; }
     if (formData.type_bien === "terrain" && !formData.titre_foncier) {
-      toast("Champ requis ✦ Le titre foncier est obligatoire pour un terrain (étape 1).", "error"); return;
+      toast("Champ requis ? Le titre foncier est obligatoire pour un terrain (étape 1).", "error"); return;
     }
 
     const prixVal = parseFloat(formData.prix);
@@ -804,6 +1104,9 @@ export const CreateListingForm = ({ editId = null }) => {
     }
 
     const supVal = parseFloat(formData.superficie);
+    if (supVal > 0 && prixVal / supVal <= 0) {
+      toast("Le prix au m² doit être supérieur à 0.", "error"); return;
+    }
     if (!formData.superficie || isNaN(supVal) || supVal <= 0) {
       toast("Veuillez saisir une superficie valide (étape 3).", "error"); return;
     }
@@ -837,7 +1140,7 @@ export const CreateListingForm = ({ editId = null }) => {
     };
 
     try {
-      /* ── Build shared payload ── */
+      /* -- Build shared payload -- */
       const payload = {
         gouvernorat_id: parseInt(hierarchy.gouvernorat) || undefined,
         delegation_id:  parseInt(hierarchy.delegation)  || undefined,
@@ -848,25 +1151,41 @@ export const CreateListingForm = ({ editId = null }) => {
         description:    formData.description || null,
         superficie:     parseFloat(formData.superficie) || 0,
         prix:           parseFloat(formData.prix)       || 0,
-        devise:         formData.devise || "DT",
+        devise:         formData.devise || "TND",
         status:         "en_attente",
         type_appartement:  formData.type_bien === "appartement" ? (formData.type_appartement || null) : null,
         type_villa:        formData.type_bien === "villa"       ? (formData.type_villa       || null) : null,
         type_terrain:      formData.type_bien === "terrain"     ? (formData.type_terrain     || null) : null,
+        type_bureau:       formData.type_bien === "bureau"      ? (formData.type_logement_bureau || null) : null,
         etat_bien:         formData.etat_bien         || null,
         etage:             formData.etage ? parseInt(formData.etage) : null,
         /* type_option_villa est une sélection multiple (ex: "sous-sol,rez-de-jardin").
-           Le backend attend une seule valeur enum → on envoie null pour éviter l'erreur DB.
+           Le backend attend une seule valeur enum ? on envoie null pour éviter l'erreur DB.
            Les options villa sont sauvegardées dans le formulaire mais pas soumises à la DB. */
         type_option_villa: null,
         nb_pieces:         formData.nb_pieces    || null,
         nb_chambres:       formData.nb_chambres  || null,
         nb_salles_bain:    formData.nb_salles_bain || null,
+        capacite_accueil:  formData.capacite_accueil || null,
         duree_type:        formData.duree_type  || null,
         duree_valeur:      formData.duree_valeur || null,
-        anonyme:           formData.anonyme || false,
-        accompagnement:    formData.accompagnement || false,
-        /* ── Caractéristiques générales ── */
+        anonyme:                   formData.anonyme || false,
+        accompagnement:            formData.accompagnement || false,
+        accompagnement_agence_id:  agenceChoisie ? parseInt(agenceChoisie) : null,
+        hauteur_immeuble:          formData.type_bien === "immeuble"       ? (formData.hauteur_immeuble  || null) : null,
+        nb_appartements:           formData.type_bien === "immeuble"       ? (formData.nb_appartements   ? Number(formData.nb_appartements) : null) : null,
+        orientation_immeuble:      formData.type_bien === "immeuble"       ? (formData.orientation_immeuble || null) : null,
+        emplacement_garage:        formData.type_bien === "garage_parking"  ? (formData.emplacement_garage|| null) : null,
+        standing:                  ["appartement","villa","villa_maison","immeuble","local_commercial","bureau"].includes(formData.type_bien) ? (formData.standing || null) : null,
+        colocation:      ["location","vacances"].includes(formData.categorie) && ["appartement","villa"].includes(formData.type_bien) ? (formData.colocation || false) : false,
+        places_totales:  ["location","vacances"].includes(formData.categorie) && ["appartement","villa"].includes(formData.type_bien) && formData.colocation ? (formData.chambres_coloc||[]).reduce((s,c)=>s+(c.capacite||1),0) : null,
+        places_occupees: ["location","vacances"].includes(formData.categorie) && ["appartement","villa"].includes(formData.type_bien) && formData.colocation ? (formData.chambres_coloc||[]).reduce((s,c)=>s+(c.places_occupees||0),0) : null,
+        profil_coloc:    ["location","vacances"].includes(formData.categorie) && ["appartement","villa"].includes(formData.type_bien) && formData.colocation ? (formData.profil_coloc || "tous") : null,
+        genre_coloc:     ["location","vacances"].includes(formData.categorie) && ["appartement","villa"].includes(formData.type_bien) && formData.colocation ? (formData.genre_coloc || []) : [],
+        chambres_coloc:  ["location","vacances"].includes(formData.categorie) && ["appartement","villa"].includes(formData.type_bien) && formData.colocation ? (formData.chambres_coloc||[]).map((c,i)=>({numero_chambre:i+1,capacite:c.capacite||1,places_occupees:c.places_occupees||0,prix_par_place:c.prix_par_place||0})) : [],
+        fonds_de_commerce:         formData.type_bien === "local_commercial" ? (formData.fonds_de_commerce || null) : null,
+        pas_de_porte:              formData.type_bien === "local_commercial" ? (formData.pas_de_porte || null) : null,
+        /* -- Caractéristiques générales -- */
         jardin:            formData.jardin      || false,
         terrasse:          formData.terrasse    || false,
         balcon:            formData.balcon      || false,
@@ -885,7 +1204,7 @@ export const CreateListingForm = ({ editId = null }) => {
         gardien:           formData.gardien     || false,
         relie_onas:        formData.relie_onas  || false,
         animaux_admis:     formData.animaux_admis|| false,
-        /* ── Caractéristiques intérieures ── */
+        /* -- Caractéristiques intérieures -- */
         salon_americain:   formData.salon_americain  || false,
         fibre_optique:     formData.fibre_optique    || false,
         cheminee:          formData.cheminee          || false,
@@ -897,11 +1216,11 @@ export const CreateListingForm = ({ editId = null }) => {
         internet:          formData.internet          || false,
         tv:                formData.tv                || false,
         machine_laver:     formData.machine_laver     || false,
-        /* ── Cuisine ── */
+        /* -- Cuisine -- */
         cuisine_equipee:   formData.cuisine_equipee   || false,
       };
 
-      /* ── EDIT MODE branch ── */
+      /* -- EDIT MODE branch -- */
       if (editId) {
         const updateRes = await handleRes(await fetch(`${API_URL}/annonces/${editId}`, {
           method: "PUT",
@@ -974,11 +1293,11 @@ export const CreateListingForm = ({ editId = null }) => {
         }
 
         toast("Annonce mise à jour !");
-        setTimeout(() => { window.location.href = "/dashboard"; }, 1200);
+        setTimeout(() => { window.location.href = "/compte?tab=annonces"; }, 1200);
         return;
       }
 
-      /* ── CREATE MODE branch ── */
+      /* -- CREATE MODE branch -- */
       const annonceRes = await handleRes(await fetch(`${API_URL}/annonces/`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
@@ -993,7 +1312,7 @@ export const CreateListingForm = ({ editId = null }) => {
 
       const annonce = await annonceRes.json();
 
-      /* ── 2. Upload ALL images (main first, then extras) ── */
+      /* -- 2. Upload ALL images (main first, then extras) -- */
       const orderedImages = formData.allImages.length > 0
         ? [
             formData.allImages[formData.mainImageIndex] || formData.allImages[0],
@@ -1026,7 +1345,7 @@ export const CreateListingForm = ({ editId = null }) => {
         }
       }
 
-      /* ── 3. Créer la propriété (localisation + image principale) ── */
+      /* -- 3. Créer la propriété (localisation + image principale) -- */
       const propRes = await handleRes(await fetch(`${API_URL}/properties/`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
@@ -1040,7 +1359,7 @@ export const CreateListingForm = ({ editId = null }) => {
       }));
       const propData = await propRes.json();
 
-      /* ── 3b. Ajouter les images supplémentaires ── */
+      /* -- 3b. Ajouter les images supplémentaires -- */
       for (const extraUrl of uploadedExtraUrls) {
         try {
           await fetch(`${API_URL}/properties/${propData.id}/images`, {
@@ -1053,7 +1372,7 @@ export const CreateListingForm = ({ editId = null }) => {
 
       clearFormStorage();
       toast("Annonce enregistrée — approuvée dans les délais de 24h !");
-      setTimeout(() => { window.location.href = "/dashboard"; }, 1200);
+      setTimeout(() => { window.location.href = "/compte?tab=annonces"; }, 1200);
     } catch (err) {
       if (err.message !== "session_expired") {
         console.error("[CreerAnnonce] Erreur soumission:", err);
@@ -1079,14 +1398,15 @@ export const CreateListingForm = ({ editId = null }) => {
 
       const typeLabels = {
         appartement:"appartement", villa:"villa", terrain:"terrain",
-        bureau:"bureau", ferme:"ferme", local_commercial:"local commercial", maison:"maison"
+        bureau:"bureau", ferme_agricole:"ferme agricole", ferme:"ferme agricole", local_commercial:"local commercial", maison:"maison",
+        depot_stockage:"dépôt de stockage"
       };
       const typeFr = typeLabels[formData.type_bien] || formData.type_bien;
       const offreFr = formData.categorie === "location"  ? "à louer"
                     : formData.categorie === "vacances"  ? "en location saisonnière"
                     : "à vendre";
 
-      // ── Paragraphe 1 : accroche ──
+      // -- Paragraphe 1 : accroche --
       let desc = "";
       const locStr = delLabel ? `${delLabel}${govLabel?`, ${govLabel}`:""}` : govLabel || "";
       desc += `Nous vous proposons ${typeFr === "appartement" ? "cet" : "ce"} ${typeFr} ${offreFr}`;
@@ -1094,7 +1414,7 @@ export const CreateListingForm = ({ editId = null }) => {
       if (formData.address && formData.address !== "Tunis, Tunisie") desc += ` (${formData.address})`;
       desc += ".\n\n";
 
-      // ── Paragraphe 2 : composition ──
+      // -- Paragraphe 2 : composition --
       const compo = [];
       if (formData.superficie) compo.push(`une superficie de ${formData.superficie} m²`);
       if (formData.type_bien !== "terrain") {
@@ -1110,7 +1430,7 @@ export const CreateListingForm = ({ editId = null }) => {
         desc += `Ce bien se distingue par ${compo.join(", ")}.`;
       }
 
-      // ── Paragraphe 3 : état ──
+      // -- Paragraphe 3 : état --
       if (formData.etat_bien) {
         const etatPhrase = {
           nouveau:            "Livré en état neuf, il est disponible immédiatement.",
@@ -1122,7 +1442,7 @@ export const CreateListingForm = ({ editId = null }) => {
       }
       if (compo.length > 0 || formData.etat_bien) desc += "\n\n";
 
-      // ── Paragraphe 4 : équipements ──
+      // -- Paragraphe 4 : équipements --
       const equip = [];
       if (formData.vue_mer)       equip.push("vue sur mer");
       if (formData.vue_montagne)  equip.push("vue sur montagne");
@@ -1141,7 +1461,7 @@ export const CreateListingForm = ({ editId = null }) => {
         desc += `Parmi ses atouts, ce bien bénéficie de : ${equip.join(", ")}.\n\n`;
       }
 
-      // ── Paragraphe 5 : terrain spécifique ──
+      // -- Paragraphe 5 : terrain spécifique --
       if (formData.type_bien === "terrain" && formData.type_terrain) {
         const terrainLabels = {
           agricole:"agricole", nu:"nu", zone_verte:"en zone verte",
@@ -1153,9 +1473,9 @@ export const CreateListingForm = ({ editId = null }) => {
         desc += ".\n\n";
       }
 
-      // ── Phrase de clôture ──
+      // -- Phrase de clôture --
       if (formData.prix) {
-        desc += `Affiché au prix de ${Number(formData.prix).toLocaleString("fr-TN")} ${formData.devise === "DT" ? "DT" : formData.devise}, `;
+        desc += `Affiché au prix de ${Number(formData.prix).toLocaleString("fr-TN")} ${formData.devise || "TND"}, `;
       }
       desc += "ce bien constitue une opportunité à saisir. N'hésitez pas à nous contacter pour obtenir plus d'informations ou convenir d'une visite.";
 
@@ -1164,23 +1484,100 @@ export const CreateListingForm = ({ editId = null }) => {
     }, 900);
   };
 
+  /* Génère une description à partir d'un "style" */
+  const buildDesc = (style) => {
+    const govLabel = gouvernorats.find(g => g.value === hierarchy.gouvernorat)?.label;
+    const delLabel = delegations.find(d => String(d.id) === String(hierarchy.delegation))?.nom;
+    const typeLabels = {
+      appartement:"appartement", villa:"villa", villa_maison:"villa", terrain:"terrain",
+      bureau:"bureau", ferme_agricole:"ferme agricole", local_commercial:"local commercial",
+      maison:"maison", depot_stockage:"dépôt de stockage", immeuble:"immeuble",
+      garage_parking:"garage", immobiliers_divers:"bien immobilier",
+    };
+    const typeFr = typeLabels[formData.type_bien] || formData.type_bien;
+    const offreFr = formData.categorie === "location" ? "à louer"
+                  : formData.categorie === "vacances" ? "en location saisonnière"
+                  : "à vendre";
+    const locStr = delLabel ? `${delLabel}${govLabel ? `, ${govLabel}` : ""}` : govLabel || "";
+    const compo = [];
+    if (formData.superficie) compo.push(`${formData.superficie} m²`);
+    if (formData.nb_pieces > 0)    compo.push(`${formData.nb_pieces} pièce${formData.nb_pieces>1?"s":""}`);
+    if (formData.nb_chambres > 0)  compo.push(`${formData.nb_chambres} chambre${formData.nb_chambres>1?"s":""}`);
+    if (formData.nb_salles_bain>0) compo.push(`${formData.nb_salles_bain} sdb`);
+    const equip = [
+      formData.vue_mer && "vue mer", formData.jardin && "jardin", formData.terrasse && "terrasse",
+      formData.piscine && "piscine", formData.ascenseur && "ascenseur", formData.garage && "garage",
+      formData.meuble && "meublé", formData.cuisine_equipee && "cuisine équipée",
+      formData.climatisation && "climatisation", formData.parking && "parking",
+    ].filter(Boolean);
+    const prixStr = formData.prix ? `${Number(formData.prix).toLocaleString("fr-TN")} ${formData.devise || "TND"}` : "";
+    const etatMap = { nouveau:"neuf", bon_etat:"en bon état", a_renover:"à rénover", cours_construction:"en construction" };
+    const etatFr = etatMap[formData.etat_bien] || "";
+
+    if (style === "pro") {
+      let d = `Nous vous proposons ${typeFr === "appartement" || typeFr === "immeuble" ? "cet" : "ce"} ${typeFr} ${offreFr}`;
+      if (locStr) d += `, situé à ${locStr}`;
+      d += ".\n\n";
+      if (compo.length) d += `Caractéristiques : ${compo.join(" · ")}${etatFr ? ` · ${etatFr}` : ""}.\n\n`;
+      if (equip.length) d += `Atouts : ${equip.join(", ")}.\n\n`;
+      if (prixStr) d += `Prix : ${prixStr}. `;
+      d += "Contactez-nous pour une visite.";
+      return d.trim();
+    }
+    if (style === "warm") {
+      let d = `🏠 Coup de cœur assuré pour ce${typeFr==="appartement"||typeFr==="immeuble"?"t":""} ${typeFr}`;
+      if (locStr) d += ` niché au cœur de ${locStr}`;
+      d += " !\n\n";
+      if (compo.length) d += `Avec ses ${compo.join(", ")}, `;
+      d += `ce bien ${etatFr ? etatFr+" " : ""}saura vous séduire dès la première visite`;
+      if (equip.length) d += ` grâce à ses nombreux atouts : ${equip.join(", ")}`;
+      d += ".\n\n";
+      if (prixStr) d += `💰 Affiché à ${prixStr}. `;
+      d += "N'attendez plus, contactez-nous !";
+      return d.trim();
+    }
+    if (style === "concis") {
+      const parts = [];
+      if (typeFr) parts.push(`${typeFr.charAt(0).toUpperCase()+typeFr.slice(1)} ${offreFr}`);
+      if (locStr) parts.push(locStr);
+      if (compo.length) parts.push(compo.join(" | "));
+      if (etatFr) parts.push(etatFr.charAt(0).toUpperCase()+etatFr.slice(1));
+      if (equip.length) parts.push(equip.slice(0,4).join(", ")+(equip.length>4?"…":""));
+      if (prixStr) parts.push(prixStr);
+      return parts.join("\n") + "\n\nContactez-nous pour plus d'infos.";
+    }
+    return "";
+  };
+
+  const generateDescVariants = () => {
+    if (!formData.type_bien) { toast("Sélectionnez d'abord un type de bien.", "error"); return; }
+    setDescVariants([
+      { style:"pro",    label:"Professionnel",  desc: buildDesc("pro") },
+      { style:"warm",   label:"Chaleureux",     desc: buildDesc("warm") },
+      { style:"concis", label:"Concis & direct",desc: buildDesc("concis") },
+    ]);
+  };
+
   // Summary for sidebar
   const summary = [
     formData.type_bien && { label: "Type", value: formData.type_bien.charAt(0).toUpperCase() + formData.type_bien.slice(1) },
     formData.categorie && { label: "Offre", value: formData.categorie.charAt(0).toUpperCase() + formData.categorie.slice(1) },
     hierarchy.gouvernorat && { label: "Gouvernorat", value: gouvernorats.find(g => g.value === hierarchy.gouvernorat)?.label || hierarchy.gouvernorat },
     formData.superficie && { label: "Superficie", value: `${formData.superficie} m²` },
-    formData.prix && { label: "Prix", value: `${Number(formData.prix).toLocaleString('fr-TN')} ${formData.devise === "DT" ? "DT" : formData.devise}` },
+    formData.prix && { label: "Prix", value: `${Number(formData.prix).toLocaleString('fr-TN')} ${formData.devise || "TND"}` },
   ].filter(Boolean);
 
   const TYPE_CARDS = [
     { value: "appartement",      label: "Appartement",      Ico: Building2,  color: "#3b82f6" },
     { value: "villa",            label: "Villa/Maison",     Ico: Home,       color: "#10b981" },
+    { value: "immeuble",         label: "Immeuble",         Ico: Building2,  color: "#0369a1" },
     { value: "terrain",          label: "Terrain",          Ico: Leaf,       color: "#f59e0b" },
     { value: "local_commercial", label: "Local commercial", Ico: Store,      color: "#f97316" },
     { value: "bureau",           label: "Bureau",           Ico: Briefcase,  color: "#6366f1" },
-    { value: "ferme",            label: "Ferme",            Ico: Tractor,    color: "#16a34a" },
-    { value: "immobiliers_divers",label:"Immobiliers divers",Ico: LayoutGrid, color: "#6366f1" },
+    { value: "ferme_agricole",   label: "Ferme agricole",   Ico: Tractor,    color: "#16a34a" },
+    { value: "garage_parking",   label: "Garage / Parking",    Ico: Car,       color: "#64748b" },
+    { value: "depot_stockage",   label: "Dépôt de stockage",   Ico: Warehouse, color: "#78716c" },
+    { value: "immobiliers_divers",label:"Immobiliers divers",   Ico: LayoutGrid,color: "#94a3b8" },
   ];
 
   const ETAT_CARDS = [
@@ -1190,7 +1587,7 @@ export const CreateListingForm = ({ editId = null }) => {
     { value: "cours_construction", label: "En construction",Ico: HardHat,  color: "#64748b" },
   ];
 
-  /* ── Icônes personnalisées (SVG inline) ── */
+  /* -- Icônes personnalisées (SVG inline) -- */
   const WashingMachineIco = ({ size = 24, strokeWidth = 1.5 }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
          stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
@@ -1217,8 +1614,8 @@ export const CreateListingForm = ({ editId = null }) => {
 
   const FEAT_VUE = [
     { key:"vue_mer",       Ico:Waves,       label:"Vue sur mer",       color:"#0ea5e9" },
-    { key:"vue_montagne",  Ico:Mountain,    label:"Vue montagne",      color:"#8b5cf6" },
-    { key:"vue_foret",     Ico:TreePine,    label:"Vue forêt",         color:"#16a34a" },
+    { key:"vue_montagne",  Ico:Mountain,    label:"Vue sur montagne",      color:"#8b5cf6" },
+    { key:"vue_foret",     Ico:TreePine,    label:"Vue sur forêt",         color:"#16a34a" },
   ];
 
   const FEAT_EXT = [
@@ -1232,7 +1629,7 @@ export const CreateListingForm = ({ editId = null }) => {
   const FEAT_COM = [
     { key:"ascenseur",       Ico:ArrowUpDown,   label:"Ascenseur",         color:"#6366f1" },
     { key:"garage",          Ico:Car,           label:"Garage",            color:"#475569", extra:"nb_places_garage" },
-    { key:"cellier",         Ico:Package,       label:"Chambre rangement", color:"#92400e" },
+    { key:"cellier",         Ico:Package,       label:"Cellier", color:"#92400e" },
     { key:"meuble",          Ico:Sofa,          label:"Meublé",            color:"#7c3aed" },
     { key:"concierge",       Ico:Users,         label:"Concierge",         color:"#0369a1" },
     { key:"gardien",         Ico:ShieldCheck,   label:"Gardien",           color:"#15803d" },
@@ -1281,7 +1678,7 @@ export const CreateListingForm = ({ editId = null }) => {
   return (
     <Layout>
       <div className="ca-root">
-        {/* ── Left sidebar ── */}
+        {/* -- Left sidebar -- */}
         <aside className="ca-sidebar">
           <div className="ca-sidebar__inner">
             <div className="ca-sidebar__title">{editId ? "Modifier l'annonce" : "Créer une annonce"}</div>
@@ -1305,7 +1702,7 @@ export const CreateListingForm = ({ editId = null }) => {
                       {done ? <Check size={13} strokeWidth={3}/> : <span>{s.id}</span>}
                     </div>
                     <span className="ca-step__label">{s.label}</span>
-                    {(done || (editId && !active)) && <span className="ca-step__back-ico">↩</span>}
+                    {(done || (editId && !active)) && <span className="ca-step__back-ico">?</span>}
                   </div>
                 );
               })}
@@ -1337,7 +1734,7 @@ export const CreateListingForm = ({ editId = null }) => {
           </div>
         </aside>
 
-        {/* ── Main area ── */}
+        {/* -- Main area -- */}
         <main className="ca-main">
 
           {/* Mobile progress bar (sidebar hidden on mobile) */}
@@ -1361,7 +1758,7 @@ export const CreateListingForm = ({ editId = null }) => {
           <form onSubmit={e => e.preventDefault()}>
             <div className="ca-card">
 
-              {/* ─── STEP 1 ─── */}
+              {/* --- STEP 1 --- */}
               {currentStep === 1 && (
                 <div className="ca-step-content">
                   <div className="ca-card__head">
@@ -1370,10 +1767,10 @@ export const CreateListingForm = ({ editId = null }) => {
                     <span className="ca-req-hint"><span className="ca-req">*</span> champs requis</span>
                   </div>
 
-                  {/* ── Grille gauche / droite ── */}
+                  {/* -- Grille gauche / droite -- */}
                   <div className="ca-s1-lr">
 
-                    {/* ── GAUCHE : sous-champs spécifiques, pièces, orientation ── */}
+                    {/* -- GAUCHE : sous-champs spécifiques, pièces, orientation -- */}
                     <div className="ca-s1-lr__left">
 
                       {/* Appartement sub-fields */}
@@ -1409,8 +1806,8 @@ export const CreateListingForm = ({ editId = null }) => {
                         </div>
                       )}
 
-                      {/* Local commercial & Bureau sub-fields */}
-                      {(formData.type_bien === "local_commercial" || formData.type_bien === "bureau") && (
+                      {/* Local commercial : étage seul */}
+                      {formData.type_bien === "local_commercial" && (
                         <div className="ca-field">
                           <label className="ca-label">Étage du bien</label>
                           <select className="ca-select" value={formData.etage}
@@ -1423,6 +1820,35 @@ export const CreateListingForm = ({ editId = null }) => {
                             <option value="3">R+3</option>
                             <option value="4">R+4</option>
                           </select>
+                        </div>
+                      )}
+
+                      {/* Bureau: étage + type de logement sur la même ligne */}
+                      {formData.type_bien === "bureau" && (
+                        <div className="ca-row-2">
+                          <div className="ca-field">
+                            <label className="ca-label">Étage du bien</label>
+                            <select className="ca-select" value={formData.etage}
+                              onChange={e => handleInputChange("etage", e.target.value)}>
+                              <option value="">Sélectionner…</option>
+                              <option value="-1">Sous-sol</option>
+                              <option value="0">RDC (Rez-de-chaussée)</option>
+                              <option value="1">R+1</option>
+                              <option value="2">R+2</option>
+                              <option value="3">R+3</option>
+                              <option value="4">R+4</option>
+                            </select>
+                          </div>
+                          <div className="ca-field">
+                            <label className="ca-label">Type de bureau</label>
+                            <select className="ca-select" value={formData.type_logement_bureau || ""}
+                              onChange={e => handleInputChange("type_logement_bureau", e.target.value)}>
+                              <option value="">Sélectionner…</option>
+                              {["H0","H+1","H+2","H+3","H+4","H+5","Open Space"].map(t => (
+                                <option key={t} value={t}>{t}</option>
+                              ))}
+                            </select>
+                          </div>
                         </div>
                       )}
 
@@ -1521,14 +1947,74 @@ export const CreateListingForm = ({ editId = null }) => {
                         </div>
                       )}
 
+                      {/* Immeuble sub-fields */}
+                      {formData.type_bien === "immeuble" && (
+                        <div style={{display:"flex",flexDirection:"column",gap:14}}>
+                          <div className="ca-field">
+                            <label className="ca-label">Hauteur de l'immeuble</label>
+                            <select className="ca-select" value={formData.hauteur_immeuble}
+                              onChange={e => handleInputChange("hauteur_immeuble", e.target.value)}>
+                              <option value="">Sélectionner…</option>
+                              <option value="R">R (Rez-de-chaussée seul)</option>
+                              {Array.from({length:15},(_,i)=>i+1).map(n => (
+                                <option key={n} value={`R+${n}`}>R+{n}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="ca-field">
+                            <label className="ca-label">Nombre d'appartements</label>
+                            <input type="number" className="ca-input" min={1} max={500}
+                              placeholder="Ex : 12"
+                              value={formData.nb_appartements}
+                              onChange={e => handleInputChange("nb_appartements", e.target.value)}/>
+                          </div>
+                          <div className="ca-field">
+                            <label className="ca-label">Orientation principale</label>
+                            <div className="ca-toggle-group" style={{flexWrap:"wrap"}}>
+                              {[
+                                {v:"nord",l:"Nord"},{v:"nord_est",l:"Nord-Est"},{v:"est",l:"Est"},
+                                {v:"sud_est",l:"Sud-Est"},{v:"sud",l:"Sud"},{v:"sud_ouest",l:"Sud-Ouest"},
+                                {v:"ouest",l:"Ouest"},{v:"nord_ouest",l:"Nord-Ouest"},
+                              ].map(opt => (
+                                <button key={opt.v} type="button"
+                                  className={`ca-toggle-btn${formData.orientation_immeuble===opt.v?" ca-toggle-btn--on":""}`}
+                                  onClick={() => handleInputChange("orientation_immeuble",
+                                    formData.orientation_immeuble===opt.v ? "" : opt.v)}>
+                                  {formData.orientation_immeuble===opt.v && <Check size={11}/>} {opt.l}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Garage/Parking sub-fields */}
+                      {formData.type_bien === "garage_parking" && (
+                        <div className="ca-field">
+                          <label className="ca-label">Emplacement</label>
+                          <div className="ca-toggle-group">
+                            {[
+                              {v:"en_exterieur", l:"En extérieur"},
+                              {v:"en_sous_sol",  l:"En sous-sol"},
+                            ].map(opt => (
+                              <button key={opt.v} type="button"
+                                className={`ca-toggle-btn${formData.emplacement_garage===opt.v?" ca-toggle-btn--on":""}`}
+                                onClick={() => handleInputChange("emplacement_garage", opt.v)}>
+                                {formData.emplacement_garage===opt.v ? <Check size={11}/> : null} {opt.l}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Pièces & espaces */}
-                      {formData.type_bien !== "terrain" && (<>
+                      {!["terrain","garage_parking","immeuble","depot_stockage"].includes(formData.type_bien) && (<>
                         <div className="ca-section-label" style={{marginTop:20}}>Pièces & espaces</div>
                         <div className="ca-counters">
                           {[
                             { field:"nb_pieces",     label:"Pièce(s)" },
                             { field:"nb_chambres",   label:"Chambre(s)" },
-                            { field:"nb_salles_bain",label:"Salle(s) d'eau / Salle(s) de bain" },
+                            { field:"nb_salles_bain",label:"Salle(s) de bain" },
                           ].map(c => (
                             <div key={c.field} className="ca-counter">
                               <span className="ca-counter__label">{c.label}</span>
@@ -1539,6 +2025,16 @@ export const CreateListingForm = ({ editId = null }) => {
                               </div>
                             </div>
                           ))}
+                          {formData.categorie === "vacances" && (
+                            <div className="ca-counter">
+                              <span className="ca-counter__label">Capacité d'accueil <span style={{color:"#9ca3af",fontWeight:400,fontSize:"10px"}}>(pers.)</span></span>
+                              <div className="ca-counter__ctrl">
+                                <button type="button" className="ca-counter__btn" onClick={() => setFormData(f => ({...f, capacite_accueil: Math.max(0, (f.capacite_accueil||0) - 1)}))}><Minus size={14}/></button>
+                                <span className="ca-counter__val">{formData.capacite_accueil || 0}</span>
+                                <button type="button" className="ca-counter__btn" onClick={() => setFormData(f => ({...f, capacite_accueil: Math.min(50, (f.capacite_accueil||0) + 1)}))}><Plus size={14}/></button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </>)}
 
@@ -1561,9 +2057,265 @@ export const CreateListingForm = ({ editId = null }) => {
                         </div>
                       )}
 
+                      {/* ── Section Colocation ── pour location et vacances appart/villa */}
+                      {["location","vacances"].includes(formData.categorie) && ["appartement","villa"].includes(formData.type_bien) && (
+                        <div style={{marginTop:20,padding:"18px 20px",background:"#f8fafc",borderRadius:16,border:"1.5px solid #e2e8f0"}}>
+                          {/* Toggle header */}
+                          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom: formData.colocation ? 16 : 0}}>
+                            <div style={{display:"flex",alignItems:"center",gap:10}}>
+                              <div style={{width:34,height:34,borderRadius:10,background: formData.colocation ? "#eef2ff" : "#f1f5f9",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                                <Users size={17} color={formData.colocation ? "#6366f1" : "#94a3b8"} strokeWidth={2}/>
+                              </div>
+                              <div>
+                                <div style={{fontSize:13.5,fontWeight:700,color:"#0f172a"}}>Colocation</div>
+                                <div style={{fontSize:11,color:"#94a3b8"}}>Proposer des chambres à partager</div>
+                              </div>
+                            </div>
+                            <label style={{position:"relative",display:"inline-block",width:44,height:24,flexShrink:0,cursor:"pointer"}}>
+                              <input type="checkbox" checked={!!formData.colocation}
+                                onChange={e => handleInputChange("colocation", e.target.checked)}
+                                style={{opacity:0,width:0,height:0}}/>
+                              <span style={{position:"absolute",inset:0,background: formData.colocation ? "#6366f1" : "#e2e8f0",borderRadius:24,transition:".2s"}}/>
+                              <span style={{position:"absolute",width:18,height:18,background:"#fff",borderRadius:"50%",top:3,left: formData.colocation ? 23 : 3,transition:".2s",boxShadow:"0 1px 4px rgba(0,0,0,.15)"}}/>
+                            </label>
+                          </div>
+
+                          {formData.colocation && (<>
+                            {/* Profil recherché */}
+                            <div style={{marginBottom:16}}>
+                              <label style={{fontSize:11.5,fontWeight:700,color:"#374151",display:"block",marginBottom:7}}>Profil recherché</label>
+                              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                                {[
+                                  {value:"etudiant",      label:"Étudiant(e)s"},
+                                  {value:"professionnel", label:"Professionnels"},
+                                  {value:"famille",       label:"Familles"},
+                                  {value:"tous",          label:"Peu importe"},
+                                ].map(p => (
+                                  <button key={p.value} type="button"
+                                    onClick={() => handleInputChange("profil_coloc", p.value)}
+                                    style={{padding:"6px 12px",borderRadius:20,border: formData.profil_coloc===p.value ? "2px solid #6366f1" : "1.5px solid #e2e8f0",
+                                      background: formData.profil_coloc===p.value ? "#eef2ff" : "#fff",
+                                      color: formData.profil_coloc===p.value ? "#6366f1" : "#64748b",
+                                      fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                                    {p.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Genre accepté */}
+                            <div style={{marginBottom:16}}>
+                              <label style={{fontSize:11.5,fontWeight:700,color:"#374151",display:"block",marginBottom:7}}>Genre accepté</label>
+                              <div style={{display:"flex",gap:10}}>
+                                {[
+                                  { value:"homme", label:"Homme", icon:(
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <circle cx="12" cy="7" r="4"/><path d="M5.5 21v-2a6.5 6.5 0 0 1 13 0v2"/>
+                                    </svg>
+                                  )},
+                                  { value:"femme", label:"Femme", icon:(
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                      <circle cx="12" cy="8" r="4"/><path d="M12 12v9m-3-3h6"/><path d="M5.5 20v-1.5a6.5 6.5 0 0 1 13 0V20"/>
+                                    </svg>
+                                  )},
+                                ].map(g => {
+                                  const selected = (formData.genre_coloc||[]).includes(g.value);
+                                  const toggle = () => {
+                                    const cur = formData.genre_coloc || [];
+                                    handleInputChange("genre_coloc", selected ? cur.filter(x=>x!==g.value) : [...cur, g.value]);
+                                  };
+                                  return (
+                                    <button key={g.value} type="button" onClick={toggle}
+                                      style={{
+                                        display:"flex",flexDirection:"column",alignItems:"center",gap:5,
+                                        padding:"10px 22px",borderRadius:14,cursor:"pointer",fontFamily:"inherit",
+                                        border: selected ? "2px solid #6366f1" : "1.5px solid #e2e8f0",
+                                        background: selected ? "#eef2ff" : "#fff",
+                                        color: selected ? "#6366f1" : "#94a3b8",
+                                        fontWeight:700,fontSize:12,transition:"all .15s",
+                                        boxShadow: selected ? "0 0 0 3px rgba(99,102,241,.12)" : "none",
+                                      }}>
+                                      <span style={{color: selected ? "#6366f1" : "#94a3b8"}}>{g.icon}</span>
+                                      {g.label}
+                                    </button>
+                                  );
+                                })}
+                                {/* Indicateur "les deux" */}
+                                {(formData.genre_coloc||[]).length === 2 && (
+                                  <div style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",borderRadius:20,background:"#f0fdf4",border:"1.5px solid #bbf7d0",color:"#16a34a",fontSize:11.5,fontWeight:700,alignSelf:"center"}}>
+                                    ✓ Mixte accepté
+                                  </div>
+                                )}
+                                {(formData.genre_coloc||[]).length === 0 && (
+                                  <div style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",borderRadius:20,background:"#fefce8",border:"1.5px solid #fde68a",color:"#92400e",fontSize:11.5,fontWeight:600,alignSelf:"center"}}>
+                                    Sélectionnez au moins un
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Tableau par chambre */}
+                            {(() => {
+                              const nb = parseInt(formData.nb_chambres) || 0;
+                              const rows = formData.chambres_coloc || [];
+                              if (nb === 0) return (
+                                <div style={{fontSize:11.5,color:"#94a3b8",padding:"8px 0",textAlign:"center",background:"#f1f5f9",borderRadius:8,padding:"10px"}}>
+                                  Renseignez le nombre de chambres ci-dessus pour configurer les places.
+                                </div>
+                              );
+                              const totalCap  = rows.reduce((s,c)=>s+(c.capacite||1),0);
+                              const totalOcc  = rows.reduce((s,c)=>s+(c.places_occupees||0),0);
+                              const totalDispo = totalCap - totalOcc;
+                              return (
+                                <>
+                                  <div style={{overflowX:"auto",borderRadius:10,border:"1px solid #e2e8f0"}}>
+                                    <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                                      <thead>
+                                        <tr style={{background:"#eef2ff"}}>
+                                          <th style={{padding:"7px 10px",fontWeight:700,color:"#4338ca",textAlign:"left"}}>Chambre</th>
+                                          <th style={{padding:"7px 10px",fontWeight:700,color:"#4338ca",textAlign:"center"}}>Capacité personnes</th>
+                                          <th style={{padding:"7px 10px",fontWeight:700,color:"#4338ca",textAlign:"center"}}>Places déjà occupées</th>
+                                          <th style={{padding:"7px 10px",fontWeight:700,color:"#4338ca",textAlign:"center"}}>Disponibles</th>
+                                          <th style={{padding:"7px 10px",fontWeight:700,color:"#4338ca",textAlign:"center"}}>Prix/place (TND)</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {Array.from({length: nb}, (_, i) => {
+                                          const row = rows[i] || { capacite: 1, places_occupees: 0, prix_par_place: 0 };
+                                          const dispo = Math.max(0, (row.capacite||1) - (row.places_occupees||0));
+                                          return (
+                                            <tr key={i} style={{borderBottom:"1px solid #f1f5f9",background: i%2===0?"#fff":"#f8fafc"}}>
+                                              <td style={{padding:"7px 10px",fontWeight:700,color:"#374151"}}>Ch. {i+1}</td>
+                                              <td style={{padding:"5px 10px",textAlign:"center"}}>
+                                                <select value={row.capacite||1}
+                                                  onChange={e => {
+                                                    const cap = parseInt(e.target.value)||1;
+                                                    setFormData(prev => {
+                                                      const arr = [...(prev.chambres_coloc||[])];
+                                                      arr[i] = {...(arr[i]||{}), capacite: cap, places_occupees: Math.min(arr[i]?.places_occupees||0, cap)};
+                                                      return {...prev, chambres_coloc: arr};
+                                                    });
+                                                  }}
+                                                  style={{padding:"3px 5px",borderRadius:6,border:"1.5px solid #c7d2fe",background:"#fff",fontFamily:"inherit",fontSize:11.5,color:"#374151",cursor:"pointer",outline:"none"}}
+                                                >
+                                                  {[1,2,3,4,5,6].map(n=><option key={n} value={n}>{n} pers.</option>)}
+                                                </select>
+                                              </td>
+                                              <td style={{padding:"5px 10px",textAlign:"center"}}>
+                                                <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:3}}>
+                                                  <button type="button"
+                                                    onClick={() => setFormData(prev => {
+                                                      const arr = [...(prev.chambres_coloc||[])];
+                                                      arr[i] = {...(arr[i]||{}), places_occupees: Math.max(0,(arr[i]?.places_occupees||0)-1)};
+                                                      return {...prev, chambres_coloc: arr};
+                                                    })}
+                                                    style={{width:18,height:18,borderRadius:4,border:"1px solid #c7d2fe",background:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:"#6366f1",fontSize:12,lineHeight:1}}>−</button>
+                                                  <span style={{minWidth:16,textAlign:"center",fontWeight:700,color:"#0f172a",fontSize:12}}>{row.places_occupees||0}</span>
+                                                  <button type="button"
+                                                    onClick={() => setFormData(prev => {
+                                                      const arr = [...(prev.chambres_coloc||[])];
+                                                      const cap = arr[i]?.capacite||1;
+                                                      arr[i] = {...(arr[i]||{}), places_occupees: Math.min(cap,(arr[i]?.places_occupees||0)+1)};
+                                                      return {...prev, chambres_coloc: arr};
+                                                    })}
+                                                    style={{width:18,height:18,borderRadius:4,border:"1px solid #c7d2fe",background:"#fff",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,color:"#6366f1",fontSize:12,lineHeight:1}}>+</button>
+                                                </div>
+                                              </td>
+                                              <td style={{padding:"7px 10px",textAlign:"center"}}>
+                                                <span style={{fontWeight:800,fontSize:13,color: dispo>0?"#059669":"#dc2626"}}>{dispo}</span>
+                                              </td>
+                                              <td style={{padding:"5px 8px",textAlign:"center"}}>
+                                                <input type="text" inputMode="numeric"
+                                                  value={row.prix_par_place === 0 ? "" : row.prix_par_place}
+                                                  placeholder="0"
+                                                  onFocus={e => e.target.select()}
+                                                  onChange={e => {
+                                                    const val = parseInt(e.target.value.replace(/\D/g,""))||0;
+                                                    setFormData(prev => {
+                                                      const arr = [...(prev.chambres_coloc||[])];
+                                                      arr[i] = {...(arr[i]||{}), prix_par_place: val};
+                                                      return {...prev, chambres_coloc: arr};
+                                                    });
+                                                  }}
+                                                  style={{width:72,padding:"3px 5px",borderRadius:6,border:"1.5px solid #c7d2fe",background:"#fff",fontFamily:"inherit",fontSize:11.5,color:"#374151",outline:"none",textAlign:"center"}}
+                                                />
+                                              </td>
+                                            </tr>
+                                          );
+                                        })}
+                                      </tbody>
+                                      <tfoot>
+                                        {(() => {
+                                          const totalPrix = rows.reduce((s,c)=>s+((c.capacite||1)*(c.prix_par_place||0)),0);
+                                          return (
+                                            <tr style={{background:"#eef2ff",borderTop:"2px solid #c7d2fe"}}>
+                                              <td style={{padding:"7px 10px",fontWeight:800,color:"#4338ca",fontSize:12}}>Total</td>
+                                              <td style={{padding:"7px 10px",textAlign:"center",fontWeight:700,color:"#4338ca",fontSize:12}}>{totalCap}</td>
+                                              <td style={{padding:"7px 10px",textAlign:"center",fontWeight:700,color:"#4338ca",fontSize:12}}>{totalOcc}</td>
+                                              <td style={{padding:"7px 10px",textAlign:"center",fontWeight:800,fontSize:13,color: totalDispo>0?"#059669":"#dc2626"}}>{totalDispo}</td>
+                                              <td style={{padding:"7px 10px",textAlign:"center",fontWeight:800,fontSize:12,color:"#4338ca"}}>{totalPrix.toLocaleString()} TND</td>
+                                            </tr>
+                                          );
+                                        })()}
+                                      </tfoot>
+                                    </table>
+                                  </div>
+                                  {totalDispo < 1 && (
+                                    <div style={{marginTop:8,padding:"7px 12px",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,fontSize:11.5,color:"#dc2626",fontWeight:600,display:"flex",alignItems:"center",gap:6}}>
+                                      <span>⚠</span> Au moins 1 place doit être disponible pour activer la colocation.
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </>)}
+                        </div>
+                      )}
+
+                      {/* Spécificités commerciales — local_commercial uniquement */}
+                      {formData.type_bien === "local_commercial" && (
+                        <div style={{marginTop:16}}>
+                          <div className="ca-section-label">Spécificités commerciales <span style={{color:"#9ca3af",fontWeight:400,textTransform:"none",fontSize:"10px"}}>(optionnel)</span></div>
+
+                          {/* Fonds de commerce */}
+                          <div style={{marginBottom:8}}>
+                            <div style={{fontSize:11,color:"#64748b",fontWeight:600,marginBottom:4}}>Fonds de commerce</div>
+                            <div className="ca-toggle-group">
+                              {[{v:"avec",l:"Avec fonds de commerce"},{v:"sans",l:"Sans fonds de commerce"}].map(opt => {
+                                const on = formData.fonds_de_commerce === opt.v;
+                                return (
+                                  <button key={opt.v} type="button"
+                                    className={`ca-toggle-btn${on?" ca-toggle-btn--on":""}`}
+                                    onClick={() => handleInputChange("fonds_de_commerce", on ? "" : opt.v)}>
+                                    {on && <Check size={11}/>} {opt.l}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Pas de porte */}
+                          <div>
+                            <div style={{fontSize:11,color:"#64748b",fontWeight:600,marginBottom:4}}>Pas de porte</div>
+                            <div className="ca-toggle-group">
+                              {[{v:"avec",l:"Avec pas de porte"},{v:"sans",l:"Sans pas de porte"}].map(opt => {
+                                const on = formData.pas_de_porte === opt.v;
+                                return (
+                                  <button key={opt.v} type="button"
+                                    className={`ca-toggle-btn${on?" ca-toggle-btn--on":""}`}
+                                    onClick={() => handleInputChange("pas_de_porte", on ? "" : opt.v)}>
+                                    {on && <Check size={11}/>} {opt.l}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                     </div>{/* /ca-s1-lr__left */}
 
-                    {/* ── DROITE : type, offre, état, ancienneté ── */}
+                    {/* -- DROITE : type, offre, état, ancienneté -- */}
                     <div className="ca-s1-lr__right">
 
                       <div className="ca-section-label">Sélectionnez le type <span className="ca-req">*</span></div>
@@ -1583,8 +2335,8 @@ export const CreateListingForm = ({ editId = null }) => {
 
                       <div className="ca-section-label" style={{marginTop:20}}>Type d'offre <span className="ca-req">*</span></div>
                       <div className={`ca-pill-row ca-val-group${validationErrors.categorie?" ca-val-group--err":""}`}>
-                        {[{v:"vente",l:"Achat"},{v:"location",l:"Location"},{v:"vacances",l:"Vacances"}]
-                          .filter(o => !(o.v==="vacances"&&(formData.type_bien==="terrain"||formData.type_bien==="local_commercial")))
+                        {[{v:"vente",l:"Vente"},{v:"location",l:"Location"},{v:"vacances",l:"Vacances"}]
+                          .filter(o => !(o.v==="vacances"&&(["terrain","local_commercial","immeuble","garage_parking","depot_stockage","bureau"].includes(formData.type_bien))))
                           .map(o => (
                             <button key={o.v} type="button"
                               className={`ca-pill${formData.categorie===o.v?" ca-pill--on":""}`}
@@ -1647,7 +2399,24 @@ export const CreateListingForm = ({ editId = null }) => {
                           })}
                         </div>
 
-                        {formData.etat_bien && formData.etat_bien !== "nouveau" && (
+                        {/* Livraison prévue — si en cours de construction */}
+                        {formData.etat_bien === "cours_construction" && (
+                          <div style={{marginTop:12}}>
+                            <div className="ca-section-label">
+                              Date de livraison prévue
+                              <span style={{color:"#9ca3af",fontWeight:400,textTransform:"none",fontSize:"10px",marginLeft:6}}>(estimation)</span>
+                            </div>
+                            <input
+                              type="month"
+                              className="ca-input"
+                              value={formData.livraison_prevue||""}
+                              onChange={e => handleInputChange("livraison_prevue", e.target.value)}
+                              min={new Date().toISOString().slice(0,7)}
+                              style={{width:"100%", padding:"10px 12px", borderRadius:9, border:"1.5px solid #e5e7eb", fontFamily:"inherit", fontSize:13.5, outline:"none", background:"#f8fafc"}}
+                            />
+                          </div>
+                        )}
+                        {formData.etat_bien && formData.etat_bien !== "nouveau" && formData.etat_bien !== "cours_construction" && (
                           <div style={{marginTop:12}}>
                             <div className="ca-section-label">Ancienneté du bien</div>
                             <select className="ca-select" value={formData.age_bien}
@@ -1667,11 +2436,37 @@ export const CreateListingForm = ({ editId = null }) => {
                         )}
                       </>)}
 
+                      {/* Niveau de standing */}
+                      {["appartement","villa","villa_maison","immeuble","local_commercial","bureau"].includes(formData.type_bien) && (
+                        <div style={{marginTop:20}}>
+                          <div className="ca-section-label">Niveau de standing</div>
+                          <div className="ca-etat-row" style={{flexWrap:"wrap"}}>
+                            {[
+                              { value:"economique",     label:"Économique",     Ico: Layers   },
+                              { value:"moyen_standing", label:"Moyen standing", Ico: Building2 },
+                              { value:"haut_standing",  label:"Haut standing",  Ico: Crown     },
+                            ].map(s => {
+                              const isOn = formData.standing === s.value;
+                              return (
+                                <button key={s.value} type="button"
+                                  className={`ca-etat-card${isOn?" ca-etat-card--on":""}`}
+                                  onClick={() => handleInputChange("standing", isOn ? "" : s.value)}>
+                                  <span style={{display:"flex",alignItems:"center"}}><s.Ico size={20}/></span>
+                                  <span>{s.label}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+
                     </div>{/* /ca-s1-lr__right */}
                   </div>{/* /ca-s1-lr */}
 
-                  {/* ── Caractéristiques — directement dans la page, sans wrapper ── */}
+                  {/* -- Caractéristiques — directement dans la page, sans wrapper -- */}
 
+                  {!["garage_parking","depot_stockage"].includes(formData.type_bien) && <>
                   <div className="ca-feats-section-title" style={{marginTop:40, paddingTop:28, borderTop:"1.5px solid #f1f5f9"}}>Vue</div>
                   <div className="ca-feat-big-grid">
                     {FEAT_VUE.map(item => {
@@ -1688,7 +2483,7 @@ export const CreateListingForm = ({ editId = null }) => {
                     })}
                   </div>
 
-                  {formData.type_bien !== "terrain" && (
+                  {!["terrain","garage_parking","depot_stockage"].includes(formData.type_bien) && (
                     <>
                       <div className="ca-feats-section-title" style={{marginTop:36}}>Espaces extérieurs</div>
                       <div className="ca-feat-big-grid">
@@ -1718,7 +2513,7 @@ export const CreateListingForm = ({ editId = null }) => {
                     </>
                   )}
 
-                  {formData.type_bien !== "terrain" && (<>
+                  {!["terrain","garage_parking","depot_stockage"].includes(formData.type_bien) && (<>
                     <div className="ca-feats-section-title" style={{marginTop:36}}>Commodités</div>
                     <div className="ca-feat-big-grid">
                       {FEAT_COM.map(item => {
@@ -1769,11 +2564,12 @@ export const CreateListingForm = ({ editId = null }) => {
                       })}
                     </div>
                   </>)}
+                  </>}
 
                 </div>
               )}
 
-              {/* ─── STEP 2 ─── */}
+              {/* --- STEP 2 --- */}
               {currentStep === 2 && (
                 <div className="ca-step-content">
                   <div className="ca-card__head">
@@ -1801,11 +2597,13 @@ export const CreateListingForm = ({ editId = null }) => {
                         </select>
                       </div>
                       <div className="ca-field">
-                        <label className="ca-label">Délégation</label>
-                        <select className="ca-select" value={hierarchy.delegation}
+                        <label className="ca-label">Délégation <span className="ca-req">*</span></label>
+                        <select
+                          className={`ca-select${validationErrors.delegation?" ca-select--err":""}`}
+                          value={hierarchy.delegation}
                           disabled={!hierarchy.gouvernorat}
-                          onChange={e => handleHierarchyChange("delegation", e.target.value)}>
-                          <option value="">{hierarchy.gouvernorat ? "Toutes les délégations" : "Sélectionnez un gouvernorat"}</option>
+                          onChange={e => { handleHierarchyChange("delegation", e.target.value); setZoneStatus(null); setValidationErrors(v=>({...v,delegation:false})); }}>
+                          <option value="">{hierarchy.gouvernorat ? "Sélectionnez une délégation" : "Sélectionnez un gouvernorat d'abord"}</option>
                           {(delegations || []).map(d => (
                             <option key={d.id} value={d.id}>{d.nom || ""}</option>
                           ))}
@@ -1823,22 +2621,100 @@ export const CreateListingForm = ({ editId = null }) => {
                         </select>
                       </div>
 
-                      <div className="ca-section-label" style={{marginTop:18}}>Adresse exacte</div>
-                      <div className="ca-addr-row">
+                      {/* Ligne : label + boutons côte à côte */}
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:18,marginBottom:6}}>
+                        <span className="ca-section-label" style={{margin:0}}>Adresse exacte</span>
+                        <div style={{display:"flex",gap:6}}>
+                          <button type="button" className="ca-geo-btn ca-geo-btn--search" onClick={geocodeAddress} title="Chercher sur la carte">
+                            <MapPin size={15}/>
+                          </button>
+                          <button type="button" className="ca-geo-btn" onClick={handleGeolocate} disabled={isGeolocating} title="Position actuelle">
+                            {isGeolocating ? <Loader size={15} className="ca-spin"/> : <Navigation size={15}/>}
+                          </button>
+                        </div>
+                      </div>
+                      {addressWarning && (
+                        <div style={{background:"#fffbeb",border:"1px solid #fcd34d",borderRadius:8,padding:"7px 12px",fontSize:12,color:"#92400e",marginBottom:6,display:"flex",alignItems:"center",gap:6}}>
+                          <AlertTriangle size={13} style={{flexShrink:0}}/>{addressWarning}
+                        </div>
+                      )}
+                      {/* Input pleine largeur avec dropdown historique */}
+                      <div style={{position:"relative",width:"100%"}}>
                         <input
                           type="text"
                           className="ca-input"
+                          style={{width:"100%",boxSizing:"border-box"}}
                           placeholder="Ex: 15 Avenue Habib Bourguiba, Tunis"
                           value={formData.address}
-                          onChange={e => handleInputChange("address", e.target.value)}
-                          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); geocodeAddress(); } }}
+                          onFocus={() => setAddrDropdownOpen(true)}
+                          onBlur={() => setTimeout(() => setAddrDropdownOpen(false), 150)}
+                          onChange={e => {
+                            handleInputChange("address", e.target.value);
+                            setAddrDropdownOpen(true);
+                            const exact = addressHistory.find(h => h.address === e.target.value);
+                            setAddressWarning(exact ? `Vous avez déjà ${exact.count} bien${exact.count>1?"s":""} à cette adresse.` : "");
+                          }}
+                          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); setAddrDropdownOpen(false); geocodeAddress(); } }}
                         />
-                        <button type="button" className="ca-geo-btn ca-geo-btn--search" onClick={geocodeAddress} title="Chercher sur la carte">
-                          <MapPin size={15}/>
-                        </button>
-                        <button type="button" className="ca-geo-btn" onClick={handleGeolocate} disabled={isGeolocating} title="Position actuelle">
-                          {isGeolocating ? <Loader size={15} className="ca-spin"/> : <Navigation size={15}/>}
-                        </button>
+                        {/* Dropdown historique */}
+                        {addrDropdownOpen && (() => {
+                          const q = (formData.address || "").trim().toLowerCase();
+                          const suggestions = q.length >= 1
+                            ? addressHistory.filter(h => h.address.toLowerCase().includes(q))
+                            : addressHistory;
+                          if (!suggestions.length) return null;
+                          return (
+                            <div style={{
+                              position:"absolute", top:"calc(100% + 4px)", left:0, right:0,
+                              zIndex:999, background:"#fff",
+                              border:"1px solid #c7d2fe", borderRadius:10,
+                              boxShadow:"0 10px 30px rgba(99,102,241,.12)",
+                              overflow:"hidden", maxHeight:220, overflowY:"auto"
+                            }}>
+                              <div style={{padding:"6px 12px 4px",fontSize:11,color:"#6366f1",fontWeight:600,background:"#f5f3ff",borderBottom:"1px solid #e0e7ff",position:"sticky",top:0}}>
+                                Vos adresses précédentes
+                              </div>
+                              {suggestions.map((h, i) => (
+                                <button key={i} type="button"
+                                  onMouseDown={e => {
+                                    e.preventDefault();
+                                    // Remplir adresse + lat/lng directement (pas de geocode)
+                                    handleInputChange("address", h.address);
+                                    if (h.latitude && h.longitude) {
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        address: h.address,
+                                        latitude: String(h.latitude),
+                                        longitude: String(h.longitude),
+                                      }));
+                                      setMapLocation({ lat: h.latitude, lng: h.longitude, address: h.address });
+                                    } else {
+                                      setTimeout(() => geocodeAddress(), 80);
+                                    }
+                                    setAddressWarning(`⚠️ Vous avez déjà ${h.count} bien${h.count>1?"s":""} à cette adresse.`);
+                                    setAddrDropdownOpen(false);
+                                  }}
+                                  style={{
+                                    display:"flex", alignItems:"center", justifyContent:"space-between",
+                                    width:"100%", padding:"9px 14px", background:"none", border:"none",
+                                    borderBottom: i < suggestions.length-1 ? "1px solid #f1f5f9" : "none",
+                                    cursor:"pointer", textAlign:"left", gap:8
+                                  }}
+                                  onMouseEnter={e => e.currentTarget.style.background="#f5f3ff"}
+                                  onMouseLeave={e => e.currentTarget.style.background="none"}
+                                >
+                                  <span style={{display:"flex",alignItems:"center",gap:7,overflow:"hidden",flex:1}}>
+                                    <MapPin size={12} style={{color:"#6366f1",flexShrink:0}}/>
+                                    <span style={{fontSize:13,color:"#0f172a",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{h.address}</span>
+                                  </span>
+                                  <span style={{flexShrink:0,background:"#eef2ff",color:"#4338ca",borderRadius:10,padding:"2px 8px",fontSize:11,fontWeight:600,whiteSpace:"nowrap"}}>
+                                    {h.count} bien{h.count>1?"s":""}
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          );
+                        })()}
                       </div>
                       <p className="ca-map-hint">Entrez une adresse + Entrée ou cliquez sur 📍 pour centrer la carte.</p>
 
@@ -1863,6 +2739,9 @@ export const CreateListingForm = ({ editId = null }) => {
                       <ControlledMap
                         position={{ lat: mapLocation.lat, lng: mapLocation.lng }}
                         onLocationChange={handleMapLocationChange}
+                        govLabel={gouvernorats.find(g => g.value === hierarchy.gouvernorat)?.label || ""}
+                        delLabel={delegations.find(d => d.id === hierarchy.delegation)?.nom || ""}
+                        onZoneStatus={setZoneStatus}
                       />
                     </div>
 
@@ -1871,7 +2750,7 @@ export const CreateListingForm = ({ editId = null }) => {
                 </div>
               )}
 
-              {/* ─── STEP 3 ─── */}
+              {/* --- STEP 3 --- */}
               {currentStep === 3 && (
                 <div className="ca-step-content">
                   <div className="ca-card__head">
@@ -1880,7 +2759,7 @@ export const CreateListingForm = ({ editId = null }) => {
                     <span className="ca-req-hint"><span className="ca-req">*</span> champs requis</span>
                   </div>
 
-                  {/* ─── Split 2 colonnes ─── */}
+                  {/* --- Split 2 colonnes --- */}
                   <div className="ca-split-2col">
 
                     {/* Colonne gauche : Titre · Superficie · Prix */}
@@ -1897,22 +2776,65 @@ export const CreateListingForm = ({ editId = null }) => {
                             onChange={e => { handleInputChange("titre", e.target.value); setValidationErrors(v=>({...v,titre:false})); }}
                           />
                           <button type="button" className="ca-wand-btn"
-                            title="Suggérer un titre avec l'IA"
+                            title="Générer des propositions de titres"
                             onClick={() => {
-                              if (formData.type_bien) {
-                                const titles = [
-                                  `Superbe ${formData.type_bien} ${hierarchy.gouvernorat ? `à ${gouvernorats.find(g=>g.value===hierarchy.gouvernorat)?.label || ""}` : ""}`,
-                                  `${formData.type_bien.charAt(0).toUpperCase() + formData.type_bien.slice(1)} exceptionnel`,
-                                  `Magnifique ${formData.type_bien} moderne`
-                                ];
-                                handleInputChange("titre", titles[Math.floor(Math.random() * titles.length)]);
-                              }
+                              if (!formData.type_bien) return;
+                              const TYPE_FR = {
+                                appartement:"appartement", villa_maison:"villa", villa:"villa", maison:"maison",
+                                terrain:"terrain", bureau:"bureau", local_commercial:"local commercial",
+                                immeuble:"immeuble", ferme_agricole:"ferme agricole",
+                                garage_parking:"garage", depot_stockage:"dépôt", immobiliers_divers:"bien immobilier",
+                              };
+                              const t = TYPE_FR[formData.type_bien] || formData.type_bien;
+                              const sup = formData.superficie ? ` ${formData.superficie} m²` : "";
+                              const ch = formData.nb_chambres > 0 ? ` ${formData.nb_chambres} ch.` : "";
+                              const gov = gouvernorats.find(g=>g.value===hierarchy.gouvernorat)?.label || "";
+                              const del = delegations.find(d=>String(d.id)===String(hierarchy.delegation))?.nom || "";
+                              const loc = del || gov;
+                              const locStr = loc ? ` à ${loc}` : "";
+                              const offreFr = formData.categorie === "location" ? "à louer" : formData.categorie === "vacances" ? "vacances" : "à vendre";
+                              const etat = { nouveau:"neuf", bon_etat:"", a_renover:"à rénover", cours_construction:"en construction" }[formData.etat_bien] || "";
+                              const adj = ["Magnifique","Superbe","Élégant","Lumineux","Exceptionnel","Charmant","Spacieux","Moderne","Idéal","Exclusif"];
+                              const shuffle = () => adj[Math.floor(Math.random()*adj.length)];
+                              const proposals = [
+                                `${shuffle()} ${t}${sup}${ch}${locStr}`,
+                                `${t.charAt(0).toUpperCase()+t.slice(1)} ${etat ? etat+" " : ""}${offreFr}${locStr}${sup ? " — "+sup : ""}`,
+                                `À ${offreFr === "vacances" ? "louer pour les vacances" : offreFr} : ${shuffle().toLowerCase()} ${t}${locStr}`,
+                              ].map(s => s.replace(/\s{2,}/g," ").trim());
+                              setTitleSuggestions(proposals);
                             }}
                           >
                             <Wand2 size={15}/>
                           </button>
                         </div>
                       </div>
+
+                      {/* Propositions de titres IA */}
+                      {titleSuggestions.length > 0 && (
+                        <div style={{marginTop:6,marginBottom:4,display:"flex",flexDirection:"column",gap:4}}>
+                          <span style={{fontSize:11,fontWeight:600,color:"#6366f1",letterSpacing:".03em"}}>✨ Choisissez un titre :</span>
+                          {titleSuggestions.map((s,i) => (
+                            <button key={i} type="button"
+                              onClick={() => { handleInputChange("titre", s); setTitleSuggestions([]); }}
+                              style={{
+                                textAlign:"left",padding:"6px 10px",borderRadius:8,
+                                border:"1.5px solid #e0e7ff",background:"#f5f3ff",
+                                color:"#3730a3",fontSize:12,fontWeight:500,cursor:"pointer",
+                                transition:"all .12s",lineHeight:1.4,
+                              }}
+                              onMouseEnter={e=>{ e.currentTarget.style.background="#ede9fe"; e.currentTarget.style.borderColor="#818cf8"; }}
+                              onMouseLeave={e=>{ e.currentTarget.style.background="#f5f3ff"; e.currentTarget.style.borderColor="#e0e7ff"; }}
+                            >{s}</button>
+                          ))}
+                          <button type="button"
+                            onClick={() => {
+                              const btn = document.querySelector('.ca-wand-btn');
+                              if (btn) btn.click();
+                            }}
+                            style={{fontSize:11,color:"#6366f1",background:"none",border:"none",cursor:"pointer",textAlign:"left",padding:"2px 0",fontWeight:600}}
+                          >↻ Nouvelles propositions</button>
+                        </div>
+                      )}
 
                       {/* Superficie */}
                       <div className="ca-field">
@@ -1930,29 +2852,63 @@ export const CreateListingForm = ({ editId = null }) => {
                       {/* Prix */}
                       <div className="ca-field">
                         <label className="ca-label">Prix <span className="ca-req">*</span></label>
-                        <div className="ca-input-unit">
-                          <input type="number"
-                            className={`ca-input${validationErrors.prix ? " ca-input--err" : ""}`}
-                            placeholder="250000" min="1" max="9999999999"
-                            value={formData.prix}
-                            onChange={e => { handleInputChange("prix", e.target.value); setValidationErrors(v=>({...v,prix:false})); }}/>
-                          <select className="ca-currency" value={formData.devise}
-                            onChange={e => handleInputChange("devise", e.target.value)}>
-                            <option value="DT">DT</option>
-                            <option value="EUR">EUR</option>
-                            <option value="USD">USD</option>
-                          </select>
-                        </div>
+                        {/* Cas colocation : prix verrouillé calculé depuis étape 1 */}
+                        {["location","vacances"].includes(formData.categorie) && formData.colocation
+                          ? (() => {
+                              const totalPrix = (formData.chambres_coloc||[]).reduce((s,c)=>s+((c.capacite||1)*(c.prix_par_place||0)),0);
+                              return (
+                                <>
+                                  <div style={{
+                                    background:"#f1f5f9", border:"1.5px solid #e2e8f0", borderRadius:10,
+                                    padding:"10px 14px", marginBottom:8,
+                                    display:"flex", alignItems:"center", justifyContent:"space-between",
+                                  }}>
+                                    <span style={{fontSize:13, fontWeight:700, color:"#374151"}}>
+                                      Utiliser le prix total colocation :
+                                    </span>
+                                    <span style={{fontSize:15, fontWeight:800, color:"#4338ca"}}>
+                                      {totalPrix > 0 ? totalPrix.toLocaleString() : "—"} TND
+                                    </span>
+                                  </div>
+                                  <p style={{fontSize:11.5, color:"#94a3b8", lineHeight:1.5, marginBottom:8, background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:8, padding:"7px 11px"}}>
+                                    Le prix a été calculé automatiquement à l'étape 1 « Type et caractéristiques » en fonction du prix par place de chaque chambre. Pour modifier le prix total, veuillez revenir à cette étape et mettre à jour le prix par place des chambres.
+                                  </p>
+                                  <div className="ca-input-unit" style={{opacity:.55, pointerEvents:"none"}}>
+                                    <input type="number" className="ca-input"
+                                      value={totalPrix > 0 ? totalPrix : ""}
+                                      readOnly tabIndex={-1}
+                                      placeholder="Calculé depuis l'étape 1"/>
+                                    <span style={{padding:"0 12px",fontWeight:700,color:"#64748b",fontSize:13}}>TND</span>
+                                  </div>
+                                </>
+                              );
+                            })()
+                          : <>
+                              <div className="ca-input-unit">
+                                <input type="number"
+                                  className={`ca-input${validationErrors.prix ? " ca-input--err" : ""}`}
+                                  placeholder="250000" min="1" max="9999999999"
+                                  value={formData.prix}
+                                  onChange={e => { handleInputChange("prix", e.target.value); setValidationErrors(v=>({...v,prix:false})); }}/>
+                                <select className="ca-currency" value={formData.devise}
+                                  onChange={e => handleInputChange("devise", e.target.value)}>
+                                  <option value="TND">TND</option>
+                                  <option value="EUR">EUR</option>
+                                  <option value="USD">USD</option>
+                                </select>
+                              </div>
+                            </>
+                        }
                       </div>
 
-                      {/* ── Aperçu en direct ── */}
+                      {/* -- Aperçu en direct -- */}
                       {(() => {
                         const prixNum = parseFloat(formData.prix);
                         const surfNum = parseFloat(formData.superficie);
                         const prixM2  = (prixNum > 0 && surfNum > 0)
                           ? Math.round(prixNum / surfNum).toLocaleString("fr-TN")
                           : null;
-                        const devise  = formData.devise === "DT" ? "DT" : formData.devise;
+                        const devise  = formData.devise || "TND";
                         return (
                           <div className="ca-live-preview">
                             <div className="ca-live-preview__header">
@@ -1993,7 +2949,7 @@ export const CreateListingForm = ({ editId = null }) => {
                         );
                       })()}
 
-                      {/* ── Évaluation de marché ── */}
+                      {/* -- Évaluation de marché -- */}
                       {(() => {
                         const prixNum  = parseFloat(formData.prix);
                         const surfNum  = parseFloat(formData.superficie);
@@ -2017,19 +2973,18 @@ export const CreateListingForm = ({ editId = null }) => {
                       <div className="ca-field ca-field--full">
                         <label className="ca-label">Description <span className="ca-req">*</span></label>
 
-                        {/* IA actions — minimal strip */}
+                        {/* IA actions */}
                         <div className="ca-ai-strip">
-                          <span className="ca-ai-strip__label">Générer avec l'IA :</span>
+                          <span className="ca-ai-strip__label">✨ Générer avec l'IA :</span>
                           <button type="button" className="ca-ai-pill"
                             onClick={generateQuickAIDescription} disabled={isAILoading}>
-                            {isAILoading ? "Génération…" : "Rédaction rapide"}
+                            {isAILoading
+                              ? <span style={{display:"flex",alignItems:"center",gap:6}}>
+                                  <span style={{width:13,height:13,border:"2px solid rgba(255,255,255,.35)",borderTopColor:"#fff",borderRadius:"50%",display:"inline-block",animation:"caSpin .7s linear infinite"}}/>
+                                  Génération…
+                                </span>
+                              : "Rédaction rapide"}
                           </button>
-                          {/* Assistant guidé — à activer plus tard
-                          <button type="button" className="ca-ai-pill ca-ai-pill--ghost"
-                            onClick={() => setIsAIModalOpen(true)}>
-                            Assistant guidé
-                          </button>
-                          */}
                         </div>
 
                         <div className="ca-desc-wrap ca-desc-wrap--full">
@@ -2053,7 +3008,7 @@ export const CreateListingForm = ({ editId = null }) => {
                 </div>
               )}
 
-              {/* ─── STEP 4 ─── */}
+              {/* --- STEP 4 --- */}
               {currentStep === 4 && (
                 <div className="ca-step-content">
                   <div className="ca-card__head">
@@ -2063,9 +3018,9 @@ export const CreateListingForm = ({ editId = null }) => {
                   </div>
 
                   <p className="ca-tip" style={{marginBottom:12}}>
-                    Glissez-déposez vos photos ou cliquez pour les ajouter. Cliquez sur ⭐ pour définir l'image principale.
+                    Glissez-déposez vos photos ou cliquez pour les ajouter. Cliquez sur ★ pour définir l'image principale.
                   </p>
-                  {/* ── Images existantes (edit mode) ── */}
+                  {/* -- Images existantes (edit mode) -- */}
                   {editId && existingImageUrls.length > 0 && (
                     <div style={{marginBottom:20}}>
                       <div className="ca-section-label" style={{marginBottom:10}}>
@@ -2081,10 +3036,13 @@ export const CreateListingForm = ({ editId = null }) => {
                               <img src={url} alt={`Photo ${idx+1}`}
                                 style={{width:"100%",height:"100%",objectFit:"cover"}}
                                 onError={e => { e.currentTarget.style.display="none"; }}/>
+                              {isMain && (
+                                <div className="ca-img-main-badge"><Star size={11} fill="#fff" style={{marginRight:3}}/> Principale</div>
+                              )}
                               <div className="ca-img-overlay">
                                 <button type="button"
                                   className={`ca-img-btn ca-img-btn--heart${isMain ? " ca-img-btn--heart-on" : ""}`}
-                                  title={isMain ? "Image principale ⭐" : "Définir comme principale"}
+                                  title={isMain ? "Image principale ★" : "Définir comme principale"}
                                   onClick={() => { setMainExistingIdx(idx); handleInputChange("mainImageIndex", 0); }}>
                                   <Star size={15} fill={isMain ? "#fff" : "none"}/>
                                 </button>
@@ -2161,7 +3119,7 @@ export const CreateListingForm = ({ editId = null }) => {
                         <div key={index} className={`ca-img-uni-card${isMain ? " ca-img-uni-card--main" : ""}`}>
                           <img src={URL.createObjectURL(file)} alt={`Image ${index + 1}`}/>
                           {isMain && (
-                            <div className="ca-img-main-badge">⭐ Principale</div>
+                            <div className="ca-img-main-badge">? Principale</div>
                           )}
                           <div className="ca-img-overlay">
                             <button type="button" className="ca-img-btn ca-img-btn--eye"
@@ -2170,7 +3128,7 @@ export const CreateListingForm = ({ editId = null }) => {
                             </button>
                             <button type="button"
                               className={`ca-img-btn ca-img-btn--heart${isMain ? " ca-img-btn--heart-on" : ""}`}
-                              title={isMain ? "Image principale ⭐" : "Définir comme principale"}
+                              title={isMain ? "Image principale ★" : "Définir comme principale"}
                               onClick={() => handleInputChange("mainImageIndex", index)}>
                               <Star size={15} fill={isMain ? "#fff" : "none"}/>
                             </button>
@@ -2212,7 +3170,7 @@ export const CreateListingForm = ({ editId = null }) => {
                   </div>
 
 
-                  {/* ── Publication anonyme / identité visible ── */}
+                  {/* -- Publication anonyme / identité visible -- */}
                   {(() => {
                     const storedUser = (() => { try { return JSON.parse(localStorage.getItem("user")); } catch { return null; } })();
                     const avatar     = storedUser?.profile_picture;
@@ -2236,7 +3194,7 @@ export const CreateListingForm = ({ editId = null }) => {
                                 </svg>
                               </div>
                             ) : avatar ? (
-                              <img src={avatar.startsWith("http") ? avatar : `${API_URL}${avatar}`}
+                              <img src={avatar.startsWith("data:")||avatar.startsWith("http") ? avatar : `${API_URL}${avatar}`}
                                 alt="" style={{width:42,height:42,borderRadius:"50%",objectFit:"cover",flexShrink:0,border:"2px solid #e2e8f0"}}/>
                             ) : (
                               <div style={{
@@ -2277,8 +3235,8 @@ export const CreateListingForm = ({ editId = null }) => {
                     );
                   })()}
 
-                  {/* ── Accompagnement checkbox ── */}
-                  {/* ── Accompagnement — switch identique à anonyme ── */}
+                  {/* -- Accompagnement checkbox -- */}
+                  {/* -- Accompagnement — switch identique à anonyme -- */}
                   <div className="ca-anon-toggle" style={{marginTop:16}}>
                     <div className="ca-anon-toggle__inner">
                       <div className="ca-anon-toggle__text">
@@ -2303,6 +3261,12 @@ export const CreateListingForm = ({ editId = null }) => {
                       </div>
                     </div>
                     {formData.accompagnement && (
+                      <div style={{marginTop:10,padding:"9px 13px",background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:8,fontSize:12,color:"#1e40af",display:"flex",alignItems:"flex-start",gap:7}}>
+                        <span style={{fontSize:15,flexShrink:0}}>ℹ️</span>
+                        <span>Vous pouvez toujours modifier ce choix depuis la page <strong>Mes annonces</strong> après publication.</span>
+                      </div>
+                    )}
+                    {formData.accompagnement && (
                       <div style={{marginTop:14}}>
                         <label className="ca-label" style={{marginBottom:6, display:"block"}}>
                           Choisir une agence
@@ -2312,133 +3276,316 @@ export const CreateListingForm = ({ editId = null }) => {
                           value={agenceChoisie}
                           onChange={e => { setAgenceChoisie(e.target.value); handleInputChange("agence_choisie", e.target.value); }}
                         >
-                          <option value="">— Sélectionner une agence —</option>
+                          <option value="">— Peu importe (affecter plus tard) —</option>
                           {agences.map(a => (
-                            <option key={a.id} value={a.id}>{a.nom}</option>
+                            <option key={a.id} value={a.id}>{a.nom}{a.type ? ` · ${a.type}` : ""}</option>
                           ))}
                         </select>
+                        {agences.length === 0 && (
+                          <p style={{fontSize:12,color:"#94a3b8",marginTop:6}}>
+                            Aucun professionnel inscrit pour le moment. Un professionnel sera affecté par notre équipe.
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
                 </div>
               )}
 
-              {/* ─── STEP 5 — Prévisualisation ─── */}
-              {currentStep === 5 && (
-                <div className="ca-step-content">
-                  <div className="ca-card__head">
-                    <Eye size={20} className="ca-card__head-ico"/>
-                    <h2 className="ca-card__title">Prévisualisation</h2>
-                  </div>
-                  <p style={{fontSize:13,color:"#64748b",marginBottom:20}}>
-                    Vérifiez toutes les informations avant de publier.
-                  </p>
+              {/* --- STEP 5 — Prévisualisation (design identique à AnnonceDetail) --- */}
+              {currentStep === 5 && (() => {
+                /* -- Données calculées pour le preview -- */
+                const imgs = imgUrls;
+                const mainImg = imgs[formData.mainImageIndex] || imgs[0]
+                  || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=900&q=80";
+                const govLabel = gouvernorats.find(g => g.value === hierarchy.gouvernorat)?.label || "";
+                const delLabel = delegations.find(d => String(d.id) === String(hierarchy.delegation))?.nom || "";
+                const locLabel = localites.find(l => String(l.id) === String(hierarchy.localite))?.nom || "";
+                const TYPE_FR = { appartement:"Appartement", villa:"Villa/Maison", terrain:"Terrain", bureau:"Bureau", local_commercial:"Local commercial", ferme:"Ferme agricole", ferme_agricole:"Ferme agricole", immeuble:"Immeuble", garage_parking:"Garage / Parking", immobiliers_divers:"Immobiliers divers" };
+                const CAT_FR  = { vente:"Vente", location:"Location", vacances:"Vacances" };
+                const ETAT_FR = { nouveau:"Neuf", bon_etat:"Bon état", a_renover:"À rénover", cours_construction:"En construction" };
+                const CAT_BG  = { vente:"#dcfce7", location:"#dbeafe", vacances:"#fef9c3" };
+                const CAT_CLR = { vente:"#166534", location:"#1e40af", vacances:"#854d0e" };
+                const cat = formData.categorie || "vente";
+                const storedUser = (() => { try { return JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user")); } catch { return null; } })();
+                const userRole = storedUser?.role || "particulier";
+                const isAnonymous = !!formData.anonyme;
+                const initiale = (storedUser?.username || "?")[0].toUpperCase();
+                const rawUrl = storedUser?.profile_picture || null;
+                const resolveUrl = url => !url ? null : (url.startsWith("data:") || url.startsWith("http")) ? url : `${API_URL}${url}`;
+                const photoUrl = resolveUrl(rawUrl);
+                const roleLabels = { particulier:"Particulier", agence:"Agence / Agent", promoteur:"Promoteur", professionnel:"Professionnel", partenaire:"Partenaire", admin:"Administrateur" };
 
-                  {/* Badges */}
-                  <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>
-                    {formData.type_bien && (
-                      <span className="ca-prev-badge ca-prev-badge--type">
-                        {formData.type_bien.charAt(0).toUpperCase()+formData.type_bien.slice(1)}
+                /* Icônes des caractéristiques — identiques à AnnonceDetail */
+                const FEAT_ICONS = {
+                  "Vue sur mer": Waves,       "Vue sur montagne": Mountain,    "Vue sur forêt": TreePine,
+                  "Jardin": Fence,            "Terrasse": Sun,             "Balcon": Flower2,
+                  "Piscine": Droplets,        "Parking": ParkingCircle,    "Ascenseur": ArrowUpDown,
+                  "Garage": Car,              "Cellier": Package,"Meublé": Sofa,
+                  "Concierge": Users,         "Gardien": ShieldCheck,      "Animaux admis": Heart,
+                  "Cuisine équipée": UtensilsCrossed, "Climatisation": Wind, "Chauffage central": Thermometer,
+                  "Cheminée": Flame,          "Double vitrage": DoorClosed,"Porte blindée": LockKeyhole,
+                  "Sécurité": Fingerprint,    "Internet": Wifi,            "TV": Monitor,
+                  "Machine à laver": RefreshCw,"Digicode": KeyRound,       "Interphone": PhoneCall,
+                  "Relié ONAS": Droplets,     "Salon américain": Monitor,  "Fibre optique": Wifi,
+                };
+
+                const allFeats = [
+                  {k:"vue_mer",l:"Vue sur mer"},{k:"vue_montagne",l:"Vue sur montagne"},{k:"vue_foret",l:"Vue sur forêt"},
+                  {k:"jardin",l:"Jardin"},{k:"terrasse",l:"Terrasse"},{k:"balcon",l:"Balcon"},
+                  {k:"piscine",l:"Piscine"},{k:"parking",l:"Parking"},{k:"ascenseur",l:"Ascenseur"},
+                  {k:"garage",l:"Garage"},{k:"cellier",l:"Cellier"},{k:"meuble",l:"Meublé"},
+                  {k:"concierge",l:"Concierge"},{k:"gardien",l:"Gardien"},{k:"animaux_admis",l:"Animaux admis"},
+                  {k:"cuisine_equipee",l:"Cuisine équipée"},{k:"climatisation",l:"Climatisation"},
+                  {k:"chauffage_centrale",l:"Chauffage central"},{k:"cheminee",l:"Cheminée"},
+                  {k:"double_vitrage",l:"Double vitrage"},{k:"porte_blindee",l:"Porte blindée"},
+                  {k:"securite",l:"Sécurité"},{k:"internet",l:"Internet"},{k:"tv",l:"TV"},
+                  {k:"machine_laver",l:"Machine à laver"},{k:"digicode",l:"Digicode"},
+                  {k:"interphone",l:"Interphone"},{k:"salon_americain",l:"Salon américain"},
+                  {k:"relie_onas",l:"Relié ONAS"},{k:"fibre_optique",l:"Fibre optique"},
+                ].filter(f => formData[f.k]);
+
+                const approx = formData.prix ? fmtPriceApprox(Number(formData.prix), formData.devise || "TND") : "";
+
+                return (
+                  <div className="ca-step-content">
+                    <div className="ca-card__head">
+                      <Eye size={20} className="ca-card__head-ico"/>
+                      <h2 className="ca-card__title">Prévisualisation</h2>
+                      <span style={{marginLeft:"auto",fontSize:12,color:"#64748b",background:"#f1f5f9",padding:"4px 10px",borderRadius:20,fontWeight:600}}>
+                        ✓ Exactement comme sur la page annonce
                       </span>
-                    )}
-                    {formData.categorie && (
-                      <span className="ca-prev-badge ca-prev-badge--cat">
-                        {formData.categorie.charAt(0).toUpperCase()+formData.categorie.slice(1)}
-                      </span>
-                    )}
-                    {formData.etat_bien && (
-                      <span className="ca-prev-badge ca-prev-badge--etat">
-                        {formData.etat_bien==="nouveau"?"Neuf":formData.etat_bien==="bon_etat"?"Bon état":formData.etat_bien==="a_renover"?"À rénover":"En construction"}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Title + price */}
-                  <h3 className="ca-prev-title">{formData.titre || <em style={{color:"#94a3b8"}}>Titre non défini</em>}</h3>
-                  {formData.prix && (
-                    <div className="ca-prev-price">{Number(formData.prix).toLocaleString("fr-TN")} <span>{formData.devise}</span></div>
-                  )}
-
-                  {/* Key details row */}
-                  <div className="ca-prev-details">
-                    {formData.superficie && <span>📐 {formData.superficie} m²</span>}
-                    {formData.nb_pieces > 0 && <span>🚪 {formData.nb_pieces} pièce{formData.nb_pieces>1?"s":""}</span>}
-                    {formData.nb_chambres > 0 && <span>🛏 {formData.nb_chambres} chambre{formData.nb_chambres>1?"s":""}</span>}
-                    {formData.nb_salles_bain > 0 && <span>🚿 {formData.nb_salles_bain} sdb</span>}
-                  </div>
-
-                  {/* Location */}
-                  <div className="ca-prev-loc">
-                    <MapPin size={13}/>
-                    {[
-                      gouvernorats.find(g=>g.value===hierarchy.gouvernorat)?.label,
-                      delegations.find(d=>String(d.id)===String(hierarchy.delegation))?.nom,
-                      localites.find(l=>String(l.id)===String(hierarchy.localite))?.nom,
-                    ].filter(Boolean).join(", ") || <em style={{color:"#94a3b8"}}>Localisation non définie</em>}
-                    {formData.address && formData.address !== "Tunis, Tunisie" && ` — ${formData.address}`}
-                  </div>
-
-                  {/* Features */}
-                  {[
-                    {k:"vue_mer",l:"🌊 Vue mer"},{k:"vue_montagne",l:"⛰️ Vue montagne"},{k:"vue_foret",l:"🌲 Vue forêt"},
-                    {k:"jardin",l:"🏡 Jardin"},{k:"terrasse",l:"☀️ Terrasse"},{k:"balcon",l:"🪴 Balcon"},
-                    {k:"ascenseur",l:"🛗 Ascenseur"},{k:"garage",l:"🚗 Garage"},{k:"parking",l:"🅿️ Parking"},
-                    {k:"cellier",l:"📦 Cellier"},{k:"meuble",l:"🛋️ Meublé"},{k:"cuisine_equipee",l:"🍳 Cuisine équipée"},
-                    {k:"climatisation",l:"❄️ Climatisation"},
-                  ].filter(f=>formData[f.k]).length > 0 && (
-                    <div className="ca-prev-features">
-                      {[
-                        {k:"vue_mer",l:"🌊 Vue mer"},{k:"vue_montagne",l:"⛰️ Vue montagne"},{k:"vue_foret",l:"🌲 Vue forêt"},
-                        {k:"jardin",l:"🏡 Jardin"},{k:"terrasse",l:"☀️ Terrasse"},{k:"balcon",l:"🪴 Balcon"},
-                        {k:"ascenseur",l:"🛗 Ascenseur"},{k:"garage",l:"🚗 Garage"},{k:"parking",l:"🅿️ Parking"},
-                        {k:"cellier",l:"📦 Cellier"},{k:"meuble",l:"🛋️ Meublé"},{k:"cuisine_equipee",l:"🍳 Cuisine équipée"},
-                        {k:"climatisation",l:"❄️ Climatisation"},
-                      ].filter(f=>formData[f.k]).map(f=>(
-                        <span key={f.k} className="ca-prev-feat">{f.l}</span>
-                      ))}
                     </div>
-                  )}
 
-                  {/* Description */}
-                  {formData.description && (
-                    <div className="ca-prev-desc">
-                      <div className="ca-prev-section-lbl">Description</div>
-                      <p>{formData.description}</p>
-                    </div>
-                  )}
+                    {/* -- Layout 2 colonnes identique à AnnonceDetail -- */}
+                    <div className="ca-prev-detail-grid" style={{display:"grid",gridTemplateColumns:"1fr 340px",gap:28,fontFamily:"'Poppins',system-ui,sans-serif",alignItems:"start"}}>
 
-                  {/* Main image */}
-                  {formData.allImages.length > 0 && (
-                    <div style={{marginTop:20}}>
-                      <div className="ca-prev-section-lbl">Image principale</div>
-                      <img
-                        src={URL.createObjectURL(formData.allImages[formData.mainImageIndex] || formData.allImages[0])}
-                        alt="Principale"
-                        style={{width:"100%",maxWidth:480,borderRadius:12,objectFit:"cover",maxHeight:280,display:"block"}}
-                      />
-                    </div>
-                  )}
+                      {/* -- COLONNE GAUCHE -- */}
+                      <div>
+                        {/* Galerie — même style que .ad-gallery */}
+                        <div style={{marginBottom:20,borderRadius:10,overflow:"hidden",boxShadow:"0 1px 8px rgba(0,0,0,.07)"}}>
+                          <div style={{position:"relative",background:"#e5e7eb",borderRadius:10,overflow:"hidden"}}>
+                            <img src={imgs[previewImg] || mainImg} alt="Photo principale"
+                              style={{width:"100%",height:400,objectFit:"cover",display:"block"}}/>
+                            {imgs.length > 1 && (
+                              <>
+                                <button type="button" onClick={()=>setPreviewImg(i=>(i-1+imgs.length)%imgs.length)}
+                                  style={{position:"absolute",top:"50%",left:12,transform:"translateY(-50%)",width:36,height:36,borderRadius:"50%",background:"rgba(255,255,255,.9)",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 8px rgba(0,0,0,.2)"}}>
+                                  <ChevronLeft size={18}/>
+                                </button>
+                                <button type="button" onClick={()=>setPreviewImg(i=>(i+1)%imgs.length)}
+                                  style={{position:"absolute",top:"50%",right:12,transform:"translateY(-50%)",width:36,height:36,borderRadius:"50%",background:"rgba(255,255,255,.9)",border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 8px rgba(0,0,0,.2)"}}>
+                                  <ChevronRight size={18}/>
+                                </button>
+                                <span style={{position:"absolute",bottom:12,right:12,background:"rgba(0,0,0,.5)",color:"#fff",padding:"3px 10px",borderRadius:20,fontSize:12.5,fontWeight:600}}>
+                                  {previewImg+1} / {imgs.length}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                          {imgs.length > 1 && (
+                            <div style={{display:"flex",gap:8,marginTop:8,overflowX:"auto",paddingBottom:4,paddingTop:2}}>
+                              {imgs.map((src, i) => (
+                                <img key={i} src={src} alt="" loading="lazy" onClick={()=>setPreviewImg(i)}
+                                  style={{width:80,height:60,objectFit:"cover",borderRadius:6,flexShrink:0,cursor:"pointer",
+                                    border:"2px solid",borderColor:i===previewImg?"#6366f1":"transparent",
+                                    opacity:i===previewImg?1:.65,transition:"all .15s"}}/>
+                              ))}
+                            </div>
+                          )}
+                        </div>
 
-                  {/* Additional images */}
-                  {formData.allImages.length > 1 && (
-                    <div style={{marginTop:16}}>
-                      <div className="ca-prev-section-lbl">Photos ({formData.allImages.length} au total)</div>
-                      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                        {formData.allImages.slice(0,6).map((img,i)=>(
-                          <img key={i} src={URL.createObjectURL(img)} alt={`img ${i}`}
-                            style={{width:80,height:80,objectFit:"cover",borderRadius:8}}/>
-                        ))}
-                        {formData.allImages.length > 6 && (
-                          <div style={{width:80,height:80,borderRadius:8,background:"#f1f5f9",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,color:"#64748b",fontWeight:700}}>
-                            +{formData.allImages.length-6}
+                        {/* Description — même style que .ad-section */}
+                        {formData.description && (
+                          <div style={{marginBottom:24,padding:"18px 20px",background:"#fff",borderRadius:10,border:"1px solid #e5e7eb"}}>
+                            <h2 style={{fontSize:16,fontWeight:700,color:"#0f172a",margin:"0 0 12px"}}>Description</h2>
+                            <p style={{fontSize:13.5,color:"#4b5563",lineHeight:1.8,whiteSpace:"pre-wrap",margin:0}}>{formData.description}</p>
+                          </div>
+                        )}
+
+                        {/* Caractéristiques — avec icônes, identiques à AnnonceDetail */}
+                        {allFeats.length > 0 && (
+                          <div style={{padding:"18px 20px",background:"#fff",borderRadius:10,border:"1px solid #e5e7eb"}}>
+                            <h2 style={{fontSize:16,fontWeight:700,color:"#0f172a",margin:"0 0 14px"}}>Caractéristiques du bien</h2>
+                            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:"10px 8px"}}>
+                              {allFeats.map(f => {
+                                const Ico = FEAT_ICONS[f.l] || CheckCircle2;
+                                return (
+                                  <div key={f.k} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 11px",borderRadius:8,background:"#f8fafc",border:"1px solid #e5e7eb",fontSize:12.5,fontWeight:600,color:"#374151"}}>
+                                    <Ico size={16} strokeWidth={1.6} style={{color:"#4f46e5",flexShrink:0}}/>{f.l}
+                                  </div>
+                                );
+                              })}
+                            </div>
                           </div>
                         )}
                       </div>
-                    </div>
-                  )}
 
-                </div>
-              )}
+                      {/* -- COLONNE DROITE -- */}
+                      <div>
+                        {/* Carte principale — identique à .ad-card */}
+                        <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:12,padding:"20px 22px",marginBottom:16,boxShadow:"0 2px 12px rgba(0,0,0,.05)"}}>
+
+                          {/* Badge catégorie */}
+                          {formData.categorie && (
+                            <span style={{display:"inline-block",padding:"3px 12px",borderRadius:999,fontSize:11,fontWeight:800,textTransform:"uppercase",letterSpacing:".6px",marginBottom:10,background:CAT_BG[cat],color:CAT_CLR[cat]}}>
+                              {CAT_FR[formData.categorie]}
+                            </span>
+                          )}
+
+                          {/* Titre */}
+                          <h2 style={{fontSize:19,fontWeight:800,color:"#0f172a",lineHeight:1.3,margin:"0 0 10px"}}>
+                            {formData.titre || <em style={{color:"#94a3b8",fontWeight:400,fontSize:15}}>Titre non défini</em>}
+                          </h2>
+
+                          {/* Adresse / Localisation chips */}
+                          <div style={{marginBottom:14,display:"flex",alignItems:"center",flexWrap:"wrap",gap:4}}>
+                            {locLabel && <span style={{padding:"3px 9px",borderRadius:999,fontSize:11.5,fontWeight:600,background:"#f1f5f9",color:"#475569",border:"1px solid #e2e8f0"}}>{locLabel}</span>}
+                            {locLabel && delLabel && <span style={{fontSize:12,color:"#d1d5db"}}>›</span>}
+                            {delLabel && <span style={{padding:"3px 9px",borderRadius:999,fontSize:11.5,fontWeight:600,background:"#f1f5f9",color:"#475569",border:"1px solid #e2e8f0"}}>{delLabel}</span>}
+                            {(locLabel||delLabel) && govLabel && <span style={{fontSize:12,color:"#d1d5db"}}>›</span>}
+                            {govLabel && <span style={{padding:"3px 9px",borderRadius:999,fontSize:11.5,fontWeight:600,background:"#f1f5f9",color:"#475569",border:"1px solid #e2e8f0"}}>{govLabel}</span>}
+                            {!locLabel && !delLabel && !govLabel && (
+                              <span style={{color:"#9ca3af",fontSize:12.5,display:"flex",alignItems:"center",gap:4}}><MapPin size={11}/> Tunisie</span>
+                            )}
+                          </div>
+
+                          {/* Prix */}
+                          <p style={{fontSize:30,fontWeight:900,color:"#0f172a",margin:"0 0 2px",lineHeight:1.1}}>
+                            {formData.prix ? Number(formData.prix).toLocaleString("fr-TN") : "—"}
+                            <span style={{fontSize:14,fontWeight:400,color:"#9ca3af"}}> {formData.devise || "TND"}</span>
+                          </p>
+                          {approx && <p style={{fontSize:12,color:"#94a3b8",margin:"0 0 14px",fontWeight:500}}>{approx}</p>}
+
+                          {/* Specs (chambres / sdb / surface) */}
+                          {(formData.nb_chambres > 0 || formData.nb_salles_bain > 0 || formData.superficie) && (
+                            <div style={{display:"flex",gap:6,marginBottom:16}}>
+                              {formData.nb_chambres > 0 && (
+                                <div style={{flex:1,textAlign:"center",padding:"10px 6px",border:"1px solid #e5e7eb",borderRadius:8}}>
+                                  <div style={{fontSize:17,fontWeight:800,color:"#0f172a",lineHeight:1}}>{formData.nb_chambres}</div>
+                                  <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>Chambres</div>
+                                </div>
+                              )}
+                              {formData.nb_salles_bain > 0 && (
+                                <div style={{flex:1,textAlign:"center",padding:"10px 6px",border:"1px solid #e5e7eb",borderRadius:8}}>
+                                  <div style={{fontSize:17,fontWeight:800,color:"#0f172a",lineHeight:1}}>{formData.nb_salles_bain}</div>
+                                  <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>Sdb</div>
+                                </div>
+                              )}
+                              {formData.superficie && (
+                                <div style={{flex:1,textAlign:"center",padding:"10px 6px",border:"1px solid #e5e7eb",borderRadius:8}}>
+                                  <div style={{fontSize:17,fontWeight:800,color:"#0f172a",lineHeight:1}}>{formData.superficie}</div>
+                                  <div style={{fontSize:11,color:"#9ca3af",marginTop:3}}>m²</div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Méta — identique à .ad-meta */}
+                          <div style={{display:"flex",flexDirection:"column",gap:7,marginBottom:14,fontSize:13,color:"#4b5563"}}>
+                            {formData.type_bien && <div style={{display:"flex",alignItems:"center",gap:7}}><Tag size={13} style={{color:"#9ca3af",flexShrink:0}}/><span style={{fontWeight:600,color:"#6b7280"}}>Type :</span>{TYPE_FR[formData.type_bien]||formData.type_bien}</div>}
+                            {formData.etat_bien  && <div style={{display:"flex",alignItems:"center",gap:7}}><CheckCircle2 size={13} style={{color:"#9ca3af",flexShrink:0}}/><span style={{fontWeight:600,color:"#6b7280"}}>État :</span>{ETAT_FR[formData.etat_bien]||formData.etat_bien}</div>}
+                            {formData.nb_pieces > 0 && <div style={{display:"flex",alignItems:"center",gap:7}}><Building2 size={13} style={{color:"#9ca3af",flexShrink:0}}/><span style={{fontWeight:600,color:"#6b7280"}}>Pièces :</span>{formData.nb_pieces}</div>}
+                            {formData.etage != null && formData.etage !== "" && <div style={{display:"flex",alignItems:"center",gap:7}}><ArrowUpDown size={13} style={{color:"#9ca3af",flexShrink:0}}/><span style={{fontWeight:600,color:"#6b7280"}}>Étage :</span>{formData.etage === 0 ? "RDC" : `${formData.etage}e`}</div>}
+                            {formData.annee_construction && <div style={{display:"flex",alignItems:"center",gap:7}}><CheckCircle2 size={13} style={{color:"#9ca3af",flexShrink:0}}/><span style={{fontWeight:600,color:"#6b7280"}}>Année :</span>{formData.annee_construction}</div>}
+                            {formData.hauteur_immeuble && <div style={{display:"flex",alignItems:"center",gap:7}}><Building2 size={13} style={{color:"#9ca3af",flexShrink:0}}/><span style={{fontWeight:600,color:"#6b7280"}}>Hauteur :</span>{formData.hauteur_immeuble}</div>}
+                            {/* Badge rôle publieur */}
+                            {!isAnonymous && (() => {
+                              const roleMap = {
+                                particulier:    {label:"Particulier",       color:"#6366f1",bg:"#eef2ff"},
+                                agence:         {label:"Agence / Agent",    color:"#0369a1",bg:"#e0f2fe"},
+                                promoteur:      {label:"Promoteur",         color:"#7c3aed",bg:"#ede9fe"},
+                                professionnel:  {label:"Professionnel",     color:"#15803d",bg:"#dcfce7"},
+                              };
+                              const r = roleMap[userRole] || {label:userRole, color:"#64748b", bg:"#f1f5f9"};
+                              return (
+                                <div style={{display:"flex",alignItems:"center",gap:7}}>
+                                  <Home size={13} style={{color:r.color,flexShrink:0}}/>
+                                  <span style={{fontWeight:600,color:"#6b7280"}}>Publié par :</span>
+                                  <span style={{display:"inline-flex",alignItems:"center",gap:4,background:r.bg,color:r.color,padding:"2px 10px",borderRadius:999,fontSize:12,fontWeight:700}}>{r.label}</span>
+                                </div>
+                              );
+                            })()}
+                          </div>
+
+                          <div style={{height:1,background:"#f1f5f9",margin:"14px 0"}}/>
+
+                          {/* -- Bloc contact conditionnel — IDENTIQUE à AnnonceDetail -- */}
+                          {isAnonymous ? (
+                            /* ANONYME */
+                            <div>
+                              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+                                <div style={{width:44,height:44,borderRadius:"50%",background:"linear-gradient(135deg,#94a3b8,#64748b)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,border:"2px solid #e2e8f0"}}>
+                                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                </div>
+                                <div>
+                                  <div style={{fontSize:13.5,fontWeight:700,color:"#0f172a"}}>Membre anonyme</div>
+                                  <div style={{fontSize:12,color:"#94a3b8"}}>Identité masquée · Publication anonyme</div>
+                                </div>
+                              </div>
+                              <div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:9,padding:"9px 13px",fontSize:12.5,color:"#92400e",lineHeight:1.5}}>
+                                👁️ Votre annonce sera publiée <strong>anonymement</strong>. Les visiteurs ne verront pas vos coordonnées.
+                              </div>
+                            </div>
+                          ) : (userRole === "agence" || userRole === "promoteur") ? (
+                            /* AGENCE / PROMOTEUR — logo en grand comme AnnonceDetail */
+                            <div style={{background:"#f8fafc",borderRadius:14,padding:"16px 18px",border:`1.5px solid ${userRole==="agence"?"#bae6fd":"#ddd6fe"}`}}>
+                              <div style={{fontSize:13.5,fontWeight:700,color:"#0f172a",marginBottom:3}}>{storedUser?.username || "—"}</div>
+                              <div style={{fontSize:12,color:"#94a3b8",marginBottom:16}}>Professionnel de l'immobilier</div>
+                              {photoUrl ? (
+                                <img src={photoUrl} alt="Logo"
+                                  style={{width:"100%",maxHeight:140,objectFit:"contain",borderRadius:10,border:`1.5px solid ${userRole==="agence"?"#bae6fd":"#ddd6fe"}`,background:"#fff",padding:8}}/>
+                              ) : (
+                                <div style={{width:"100%",height:100,borderRadius:10,background:userRole==="agence"?"linear-gradient(135deg,#0369a1,#0ea5e9)":"linear-gradient(135deg,#7c3aed,#a855f7)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:44,fontWeight:900,color:"#fff"}}>
+                                  {initiale}
+                                </div>
+                              )}
+                              <div style={{marginTop:14,display:"flex",flexDirection:"column",gap:8}}>
+                                <div style={{padding:"11px 14px",borderRadius:10,background:"linear-gradient(135deg,#6366f1,#818cf8)",color:"#fff",fontSize:13,fontWeight:700,display:"flex",alignItems:"center",gap:7,justifyContent:"center"}}>
+                                  <Phone size={14}/> {storedUser?.phone_number || "+216 XX XXX XXX"}
+                                </div>
+                                <div style={{padding:"11px 14px",borderRadius:10,background:"#f1f5f9",color:"#374151",fontSize:13,fontWeight:700,display:"flex",alignItems:"center",gap:7,justifyContent:"center",border:"1px solid #e2e8f0"}}>
+                                  <Mail size={14}/> {storedUser?.email || ""}
+                                </div>
+                              </div>
+                            </div>
+                          ) : (
+                            /* PARTICULIER & autres */
+                            <div>
+                              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+                                {photoUrl ? (
+                                  <img src={photoUrl} alt="avatar" style={{width:44,height:44,borderRadius:"50%",objectFit:"cover",flexShrink:0,border:"2px solid #e2e8f0"}}/>
+                                ) : (
+                                  <div style={{width:44,height:44,borderRadius:"50%",background:"linear-gradient(135deg,#6366f1,#4f46e5)",color:"#fff",fontSize:18,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                                    {initiale}
+                                  </div>
+                                )}
+                                <div>
+                                  <div style={{fontSize:13.5,fontWeight:700,color:"#0f172a"}}>{storedUser?.username || "—"}</div>
+                                  <div style={{fontSize:12,color:"#94a3b8"}}>{roleLabels[userRole] || "Propriétaire"}</div>
+                                </div>
+                              </div>
+                              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                                <div style={{padding:"11px 14px",borderRadius:10,background:"linear-gradient(135deg,#6366f1,#818cf8)",color:"#fff",fontSize:13,fontWeight:700,display:"flex",alignItems:"center",gap:7,justifyContent:"center"}}>
+                                  <Phone size={14}/> {storedUser?.phone_number || "+216 XX XXX XXX"}
+                                </div>
+                                <div style={{padding:"11px 14px",borderRadius:10,background:"#f1f5f9",color:"#374151",fontSize:13,fontWeight:700,display:"flex",alignItems:"center",gap:7,justifyContent:"center",border:"1px solid #e2e8f0"}}>
+                                  <Mail size={14}/> {storedUser?.email || ""}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Note de bas */}
+                    <div style={{marginTop:20,padding:"12px 16px",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:10,fontSize:12.5,color:"#92400e",lineHeight:1.5}}>
+                      ⚠️ Votre annonce sera soumise à une approbation avant d'être publiée sur la carte (délai : 24h). Vous pouvez encore modifier les étapes précédentes.
+                    </div>
+                  </div>
+                );
+              })()}
 
             </div>{/* end ca-card */}
 
@@ -2458,13 +3605,69 @@ export const CreateListingForm = ({ editId = null }) => {
                   ? <button type="button" className="ca-nav-btn ca-nav-btn--preview" onClick={nextStep}>
                       <Eye size={17}/> Prévisualiser
                     </button>
-                  : <button type="button" className="ca-nav-btn ca-nav-btn--publish" onClick={handleSubmit}>
+                  : <button type="button" className="ca-nav-btn ca-nav-btn--publish" onClick={() => handleSubmit()}>
                       <Check size={17}/> {editId ? "Mettre à jour l'annonce" : "Créer l'annonce"}
                     </button>
               }
             </div>
           </form>
         </main>
+
+        {/* Modal confirmation publication */}
+        {showPublishModal && ReactDOM.createPortal(
+          <div style={{position:"fixed",inset:0,background:"rgba(15,23,42,.55)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:99999,padding:"16px"}}
+            onClick={e=>{if(e.target===e.currentTarget)setShowPublishModal(false);}}>
+            <div style={{background:"#fff",borderRadius:20,padding:"28px 32px 0",width:620,maxWidth:"100%",maxHeight:"90vh",display:"flex",flexDirection:"column",boxShadow:"0 24px 64px rgba(0,0,0,.18)"}}
+              onClick={e=>e.stopPropagation()}>
+
+              {/* Header — style comparateur */}
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:28,flexShrink:0}}>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <Logo variant="color" height={28} to={null}/>
+                  <div>
+                    <div style={{fontSize:16,fontWeight:800,color:"#0f172a"}}>Publier votre annonce</div>
+                    <div style={{fontSize:12,color:"#94a3b8",marginTop:2}}>Confirmez avant de soumettre</div>
+                  </div>
+                </div>
+                <button onClick={()=>setShowPublishModal(false)} style={{background:"#f1f5f9",border:"none",cursor:"pointer",borderRadius:10,width:34,height:34,display:"flex",alignItems:"center",justifyContent:"center",color:"#64748b",flexShrink:0}}>
+                  <X size={18} strokeWidth={2.5}/>
+                </button>
+              </div>
+
+              {/* Corps scrollable */}
+              <div style={{flex:1,overflowY:"auto",paddingBottom:32}}>
+                {/* Icône avertissement monochrome centrée */}
+                <div style={{display:"flex",justifyContent:"center",marginBottom:24}}>
+                  <div style={{width:72,height:72,borderRadius:"50%",background:"#f1f5f9",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    <AlertTriangle size={36} color="#475569" strokeWidth={1.8}/>
+                  </div>
+                </div>
+
+                <h2 style={{fontSize:26,fontWeight:900,color:"#0f172a",margin:"0 0 14px",lineHeight:1.2,textAlign:"center"}}>
+                  Prêt à publier ?
+                </h2>
+                <p style={{fontSize:16,color:"#374151",lineHeight:1.75,margin:"0 0 10px",textAlign:"center"}}>
+                  Votre annonce sera soumise à une <strong>validation</strong> avant d'être visible sur la carte.
+                </p>
+                <p style={{fontSize:14,color:"#64748b",lineHeight:1.65,margin:"0 0 32px",textAlign:"center"}}>
+                  Délai d'approbation estimé : <strong>24h</strong>. Vous pourrez la modifier à tout moment après publication.
+                </p>
+
+                <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
+                  <button onClick={()=>setShowPublishModal(false)}
+                    style={{padding:"14px 32px",borderRadius:12,border:"1.5px solid #e2e8f0",background:"#fff",fontSize:15,fontWeight:600,color:"#374151",cursor:"pointer",minWidth:140}}>
+                    Annuler
+                  </button>
+                  <button onClick={()=>{setShowPublishModal(false);handleSubmit();}}
+                    style={{padding:"14px 40px",borderRadius:12,border:"none",background:"#0f172a",color:"#fff",fontSize:16,fontWeight:800,cursor:"pointer",minWidth:160,letterSpacing:".01em"}}>
+                    Je publie
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
 
         {/* Modal IA */}
         <AIDescriptionModal
@@ -2480,7 +3683,7 @@ export const CreateListingForm = ({ editId = null }) => {
         />
 
         <style>{`
-          /* ── Root layout ── */
+          /* -- Root layout -- */
           .ca-root {
             display: flex;
             min-height: calc(100vh - 64px);
@@ -2488,7 +3691,49 @@ export const CreateListingForm = ({ editId = null }) => {
             font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
           }
 
-          /* ── Sidebar ── */
+          /* -- Sidebar -- */
+          .ca-sidebar {
+            width: 260px;
+            min-width: 260px;
+            background: #fff;
+            border-right: 1px solid #e5e7eb;
+          }
+          .ca-sidebar__hero {
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+            padding: 20px 20px 14px;
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+            min-height: 110px;
+            position: relative;
+            overflow: hidden;
+          }
+          .ca-sidebar__hero-img {
+            width: 90px;
+            height: 90px;
+            object-fit: contain;
+            flex-shrink: 0;
+            filter: drop-shadow(0 4px 12px rgba(0,0,0,.4));
+          }
+          .ca-sidebar__hero-text {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+            padding-bottom: 6px;
+          }
+          .ca-sidebar__hero-title {
+            font-size: 20px;
+            font-weight: 900;
+            color: #fff;
+            line-height: 1.1;
+            letter-spacing: -.02em;
+          }
+          .ca-sidebar__hero-sub {
+            font-size: 13px;
+            font-weight: 500;
+            color: #94a3b8;
+          }
+          /* override: sidebar border/scroll applies to full aside */
           .ca-sidebar {
             width: 260px;
             min-width: 260px;
@@ -2608,14 +3853,14 @@ export const CreateListingForm = ({ editId = null }) => {
           .ca-summary__key { font-size: 12px; color: #94a3b8; }
           .ca-summary__val { font-size: 12px; font-weight: 600; color: #1e293b; }
 
-          /* ── Main area ── */
+          /* -- Main area -- */
           .ca-main {
             flex: 1; min-width: 0;
             padding: 28px 32px 100px;
             overflow-y: auto;
           }
 
-          /* ── Card ── */
+          /* -- Card -- */
           .ca-card {
             background: #fff;
             border: 1px solid #e5e7eb;
@@ -2759,7 +4004,7 @@ export const CreateListingForm = ({ editId = null }) => {
           .ca-orient-btn--on { background: #6366f1; color: #fff; border-color: #6366f1; box-shadow: 0 2px 8px rgba(99,102,241,.3); }
 
           /* Accompagnement checkbox */
-          /* ── Toggle anonyme ── */
+          /* -- Toggle anonyme -- */
           .ca-anon-toggle { border:1.5px solid #e0e7ff; border-radius:12px; background:#f8f9ff; }
           .ca-anon-toggle__inner { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:14px 16px; }
           .ca-anon-toggle__text { display:flex; flex-direction:column; gap:3px; flex:1; }
@@ -2833,7 +4078,7 @@ export const CreateListingForm = ({ editId = null }) => {
           }
           .ca-select:disabled { opacity: .45; cursor: not-allowed; }
           .ca-input--sm { font-size: 12.5px; padding: 8px 10px; }
-          /* ── Validation errors ── */
+          /* -- Validation errors -- */
           .ca-input--err  { border-color: #ef4444 !important; background: #fff5f5 !important; box-shadow: 0 0 0 3px rgba(239,68,68,.1); }
           .ca-select--err { border-color: #ef4444 !important; background: #fff5f5 !important; box-shadow: 0 0 0 3px rgba(239,68,68,.1); }
           .ca-val-group--err { outline: 2.5px solid #ef4444; outline-offset: 4px; border-radius: 10px; }
@@ -2931,7 +4176,7 @@ export const CreateListingForm = ({ editId = null }) => {
             text-transform: uppercase; letter-spacing: .05em;
           }
 
-          /* ── Évaluation prix (barre de marché) ── */
+          /* -- Évaluation prix (barre de marché) -- */
           .ca-peb {
             margin-top: 12px;
             border: 1.5px solid #e5e7eb; border-radius: 12px;
@@ -3073,6 +4318,13 @@ export const CreateListingForm = ({ editId = null }) => {
             margin-top: 10px; font-size: 12.5px; color: #94a3b8; font-style: italic;
           }
 
+          /* Preview (step 5) responsive */
+          @media (max-width: 860px) {
+            .ca-prev-detail-grid { grid-template-columns: 1fr !important; }
+            .ca-prev-detail-grid > div:first-child { order: 2; }
+            .ca-prev-detail-grid > div:last-child  { order: 1; }
+          }
+
           /* Step 5 */
           .ca-dropzone {
             display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
@@ -3136,7 +4388,7 @@ export const CreateListingForm = ({ editId = null }) => {
             text-transform: none; letter-spacing: 0;
           }
 
-          /* ── Navigation ── */
+          /* -- Navigation -- */
           .ca-nav {
             display: flex; justify-content: space-between; align-items: center;
             margin-top: 20px;
@@ -3293,7 +4545,7 @@ export const CreateListingForm = ({ editId = null }) => {
             .ca-nav-btn { width: 100%; justify-content: center; }
           }
 
-          /* ── New big-icon feature cards — monochromatic, no borders ── */
+          /* -- New big-icon feature cards — monochromatic, no borders -- */
           .ca-feats-section { margin-top: 36px; padding-top: 28px; border-top: 1.5px solid #f1f5f9; }
           .ca-feats-section-title {
             font-size: 11.5px; font-weight: 700; color: #64748b;
@@ -3326,11 +4578,11 @@ export const CreateListingForm = ({ editId = null }) => {
           .ca-feat-big-extra { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 9px; padding: 8px 10px; }
           .ca-feat-big-extra__label { font-size: 10.5px; font-weight: 600; color: #64748b; margin-bottom: 5px; display: flex; align-items: center; gap: 4px; }
 
-          /* ── Step 1 compact 2-col (kept for other uses) ── */
+          /* -- Step 1 compact 2-col (kept for other uses) -- */
           .ca-s1-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
           @media (max-width: 700px) { .ca-s1-2col { grid-template-columns: 1fr; } }
 
-          /* ── Step 1 gauche/droite (droite = type/offre/état, gauche = sous-champs) ── */
+          /* -- Step 1 gauche/droite (droite = type/offre/état, gauche = sous-champs) -- */
           .ca-s1-lr { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; align-items: start; }
           .ca-s1-lr__left  { display: flex; flex-direction: column; gap: 0; order: 2; }
           .ca-s1-lr__right { display: flex; flex-direction: column; gap: 0; order: 1; }
@@ -3340,7 +4592,7 @@ export const CreateListingForm = ({ editId = null }) => {
             .ca-s1-lr__right { order: 1; }
           }
 
-          /* ── Prix/m² inline pill ── */
+          /* -- Prix/m² inline pill -- */
           .ca-prixm2-pill {
             display: inline-flex; align-items: center; gap: 7px;
             background: #f0fdf4; border: 1px solid #bbf7d0;
@@ -3350,7 +4602,7 @@ export const CreateListingForm = ({ editId = null }) => {
           .ca-prixm2-pill strong { font-weight: 700; font-size: 13.5px; }
           .ca-prixm2-pill__lbl { font-size: 11px; color: #86efac; font-weight: 600; }
 
-          /* ── New unified image grid ── */
+          /* -- New unified image grid -- */
           .ca-img-unified-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -3377,7 +4629,7 @@ export const CreateListingForm = ({ editId = null }) => {
           .ca-img-btn--heart { background: rgba(255,255,255,.85); color: #92400e; }
           .ca-img-btn--heart:hover { background: #f59e0b; color: #fff; }
           .ca-img-btn--heart-on { background: #f59e0b !important; color: #fff !important; }
-          /* ── Drag & Drop zone ── */
+          /* -- Drag & Drop zone -- */
           .ca-img-dnd-zone {
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             gap: 4px; padding: 32px 20px;

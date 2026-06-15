@@ -5,7 +5,7 @@ from datetime import datetime
 from app.enums import (
     RoleEnum, CategorieEnum, TypeBienEnum, EtatBienEnum, StatusEnum,
     TypeAppartementEnum, TypeVillaEnum, TypeOptionVillaEnum,
-    TypeTerrainEnum, TitreFoncierEnum, DeviseEnum
+    TypeTerrainEnum, TitreFoncierEnum, DeviseEnum, StandingEnum
 )
 from sqlalchemy import Enum as SqlEnum
 
@@ -21,10 +21,28 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     role = Column(SqlEnum(RoleEnum), default=RoleEnum.particulier)
     phone_number = Column(String, nullable=True)
+    nom          = Column(String, nullable=True)   # nom civil (particuliers / agents)
+    prenom       = Column(String, nullable=True)   # prénom civil (particuliers / agents)
+    nom_entreprise    = Column(String,  nullable=True)  # nom entreprise (agents)
+    agence_id         = Column(Integer, ForeignKey("agencies.id"), nullable=True)  # agent rattaché à une agence
+    must_change_password = Column(Boolean, default=False, nullable=True)  # forcer changement mdp à la connexion
     profile_picture = Column(String, nullable=True)  # URL ou path
+    gouvernorat = Column(String, nullable=True)       # pour professionnels
+    localite    = Column(String, nullable=True)       # pour professionnels
+    adresse          = Column(String, nullable=True)   # adresse physique (agences)
+    matricule_fiscal = Column(String, nullable=True)   # matricule fiscal professionnel
+    registre_commerce= Column(String, nullable=True)   # registre de commerce professionnel
+    is_blocked         = Column(Boolean, default=False, nullable=True)
+    secteur_partenaire = Column(String, nullable=True)
+    is_verified        = Column(Boolean, default=False, nullable=True)
+    email_verify_token = Column(String, nullable=True)
+    profil_user        = Column(String, nullable=True)   # etudiant | parent | couple
+    last_login         = Column(DateTime, nullable=True)
+    created_at         = Column(DateTime, default=datetime.utcnow, nullable=True)
+    updated_at         = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=True)
 
     # [AJOUT] Relation vers les annonces de l'utilisateur
-    annonces = relationship("Annonce", back_populates="utilisateur")
+    annonces = relationship("Annonce", foreign_keys="[Annonce.utilisateur_id]", back_populates="utilisateur")
     favoris  = relationship("Favori", back_populates="user", cascade="all, delete-orphan")
 
 
@@ -67,6 +85,7 @@ class Localite(Base):
 class Annonce(Base):
     __tablename__ = "annonces"
     id = Column(Integer, primary_key=True, index=True)
+    reference = Column(String, nullable=True, unique=True, index=True)  # ex: TN0001, SF0012
     utilisateur_id = Column(Integer, ForeignKey("users.id"))
     gouvernorat_id = Column(Integer, ForeignKey("gouvernorats.id"))
     delegation_id = Column(Integer, ForeignKey("delegations.id"))
@@ -84,7 +103,7 @@ class Annonce(Base):
     description = Column(String, nullable=True)
     superficie = Column(Float)
     prix = Column(Numeric(12, 2))
-    devise = Column(SqlEnum(DeviseEnum), default=DeviseEnum.TND)
+    devise = Column(SqlEnum(DeviseEnum), default=DeviseEnum.DT)
     status = Column(SqlEnum(StatusEnum), default=StatusEnum.en_attente)
 
     nb_pieces = Column(Integer, nullable=True)
@@ -96,6 +115,17 @@ class Annonce(Base):
     modelisation_3d = Column(Boolean, default=False)
     anonyme = Column(Boolean, default=False)         # publication anonyme
     accompagnement = Column(Boolean, default=False)  # demande d'accompagnement professionnel
+    accompagnement_agence_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # professionnel choisi
+    # Immeuble
+    hauteur_immeuble    = Column(String,  nullable=True)  # ex: "R+5"
+    nb_appartements     = Column(Integer, nullable=True)  # nombre d'appartements
+    orientation_immeuble= Column(String,  nullable=True)  # nord | sud | est | ouest …
+    # Garage/Parking
+    emplacement_garage = Column(String, nullable=True) # "en_exterieur" | "en_sous_sol"
+    # Bureau
+    type_bureau = Column(String, nullable=True)  # "H0" | "H+1" | ... | "Open Space"
+    # Standing (appartement, villa, immeuble, local_commercial, bureau)
+    standing = Column(SqlEnum(StandingEnum), nullable=True)  # economique | moyen_standing | haut_standing
     # [SUPPRIME] avec_photo → déductible depuis property.images (évite incohérence)
     # [SUPPRIME] annonce_promoteur / annonce_agent / annonce_particulier
     #            → déductible depuis utilisateur.role (évite redondance et incohérence)
@@ -104,8 +134,23 @@ class Annonce(Base):
     terrain_viabilise = Column(Boolean, default=False)
     open_space = Column(Boolean, default=False)
     annee_construction = Column(Integer, nullable=True)
-    duree_type   = Column(String, nullable=True)  # nuit/semaine/mois/annee
-    duree_valeur = Column(String, nullable=True)  # ex: '3'
+    duree_type        = Column(String,  nullable=True)  # nuit/semaine/mois/annee
+    duree_valeur      = Column(String,  nullable=True)  # ex: '3'
+    capacite_accueil  = Column(Integer, nullable=True)  # nb personnes (vacances)
+
+    # ── Terrain ──
+    vocation_terrain  = Column(String, nullable=True)  # residentielle | commerciale | industrielle | agricole | touristique | mixte
+
+    # ── Notes / réactions ──
+    rating_avg   = Column(Float,   nullable=True)
+    rating_count = Column(Integer, default=0)
+
+    # ── Colocation ──
+    colocation        = Column(Boolean, default=False)
+    places_totales    = Column(Integer, nullable=True)
+    places_occupees   = Column(Integer, nullable=True)
+    profil_coloc      = Column(String,  nullable=True)
+    genre_coloc       = Column(String,  nullable=True)   # ex: "homme,femme" or "homme"
 
     # Boost / abonnement (0=gratuit, 1=standard, 2=premium, 3=boost)
     boost_level = Column(Integer, default=0)
@@ -116,7 +161,8 @@ class Annonce(Base):
     date_mise_a_jour = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # [AJOUT] Relations inverses vers localisation et utilisateur
-    utilisateur = relationship("User", back_populates="annonces")
+    utilisateur = relationship("User", foreign_keys=[utilisateur_id], back_populates="annonces")
+    accompagnement_agence = relationship("User", foreign_keys=[accompagnement_agence_id])
     gouvernorat = relationship("Gouvernorat", back_populates="annonces")
     delegation = relationship("Delegation", back_populates="annonces")
     localite = relationship("Localite", back_populates="annonces")
@@ -129,6 +175,41 @@ class Annonce(Base):
 
     # [MODIFIE] 1-to-1 avec Property (une annonce = un bien immobilier)
     property = relationship("Property", back_populates="annonce", uselist=False)
+
+    # Détail des chambres en colocation
+    chambres_colocation = relationship("ChambreColocation", back_populates="annonce", cascade="all, delete-orphan")
+    # Réactions / notes visiteurs
+    reactions = relationship("AnnonceReaction", back_populates="annonce", cascade="all, delete-orphan")
+
+
+# ----------------------------------------
+# Réactions / notes anonymes sur annonce
+# ----------------------------------------
+class AnnonceReaction(Base):
+    __tablename__ = "annonce_reactions"
+    id          = Column(Integer, primary_key=True, index=True)
+    annonce_id  = Column(Integer, ForeignKey("annonces.id", ondelete="CASCADE"), nullable=False)
+    session_key = Column(String(120), nullable=False)
+    note        = Column(Integer, nullable=False)
+    created_at  = Column(DateTime, default=datetime.utcnow)
+
+    __table_args__ = (UniqueConstraint("annonce_id", "session_key", name="uq_reaction_annonce_session"),)
+    annonce = relationship("Annonce", back_populates="reactions")
+
+
+# ----------------------------------------
+# Chambres colocation
+# ----------------------------------------
+class ChambreColocation(Base):
+    __tablename__ = "chambres_colocation"
+    id             = Column(Integer, primary_key=True, index=True)
+    annonce_id     = Column(Integer, ForeignKey("annonces.id", ondelete="CASCADE"), nullable=False)
+    numero_chambre  = Column(Integer, nullable=False)
+    capacite        = Column(Integer, nullable=False, default=1)
+    places_occupees = Column(Integer, nullable=False, default=0)
+    prix_par_place  = Column(Float,   nullable=True,  default=0)
+
+    annonce = relationship("Annonce", back_populates="chambres_colocation")
 
 
 # ----------------------------------------
@@ -256,13 +337,14 @@ class Agency(Base):
     telephone = Column(String, nullable=True)
     adresse = Column(String, nullable=True)
     matricule = Column(String, nullable=True)
+    reference = Column(String, unique=True, nullable=True, index=True)
     frais_mensuel = Column(Float, default=50.0)
     abonnement_actif = Column(Boolean, default=True)
     abonnement_expire_at = Column(DateTime, nullable=True)
     note_admin = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    user = relationship("User", backref="agency")
+    user = relationship("User", foreign_keys=[user_id], backref="agency")
 
 
 # ----------------------------------------

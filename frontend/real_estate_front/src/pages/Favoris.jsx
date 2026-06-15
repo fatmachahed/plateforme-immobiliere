@@ -4,12 +4,12 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { useToast } from "../components/Toast";
 import { Heart, MapPin, Trash2, Home, ArrowRight } from "lucide-react";
-import API_URL from '../config';
+import API_URL, { fmtDevise } from '../config';
 
 
 const TYPE_FR = {
   appartement: "Appartement", villa: "Villa", maison: "Maison",
-  terrain: "Terrain", bureau: "Bureau", local_commercial: "Local com.", ferme: "Ferme",
+  terrain: "Terrain", bureau: "Bureau", local_commercial: "Local com.", ferme: "Ferme agricole", ferme_agricole: "Ferme agricole",
 };
 const CAT_FR = { vente: "Achat", location: "Location", vacances: "Vacances" };
 
@@ -102,7 +102,7 @@ export default function Favoris() {
                   <p className="fav-card__type">{TYPE_FR[f.type_bien] || f.type_bien}</p>
                   <div className="fav-card__foot">
                     <span className="fav-card__price">
-                      {Number(f.prix).toLocaleString("fr-TN")} <small>{f.devise}</small>
+                      {Number(f.prix).toLocaleString("fr-TN")} <small>{fmtDevise(f.devise)}</small>
                     </span>
                     <div style={{ display: "flex", gap: 8 }}>
                       <Link to={`/annonce/${f.id}`} className="fav-btn fav-btn--view">

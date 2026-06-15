@@ -4,20 +4,54 @@ import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { Eye, EyeOff, Home } from "lucide-react";
 import { useToast } from "../components/Toast";
 import Logo from "../components/Logo";
-const heroUrl = "https://www.guidesulysse.com/images/destinations/iStock-498116298.jpg";
+import { useGoogleLogin } from "@react-oauth/google";
+import heroUrl from "../assets/hero-localizi.png";
 
 export default function Login() {
-  const [email,    setEmail]    = useState("");
-  const [password, setPassword] = useState("");
-  const [showPwd,  setShowPwd]  = useState(false);
-  const [error,    setError]    = useState("");
-  const [loading,  setLoading]  = useState(false);
+  const [email,       setEmail]       = useState("");
+  const [password,    setPassword]    = useState("");
+  const [showPwd,     setShowPwd]     = useState(false);
+  const [error,       setError]       = useState("");
+  const [loading,     setLoading]     = useState(false);
+  const [rememberMe,  setRememberMe]  = useState(true);
 
   const navigate = useNavigate();
   const toast    = useToast();
   const [searchParams] = useSearchParams();
   const sessionExpired  = searchParams.get("session") === "expired";
   const redirectAfter   = searchParams.get("redirect") || "/";
+
+  const handleGoogleSuccess = async (accessToken) => {
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/auth/google`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ access_token: accessToken }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setError(err.detail || "Erreur lors de la connexion Google.");
+        return;
+      }
+      const data = await res.json();
+      const store = rememberMe ? localStorage : sessionStorage;
+      store.setItem("token", data.access_token);
+      if (data.user) store.setItem("user", JSON.stringify(data.user));
+      toast("Connexion Google réussie ! Bienvenue.");
+      window.location.href = redirectAfter;
+    } catch {
+      setError("Serveur inaccessible — vérifiez que le backend est démarré.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loginWithGoogle = useGoogleLogin({
+    onSuccess: (resp) => handleGoogleSuccess(resp.access_token),
+    onError: () => setError("Connexion Google annulée ou échouée."),
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -36,13 +70,16 @@ export default function Login() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
+        if (res.status === 429) { setError(err.detail || "Trop de tentatives. Réessayez dans quelques minutes."); return; }
+        if (res.status === 403) { setError("⚠️ " + (err.detail || "Veuillez vérifier votre email avant de vous connecter.")); return; }
         setError(res.status === 401 ? "Email ou mot de passe incorrect." : (err.detail || "Erreur serveur."));
         return;
       }
 
       const data = await res.json();
-      localStorage.setItem("token", data.access_token);
-      if (data.user) localStorage.setItem("user", JSON.stringify(data.user));
+      const store = rememberMe ? localStorage : sessionStorage;
+      store.setItem("token", data.access_token);
+      if (data.user) store.setItem("user", JSON.stringify(data.user));
       toast("Connexion réussie ! Bienvenue.");
       window.location.href = redirectAfter;
     } catch {
@@ -82,6 +119,15 @@ export default function Login() {
         <div className="sp-form-wrap">
           <div className="sp-logo-mobile"><Logo variant="color" height={40} to="/" /></div>
 
+          {/* Breadcrumb */}
+          <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:20,fontSize:12.5,color:"#94a3b8"}}>
+            <Link to="/" style={{display:"flex",alignItems:"center",gap:4,color:"#6366f1",textDecoration:"none",fontWeight:600}}>
+              <Home size={13}/> Accueil
+            </Link>
+            <span>›</span>
+            <span style={{color:"#374151",fontWeight:600}}>Connexion</span>
+          </div>
+
           <h1 className="sp-title">Connexion</h1>
           <p className="sp-sub">Bienvenue, connectez-vous à votre compte.</p>
 
@@ -112,7 +158,7 @@ export default function Login() {
                   required disabled={loading} autoComplete="current-password"
                 />
                 <button type="button" className="sp-eye" onClick={() => setShowPwd(v => !v)} tabIndex={-1}>
-                  {showPwd ? <EyeOff size={17}/> : <Eye size={17}/>}
+                  {showPwd ? <Eye size={17}/> : <EyeOff size={17}/>}
                 </button>
               </div>
               <div style={{textAlign:"right", marginTop:4}}>
@@ -122,12 +168,57 @@ export default function Login() {
               </div>
             </div>
 
+            {/* Se souvenir de moi */}
+            <label style={{display:"flex",alignItems:"center",gap:9,cursor:"pointer",fontSize:13,color:"#374151",userSelect:"none"}}>
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={e => setRememberMe(e.target.checked)}
+                disabled={loading}
+                style={{width:15,height:15,accentColor:"#6366f1",cursor:"pointer",flexShrink:0}}
+              />
+              <span>Se souvenir de moi</span>
+              <span style={{marginLeft:"auto",fontSize:11.5,color:"#94a3b8"}}>
+                {rememberMe ? "Rester connecté(e)" : "Session temporaire"}
+              </span>
+            </label>
+
             <button type="submit" className="sp-btn" disabled={loading || !email || !password}>
               {loading ? "Connexion…" : "Se connecter"}
             </button>
           </form>
 
-          <p className="sp-switch">
+          <div className="sp-divider" style={{margin:"18px 0 14px"}}>
+            <span>ou continuer avec</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => loginWithGoogle()}
+            disabled={loading}
+            style={{
+              width:"100%", padding:"11px 16px",
+              borderRadius:11, border:"1.5px solid #6366f1",
+              background:"#fff", cursor:"pointer",
+              display:"flex", alignItems:"center", justifyContent:"center", gap:10,
+              fontSize:14, fontWeight:600, color:"#0f172a",
+              fontFamily:"inherit", transition:"all .15s",
+              boxShadow:"0 1px 4px rgba(99,102,241,.08)",
+            }}
+            onMouseEnter={e=>{e.currentTarget.style.background="#eef2ff"; e.currentTarget.style.borderColor="#4f46e5";}}
+            onMouseLeave={e=>{e.currentTarget.style.background="#fff"; e.currentTarget.style.borderColor="#6366f1";}}
+          >
+            <svg width="18" height="18" viewBox="0 0 48 48">
+              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+              <path fill="none" d="M0 0h48v48H0z"/>
+            </svg>
+            Se connecter avec Google
+          </button>
+
+          <p className="sp-switch" style={{marginTop:18}}>
             Pas encore de compte ?{" "}
             <Link to="/register" className="sp-link">Créer un compte</Link>
           </p>
@@ -144,7 +235,7 @@ export default function Login() {
         /* Left — hero panel */
         .sp-left {
           width: 50%; position: relative; overflow: hidden;
-          display: flex; align-items: flex-end; flex-shrink: 0;
+          display: flex; align-items: center; flex-shrink: 0;
         }
         .sp-left__bg {
           position: absolute; inset: 0; width: 100%; height: 100%;
@@ -166,10 +257,10 @@ export default function Login() {
         }
         .sp-left__logo { margin-bottom: 40px; }
         .sp-left__tagline {
-          font-size: clamp(26px, 2.8vw, 34px); font-weight: 800; color: #fff;
+          font-size: clamp(30px, 3.2vw, 42px); font-weight: 800; color: #fff;
           line-height: 1.25; letter-spacing: -.025em;
         }
-        .sp-left__sub { font-size: 15px; color: rgba(255,255,255,.6); margin-top: 14px; line-height: 1.7; }
+        .sp-left__sub { font-size: 16px; color: rgba(255,255,255,.7); margin-top: 16px; line-height: 1.75; }
         .sp-left__pills {
           display: flex; flex-wrap: wrap; gap: 8px; margin-top: 28px;
         }

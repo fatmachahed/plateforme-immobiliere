@@ -1,12 +1,13 @@
 ﻿import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import AlerteFiltersModal, { EMPTY_FORM } from "../components/AlerteFiltersModal";
 import { useToast } from "../components/Toast";
-import API_URL from "../config";
+import API_URL, { fmtDevise } from "../config";
 import {
   Home, Plus, Eye, Edit2, Trash2, MapPin, TrendingUp,
   Clock, CheckCircle, XCircle, AlertCircle, X, Search, Zap,
-  Bell, Phone, Mail, MessageSquare, Sparkles
+  Bell, Phone, Mail, MessageSquare, Sparkles, RefreshCw
 } from "lucide-react";
 
 /* ── Tracking switch pour l'onglet Accompagnements ── */
@@ -29,13 +30,17 @@ function statusBadge(s) {
 
 function typeBienLabel(t) {
   const map = { appartement:"Appartement", villa:"Villa", maison:"Maison",
-    terrain:"Terrain", bureau:"Bureau", local_commercial:"Local commercial", ferme:"Ferme" };
+    terrain:"Terrain", bureau:"Bureau", local_commercial:"Local commercial", ferme:"Ferme agricole", ferme_agricole:"Ferme agricole",
+    garage_parking:"Garage / Parking", depot_stockage:"Dépôt de stockage", immobiliers_divers:"Immobiliers divers" };
   return map[t] || t;
 }
 function categorieLabel(c) {
-  const map = { vente:"Achat", location:"Location", vacances:"Vacances" };
+  const map = { vente:"Vente", location:"Location", vacances:"Vacances" };
   return map[c] || c;
 }
+
+const TH = { padding:"9px 12px", fontSize:11, fontWeight:700, color:"#64748b", textTransform:"uppercase", letterSpacing:".05em", textAlign:"left", whiteSpace:"nowrap", borderBottom:"2px solid #f1f5f9" };
+const TD = { padding:"10px 12px", verticalAlign:"middle", fontSize:12.5 };
 
 export default function Dashboard() {
   const [annonces, setAnnonces]     = useState([]);
@@ -59,6 +64,10 @@ export default function Dashboard() {
   /* ── Mes alertes (saved searches) ── */
   const [savedSearches, setSavedSearches] = useState([]);
   const [loadingAlertes, setLoadingAlertes] = useState(false);
+  const [alerteModal, setAlerteModal] = useState(null); // null | "new" | {…savedSearch}
+  const [alerteMatchCounts, setAlerteMatchCounts] = useState({}); // { [id]: count }
+  const [alerteForm, setAlerteForm] = useState({ ...EMPTY_FORM });
+  const [alerteSaving, setAlerteSaving] = useState(false);
   /* ── Suivi accompagnements (localStorage) ── */
   const [accomTracking, setAccomTracking] = useState(() => {
     try { return JSON.parse(localStorage.getItem("localizi_accom_tracking") || "{}"); } catch { return {}; }
@@ -73,6 +82,12 @@ export default function Dashboard() {
   /* ── Demandes de contact reçues ── */
   const [contactRequests, setContactRequests] = useState([]);
   const [loadingContacts, setLoadingContacts] = useState(false);
+  /* ── Liste agences/agents pour dropdown accompagnement ── */
+  const [agencesList, setAgencesList] = useState([]);
+  /* ── Alerte : agence choisie par alerte (localStorage) ── */
+  const [alerteAgence, setAlerteAgence] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("localizi_alerte_agence") || "{}"); } catch { return {}; }
+  });
 
   const navigate = useNavigate();
   const toast    = useToast();
@@ -85,6 +100,11 @@ export default function Dashboard() {
     fetchAnnonces();
     fetchContactRequests();
     fetchSavedSearches();
+    // Charger la liste des agences/agents
+    fetch(`${API_URL}/users/agencies/public`)
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setAgencesList(Array.isArray(data) ? data : []))
+      .catch(() => {});
   }, []);
 
   async function fetchSavedSearches() {
@@ -93,9 +113,168 @@ export default function Dashboard() {
       const res = await fetch(`${API_URL}/users/me/saved-searches`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (res.ok) setSavedSearches(await res.json());
+      if (res.ok) {
+        const data = await res.json();
+        setSavedSearches(data);
+        // Charger les comptages pour chaque alerte
+        data.forEach(s => fetchAlerteCount(s));
+      }
     } catch {}
     finally { setLoadingAlertes(false); }
+  }
+
+  async function fetchAlerteCount(s) {
+    try {
+      const c = s.criteres || {};
+      const params = new URLSearchParams();
+      // Paramètres backend
+      if (c.categories?.length === 1) params.set("categorie", c.categories[0]);
+      if (c.type)    params.set("type_bien", c.type);
+      if (c.govId)   params.set("gouvernorat_id", c.govId);
+      if (c.prixMin) params.set("prix_min", c.prixMin);
+      if (c.prixMax) params.set("prix_max", c.prixMax);
+      params.set("limit", "500");
+      const res = await fetch(`${API_URL}/annonces/public?${params}`);
+      if (!res.ok) return;
+      let filtered = await res.json();
+
+      // Filtres client-side supplémentaires
+      if (c.categories?.length > 1)
+        filtered = filtered.filter(a => c.categories.includes(a.categorie));
+      if (c.govNom && !c.govId)
+        filtered = filtered.filter(a => (a.gouvernorat||"").toLowerCase() === c.govNom.toLowerCase());
+      if (c.delNom)
+        filtered = filtered.filter(a => (a.delegation||"").toLowerCase() === c.delNom.toLowerCase());
+      if (c.locNom)
+        filtered = filtered.filter(a => (a.localite||"").toLowerCase() === c.locNom.toLowerCase());
+      if (c.superficieMin)
+        filtered = filtered.filter(a => a.superficie >= Number(c.superficieMin));
+      if (c.superficieMax)
+        filtered = filtered.filter(a => a.superficie <= Number(c.superficieMax));
+      if (c.bedsMin)
+        filtered = filtered.filter(a => (a.nb_pieces||0) >= Number(c.bedsMin));
+      if (c.chambresMin)
+        filtered = filtered.filter(a => (a.nb_chambres||0) >= Number(c.chambresMin));
+      if (c.features?.length > 0) {
+        const FEAT_LABELS = {
+          vue_mer:"Vue sur mer", vue_montagne:"Vue sur montagne", vue_foret:"Vue sur forêt",
+          jardin:"Jardin", terrasse:"Terrasse", balcon:"Balcon", piscine:"Piscine",
+          parking:"Parking", ascenseur:"Ascenseur", garage:"Garage",
+          cellier:"Cellier", meuble:"Meublé", concierge:"Concierge",
+          gardien:"Gardien", animaux_admis:"Animaux admis", cuisine_equipee:"Cuisine équipée",
+          climatisation:"Climatisation", chauffage_centrale:"Chauffage central",
+          cheminee:"Cheminée", double_vitrage:"Double vitrage", porte_blindee:"Porte blindée",
+          securite:"Sécurité", internet:"Internet", tv:"TV", machine_laver:"Machine à laver",
+          digicode:"Digicode", interphone:"Interphone",
+        };
+        filtered = filtered.filter(a =>
+          c.features.every(k => (a.features||[]).includes(FEAT_LABELS[k] || k))
+        );
+      }
+      setAlerteMatchCounts(prev => ({ ...prev, [s.id]: filtered.length }));
+    } catch {}
+  }
+
+  async function saveAlerte() {
+    if (!alerteForm.nom?.trim()) { toast("Donnez un nom à cette alerte.", "error"); return; }
+    setAlerteSaving(true);
+    const { nom, email_alert, ...criteres } = alerteForm;
+    try {
+      const isEditMode = alerteModal && alerteModal !== "new";
+      const url = isEditMode
+        ? `${API_URL}/users/me/saved-searches/${alerteModal.id}`
+        : `${API_URL}/users/me/saved-searches`;
+      const method = isEditMode ? "PUT" : "POST";
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type":"application/json", Authorization:`Bearer ${token}` },
+        body: JSON.stringify({ nom, criteres, email_alert: !!email_alert }),
+      });
+      if (res.ok) {
+        toast(isEditMode ? "Alerte mise à jour !" : "Alerte enregistrée !");
+        setAlerteModal(null);
+        fetchSavedSearches();
+      } else toast("Erreur lors de l'enregistrement.", "error");
+    } catch { toast("Serveur inaccessible.", "error"); }
+    setAlerteSaving(false);
+  }
+
+  async function toggleAlerteEmail(id) {
+    try {
+      const res = await fetch(`${API_URL}/users/me/saved-searches/${id}/toggle`, {
+        method: "PATCH", headers: { Authorization:`Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSavedSearches(prev => prev.map(s => s.id === id ? { ...s, email_alert: data.email_alert } : s));
+      }
+    } catch {}
+  }
+
+  async function updateAnnonceAccompagnement(id, accompagnement, agence_id = undefined) {
+    try {
+      const body = { accompagnement };
+      if (agence_id !== undefined) body.agence_id = agence_id || null;
+      const res = await fetch(`${API_URL}/annonces/${id}/accompagnement`, {
+        method: "PATCH",
+        headers: { Authorization:`Bearer ${token}`, "Content-Type":"application/json" },
+        body: JSON.stringify(body)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAnnonces(prev => prev.map(a => a.id === id ? {
+          ...a,
+          accompagnement: data.accompagnement,
+          accompagnement_agence_id: data.accompagnement_agence_id,
+          accompagnement_agence_nom: data.accompagnement_agence_nom,
+        } : a));
+      }
+    } catch {}
+  }
+
+  // Accompagnement alerte : stocké localement (pas de colonne DB)
+  const [alerteAccom, setAlerteAccom] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("localizi_alerte_accom") || "{}"); } catch { return {}; }
+  });
+  function toggleAlerteAccom(id) {
+    setAlerteAccom(prev => {
+      const next = { ...prev, [id]: !prev[id] };
+      try { localStorage.setItem("localizi_alerte_accom", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }
+  function setAlerteAgenceVal(alerteId, agenceId) {
+    setAlerteAgence(prev => {
+      const next = { ...prev, [alerteId]: agenceId };
+      try { localStorage.setItem("localizi_alerte_agence", JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }
+
+  function buildCarteUrl(criteres) {
+    const c = criteres || {};
+    const p = new URLSearchParams();
+    if (c.categories?.length > 0) p.set("categories",  c.categories.join(","));
+    if (c.type)             p.set("type",        c.type);
+    if (c.govNom)           p.set("gouvernorat", c.govNom);
+    if (c.govId)            p.set("govId",       c.govId);
+    if (c.delNom)           p.set("delegation",  c.delNom);
+    if (c.delId)            p.set("delId",       c.delId);
+    if (c.locNom)           p.set("localite",    c.locNom);
+    if (c.locId)            p.set("locId",       c.locId);
+    if (c.prixMin)          p.set("prixMin",     c.prixMin);
+    if (c.prixMax)          p.set("prixMax",     c.prixMax);
+    if (c.superficieMin)    p.set("sMin",        c.superficieMin);
+    if (c.superficieMax)    p.set("sMax",        c.superficieMax);
+    if (c.bedsMin)          p.set("beds",        c.bedsMin);
+    if (c.piecesMin)        p.set("pMin",        c.piecesMin);
+    if (c.chambresMin)      p.set("cMin",        c.chambresMin);
+    if (c.etat)             p.set("etat",        c.etat);
+    if (c.titre_foncier)    p.set("tf",          c.titre_foncier);
+    if (c.type_terrain)     p.set("tterrain",    c.type_terrain);
+    if (c.vocation_terrain) p.set("vterrain",    c.vocation_terrain);
+    if (c.features?.length > 0) p.set("feat",   c.features.join(","));
+    return `/carte?${p.toString()}`;
   }
 
   async function deleteAlert(id) {
@@ -155,9 +334,22 @@ export default function Dashboard() {
       if (res.status === 401) { navigate("/login?session=expired"); return; }
       const data = await res.json();
       const sorted = Array.isArray(data)
-        ? [...data].sort((a, b) => new Date(b.date_creation) - new Date(a.date_creation))
+        ? [...data].sort((a, b) => new Date(b.date_mise_a_jour || b.date_creation) - new Date(a.date_mise_a_jour || a.date_creation))
         : [];
       setAnnonces(sorted);
+      // Charger les stats (vues + favoris + note) pour chaque annonce
+      Promise.all(
+        sorted.map(a =>
+          fetch(`${API_URL}/annonces/${a.id}/stats`, { headers: { Authorization: `Bearer ${token}` } })
+            .then(r => r.ok ? r.json() : null)
+            .then(s => s ? [a.id, s] : null)
+            .catch(() => null)
+        )
+      ).then(results => {
+        const map = {};
+        results.filter(Boolean).forEach(([id, s]) => { map[id] = s; });
+        setAnnonceStats(map);
+      });
     } catch {
       toast("Impossible de charger les annonces.", "error");
     } finally {
@@ -181,6 +373,29 @@ export default function Dashboard() {
     }
   }
 
+  const [refreshingId, setRefreshingId] = useState(null);
+  const [annonceStats, setAnnonceStats] = useState({}); // { [id]: {views_count, favoris_count, rating_avg, rating_count} }
+
+  async function handleRefresh(id) {
+    setRefreshingId(id);
+    try {
+      const res = await fetch(`${API_URL}/annonces/${id}/refresh`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error();
+      setAnnonces(prev => {
+        const updated = prev.map(a => a.id === id ? { ...a, date_mise_a_jour: new Date().toISOString() } : a);
+        return [...updated].sort((a, b) => new Date(b.date_mise_a_jour || b.date_creation) - new Date(a.date_mise_a_jour || a.date_creation));
+      });
+      toast("Annonce remontée en tête de liste !");
+    } catch {
+      toast("Erreur lors du rafraîchissement.", "error");
+    } finally {
+      setRefreshingId(null);
+    }
+  }
+
   const stats = {
     total:    annonces.length,
     publiees: annonces.filter(a => a.status === "approuvee").length,
@@ -190,9 +405,13 @@ export default function Dashboard() {
 
   const TYPE_LABEL_MAP = {
     appartement: "Appartement",
-    villa: "Villa/Maison", maison: "Villa/Maison",
+    villa: "Villa/Maison", villa_maison: "Villa/Maison", maison: "Villa/Maison",
+    immeuble: "Immeuble",
     terrain: "Terrain", bureau: "Bureau",
-    ferme: "Ferme", local_commercial: "Local commercial",
+    ferme: "Ferme agricole", ferme_agricole: "Ferme agricole", local_commercial: "Local commercial",
+    garage_parking: "Garage / Parking",
+    depot_stockage: "Dépôt de stockage",
+    immobiliers_divers: "Immobiliers divers",
   };
   const STATUS_LABEL_MAP = {
     approuvee: "Approuvée", en_attente: "En attente", refusee: "Refusée",
@@ -221,10 +440,10 @@ export default function Dashboard() {
           categorieLabel(a.categorie).toLowerCase().includes(q);
         if (!matches) return false;
       }
-      // Type filter
+      // Type filter — villa et villa_maison sont équivalents
       if (typeFilter) {
-        const mapped = TYPE_LABEL_MAP[a.type_bien] || typeBienLabel(a.type_bien);
-        if (mapped !== typeFilter) return false;
+        const t = a.type_bien === "villa" || a.type_bien === "maison" ? "villa_maison" : a.type_bien;
+        if (t !== typeFilter) return false;
       }
       // Status filter
       if (statusFilter) {
@@ -529,54 +748,164 @@ export default function Dashboard() {
           ) : activeTab === "alertes" ? (
             /* ── ONGLET MES ALERTES ── */
             <div style={{marginTop:8}}>
+              {/* Header + bouton créer */}
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20,flexWrap:"wrap",gap:12}}>
+                <div>
+                  <h2 style={{fontSize:17,fontWeight:800,color:"#0f172a",margin:0}}>Mes alertes immobilières</h2>
+                  <p style={{fontSize:13,color:"#64748b",margin:"4px 0 0"}}>Recevez des notifications quand de nouvelles annonces correspondent à vos critères.</p>
+                </div>
+                <button
+                  onClick={() => { setAlerteForm({...EMPTY_FORM}); setAlerteModal("new"); }}
+                  style={{display:"flex",alignItems:"center",gap:8,padding:"10px 18px",borderRadius:10,border:"none",background:"#6366f1",color:"#fff",fontWeight:700,fontSize:13.5,cursor:"pointer",fontFamily:"inherit"}}>
+                  <Plus size={16}/> Créer une alerte
+                </button>
+              </div>
+
               {loadingAlertes ? (
                 <div style={{textAlign:"center",padding:"60px 20px",color:"#94a3b8",fontSize:14}}>Chargement…</div>
               ) : savedSearches.length === 0 ? (
                 <div style={{textAlign:"center",padding:"60px 20px",background:"#f8fafc",borderRadius:14,margin:"16px 0",border:"1.5px dashed #e2e8f0"}}>
                   <Bell size={40} style={{color:"#d1d5db",marginBottom:12}}/>
                   <p style={{fontSize:15,fontWeight:700,color:"#374151",marginBottom:6}}>Aucune alerte enregistrée</p>
-                  <p style={{fontSize:13,color:"#94a3b8"}}>
-                    Utilisez les filtres sur la page carte et cliquez "Enregistrer la recherche" pour créer des alertes.
-                  </p>
+                  <p style={{fontSize:13,color:"#94a3b8"}}>Cliquez sur "+ Créer une alerte" pour définir vos critères et être notifié.</p>
                 </div>
               ) : (
-                <div style={{display:"flex",flexDirection:"column",gap:12,marginTop:8}}>
-                  {savedSearches.map(s => {
-                    const c = s.criteres || {};
-                    const tags = [
-                      c.categories?.length > 0 && c.categories.join(", "),
-                      c.type && c.type,
-                      c.govNom && c.govNom,
-                      c.prixMin && `≥ ${Number(c.prixMin).toLocaleString("fr-TN")} DT`,
-                      c.prixMax && `≤ ${Number(c.prixMax).toLocaleString("fr-TN")} DT`,
-                      c.superficieMin && `≥ ${c.superficieMin} m²`,
-                    ].filter(Boolean);
-                    return (
-                      <div key={s.id} style={{
-                        background:"#fff",border:"1.5px solid #e5e7eb",borderRadius:14,
-                        padding:"16px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12
-                      }}>
-                        <div>
-                          <div style={{fontWeight:700,color:"#0f172a",fontSize:14,marginBottom:6}}>{s.nom || "Ma recherche"}</div>
-                          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                            {tags.length > 0 ? tags.map((t,i) => (
-                              <span key={i} style={{background:"#eef2ff",color:"#4f46e5",fontSize:11.5,fontWeight:600,padding:"2px 10px",borderRadius:20}}>{t}</span>
-                            )) : <span style={{color:"#94a3b8",fontSize:12}}>Tous les biens</span>}
-                          </div>
-                          <div style={{fontSize:11.5,color:"#94a3b8",marginTop:6}}>
-                            Créée le {new Date(s.created_at).toLocaleDateString("fr-TN")}
-                            {s.email_alert ? " · Alertes email activées" : ""}
-                          </div>
-                        </div>
-                        <button onClick={() => deleteAlert(s.id)}
-                          style={{padding:"7px 14px",borderRadius:8,border:"1.5px solid #fee2e2",
-                            background:"#fff",color:"#ef4444",fontSize:12,fontWeight:700,cursor:"pointer",
-                            fontFamily:"inherit",whiteSpace:"nowrap",flexShrink:0}}>
-                          Supprimer
-                        </button>
-                      </div>
-                    );
-                  })}
+                <div style={{overflowX:"auto", margin:"0 -24px", padding:"0 24px"}}>
+                  <table style={{width:"100%",minWidth:900,borderCollapse:"collapse",fontFamily:"'Inter',system-ui,sans-serif",fontSize:13}}>
+                    <thead>
+                      <tr style={{borderBottom:"2px solid #e5e7eb",background:"#f8fafc"}}>
+                        {["Nom","Critères","Annonces","Accompagnement","Alerte email","Actions"].map(h => (
+                          <th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:700,color:"#374151",fontSize:11.5,textTransform:"uppercase",letterSpacing:".05em",whiteSpace:"nowrap"}}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {savedSearches.map(s => {
+                        const c = s.criteres || {};
+                        const CAT_FR = { vente:"Achat", location:"Location", vacances:"Vacances" };
+                        const TYPE_FR = { appartement:"Appartement", villa:"Villa/Maison", terrain:"Terrain", bureau:"Bureau", local_commercial:"Local commercial", ferme:"Ferme agricole", ferme_agricole:"Ferme agricole", immeuble:"Immeuble", garage_parking:"Garage / Parking", depot_stockage:"Dépôt de stockage", immobiliers_divers:"Immobiliers divers" };
+                        const ETAT_FR = { nouveau:"Neuf", bon_etat:"Bon état", a_renover:"À rénover", cours_construction:"En construction" };
+                        const tags = [
+                          c.categories?.length > 0 && c.categories.map(v => CAT_FR[v]||v).join(" / "),
+                          c.type && (TYPE_FR[c.type] || c.type.replace(/_/g," ")),
+                          c.locNom || c.delNom || c.govNom,
+                          c.prixMin && `≥ ${Number(c.prixMin).toLocaleString("fr-TN")} DT`,
+                          c.prixMax && `≤ ${Number(c.prixMax).toLocaleString("fr-TN")} DT`,
+                          c.superficieMin && c.superficieMax ? `${c.superficieMin}–${c.superficieMax} m²`
+                            : c.superficieMin ? `≥ ${c.superficieMin} m²`
+                            : c.superficieMax ? `≤ ${c.superficieMax} m²` : null,
+                          c.bedsMin && `${c.bedsMin}+ pièces`,
+                          c.chambresMin && `${c.chambresMin}+ ch.`,
+                          c.etat && (ETAT_FR[c.etat] || c.etat.replace(/_/g," ")),
+                          ...(c.features?.length > 0 ? (() => {
+                            const FEAT_LABELS = { vue_mer:"Vue sur mer", vue_montagne:"Vue sur montagne", vue_foret:"Vue sur forêt", jardin:"Jardin", terrasse:"Terrasse", balcon:"Balcon", piscine:"Piscine", parking:"Parking", ascenseur:"Ascenseur", garage:"Garage", cellier:"Ch. rangement", meuble:"Meublé", concierge:"Concierge", gardien:"Gardien", animaux_admis:"Animaux admis", cuisine_equipee:"Cuisine équipée", climatisation:"Clim.", chauffage_centrale:"Chauffage", cheminee:"Cheminée", double_vitrage:"Double vitrage", porte_blindee:"Porte blindée", securite:"Sécurité", internet:"Internet", tv:"TV", machine_laver:"Machine laver", digicode:"Digicode", interphone:"Interphone" };
+                            return c.features.map(k => FEAT_LABELS[k] || k);
+                          })() : []),
+                        ].filter(Boolean);
+                        const count = alerteMatchCounts[s.id];
+                        return (
+                          <tr key={s.id} style={{borderBottom:"1px solid #f1f5f9",cursor:"pointer",transition:"background .12s"}}
+                            onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"}
+                            onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
+
+                            {/* Nom + date */}
+                            <td style={{padding:"14px 14px",verticalAlign:"middle",minWidth:140}}>
+                              <div style={{fontWeight:700,color:"#0f172a",fontSize:15}}>{s.nom||"Ma recherche"}</div>
+                              <div style={{fontSize:12.5,color:"#94a3b8",marginTop:3}}>
+                                {new Date(s.created_at).toLocaleDateString("fr-TN",{day:"2-digit",month:"short",year:"numeric"})}
+                              </div>
+                            </td>
+
+                            {/* Critères */}
+                            <td style={{padding:"14px 14px",verticalAlign:"middle",maxWidth:280}}>
+                              <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                                {tags.length>0 ? tags.map((t,i)=>(
+                                  <span key={i} style={{background:"#eef2ff",color:"#4f46e5",fontSize:12.5,fontWeight:600,padding:"3px 10px",borderRadius:12}}>{t}</span>
+                                )) : <span style={{color:"#94a3b8",fontSize:13}}>Tous les biens</span>}
+                              </div>
+                            </td>
+
+                            {/* Nb annonces + Consulter */}
+                            <td style={{padding:"14px 14px",verticalAlign:"middle",whiteSpace:"nowrap"}}>
+                              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                                <span style={{fontSize:20,fontWeight:800,color:count>0?"#6366f1":"#94a3b8"}}>
+                                  {count!=null?count:"…"}
+                                </span>
+                                <Link to={buildCarteUrl(c)}
+                                  style={{display:"inline-flex",alignItems:"center",gap:5,padding:"5px 12px",borderRadius:8,background:"#eef2ff",color:"#4f46e5",fontSize:12,fontWeight:700,textDecoration:"none"}}>
+                                  <Search size={11}/> Consulter
+                                </Link>
+                              </div>
+                            </td>
+
+                            {/* Toggle accompagnement alerte + dropdown agence */}
+                            <td style={{padding:"14px 14px",verticalAlign:"middle",minWidth:200}}>
+                              <div style={{display:"flex",flexDirection:"column",gap:7}}>
+                                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                                  <label style={{position:"relative",display:"inline-block",width:40,height:22,cursor:"pointer",flexShrink:0}}>
+                                    <input type="checkbox" checked={!!alerteAccom[s.id]}
+                                      onChange={()=>toggleAlerteAccom(s.id)}
+                                      style={{opacity:0,width:0,height:0}}/>
+                                    <span style={{position:"absolute",inset:0,background:alerteAccom[s.id]?"#6366f1":"#e5e7eb",borderRadius:20,transition:".2s"}}/>
+                                    <span style={{position:"absolute",width:16,height:16,background:"#fff",borderRadius:"50%",top:3,left:alerteAccom[s.id]?21:3,transition:".2s"}}/>
+                                  </label>
+                                  <span style={{fontSize:13,color:alerteAccom[s.id]?"#6366f1":"#94a3b8",fontWeight:600}}>
+                                    {alerteAccom[s.id]?"Activé":"Désactivé"}
+                                  </span>
+                                </div>
+                                {alerteAccom[s.id] && (
+                                  <select
+                                    value={alerteAgence[s.id] || ""}
+                                    onChange={e => setAlerteAgenceVal(s.id, e.target.value)}
+                                    onClick={e => e.stopPropagation()}
+                                    style={{fontSize:12,padding:"5px 8px",borderRadius:7,border:"1px solid #c7d2fe",background:"#f5f3ff",color:"#4338ca",fontFamily:"inherit",outline:"none",width:"100%"}}
+                                  >
+                                    <option value="">— Choisir un agent —</option>
+                                    {agencesList.map(ag => (
+                                      <option key={ag.id} value={ag.id}>{ag.nom || ag.email}</option>
+                                    ))}
+                                  </select>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Toggle email_alert */}
+                            <td style={{padding:"14px 14px",verticalAlign:"middle"}}>
+                              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                                <label style={{position:"relative",display:"inline-block",width:40,height:22,cursor:"pointer"}}>
+                                  <input type="checkbox" checked={!!s.email_alert}
+                                    onChange={()=>toggleAlerteEmail(s.id)}
+                                    style={{opacity:0,width:0,height:0}}/>
+                                  <span style={{position:"absolute",inset:0,background:s.email_alert?"#6366f1":"#e5e7eb",borderRadius:20,transition:".2s"}}/>
+                                  <span style={{position:"absolute",width:16,height:16,background:"#fff",borderRadius:"50%",top:3,left:s.email_alert?21:3,transition:".2s"}}/>
+                                </label>
+                                <span style={{fontSize:13,color:s.email_alert?"#6366f1":"#94a3b8",fontWeight:600}}>
+                                  {s.email_alert?"Activée":"Désactivée"}
+                                </span>
+                              </div>
+                            </td>
+
+                            {/* Actions */}
+                            <td style={{padding:"14px 14px",verticalAlign:"middle",whiteSpace:"nowrap"}}>
+                              <div style={{display:"flex",gap:8}}>
+                                <button onClick={()=>{
+                                  setAlerteForm({...EMPTY_FORM,...(s.criteres||{}),nom:s.nom,email_alert:s.email_alert});
+                                  setAlerteModal(s);
+                                }}
+                                  style={{padding:"6px 12px",borderRadius:8,border:"1.5px solid #e2e8f0",background:"#fff",color:"#374151",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                                  Modifier
+                                </button>
+                                <button onClick={()=>deleteAlert(s.id)}
+                                  style={{padding:"6px 12px",borderRadius:8,border:"1.5px solid #fee2e2",background:"#fff",color:"#ef4444",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                                  Supprimer
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
@@ -621,8 +950,19 @@ export default function Dashboard() {
               <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
                 style={{border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 10px",fontSize:13,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}>
                 <option value="">Tous types</option>
-                {["Appartement","Villa/Maison","Terrain","Bureau","Ferme","Local commercial"].map(t => (
-                  <option key={t} value={t}>{t}</option>
+                {[
+                  ["appartement",       "Appartement"],
+                  ["villa_maison",      "Villa/Maison"],
+                  ["immeuble",          "Immeuble"],
+                  ["terrain",           "Terrain"],
+                  ["local_commercial",  "Local commercial"],
+                  ["bureau",            "Bureau"],
+                  ["ferme_agricole",    "Ferme agricole"],
+                  ["garage_parking",    "Garage / Parking"],
+                  ["depot_stockage",    "Dépôt de stockage"],
+                  ["immobiliers_divers","Immobiliers divers"],
+                ].map(([v, l]) => (
+                  <option key={v} value={v}>{l}</option>
                 ))}
               </select>
               <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
@@ -667,82 +1007,162 @@ export default function Dashboard() {
               <button className="db-btn-secondary" onClick={() => setSearch("")}>Effacer la recherche</button>
             </div>
           ) : (
-            <div className="db-list">
-              {filtered.map(a => {
-                const badge = statusBadge(a.status);
-                const prop  = a.properties?.[0];
-                return (
-                  <div key={a.id} className="db-card">
-                    {/* Image principale — directement depuis l'API */}
-                    {(() => {
-                      const rawImg = a.image_principale
-                        || prop?.image_principale
-                        || null;
-                      const imgSrc = rawImg
-                        ? (rawImg.startsWith("http") ? rawImg : `${API_URL}${rawImg}`)
-                        : null;
-                      return (
-                        <div style={{width:80,height:80,borderRadius:8,overflow:"hidden",flexShrink:0,background:"#e5e7eb"}}>
-                          {imgSrc
-                            ? <img src={imgSrc} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} loading="lazy"/>
-                            : <div style={{width:"100%",height:"100%",background:"#e5e7eb",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                                <Home size={28} style={{color:"#94a3b8"}}/>
+            <div style={{overflowX:"auto"}}>
+              <table style={{width:"100%",borderCollapse:"separate",borderSpacing:"0 6px",minWidth:900}}>
+                <thead>
+                  <tr style={{background:"#f8fafc"}}>
+                    <th style={TH}>Annonce</th>
+                    <th style={TH}>Type / Offre</th>
+                    <th style={TH}>Statut</th>
+                    <th style={TH}>Prix / Superficie</th>
+                    <th style={TH}>Stats</th>
+                    <th style={TH}>Note</th>
+                    <th style={TH}>Colocation</th>
+                    <th style={TH}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map(a => {
+                    const badge = statusBadge(a.status);
+                    const prop  = a.properties?.[0];
+                    const rawImg = a.image_principale || prop?.image_principale || null;
+                    const imgSrc = rawImg ? (rawImg.startsWith("http") ? rawImg : `${API_URL}${rawImg}`) : null;
+                    const st = annonceStats[a.id] || {};
+                    const dateStr = new Date(a.date_mise_a_jour || a.date_creation).toLocaleDateString("fr-FR",{day:"2-digit",month:"short",year:"numeric"});
+                    return (
+                      <tr key={a.id} style={{background:"#fff",boxShadow:"0 1px 3px rgba(0,0,0,.06)",borderRadius:12}}>
+
+                        {/* Annonce = image + titre + adresse + date */}
+                        <td style={{...TD, minWidth:220}}>
+                          <div style={{display:"flex",alignItems:"center",gap:10}}>
+                            <div style={{width:56,height:56,borderRadius:8,overflow:"hidden",flexShrink:0,background:"#f1f5f9"}}>
+                              {imgSrc
+                                ? <img src={imgSrc} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} loading="lazy"/>
+                                : <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center"}}><Home size={22} style={{color:"#cbd5e1"}}/></div>
+                              }
+                            </div>
+                            <div style={{minWidth:0}}>
+                              <div style={{fontWeight:700,fontSize:13,color:"#0f172a",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:160}}>{a.titre}</div>
+                              {prop?.address && <div style={{fontSize:11,color:"#94a3b8",marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:160}}><MapPin size={10}/> {prop.address}</div>}
+                              <div style={{fontSize:10.5,color:"#cbd5e1",marginTop:3,display:"flex",alignItems:"center",gap:3}}><Clock size={10}/> {dateStr}</div>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Type + Offre côte à côte */}
+                        <td style={TD}>
+                          <div style={{display:"flex",flexDirection:"column",gap:4,alignItems:"flex-start"}}>
+                            <span style={{fontSize:11.5,fontWeight:700,color:"#6366f1",background:"#eef2ff",padding:"2px 8px",borderRadius:6,whiteSpace:"nowrap"}}>{typeBienLabel(a.type_bien)}</span>
+                            <span style={{fontSize:11,fontWeight:600,color:"#0369a1",background:"#e0f2fe",padding:"2px 8px",borderRadius:6,whiteSpace:"nowrap"}}>{categorieLabel(a.categorie)}</span>
+                          </div>
+                        </td>
+
+                        {/* Statut seul dans sa colonne */}
+                        <td style={{...TD,textAlign:"center"}}>
+                          <span className={`db-badge ${badge.cls}`} style={{display:"inline-flex",alignItems:"center",gap:4,whiteSpace:"nowrap"}}>{badge.icon} {badge.label}</span>
+                        </td>
+
+                        {/* Prix + superficie */}
+                        <td style={TD}>
+                          <div style={{fontWeight:700,fontSize:13,color:"#0f172a",whiteSpace:"nowrap"}}>{a.prix ? `${Number(a.prix).toLocaleString()} ${fmtDevise(a.devise)}` : "—"}</div>
+                          {a.superficie && <div style={{fontSize:11,color:"#64748b",marginTop:2}}>{a.superficie} m²</div>}
+                        </td>
+
+                        {/* Stats : vues + favoris */}
+                        <td style={{...TD,textAlign:"center"}}>
+                          <div style={{display:"flex",flexDirection:"column",gap:4,alignItems:"center"}}>
+                            <span style={{fontSize:12,fontWeight:600,color:"#374151",display:"flex",alignItems:"center",gap:4}}>
+                              <Eye size={12} style={{color:"#6366f1"}}/> {st.views_count ?? a.views_count ?? 0} vue{(st.views_count ?? a.views_count ?? 0)!==1?"s":""}
+                            </span>
+                            <span style={{fontSize:12,fontWeight:600,color:"#374151",display:"flex",alignItems:"center",gap:4}}>
+                              <span style={{fontSize:12}}>♥</span> {st.favoris_count ?? 0} favori{(st.favoris_count??0)!==1?"s":""}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Note globale */}
+                        <td style={{...TD,textAlign:"center"}}>
+                          {(st.rating_count ?? 0) > 0 ? (
+                            <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+                              <div style={{display:"flex",gap:1}}>
+                                {[1,2,3,4,5].map(s=><span key={s} style={{fontSize:11,opacity:s<=Math.round(st.rating_avg||0)?1:0.2}}>⭐</span>)}
                               </div>
-                          }
-                        </div>
-                      );
-                    })()}
-                    <div className="db-card__left">
-                      <div className="db-card__type-badge">{typeBienLabel(a.type_bien)}</div>
-                      <h3 className="db-card__title">{a.titre}</h3>
-                      <div className="db-card__meta">
-                        <span className={`db-badge ${badge.cls}`}>{badge.icon} {badge.label}</span>
-                        <span className="db-card__cat">{categorieLabel(a.categorie)}</span>
-                        {prop?.address && (
-                          <span className="db-card__loc"><MapPin size={12}/> {prop.address}</span>
-                        )}
-                      </div>
-                    </div>
+                              <span style={{fontSize:11,color:"#6366f1",fontWeight:700}}>{(st.rating_avg||0).toFixed(1)}</span>
+                              <span style={{fontSize:10,color:"#94a3b8"}}>{st.rating_count} avis</span>
+                            </div>
+                          ) : (
+                            <span style={{fontSize:11,color:"#cbd5e1"}}>—</span>
+                          )}
+                        </td>
 
-                    <div className="db-card__center">
-                      <p className="db-card__prix">{a.prix ? `${Number(a.prix).toLocaleString()} ${a.devise}` : "Prix non défini"}</p>
-                      <p className="db-card__sup">{a.superficie ? `${a.superficie} m²` : ""}</p>
-                      <p className="db-card__date">
-                        <Clock size={11}/> {new Date(a.date_creation).toLocaleString("fr-FR", { dateStyle:"short", timeStyle:"short" })}
-                      </p>
-                    </div>
+                        {/* Colocation */}
+                        <td style={{...TD,textAlign:"center"}}>
+                          {a.colocation && a.places_totales != null ? (
+                            <div style={{display:"flex",flexDirection:"column",gap:3,alignItems:"center"}}>
+                              <span style={{fontSize:10.5,fontWeight:700,color:"#4338ca"}}>Places occupées</span>
+                              <div style={{display:"flex",alignItems:"center",gap:4}}>
+                                <button onClick={async()=>{
+                                  const val=Math.max(0,(a.places_occupees||0)-1);
+                                  const res=await fetch(`${API_URL}/annonces/${a.id}/colocation`,{method:"PATCH",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify({places_occupees:val})});
+                                  if(res.ok)setAnnonces(prev=>prev.map(x=>x.id===a.id?{...x,places_occupees:val}:x));
+                                }} style={{width:20,height:20,borderRadius:5,border:"1px solid #a5b4fc",background:"#fff",cursor:"pointer",fontWeight:800,fontSize:13,color:"#6366f1",display:"flex",alignItems:"center",justifyContent:"center"}}>−</button>
+                                <span style={{fontSize:12,fontWeight:700,color:"#0f172a",minWidth:32,textAlign:"center"}}>{a.places_occupees||0}/{a.places_totales}</span>
+                                <button onClick={async()=>{
+                                  const val=Math.min(a.places_totales,(a.places_occupees||0)+1);
+                                  const res=await fetch(`${API_URL}/annonces/${a.id}/colocation`,{method:"PATCH",headers:{"Content-Type":"application/json",Authorization:`Bearer ${token}`},body:JSON.stringify({places_occupees:val})});
+                                  if(res.ok)setAnnonces(prev=>prev.map(x=>x.id===a.id?{...x,places_occupees:val}:x));
+                                }} style={{width:20,height:20,borderRadius:5,border:"1px solid #a5b4fc",background:"#fff",cursor:"pointer",fontWeight:800,fontSize:13,color:"#6366f1",display:"flex",alignItems:"center",justifyContent:"center"}}>+</button>
+                              </div>
+                              <div style={{height:4,width:60,background:"#e2e8f0",borderRadius:99,overflow:"hidden"}}>
+                                <div style={{height:"100%",background:"#6366f1",width:`${Math.round(((a.places_occupees||0)/a.places_totales)*100)}%`}}/>
+                              </div>
+                            </div>
+                          ) : <span style={{fontSize:11,color:"#cbd5e1"}}>—</span>}
+                        </td>
 
-                    <div className="db-card__actions">
-                      <Link to={`/annonce/${a.id}`} className="db-action db-action--view" title="Voir">
-                        <Eye size={16}/>
-                      </Link>
-                      <Link to={`/modifier_annonce/${a.id}`} className="db-action db-action--edit" title="Modifier">
-                        <Edit2 size={16}/>
-                      </Link>
-                      {/* Bouton Déjà vendu/loué */}
-                      <button
-                        onClick={() => {
-                          const label = a.categorie === "vente" ? "vendu" : "loué";
-                          setSoldConfirm({ id: a.id, label, titre: a.titre });
-                        }}
-                        style={{
-                          padding:"6px 12px", borderRadius:8, border:"1.5px solid #fbbf24",
-                          background:"#fffbeb", color:"#92400e", fontSize:12, fontWeight:600,
-                          cursor:"pointer", fontFamily:"inherit", transition:"all .15s",
-                          whiteSpace:"nowrap"
-                        }}
-                        title={`Marquer comme ${a.categorie === "vente" ? "vendu" : "loué"}`}
-                      >
-                        {a.categorie === "vente" ? "Déjà vendu ?" : "Déjà loué ?"}
-                      </button>
-                      <button className="db-action db-action--del" title="Supprimer"
-                        onClick={() => setDelItem(a)}>
-                        <Trash2 size={16}/>
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+                        {/* Actions */}
+                        <td style={{...TD,whiteSpace:"nowrap"}}>
+                          <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap",justifyContent:"flex-end"}}>
+                            <Link to={`/annonce/${a.id}`} className="db-action db-action--view" title="Voir"><Eye size={14}/></Link>
+                            <Link to={`/modifier_annonce/${a.id}`} className="db-action db-action--edit" title="Modifier"><Edit2 size={14}/></Link>
+                            <button
+                              onClick={() => handleRefresh(a.id)}
+                              disabled={refreshingId === a.id}
+                              title="Remonter en tête de liste"
+                              style={{padding:"5px 9px",borderRadius:7,border:"1.5px solid #a5b4fc",background:"#eef2ff",color:"#4338ca",fontSize:11,fontWeight:700,cursor:refreshingId===a.id?"not-allowed":"pointer",display:"flex",alignItems:"center",gap:4,opacity:refreshingId===a.id?0.6:1,fontFamily:"inherit"}}
+                            >
+                              <RefreshCw size={11} style={{animation:refreshingId===a.id?"spin 1s linear infinite":"none"}}/> Refresh
+                            </button>
+                            {/* Accompagnement switch compact */}
+                            <div style={{display:"flex",flexDirection:"column",gap:3}}>
+                              <label style={{display:"flex",alignItems:"center",gap:4,cursor:"pointer",fontSize:10.5,fontWeight:600,color:a.accompagnement?"#6366f1":"#94a3b8"}}>
+                                <label style={{position:"relative",display:"inline-block",width:28,height:16,flexShrink:0}}>
+                                  <input type="checkbox" checked={!!a.accompagnement} onChange={()=>updateAnnonceAccompagnement(a.id,!a.accompagnement)} style={{opacity:0,width:0,height:0}}/>
+                                  <span style={{position:"absolute",inset:0,background:a.accompagnement?"#6366f1":"#e5e7eb",borderRadius:16,transition:".2s"}}/>
+                                  <span style={{position:"absolute",width:11,height:11,background:"#fff",borderRadius:"50%",top:2.5,left:a.accompagnement?15:2.5,transition:".2s"}}/>
+                                </label>
+                                Accomp.
+                              </label>
+                              {a.accompagnement && (
+                                <select disabled={!a.accompagnement} value={a.accompagnement_agence_id||""} onChange={e=>updateAnnonceAccompagnement(a.id,true,e.target.value?parseInt(e.target.value):null)}
+                                  style={{fontSize:10.5,padding:"2px 5px",borderRadius:5,border:"1px solid #c7d2fe",background:"#f5f3ff",color:"#4338ca",fontFamily:"inherit",outline:"none",maxWidth:110}}>
+                                  <option value="">— Agent —</option>
+                                  {agencesList.map(ag=><option key={ag.id} value={ag.id}>{ag.nom||ag.email}</option>)}
+                                </select>
+                              )}
+                            </div>
+                            <button
+                              onClick={()=>{const label=a.categorie==="vente"?"vendu":"loué";setSoldConfirm({id:a.id,label,titre:a.titre});}}
+                              style={{padding:"5px 9px",borderRadius:7,border:"1.5px solid #fbbf24",background:"#fffbeb",color:"#92400e",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}
+                            >{a.categorie==="vente"?"Vendu ?":"Loué ?"}</button>
+                            <button className="db-action db-action--del" title="Supprimer" onClick={()=>setDelItem(a)}><Trash2 size={14}/></button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
           </> /* fin fragment onglet annonces */
@@ -1018,6 +1438,205 @@ export default function Dashboard() {
           .db-header__inner { flex-direction: column; align-items: flex-start; }
         }
       `}</style>
+
+      {/* ── MODAL ALERTE ── */}
+      {alerteModal && (
+        <AlerteFiltersModal
+          form={alerteForm}
+          setForm={setAlerteForm}
+          onClose={()=>setAlerteModal(null)}
+          onSave={saveAlerte}
+          saving={alerteSaving}
+          isEdit={alerteModal !== "new"}
+        />
+      )}
+      {false && alerteModal && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}
+          onClick={()=>setAlerteModal(null)}>
+          <div style={{background:"#fff",borderRadius:18,width:"100%",maxWidth:560,maxHeight:"90vh",overflowY:"auto",boxShadow:"0 24px 64px rgba(0,0,0,.25)"}}
+            onClick={e=>e.stopPropagation()}>
+            {/* Header */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"20px 24px",borderBottom:"1px solid #f1f5f9"}}>
+              <div>
+                <h3 style={{fontSize:17,fontWeight:800,color:"#0f172a",margin:0}}>
+                  {alerteModal==="new" ? "Créer une alerte" : "Modifier l'alerte"}
+                </h3>
+                <p style={{fontSize:12.5,color:"#94a3b8",margin:"3px 0 0"}}>Définissez vos critères de recherche</p>
+              </div>
+              <button onClick={()=>setAlerteModal(null)} style={{background:"none",border:"none",cursor:"pointer",color:"#64748b"}}><X size={20}/></button>
+            </div>
+
+            <div style={{padding:"20px 24px",display:"flex",flexDirection:"column",gap:18}}>
+              {/* Nom */}
+              <div>
+                <label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:6,textTransform:"uppercase",letterSpacing:".05em"}}>Nom de l'alerte *</label>
+                <input type="text" value={alerteForm.nom}
+                  onChange={e=>setAlerteForm(f=>({...f,nom:e.target.value}))}
+                  placeholder="Ex: Appartement Tunis centre"
+                  style={{width:"100%",padding:"10px 14px",borderRadius:10,border:"1.5px solid #e2e8f0",fontFamily:"inherit",fontSize:14,outline:"none",boxSizing:"border-box"}}/>
+              </div>
+
+              {/* Catégorie */}
+              <div>
+                <label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:8,textTransform:"uppercase",letterSpacing:".05em"}}>Catégorie</label>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  {[{v:"vente",l:"🏠 Achat"},{v:"location",l:"🔑 Location"},{v:"vacances",l:"☀️ Vacances"}].map(o=>(
+                    <button key={o.v} type="button"
+                      onClick={()=>setAlerteForm(f=>{
+                        const cats=f.categories||[];
+                        return {...f,categories:cats.includes(o.v)?cats.filter(c=>c!==o.v):[...cats,o.v]};
+                      })}
+                      style={{padding:"7px 16px",borderRadius:20,border:"1.5px solid",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit",transition:"all .15s",
+                        borderColor:(alerteForm.categories||[]).includes(o.v)?"#6366f1":"#e2e8f0",
+                        background:(alerteForm.categories||[]).includes(o.v)?"#eef2ff":"#f8fafc",
+                        color:(alerteForm.categories||[]).includes(o.v)?"#4f46e5":"#64748b"}}>
+                      {o.l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Type de bien */}
+              <div>
+                <label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:6,textTransform:"uppercase",letterSpacing:".05em"}}>Type de bien</label>
+                <select value={alerteForm.type||""} onChange={e=>setAlerteForm(f=>({...f,type:e.target.value}))}
+                  style={{width:"100%",padding:"10px 14px",borderRadius:10,border:"1.5px solid #e2e8f0",fontFamily:"inherit",fontSize:13.5,outline:"none",background:"#f8fafc",boxSizing:"border-box"}}>
+                  <option value="">Tous les types</option>
+                  {[["appartement","Appartement"],["villa","Villa/Maison"],["terrain","Terrain"],["local_commercial","Local commercial"],["bureau","Bureau"],["ferme_agricole","Ferme agricole"],["immeuble","Immeuble"],["garage_parking","Garage/Parking"],["depot_stockage","Dépôt de stockage"]].map(([v,l])=>(
+                    <option key={v} value={v}>{l}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Localisation */}
+              <div>
+                <label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:6,textTransform:"uppercase",letterSpacing:".05em"}}>Localisation</label>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                  <select value={alerteForm.govNom||""} onChange={e=>setAlerteForm(f=>({...f,govNom:e.target.value,delNom:"",locNom:""}))}
+                    style={{padding:"10px 12px",borderRadius:10,border:"1.5px solid #e2e8f0",fontFamily:"inherit",fontSize:13,outline:"none",background:"#f8fafc",boxSizing:"border-box"}}>
+                    <option value="">Tous les gouvernorats</option>
+                    {gouvernorats.map(g=><option key={g.id||g.nom} value={g.nom}>{g.nom}</option>)}
+                  </select>
+                  <input type="text" value={alerteForm.delNom||""} onChange={e=>setAlerteForm(f=>({...f,delNom:e.target.value}))}
+                    placeholder="Délégation (optionnel)"
+                    style={{padding:"10px 12px",borderRadius:10,border:"1.5px solid #e2e8f0",fontFamily:"inherit",fontSize:13,outline:"none",background:"#f8fafc",boxSizing:"border-box"}}/>
+                </div>
+              </div>
+
+              {/* Prix */}
+              <div>
+                <label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:6,textTransform:"uppercase",letterSpacing:".05em"}}>Prix (DT)</label>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                  <input type="number" value={alerteForm.prixMin||""} onChange={e=>setAlerteForm(f=>({...f,prixMin:e.target.value}))}
+                    placeholder="Prix min" style={{padding:"10px 12px",borderRadius:10,border:"1.5px solid #e2e8f0",fontFamily:"inherit",fontSize:13,outline:"none",background:"#f8fafc",boxSizing:"border-box"}}/>
+                  <input type="number" value={alerteForm.prixMax||""} onChange={e=>setAlerteForm(f=>({...f,prixMax:e.target.value}))}
+                    placeholder="Prix max" style={{padding:"10px 12px",borderRadius:10,border:"1.5px solid #e2e8f0",fontFamily:"inherit",fontSize:13,outline:"none",background:"#f8fafc",boxSizing:"border-box"}}/>
+                </div>
+              </div>
+
+              {/* Superficie */}
+              <div>
+                <label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:6,textTransform:"uppercase",letterSpacing:".05em"}}>Superficie (m²)</label>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                  <input type="number" value={alerteForm.superficieMin||""} onChange={e=>setAlerteForm(f=>({...f,superficieMin:e.target.value}))}
+                    placeholder="Min m²" style={{padding:"10px 12px",borderRadius:10,border:"1.5px solid #e2e8f0",fontFamily:"inherit",fontSize:13,outline:"none",background:"#f8fafc",boxSizing:"border-box"}}/>
+                  <input type="number" value={alerteForm.superficieMax||""} onChange={e=>setAlerteForm(f=>({...f,superficieMax:e.target.value}))}
+                    placeholder="Max m²" style={{padding:"10px 12px",borderRadius:10,border:"1.5px solid #e2e8f0",fontFamily:"inherit",fontSize:13,outline:"none",background:"#f8fafc",boxSizing:"border-box"}}/>
+                </div>
+              </div>
+
+              {/* Pièces */}
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                <div>
+                  <label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:6,textTransform:"uppercase",letterSpacing:".05em"}}>Pièces min</label>
+                  <select value={alerteForm.bedsMin||""} onChange={e=>setAlerteForm(f=>({...f,bedsMin:e.target.value}))}
+                    style={{width:"100%",padding:"10px 12px",borderRadius:10,border:"1.5px solid #e2e8f0",fontFamily:"inherit",fontSize:13,outline:"none",background:"#f8fafc",boxSizing:"border-box"}}>
+                    <option value="">Indifférent</option>
+                    {[1,2,3,4,5,6].map(n=><option key={n} value={n}>{n}+</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:6,textTransform:"uppercase",letterSpacing:".05em"}}>Chambres min</label>
+                  <select value={alerteForm.chambresMin||""} onChange={e=>setAlerteForm(f=>({...f,chambresMin:e.target.value}))}
+                    style={{width:"100%",padding:"10px 12px",borderRadius:10,border:"1.5px solid #e2e8f0",fontFamily:"inherit",fontSize:13,outline:"none",background:"#f8fafc",boxSizing:"border-box"}}>
+                    <option value="">Indifférent</option>
+                    {[1,2,3,4,5].map(n=><option key={n} value={n}>{n}+</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* État du bien */}
+              <div>
+                <label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:6,textTransform:"uppercase",letterSpacing:".05em"}}>État du bien</label>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  {[{v:"nouveau",l:"✨ Neuf"},{v:"bon_etat",l:"👍 Bon état"},{v:"a_renover",l:"🔧 À rénover"},{v:"cours_construction",l:"🏗️ En construction"}].map(o=>(
+                    <button key={o.v} type="button"
+                      onClick={()=>setAlerteForm(f=>({...f,etat:f.etat===o.v?"":o.v}))}
+                      style={{padding:"6px 14px",borderRadius:20,border:"1.5px solid",fontSize:12.5,fontWeight:600,cursor:"pointer",fontFamily:"inherit",transition:"all .15s",
+                        borderColor:alerteForm.etat===o.v?"#6366f1":"#e2e8f0",
+                        background:alerteForm.etat===o.v?"#eef2ff":"#f8fafc",
+                        color:alerteForm.etat===o.v?"#4f46e5":"#64748b"}}>
+                      {o.l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Caractéristiques */}
+              <div>
+                <label style={{display:"block",fontSize:12,fontWeight:700,color:"#374151",marginBottom:10,textTransform:"uppercase",letterSpacing:".05em"}}>Caractéristiques</label>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+                  {[
+                    {k:"jardin",l:"🌿 Jardin"},{k:"terrasse",l:"🏠 Terrasse"},{k:"balcon",l:"🌅 Balcon"},
+                    {k:"parking",l:"🚗 Parking"},{k:"garage",l:"🏎 Garage"},{k:"ascenseur",l:"🛗 Ascenseur"},
+                    {k:"piscine",l:"🏊 Piscine"},{k:"vue_mer",l:"🌊 Vue mer"},{k:"meuble",l:"🛋 Meublé"},
+                    {k:"climatisation",l:"❄️ Clim"},{k:"fibre_optique",l:"📡 Fibre"},{k:"gardien",l:"💂 Gardien"},
+                  ].map(feat=>{
+                    const feats = alerteForm.features||[];
+                    const on = feats.includes(feat.k);
+                    return (
+                      <button key={feat.k} type="button"
+                        onClick={()=>setAlerteForm(f=>({...f,features:on?feats.filter(x=>x!==feat.k):[...feats,feat.k]}))}
+                        style={{padding:"7px 10px",borderRadius:9,border:"1.5px solid",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",textAlign:"center",transition:"all .15s",
+                          borderColor:on?"#6366f1":"#e2e8f0",background:on?"#eef2ff":"#f8fafc",color:on?"#4f46e5":"#64748b"}}>
+                        {feat.l}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Alerte email */}
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 16px",borderRadius:12,background:"#f8fafc",border:"1px solid #e2e8f0"}}>
+                <div>
+                  <p style={{fontWeight:700,color:"#0f172a",fontSize:14,margin:0}}>Notifications email</p>
+                  <p style={{fontSize:12,color:"#64748b",margin:"2px 0 0"}}>Recevoir un email dès qu'une annonce correspond</p>
+                </div>
+                <label style={{position:"relative",display:"inline-block",width:44,height:24,cursor:"pointer",flexShrink:0}}>
+                  <input type="checkbox" checked={!!alerteForm.email_alert}
+                    onChange={e=>setAlerteForm(f=>({...f,email_alert:e.target.checked}))}
+                    style={{opacity:0,width:0,height:0}}/>
+                  <span style={{position:"absolute",inset:0,background:alerteForm.email_alert?"#6366f1":"#e5e7eb",borderRadius:20,transition:".2s"}}/>
+                  <span style={{position:"absolute",width:18,height:18,background:"#fff",borderRadius:"50%",top:3,left:alerteForm.email_alert?23:3,transition:".2s"}}/>
+                </label>
+              </div>
+
+              {/* Boutons */}
+              <div style={{display:"flex",gap:10,paddingTop:4}}>
+                <button onClick={()=>setAlerteModal(null)}
+                  style={{flex:1,padding:"11px",borderRadius:10,border:"1.5px solid #e2e8f0",background:"#fff",color:"#374151",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                  Annuler
+                </button>
+                <button onClick={saveAlerte} disabled={alerteSaving||!alerteForm.nom.trim()}
+                  style={{flex:2,padding:"11px",borderRadius:10,border:"none",background:"#6366f1",color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit",opacity:(alerteSaving||!alerteForm.nom.trim())?0.6:1}}>
+                  {alerteSaving?"Enregistrement…":"💾 Enregistrer l'alerte"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}{/* end false block */}
+
     </>
   );
 }

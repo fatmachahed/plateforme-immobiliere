@@ -1,14 +1,14 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import API_URL from "../config";
+import API_URL, { fmtDevise } from "../config";
 import Navbar from "../components/Navbar";
 import { useToast } from "../components/Toast";
 import {
   LayoutDashboard, FileText, Users, CheckCircle, XCircle, Clock,
   Eye, Trash2, RefreshCw, Home, BarChart3, X, Check, Building, Plus,
   CreditCard, ShieldCheck, ShieldOff, Mail, Phone,
-  DollarSign, Activity, Filter, Calendar, Edit3,
-  TrendingUp, MapPin, Sparkles,
+  DollarSign, Activity, Filter, Calendar, Edit3, Pencil, Search,
+  TrendingUp, MapPin, Sparkles, Handshake, Lock, Unlock,
 } from "lucide-react";
 
 
@@ -23,9 +23,9 @@ function StatusBadge({ status }) {
 }
 
 function TypeBienFr(t) {
-  const m = { appartement:"Appartement", villa:"Villa", maison:"Maison",
-    terrain:"Terrain", bureau:"Bureau", local_commercial:"Local com.", ferme:"Ferme",
-    bord_eau:"Bord d'eau" };
+  const m = { appartement:"Appartement", villa:"Villa/Maison", villa_maison:"Villa/Maison", maison:"Villa/Maison",
+    terrain:"Terrain", bureau:"Bureau", local_commercial:"Local commercial", ferme:"Ferme agricole", ferme_agricole:"Ferme agricole",
+    immeuble:"Immeuble", garage_parking:"Garage/Parking", immobiliers_divers:"Immobiliers divers" };
   return m[t] || t;
 }
 
@@ -40,14 +40,22 @@ export default function AdminDashboard() {
   const [annonces,     setAnnonces]    = useState([]);
   const [allAnnonces,  setAllAnnonces] = useState([]);
   const [users,        setUsers]       = useState([]);
+  const [userEditModal,setUserEditModal]= useState(null);
+  const [userEditForm, setUserEditForm] = useState({username:"",email:"",role:""});
+  const [userSearchNom,  setUserSearchNom]  = useState("");
+  const [userSearchEmail,setUserSearchEmail]= useState("");
+  const [userFilterRole, setUserFilterRole] = useState("");
+  const [userSortAnnonces,setUserSortAnnonces]= useState(""); // "" | "asc" | "desc"
   const [filter,       setFilter]      = useState("en_attente");
   const [loading,      setLoading]     = useState(true);
   const [modal,        setModal]       = useState(null);
   const [rejectMsg,    setRejectMsg]   = useState("");
 
   /* Agences state */
-  const [agencies,      setAgencies]     = useState([]);
-  const [agencyModal,   setAgencyModal]  = useState(false);
+  const [agencies,      setAgencies]       = useState([]);
+  const [agencyModal,   setAgencyModal]    = useState(false);
+  /* Liste unifiée des professionnels (agences + inscrits) pour accompagnements */
+  const [professionals, setProfessionals]  = useState([]);
 
   /* Accompagnements tracking (stocké en localStorage) */
   const [accomTracking, setAccomTracking] = useState(() => {
@@ -98,7 +106,7 @@ export default function AdminDashboard() {
     if (tab === "users")    loadUsers();
     if (tab === "stats")    { if (allAnnonces.length === 0) loadAllAnnonces(); }
     if (tab === "agences")        { loadAgencies(); if (allAnnonces.length === 0) loadAllAnnonces(); }
-    if (tab === "accompagnements"){ loadAllAnnonces(); if (users.length === 0) loadUsers(); if (agencies.length === 0) loadAgencies(); }
+    if (tab === "accompagnements"){ loadAllAnnonces(); if (users.length === 0) loadUsers(); if (agencies.length === 0) loadAgencies(); loadProfessionals(); }
   }, [tab, filter]);
 
   async function authFetch(url, opts = {}) {
@@ -145,12 +153,54 @@ export default function AdminDashboard() {
     } catch {}
   }
 
+  async function blockUser(id) {
+    try {
+      const res = await authFetch(`/admin/users/${id}/block`, { method:"PUT" });
+      if (res.ok) {
+        const data = await res.json();
+        setUsers(prev => prev.map(u => u.id===id ? {...u, is_blocked: data.is_blocked} : u));
+        toast(data.is_blocked ? "Compte bloqué." : "Compte débloqué.");
+      }
+    } catch {}
+  }
+
+  async function deleteUser(id, username) {
+    if (!window.confirm(`Supprimer définitivement le compte « ${username} » et toutes ses annonces ?`)) return;
+    try {
+      const res = await authFetch(`/admin/users/${id}`, { method:"DELETE" });
+      if (res.ok) { setUsers(prev => prev.filter(u => u.id!==id)); toast("Compte supprimé."); }
+    } catch {}
+  }
+
+  async function saveUserEdit() {
+    if (!userEditModal) return;
+    try {
+      const res = await authFetch(`/admin/users/${userEditModal.id}`, {
+        method:"PUT",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify(userEditForm),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUsers(prev => prev.map(u => u.id===data.id ? {...u, ...data} : u));
+        toast("Compte modifié."); setUserEditModal(null);
+      } else { toast("Erreur lors de la modification.","error"); }
+    } catch {}
+  }
+
   async function loadAgencies() {
     try {
       const res = await authFetch("/admin/agencies");
       if (res.ok) setAgencies(await res.json());
       else setAgencies([]);
     } catch { setAgencies([]); }
+  }
+
+  async function loadProfessionals() {
+    try {
+      const res = await fetch(`${API_URL}/users/agencies/public`);
+      if (res.ok) setProfessionals(await res.json());
+    } catch {}
   }
 
   async function createAgency() {
@@ -360,6 +410,7 @@ export default function AdminDashboard() {
             { id:"users",          icon:<Users size={16}/>,     label:"Utilisateurs" },
             { id:"agences",        icon:<Building size={16}/>,  label:"Agences" },
             { id:"accompagnements",icon:<Sparkles size={16}/>,  label:"Accompagnements" },
+            { id:"mandats",        icon:<Handshake size={16}/>, label:"Partage de mandat" },
           ].map(item => (
             <button key={item.id}
               className={`adm-nav${tab === item.id ? " adm-nav--active" : ""}`}
@@ -454,7 +505,7 @@ export default function AdminDashboard() {
                           </td>
                           <td className="adm-table__gov">{a.gouvernorat || "—"}</td>
                           <td className="adm-table__prix">
-                            {a.prix ? `${Number(a.prix).toLocaleString("fr-TN")} ${a.devise}` : "—"}
+                            {a.prix ? `${Number(a.prix).toLocaleString("fr-TN")} ${fmtDevise(a.devise)}` : "—"}
                           </td>
                           <td><StatusBadge status={a.status}/></td>
                           <td className="adm-table__date">
@@ -562,7 +613,7 @@ export default function AdminDashboard() {
                   <div>
                     <div className="adm-kpi__val">
                       {statsComputed.avgPrice > 0
-                        ? Math.round(statsComputed.avgPrice).toLocaleString("fr-TN") + " DT"
+                        ? Math.round(statsComputed.avgPrice).toLocaleString("fr-TN") + " TND"
                         : "—"}
                     </div>
                     <div className="adm-kpi__lbl">Prix moyen (vente)</div>
@@ -573,7 +624,7 @@ export default function AdminDashboard() {
                   <div>
                     <div className="adm-kpi__val">
                       {statsComputed.avgPrixM2 > 0
-                        ? Math.round(statsComputed.avgPrixM2).toLocaleString("fr-TN") + " DT"
+                        ? Math.round(statsComputed.avgPrixM2).toLocaleString("fr-TN") + " TND"
                         : "—"}
                     </div>
                     <div className="adm-kpi__lbl">Prix/m² moyen</div>
@@ -747,7 +798,7 @@ export default function AdminDashboard() {
                               </td>
                               <td style={{textAlign:"right"}} className="adm-zone-prix">
                                 {row.avgPrix
-                                  ? <strong>{Math.round(row.avgPrix).toLocaleString("fr-TN")} DT</strong>
+                                  ? <strong>{Math.round(row.avgPrix).toLocaleString("fr-TN")} TND</strong>
                                   : <span style={{color:"#e2e8f0"}}>—</span>}
                               </td>
                               <td style={{textAlign:"right"}} className="adm-zone-m2">
@@ -778,29 +829,197 @@ export default function AdminDashboard() {
           {/* ─── TAB: Users ─── */}
           {tab === "users" && (
             <div className="adm-table-wrap">
-              {users.length === 0
-                ? <div className="adm-empty"><Users size={40}/><p>Aucun utilisateur.</p></div>
-                : (
+              {(() => {
+                let filtered = users
+                  .filter(u => !userSearchNom  || (u.username||"").toLowerCase().includes(userSearchNom.toLowerCase()))
+                  .filter(u => !userSearchEmail|| (u.email||"").toLowerCase().includes(userSearchEmail.toLowerCase()))
+                  .filter(u => !userFilterRole || u.role === userFilterRole);
+                if (userSortAnnonces === "desc") filtered = [...filtered].sort((a,b)=>b.nb_annonces-a.nb_annonces);
+                if (userSortAnnonces === "asc")  filtered = [...filtered].sort((a,b)=>a.nb_annonces-b.nb_annonces);
+
+                const filterRow = (
+                  <tr style={{background:"#f8fafc"}}>
+                    <th></th>
+                    <th style={{padding:"6px 8px"}}>
+                      <div style={{position:"relative"}}>
+                        <Search size={11} style={{position:"absolute",left:7,top:"50%",transform:"translateY(-50%)",color:"#9ca3af",pointerEvents:"none"}}/>
+                        <input value={userSearchNom} onChange={e=>setUserSearchNom(e.target.value)}
+                          placeholder="Nom…"
+                          style={{width:"100%",padding:"5px 8px 5px 24px",borderRadius:6,border:"1px solid #e2e8f0",fontSize:12,fontFamily:"inherit",boxSizing:"border-box",background:"#fff"}}/>
+                      </div>
+                    </th>
+                    <th style={{padding:"6px 8px"}}>
+                      <div style={{position:"relative"}}>
+                        <Search size={11} style={{position:"absolute",left:7,top:"50%",transform:"translateY(-50%)",color:"#9ca3af",pointerEvents:"none"}}/>
+                        <input value={userSearchEmail} onChange={e=>setUserSearchEmail(e.target.value)}
+                          placeholder="Email…"
+                          style={{width:"100%",padding:"5px 8px 5px 24px",borderRadius:6,border:"1px solid #e2e8f0",fontSize:12,fontFamily:"inherit",boxSizing:"border-box",background:"#fff"}}/>
+                      </div>
+                    </th>
+                    <th style={{padding:"6px 8px"}}>
+                      <select value={userFilterRole} onChange={e=>setUserFilterRole(e.target.value)}
+                        style={{width:"100%",padding:"5px 6px",borderRadius:6,border:"1px solid #e2e8f0",fontSize:12,fontFamily:"inherit",background:"#fff"}}>
+                        <option value="">Tous</option>
+                        <option value="particulier">Particulier</option>
+                        <option value="agence">Agence</option>
+                        <option value="promoteur">Promoteur</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </th>
+                    <th style={{padding:"6px 8px"}}>
+                      <select value={userSortAnnonces} onChange={e=>setUserSortAnnonces(e.target.value)}
+                        style={{width:"100%",padding:"5px 6px",borderRadius:6,border:"1px solid #e2e8f0",fontSize:12,fontFamily:"inherit",background:"#fff"}}>
+                        <option value="">↕</option>
+                        <option value="desc">↓ Plus</option>
+                        <option value="asc">↑ Moins</option>
+                      </select>
+                    </th>
+                    <th style={{padding:"6px 8px",textAlign:"center"}}>
+                      {(userSearchNom||userSearchEmail||userFilterRole||userSortAnnonces) && (
+                        <button onClick={()=>{setUserSearchNom("");setUserSearchEmail("");setUserFilterRole("");setUserSortAnnonces("");}}
+                          title="Réinitialiser filtres"
+                          style={{padding:"4px 8px",borderRadius:6,border:"1px solid #e2e8f0",background:"#fff",fontSize:11,cursor:"pointer",color:"#6b7280"}}>
+                          ✕
+                        </button>
+                      )}
+                    </th>
+                  </tr>
+                );
+
+                if (filtered.length === 0) return (
+                  <>
+                    <table className="adm-table">
+                      <thead>
+                        <tr><th>#</th><th>Nom</th><th>Email</th><th>Rôle</th>
+                          <th style={{cursor:"pointer",userSelect:"none",whiteSpace:"nowrap"}} onClick={()=>setUserSortAnnonces(s=>s==="desc"?"asc":s==="asc"?"":"desc")}>
+                            Annonces {userSortAnnonces==="desc"?"↓":userSortAnnonces==="asc"?"↑":"↕"}
+                          </th>
+                          <th>Actions</th>
+                        </tr>
+                        {filterRow}
+                      </thead>
+                    </table>
+                    <div className="adm-empty"><Users size={40}/><p>Aucun utilisateur trouvé.</p></div>
+                  </>
+                );
+                return (
                 <table className="adm-table">
-                  <thead><tr><th>#</th><th>Nom</th><th>Email</th><th>Rôle</th><th>Annonces</th></tr></thead>
+                  <thead>
+                    <tr><th>#</th><th>Nom</th><th>Email</th><th>Rôle</th>
+                      <th style={{cursor:"pointer",userSelect:"none",whiteSpace:"nowrap"}} onClick={()=>setUserSortAnnonces(s=>s==="desc"?"asc":s==="asc"?"":"desc")}>
+                        Annonces {userSortAnnonces==="desc"?"↓":userSortAnnonces==="asc"?"↑":"↕"}
+                      </th>
+                      <th>Créé le</th>
+                      <th>Mis à jour</th>
+                      <th>Actions</th>
+                    </tr>
+                    {filterRow}
+                  </thead>
                   <tbody>
-                    {users.map(u => (
-                      <tr key={u.id}>
+                    {filtered.map(u => (
+                      <tr key={u.id} style={{opacity: u.is_blocked ? .55 : 1}}>
                         <td className="adm-table__id">#{u.id}</td>
-                        <td style={{fontWeight:600,color:"#0f172a"}}>{u.username}</td>
+                        <td style={{fontWeight:600,color:"#0f172a"}}>
+                          {u.username}
+                          {u.is_blocked && <span style={{marginLeft:6,fontSize:10,color:"#ef4444",fontWeight:700,background:"#fee2e2",padding:"1px 6px",borderRadius:4}}>Bloqué</span>}
+                          {u.is_verified===false && <span style={{marginLeft:6,fontSize:10,color:"#d97706",fontWeight:700,background:"#fef3c7",padding:"1px 6px",borderRadius:4}}>Non vérifié</span>}
+                        </td>
                         <td className="adm-table__email">{u.email}</td>
                         <td>
                           <span className={`adm-pill ${
-                            u.role==="admin"  ? "adm-pill--admin"  :
-                            u.role==="agence" ? "adm-pill--agency" : ""
-                          }`}>{u.role}</span>
+                            u.role==="admin"     ? "adm-pill--admin"  :
+                            u.role==="agence"    ? "adm-pill--agency" :
+                            u.role==="promoteur" ? "adm-pill--agency" : ""
+                          }`}>{
+                            u.role==="agence"    ? "Agence/Agent" :
+                            u.role==="promoteur" ? "Promoteur" :
+                            u.role==="particulier"? "Particulier" :
+                            u.role==="admin"     ? "Admin" :
+                            u.role
+                          }</span>
                         </td>
                         <td style={{fontWeight:600}}>{u.nb_annonces}</td>
+                        <td style={{fontSize:12,color:"#64748b",whiteSpace:"nowrap"}}>
+                          {u.created_at ? (
+                            <>
+                              <div>{new Date(u.created_at).toLocaleDateString("fr-FR")}</div>
+                              <div style={{color:"#94a3b8"}}>{new Date(u.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</div>
+                            </>
+                          ) : "—"}
+                        </td>
+                        <td style={{fontSize:12,color:"#64748b",whiteSpace:"nowrap"}}>
+                          {u.updated_at ? (
+                            <>
+                              <div>{new Date(u.updated_at).toLocaleDateString("fr-FR")}</div>
+                              <div style={{color:"#94a3b8"}}>{new Date(u.updated_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</div>
+                            </>
+                          ) : "—"}
+                        </td>
+                        <td>
+                          <div style={{display:"flex",gap:5,alignItems:"center"}}>
+                            {/* Modifier */}
+                            <button title="Modifier" onClick={() => { setUserEditForm({username:u.username,email:u.email,role:u.role}); setUserEditModal(u); }}
+                              style={{display:"flex",alignItems:"center",justifyContent:"center",width:30,height:30,borderRadius:6,border:"1px solid #e2e8f0",background:"#fff",cursor:"pointer",color:"#374151"}}>
+                              <Pencil size={13}/>
+                            </button>
+                            {/* Bloquer / Débloquer */}
+                            {u.role !== "admin" && (
+                              <button title={u.is_blocked ? "Débloquer" : "Bloquer"} onClick={() => blockUser(u.id)}
+                                style={{display:"flex",alignItems:"center",justifyContent:"center",width:30,height:30,borderRadius:6,border:`1px solid ${u.is_blocked?"#d1fae5":"#fee2e2"}`,background:u.is_blocked?"#f0fdf4":"#fff5f5",cursor:"pointer",color:u.is_blocked?"#16a34a":"#ef4444"}}>
+                                {u.is_blocked ? <Unlock size={13}/> : <Lock size={13}/>}
+                              </button>
+                            )}
+                            {/* Supprimer */}
+                            {u.role !== "admin" && (
+                              <button title="Supprimer" onClick={() => deleteUser(u.id, u.username)}
+                                style={{display:"flex",alignItems:"center",justifyContent:"center",width:30,height:30,borderRadius:6,border:"1px solid #fee2e2",background:"#fff5f5",cursor:"pointer",color:"#ef4444"}}>
+                                <Trash2 size={13}/>
+                              </button>
+                            )}
+                          </div>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              )}
+                );
+              })()}
+            </div>
+          )}
+
+          {/* ── Modal édition utilisateur ── */}
+          {userEditModal && (
+            <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",zIndex:1000,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+              <div style={{background:"#fff",borderRadius:14,padding:28,width:"100%",maxWidth:420,boxShadow:"0 20px 60px rgba(0,0,0,.2)"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+                  <h3 style={{margin:0,fontSize:16,fontWeight:700}}>Modifier l'utilisateur #{userEditModal.id}</h3>
+                  <button onClick={()=>setUserEditModal(null)} style={{background:"none",border:"none",cursor:"pointer"}}><X size={18}/></button>
+                </div>
+                {[
+                  {label:"Nom d'utilisateur", key:"username"},
+                  {label:"Email", key:"email"},
+                ].map(({label,key}) => (
+                  <div key={key} style={{marginBottom:14}}>
+                    <label style={{fontSize:12,fontWeight:600,color:"#374151",display:"block",marginBottom:5}}>{label}</label>
+                    <input value={userEditForm[key]} onChange={e=>setUserEditForm(f=>({...f,[key]:e.target.value}))}
+                      style={{width:"100%",padding:"9px 12px",borderRadius:8,border:"1px solid #e2e8f0",fontSize:13,fontFamily:"inherit",boxSizing:"border-box"}}/>
+                  </div>
+                ))}
+                <div style={{marginBottom:20}}>
+                  <label style={{fontSize:12,fontWeight:600,color:"#374151",display:"block",marginBottom:5}}>Rôle</label>
+                  <select value={userEditForm.role} onChange={e=>setUserEditForm(f=>({...f,role:e.target.value}))}
+                    style={{width:"100%",padding:"9px 12px",borderRadius:8,border:"1px solid #e2e8f0",fontSize:13,fontFamily:"inherit",boxSizing:"border-box"}}>
+                    <option value="particulier">Particulier</option>
+                    <option value="agence">Agence / Agent</option>
+                    <option value="promoteur">Promoteur</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+                <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+                  <button onClick={()=>setUserEditModal(null)} style={{padding:"9px 18px",borderRadius:8,border:"1px solid #e2e8f0",background:"#fff",cursor:"pointer",fontSize:13,fontWeight:600}}>Annuler</button>
+                  <button onClick={saveUserEdit} style={{padding:"9px 18px",borderRadius:8,border:"none",background:"#6366f1",color:"#fff",cursor:"pointer",fontSize:13,fontWeight:700}}>Enregistrer</button>
+                </div>
+              </div>
             </div>
           )}
 
@@ -823,7 +1042,7 @@ export default function AdminDashboard() {
                   <div className="adm-agency-plan__name">Formule Agence Pro</div>
                   <div className="adm-agency-plan__desc">Dashboard analytics · Suivi multi-annonces · Export · Support prioritaire</div>
                 </div>
-                <div className="adm-agency-plan__price">50 DT<span>/mois</span></div>
+                <div className="adm-agency-plan__price">50 TND<span>/mois</span></div>
                 <div className="adm-agency-plan__warning">
                   <ShieldOff size={13}/> Suspension automatique en cas d'impayé
                 </div>
@@ -846,6 +1065,11 @@ export default function AdminDashboard() {
                               <span><Mail size={11}/> {ag.email}</span>
                               {ag.telephone && <span><Phone size={11}/> {ag.telephone}</span>}
                               {ag.matricule && <span>Mat. {ag.matricule}</span>}
+                              {ag.reference && (
+                                <span style={{fontWeight:600,color:"#6366f1",background:"#eef2ff",borderRadius:4,padding:"1px 6px",fontFamily:"monospace"}}>
+                                  #{ag.reference}
+                                </span>
+                              )}
                               {ag.created_at && (
                                 <span><Calendar size={11}/> {new Date(ag.created_at).toLocaleDateString("fr-FR")}</span>
                               )}
@@ -944,7 +1168,7 @@ export default function AdminDashboard() {
                   <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
                     <thead>
                       <tr style={{borderBottom:"2px solid #e5e7eb",background:"#f8fafc"}}>
-                        {["Annonce","Propriétaire","Type","Agence","Agence contactée","Réponse reçue","Contact effectué","Remarques"].map(h => (
+                        {["Annonce","Propriétaire","Type","Agence A","Agence B","Agence contactée","Réponse reçue","Accompagné","Remarques"].map(h => (
                           <th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:700,color:"#374151",fontSize:11.5,textTransform:"uppercase",letterSpacing:".05em",whiteSpace:"nowrap"}}>{h}</th>
                         ))}
                       </tr>
@@ -953,12 +1177,20 @@ export default function AdminDashboard() {
                       {allAnnonces.filter(a => a.accompagnement).map(a => {
                         const t = accomTracking[a.id] || {};
                         const u = users?.find(u => u.id === a.utilisateur_id);
+                        /* Valeur affichée : tracking admin en priorité, sinon ce que l'utilisateur a choisi */
+                        const agenceVal = t.agence_name !== undefined
+                          ? t.agence_name
+                          : (a.accompagnement_agence_nom || "");
                         return (
                           <tr key={a.id} style={{borderBottom:"1px solid #f1f5f9"}}
                             onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"}
                             onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
                             <td style={{padding:"12px 14px",verticalAlign:"middle",maxWidth:220}}>
-                              <div style={{fontWeight:700,color:"#0f172a",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{a.titre}</div>
+                              <a href={`/annonce/${a.id}`} target="_blank" rel="noopener noreferrer"
+                                style={{fontWeight:700,color:"#4f46e5",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"block",textDecoration:"none"}}
+                                title="Voir l'annonce">
+                                {a.titre}
+                              </a>
                               <div style={{fontSize:11,color:"#94a3b8"}}>{a.date_creation ? new Date(a.date_creation).toLocaleDateString("fr-TN",{day:"2-digit",month:"short",year:"numeric"}) : ""}</div>
                             </td>
                             <td style={{padding:"12px 14px",verticalAlign:"middle",whiteSpace:"nowrap",fontSize:12,color:"#374151"}}>
@@ -969,27 +1201,42 @@ export default function AdminDashboard() {
                                 {(a.type_bien||"").replace(/_/g," ")}
                               </span>
                             </td>
-                            <td style={{padding:"12px 14px",verticalAlign:"middle",minWidth:160}}>
-                              {agencies.length > 0 ? (
-                                <select
-                                  value={t.agence_name || ""}
-                                  onChange={e => updateAccomTracking(a.id, "agence_name", e.target.value)}
-                                  style={{border:"1.5px solid #e2e8f0",borderRadius:8,padding:"6px 10px",fontSize:12.5,fontFamily:"inherit",background:"#f8fafc",color:"#0f172a",outline:"none",width:"100%",boxSizing:"border-box"}}
-                                >
-                                  <option value="">— Choisir —</option>
-                                  {agencies.map(ag => (
-                                    <option key={ag.id} value={ag.nom}>{ag.nom}</option>
-                                  ))}
-                                </select>
-                              ) : (
-                                <input
-                                  type="text"
-                                  value={t.agence_name || ""}
-                                  onChange={e => updateAccomTracking(a.id, "agence_name", e.target.value)}
-                                  placeholder="Nom agence…"
-                                  style={{width:"100%",padding:"6px 10px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:12.5,fontFamily:"inherit",outline:"none",background:"#f8fafc",boxSizing:"border-box"}}
-                                />
+                            <td style={{padding:"12px 14px",verticalAlign:"middle",minWidth:200}}>
+                              {/* Badge "choix utilisateur" si défini */}
+                              {a.accompagnement_agence_nom && !t.agence_name && (
+                                <div style={{fontSize:10,color:"#6366f1",fontWeight:700,marginBottom:4,background:"#eef2ff",padding:"2px 6px",borderRadius:4,display:"inline-block"}}>
+                                  Choix client : {a.accompagnement_agence_nom}
+                                </div>
                               )}
+                              <select
+                                value={agenceVal}
+                                onChange={e => updateAccomTracking(a.id, "agence_name", e.target.value)}
+                                style={{border:"1.5px solid #e2e8f0",borderRadius:8,padding:"6px 10px",fontSize:12.5,fontFamily:"inherit",background:"#f8fafc",color:"#0f172a",outline:"none",width:"100%",boxSizing:"border-box",marginTop: a.accompagnement_agence_nom && !t.agence_name ? 4 : 0}}
+                              >
+                                <option value="">— Peu importe —</option>
+                                {professionals.length > 0
+                                  ? professionals.map(p => (
+                                      <option key={p.id} value={p.nom}>{p.nom} · {p.type}</option>
+                                    ))
+                                  : agencies.map(ag => (
+                                      <option key={ag.id} value={ag.nom}>{ag.nom}</option>
+                                    ))
+                                }
+                              </select>
+                            </td>
+                            {/* Agence B */}
+                            <td style={{padding:"12px 14px",verticalAlign:"middle",minWidth:200}}>
+                              <select
+                                value={t.agence_b_name||""}
+                                onChange={e => updateAccomTracking(a.id, "agence_b_name", e.target.value)}
+                                style={{border:"1.5px solid #e2e8f0",borderRadius:8,padding:"6px 10px",fontSize:12.5,fontFamily:"inherit",background:"#f8fafc",color:"#0f172a",outline:"none",width:"100%",boxSizing:"border-box"}}
+                              >
+                                <option value="">— Aucune —</option>
+                                {professionals.length > 0
+                                  ? professionals.map(p => <option key={p.id} value={p.nom}>{p.nom} · {p.type}</option>)
+                                  : agencies.map(ag => <option key={ag.id} value={ag.nom}>{ag.nom}</option>)
+                                }
+                              </select>
                             </td>
                             <td style={{padding:"12px 14px",verticalAlign:"middle"}}>
                               <TrackSwitch val={!!t.agence} onChange={v=>updateAccomTracking(a.id,"agence",v)}/>
@@ -1012,6 +1259,85 @@ export default function AdminDashboard() {
                   </table>
                 </div>
               )}
+
+            </div>
+          )}
+
+          {/* ── Onglet Partage de mandat ── */}
+          {tab === "mandats" && (
+            <div style={{fontFamily:"'Inter',system-ui,sans-serif"}}>
+              <div style={{marginBottom:20}}>
+                <h2 style={{fontSize:18,fontWeight:800,color:"#0f172a",margin:0}}>Partage de mandat</h2>
+                <p style={{fontSize:13,color:"#64748b",margin:"4px 0 0"}}>
+                  Mandats partagés entre deux agences suite à un accompagnement validé.
+                </p>
+              </div>
+              {(() => {
+                const mandats = allAnnonces.filter(a => a.accompagnement && (accomTracking[a.id]||{}).contact);
+                if (mandats.length === 0) return (
+                  <div style={{textAlign:"center",padding:"60px 20px",background:"#f8fafc",borderRadius:14,border:"1.5px dashed #e2e8f0"}}>
+                    <Handshake size={40} style={{color:"#d1d5db",marginBottom:12}}/>
+                    <p style={{fontWeight:700,color:"#374151",marginBottom:6,fontSize:15}}>Aucun mandat partagé</p>
+                    <p style={{fontSize:13,color:"#94a3b8"}}>Les mandats apparaissent ici lorsqu'un accompagnement est marqué "Accompagné".</p>
+                  </div>
+                );
+                return (
+                  <div style={{overflowX:"auto"}}>
+                    <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+                      <thead>
+                        <tr style={{borderBottom:"2px solid #e5e7eb",background:"#f8fafc"}}>
+                          {["Annonce","Propriétaire","Agence A","Agence B","Commission (%)","Statut"].map(h => (
+                            <th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:700,color:"#374151",fontSize:11.5,textTransform:"uppercase",letterSpacing:".05em",whiteSpace:"nowrap"}}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {mandats.map(a => {
+                          const t = accomTracking[a.id] || {};
+                          const u = users?.find(u => u.id === a.utilisateur_id);
+                          return (
+                            <tr key={a.id} style={{borderBottom:"1px solid #f1f5f9"}}
+                              onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"}
+                              onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
+                              <td style={{padding:"12px 14px",verticalAlign:"middle",maxWidth:200}}>
+                                <a href={`/annonce/${a.id}`} target="_blank" rel="noopener noreferrer"
+                                  style={{fontWeight:700,color:"#4f46e5",textDecoration:"none",fontSize:13,display:"block",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                                  {a.titre}
+                                </a>
+                                <div style={{fontSize:11,color:"#94a3b8"}}>{a.date_creation ? new Date(a.date_creation).toLocaleDateString("fr-TN",{day:"2-digit",month:"short",year:"numeric"}) : ""}</div>
+                              </td>
+                              <td style={{padding:"12px 14px",verticalAlign:"middle",fontSize:12,color:"#374151"}}>
+                                {u?.username || `ID ${a.utilisateur_id}`}
+                              </td>
+                              <td style={{padding:"12px 14px",verticalAlign:"middle"}}>
+                                <span style={{fontWeight:600,color:"#0f172a",fontSize:13}}>{t.agence_name || "—"}</span>
+                              </td>
+                              <td style={{padding:"12px 14px",verticalAlign:"middle"}}>
+                                <span style={{fontWeight:600,color:"#0f172a",fontSize:13}}>{t.agence_b_name || "—"}</span>
+                              </td>
+                              <td style={{padding:"12px 14px",verticalAlign:"middle",minWidth:160}}>
+                                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                                  <input type="number" min={0} max={100} step={0.5}
+                                    value={t.commission||""}
+                                    onChange={e => updateAccomTracking(a.id,"commission",e.target.value)}
+                                    placeholder="ex: 2.5"
+                                    style={{width:80,padding:"6px 10px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:12.5,fontFamily:"inherit",outline:"none",background:"#f8fafc"}}/>
+                                  <span style={{fontSize:12,color:"#64748b"}}>%</span>
+                                </div>
+                              </td>
+                              <td style={{padding:"12px 14px",verticalAlign:"middle"}}>
+                                <span style={{fontSize:11,fontWeight:700,background:"#dcfce7",color:"#16a34a",padding:"3px 9px",borderRadius:999}}>
+                                  Accompagné ✓
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -1093,7 +1419,7 @@ export default function AdminDashboard() {
                       <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
                         <StatusBadge status={a.status}/>
                         <span style={{fontSize:12,fontWeight:700,color:"#0f172a",whiteSpace:"nowrap"}}>
-                          {a.prix ? Number(a.prix).toLocaleString("fr-TN") + " " + a.devise : "—"}
+                          {a.prix ? Number(a.prix).toLocaleString("fr-TN") + " " + fmtDevise(a.devise) : "—"}
                         </span>
                         <Link to={`/annonce/${a.id}`} target="_blank" style={{color:"#6366f1",display:"flex",alignItems:"center"}}>
                           <Eye size={13}/>

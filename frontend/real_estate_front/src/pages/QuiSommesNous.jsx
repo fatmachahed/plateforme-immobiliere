@@ -1,9 +1,9 @@
-import React from "react";
+﻿import React from "react";
 import Layout from "../components/Layout";
 import { MapPin, Users, Target, Award, Heart, TrendingUp, Shield, Star } from "lucide-react";
 
 const TEAM = [
-  { name: "Fatma Chahed",    role: "Fondatrice & CEO",           avatar: "FC" },
+  { name: "Équipe Managériale", role: "CEO / CTO",                avatar: "EM" },
   { name: "Équipe Tech",     role: "Développement & Innovation", avatar: "ET" },
   { name: "Équipe Produit",  role: "Design & Expérience",        avatar: "EP" },
   { name: "Support Client",  role: "Accompagnement & Conseil",   avatar: "SC" },
@@ -33,10 +33,10 @@ const VALUES = [
 ];
 
 const STATS = [
-  { val: "10 000+", label: "Annonces publiées" },
-  { val: "24",      label: "Gouvernorats couverts" },
-  { val: "98%",     label: "Satisfaction client" },
-  { val: "2024",    label: "Année de création" },
+  { val: "Gratuit",  label: "Publication d'annonces" },
+  { val: "24",       label: "Gouvernorats couverts" },
+  { val: "24/7",     label: "Disponible en continu" },
+  { val: "2026",     label: "Année de création" },
 ];
 
 export default function QuiSommesNous() {
@@ -55,7 +55,7 @@ export default function QuiSommesNous() {
               <span className="qsn-hero__highlight">100% tunisienne</span>
             </h1>
             <p className="qsn-hero__sub">
-              Localizi est née d'une conviction simple : trouver un bien immobilier
+              Localizi.tn est née d'une conviction simple : trouver un bien immobilier
               en Tunisie devrait être simple, transparent et accessible à tous.
             </p>
           </div>
@@ -69,7 +69,7 @@ export default function QuiSommesNous() {
                 <span className="qsn-eyebrow" style={{color:"#6366f1"}}>Notre mission</span>
                 <h2 className="qsn-section__title">Connecter acheteurs et vendeurs à travers toute la Tunisie</h2>
                 <p className="qsn-section__desc">
-                  Fondée en 2024, Localizi est la première plateforme immobilière tunisienne à
+                  Fondée en 2026, Localizi.tn est la première plateforme immobilière tunisienne à
                   combiner une carte interactive, un assistant IA et une base de données
                   couvrant l'ensemble des 24 gouvernorats du pays.
                 </p>
@@ -114,7 +114,7 @@ export default function QuiSommesNous() {
         <section className="qsn-section qsn-section--light">
           <div className="qsn-container">
             <div className="qsn-section__head">
-              <span className="qsn-eyebrow" style={{color:"#6366f1"}}>Les gens derrière Localizi</span>
+              <span className="qsn-eyebrow" style={{color:"#6366f1"}}>Les équipes derrière Localizi.tn</span>
               <h2 className="qsn-section__title">Notre équipe</h2>
             </div>
             <div className="qsn-team">
@@ -134,7 +134,7 @@ export default function QuiSommesNous() {
           <div className="qsn-container">
             <div className="qsn-cta__inner">
               <h2 className="qsn-cta__title">Prêt à trouver votre prochain bien ?</h2>
-              <p className="qsn-cta__sub">Des milliers d'annonces vérifiées vous attendent sur Localizi.</p>
+              <p className="qsn-cta__sub">Des milliers d'annonces vérifiées vous attendent sur Localizi.tn.</p>
               <div className="qsn-cta__btns">
                 <a href="/carte" className="qsn-btn qsn-btn--primary">Explorer la carte</a>
                 <a href="/contact" className="qsn-btn qsn-btn--outline">Nous contacter</a>

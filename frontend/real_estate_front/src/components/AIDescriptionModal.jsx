@@ -8,7 +8,7 @@ function genDescription(initialData, instruction) {
 
   const typeLabels = {
     appartement: "appartement", villa: "villa", terrain: "terrain",
-    bureau: "bureau", ferme: "ferme", local_commercial: "local commercial",
+    bureau: "bureau", ferme: "ferme agricole", ferme_agricole: "ferme agricole", local_commercial: "local commercial",
     maison: "maison", bord_eau: "bien en bord de mer",
   };
   const typeFr  = typeLabels[d.type_bien] || d.type_bien || "bien immobilier";
@@ -89,7 +89,7 @@ function genDescription(initialData, instruction) {
 
   /* §4 Fermeture */
   let closing = "";
-  if (d.prix) closing += `Affiché au prix de ${Number(d.prix).toLocaleString("fr-TN")} ${d.devise || "DT"}, `;
+  if (d.prix) closing += `Affiché au prix de ${Number(d.prix).toLocaleString("fr-TN")} ${d.devise || "TND"}, `;
   closing += ctx.invest
     ? "ce bien représente une opportunité d'investissement à ne pas manquer. Contactez-nous pour plus d'informations."
     : ctx.formel

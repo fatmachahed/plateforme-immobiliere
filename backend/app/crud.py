@@ -7,7 +7,7 @@ from app.utils.security import hash_password, verify_password
 # ===============================
 # UTILISATEUR
 # ===============================
-def create_user(db: Session, user: schemas.UserCreate):
+def create_user(db: Session, user: schemas.UserCreate, verify_token: str = None):
     hashed_pwd = hash_password(user.password)
     db_user = models.User(
         username=user.username,
@@ -15,7 +15,15 @@ def create_user(db: Session, user: schemas.UserCreate):
         hashed_password=hashed_pwd,
         role=user.role,
         phone_number=user.phone_number,
-        profile_picture=user.profile_picture
+        profile_picture=user.profile_picture,
+        gouvernorat=user.gouvernorat,
+        localite=user.localite,
+        adresse=getattr(user, "adresse", None),
+        matricule_fiscal=getattr(user, "matricule_fiscal", None),
+        registre_commerce=getattr(user, "registre_commerce", None),
+        secteur_partenaire=getattr(user, "secteur_partenaire", None),
+        is_verified=False,
+        email_verify_token=verify_token,
     )
     db.add(db_user)
     db.commit()
@@ -123,6 +131,34 @@ def _safe_set(obj, key, value):
         setattr(obj, key, value)
 
 
+# Codes gouvernorat → préfixe référence
+_GOV_CODES = {
+    "Tunis":"TN","Ariana":"AR","Ben Arous":"BA","Manouba":"MB",
+    "Nabeul":"NB","Zaghouan":"ZG","Bizerte":"BZ","Béja":"BJ","Beja":"BJ",
+    "Jendouba":"JD","Le Kef":"LK","Kef":"LK","Siliana":"SL",
+    "Sousse":"SS","Monastir":"MN","Mahdia":"MH","Sfax":"SF",
+    "Kairouan":"KR","Kasserine":"KS","Sidi Bouzid":"SB",
+    "Gabès":"GB","Gabes":"GB","Médenine":"MD","Medenine":"MD",
+    "Tataouine":"TT","Gafsa":"GF","Tozeur":"TZ","Kébili":"KB","Kebili":"KB",
+}
+
+def _generate_reference(db, gouvernorat_id: int) -> str:
+    """Génère une référence unique de type XX0001 basée sur le gouvernorat."""
+    gov = db.query(models.Gouvernorat).filter(models.Gouvernorat.id == gouvernorat_id).first()
+    prefix = "TN"
+    if gov:
+        prefix = _GOV_CODES.get(gov.nom, gov.nom[:2].upper())
+    # Compter les annonces existantes avec ce préfixe
+    count = db.query(models.Annonce).filter(
+        models.Annonce.reference.like(f"{prefix}%")
+    ).count()
+    ref = f"{prefix}{str(count + 1).zfill(4)}"
+    # S'assurer de l'unicité
+    while db.query(models.Annonce).filter(models.Annonce.reference == ref).first():
+        count += 1
+        ref = f"{prefix}{str(count + 1).zfill(4)}"
+    return ref
+
 def create_annonce(
     db: Session,
     annonce,
@@ -130,9 +166,20 @@ def create_annonce(
 ):
     data = annonce.dict()
     cg, ci, ml, ceq = _extract_caract(data)
+    chambres_coloc = data.pop("chambres_coloc", []) or []
+    # Convertir genre_coloc (liste) en chaîne CSV pour stockage
+    genre_coloc_raw = data.pop("genre_coloc", []) or []
+    if isinstance(genre_coloc_raw, list):
+        data["genre_coloc"] = ",".join(genre_coloc_raw) if genre_coloc_raw else None
     db_annonce = models.Annonce(**data, utilisateur_id=utilisateur_id)
     db.add(db_annonce)
     db.flush()
+    # Générer la référence après flush (on a l'id et le gouvernorat_id)
+    if not db_annonce.reference and db_annonce.gouvernorat_id:
+        try:
+            db_annonce.reference = _generate_reference(db, db_annonce.gouvernorat_id)
+        except Exception:
+            db_annonce.reference = f"AN{str(db_annonce.id).zfill(6)}"
     cg_obj = models.CaractereGeneral(annonce_id=db_annonce.id)
     db.add(cg_obj)
     for k, v in cg.items(): _safe_set(cg_obj, k, v)
@@ -143,6 +190,16 @@ def create_annonce(
     db.add(ce_obj)
     _safe_set(ce_obj, "cuisine_equipee", ceq)
     _safe_set(ce_obj, "machine_laver", ml)
+    # Chambres colocation
+    for ch in chambres_coloc:
+        ch_data = ch if isinstance(ch, dict) else ch.dict()
+        db.add(models.ChambreColocation(
+            annonce_id=db_annonce.id,
+            numero_chambre=ch_data.get("numero_chambre", 0),
+            capacite=ch_data.get("capacite", 1),
+            places_occupees=ch_data.get("places_occupees", 0),
+            prix_par_place=ch_data.get("prix_par_place", 0),
+        ))
     db.commit()
     db.refresh(db_annonce)
     return db_annonce
@@ -160,6 +217,15 @@ def update_annonce(db: Session, annonce_id: int, update_data: dict):
     if not db_annonce:
         return None
     cg, ci, ml, ceq = _extract_caract(update_data)
+    # Chambres colocation : supprimer les anciennes et recréer
+    chambres_coloc = update_data.pop("chambres_coloc", None)
+    # genre_coloc : convertir liste → CSV
+    genre_coloc_raw = update_data.pop("genre_coloc", None)
+    if genre_coloc_raw is not None:
+        if isinstance(genre_coloc_raw, list):
+            update_data["genre_coloc"] = ",".join(str(g) for g in genre_coloc_raw if g)
+        else:
+            update_data["genre_coloc"] = genre_coloc_raw
     # Mise à jour champs principaux
     for key, value in update_data.items():
         if hasattr(db_annonce, key):
@@ -183,6 +249,20 @@ def update_annonce(db: Session, annonce_id: int, update_data: dict):
         db.add(ce_obj)
     _safe_set(ce_obj, "cuisine_equipee", ceq)
     _safe_set(ce_obj, "machine_laver", ml)
+    # Chambres colocation : remplacer si fournies
+    if chambres_coloc is not None:
+        db.query(models.ChambreColocation).filter(
+            models.ChambreColocation.annonce_id == annonce_id
+        ).delete()
+        for i, ch in enumerate(chambres_coloc):
+            ch_data = ch if isinstance(ch, dict) else ch.dict()
+            db.add(models.ChambreColocation(
+                annonce_id=annonce_id,
+                numero_chambre=ch_data.get("numero_chambre", i + 1),
+                capacite=ch_data.get("capacite", 1),
+                places_occupees=ch_data.get("places_occupees", 0),
+                prix_par_place=ch_data.get("prix_par_place", 0),
+            ))
     db.commit()
     db.refresh(db_annonce)
     return db_annonce

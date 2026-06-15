@@ -12,7 +12,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 
 export default function Logo({ variant = "color", height = 44, noText = false, to = "/" }) {
-  const W = noText ? 44 : 180;
+  const W = noText ? 44 : 225;
   const H = 44;
 
   /* Couleurs selon variant */
@@ -67,6 +67,7 @@ export default function Logo({ variant = "color", height = 44, noText = false, t
         >
           <tspan fill={wordLeft}>LOCAL</tspan>
           <tspan fill={wordRight}>IZI</tspan>
+          <tspan fill={wordLeft}>.TN</tspan>
         </text>
       )}
     </svg>

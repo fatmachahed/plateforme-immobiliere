@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   Search, Menu, X, User, LogIn, UserPlus, LogOut,
   LayoutDashboard, Zap, ChevronDown, ChevronRight, Map, Heart, Globe,
-  Home, Key, Umbrella, Phone, PlusCircle, Bell
+  Home, Key, Umbrella, Phone, PlusCircle, Bell, Users, AlertTriangle
 } from "lucide-react";
 import API_URL from "../config";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -13,8 +13,8 @@ const NAV_LINK_KEYS = [
   { key: "nav_buy",      href: "/carte?categorie=vente",    icon: Home     },
   { key: "nav_rent",     href: "/carte?categorie=location", icon: Key      },
   { key: "nav_vacation", href: "/carte?categorie=vacances", icon: Umbrella },
-  { key: "nav_contact",  href: "/contact",                  icon: Phone    },
-  { key: "nav_about",    href: "/qui-sommes-nous",          icon: User     }, // Ajouté
+  { key: "nav_sell",     href: "/vendre",                   icon: PlusCircle, label: "Vente" },
+  { key: "nav_agents",   href: "/trouver-un-agent",         icon: Users,   label: "Trouver un agent" },
 ];
 
 export default function Navbar() {
@@ -27,6 +27,7 @@ export default function Navbar() {
   const profileRef = useRef(null);
   const location   = useLocation();
   const { lang, toggleLang, t } = useLanguage();
+  const [showPublishWarn, setShowPublishWarn] = useState(false);
   const navigate = useNavigate();
 
   const user = (() => {
@@ -107,7 +108,7 @@ export default function Navbar() {
                 to={n.href}
                 className={`lz-nav__link${isActive(n.href) ? " lz-nav__link--active" : ""}`}
               >
-                {t(n.key)}
+                {t(n.key) || n.label}
               </Link>
             ))}
             {/* Boost — hidden for now */}
@@ -120,19 +121,29 @@ export default function Navbar() {
               {searchOpen ? <X size={19} /> : <Search size={19} />}
             </button>
 
-            {/* Map — hidden on mobile */}
-            <Link to="/carte" className="lz-nav__icon-btn lz-nav__desktop-only">
-              <Map size={19} />
-            </Link>
+            {/* Map — si on est sur /carte : bascule vue carte via event, sinon navigue vers /carte */}
+            {location.pathname === "/carte" ? (
+              <button
+                className="lz-nav__icon-btn lz-nav__desktop-only"
+                title="Vue carte"
+                onClick={() => window.dispatchEvent(new CustomEvent("localizi-switch-to-carte"))}
+              >
+                <Map size={19} />
+              </button>
+            ) : (
+              <Link to="/carte" className="lz-nav__icon-btn lz-nav__desktop-only">
+                <Map size={19} />
+              </Link>
+            )}
 
             {/* Publish CTA — hidden on mobile (shown in drawer instead) */}
-            <Link to="/creer_annonce" className="btn btn-primary btn-sm btn-round lz-nav__desktop-only">
+            <button onClick={() => setShowPublishWarn(true)} className="btn btn-primary btn-sm btn-round lz-nav__desktop-only">
               + Publier annonce
-            </Link>
+            </button>
 
             {/* ── Bell notification (demandes de contact anonyme) ── */}
             {user && (
-              <Link to="/dashboard?tab=contacts" className="lz-nav__bell lz-nav__desktop-only" title="Demandes de contact">
+              <Link to="/compte?tab=contacts" className="lz-nav__bell lz-nav__desktop-only" title="Demandes de contact">
                 <Bell size={18}/>
                 {unreadCount > 0 && (
                   <span className="lz-nav__bell-badge">{unreadCount > 9 ? "9+" : unreadCount}</span>
@@ -162,11 +173,15 @@ export default function Navbar() {
                         <p className="lz-nav__dd-email">{user.email}</p>
                       </div>
                       <div className="lz-nav__dd-body">
-                        <Link to="/compte"      className="lz-nav__dd-item"><User size={14} /> {t("nav_profile")}</Link>
-                        <Link to="/dashboard"   className="lz-nav__dd-item"><LayoutDashboard size={14} /> {t("nav_listings")}</Link>
-                        <Link to="/favoris"     className="lz-nav__dd-item"><Heart size={14} /> {t("nav_favorites")}</Link>
+                        <Link to="/compte?tab=profil"    className="lz-nav__dd-item"><User size={14} /> Mon profil</Link>
+                        <Link to="/compte?tab=annonces"  className="lz-nav__dd-item"><LayoutDashboard size={14} /> Mes annonces</Link>
+                        <Link to="/compte?tab=contacts"  className="lz-nav__dd-item"><Bell size={14} /> Demandes reçues</Link>
+                        <Link to="/compte?tab=favoris"   className="lz-nav__dd-item"><Heart size={14} /> Mes favoris</Link>
+                        {user?.role === "agence" && (
+                          <Link to="/compte?tab=equipe"  className="lz-nav__dd-item"><Users size={14} /> Mon équipe</Link>
+                        )}
                         {user?.role === "admin" && (
-                          <Link to="/admin" className="lz-nav__dd-item lz-nav__dd-item--admin"><LayoutDashboard size={14} /> {t("nav_admin")}</Link>
+                          <Link to="/admin" className="lz-nav__dd-item lz-nav__dd-item--admin"><LayoutDashboard size={14} /> Admin</Link>
                         )}
                       </div>
                       <div className="lz-nav__dd-footer">
@@ -242,7 +257,7 @@ export default function Navbar() {
             {NAV_LINK_KEYS.map((n) => (
               <Link key={n.key} to={n.href}
                 className={`lz-mob-row${isActive(n.href) ? " lz-mob-row--active" : ""}`}>
-                <n.icon size={17}/> {t(n.key)}
+                <n.icon size={17}/> {t(n.key) || n.label}
               </Link>
             ))}
             <Link to="/carte"       className="lz-mob-row"><Map size={17}/> {t("nav_map") || "Carte"}</Link>
@@ -259,13 +274,17 @@ export default function Navbar() {
                 </button>
                 {mobAccOpen && (
                   <div className="lz-mob-submenu">
-                    <Link to="/compte"    className="lz-mob-subrow"><User size={14}/> {t("nav_profile")    || "Mon profil"}</Link>
-                    <Link to="/dashboard" className="lz-mob-subrow"><LayoutDashboard size={14}/> {t("nav_listings")  || "Mes annonces"}</Link>
-                    <Link to="/favoris"   className="lz-mob-subrow"><Heart size={14}/> {t("nav_favorites") || "Favoris"}</Link>
-                    {user?.role === "admin" && (
-                      <Link to="/admin"   className="lz-mob-subrow lz-mob-subrow--admin"><LayoutDashboard size={14}/> {t("nav_admin") || "Admin"}</Link>
+                    <Link to="/compte?tab=profil"   className="lz-mob-subrow"><User size={14}/> Mon profil</Link>
+                    <Link to="/compte?tab=annonces" className="lz-mob-subrow"><LayoutDashboard size={14}/> Mes annonces</Link>
+                    <Link to="/compte?tab=contacts" className="lz-mob-subrow"><Bell size={14}/> Demandes reçues</Link>
+                    <Link to="/compte?tab=favoris"  className="lz-mob-subrow"><Heart size={14}/> Mes favoris</Link>
+                    {user?.role === "agence" && (
+                      <Link to="/compte?tab=equipe" className="lz-mob-subrow"><Users size={14}/> Mon équipe</Link>
                     )}
-                    <Link to="/logout"    className="lz-mob-subrow lz-mob-subrow--danger"><LogOut size={14}/> {t("nav_logout") || "Déconnexion"}</Link>
+                    {user?.role === "admin" && (
+                      <Link to="/admin" className="lz-mob-subrow lz-mob-subrow--admin"><LayoutDashboard size={14}/> Admin</Link>
+                    )}
+                    <Link to="/logout" className="lz-mob-subrow lz-mob-subrow--danger"><LogOut size={14}/> {t("nav_logout") || "Déconnexion"}</Link>
                   </div>
                 )}
               </>
@@ -282,9 +301,9 @@ export default function Navbar() {
 
             {/* CTA — dernier élément */}
             <div className="lz-mob-cta">
-              <Link to="/creer_annonce" className="btn btn-primary btn-full lz-mob-cta__btn">
+              <button onClick={() => { setMobileOpen(false); setShowPublishWarn(true); }} className="btn btn-primary btn-full lz-mob-cta__btn">
                 <PlusCircle size={17}/> {t("nav_publish") || "Publier une annonce"}
-              </Link>
+              </button>
             </div>
 
           </div>
@@ -316,8 +335,8 @@ export default function Navbar() {
         /* ── Desktop links ── */
         .lz-nav__links { display: flex; align-items: center; gap: 2px; flex: 1; }
         .lz-nav__link {
-          padding: 7px 13px; border-radius: var(--r-sm);
-          font-size: 14px; font-weight: 600; color: var(--text-secondary);
+          padding: 8px 16px; border-radius: var(--r-sm);
+          font-size: 17px; font-weight: 700; color: var(--text-secondary);
           transition: all .15s;
         }
         .lz-nav__link:hover, .lz-nav__link--active { color: var(--primary); background: var(--primary-light); }
@@ -506,6 +525,78 @@ export default function Navbar() {
         }
         .animate-fadeInDown { animation: fadeInDown .18s ease both; }
       `}</style>
+
+      {/* ── Popup avertissement publication ── */}
+      {showPublishWarn && (
+        <div style={{
+          position:"fixed", inset:0, zIndex:99999,
+          background:"rgba(15,23,42,.55)", backdropFilter:"blur(4px)",
+          display:"flex", alignItems:"center", justifyContent:"center", padding:20,
+        }} onClick={() => setShowPublishWarn(false)}>
+          <div style={{
+            background:"#fff", borderRadius:20, padding:"28px 32px 0",
+            maxWidth:580, width:"100%", maxHeight:"90vh",
+            display:"flex", flexDirection:"column",
+            boxShadow:"0 24px 64px rgba(0,0,0,.18)",
+          }} onClick={e => e.stopPropagation()}>
+
+            {/* Header — style comparateur */}
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:28,flexShrink:0}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <Logo variant="color" height={28} to={null}/>
+                <div>
+                  <div style={{fontSize:16,fontWeight:800,color:"#0f172a"}}>Publier une annonce</div>
+                  <div style={{fontSize:12,color:"#94a3b8",marginTop:2}}>Informations importantes avant de continuer</div>
+                </div>
+              </div>
+              <button onClick={() => setShowPublishWarn(false)} style={{
+                background:"#f1f5f9", border:"none", cursor:"pointer", borderRadius:10,
+                width:34, height:34, display:"flex", alignItems:"center", justifyContent:"center",
+                color:"#64748b", flexShrink:0,
+              }}>
+                <X size={18} strokeWidth={2.5}/>
+              </button>
+            </div>
+
+            {/* Corps */}
+            <div style={{flex:1, overflowY:"auto", paddingBottom:32}}>
+              {/* Icône monochrome centrée */}
+              <div style={{display:"flex",justifyContent:"center",marginBottom:22}}>
+                <div style={{width:72,height:72,borderRadius:"50%",background:"#f1f5f9",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  <AlertTriangle size={36} color="#475569" strokeWidth={1.8}/>
+                </div>
+              </div>
+
+              <h2 style={{fontSize:24,fontWeight:900,color:"#0f172a",margin:"0 0 14px",textAlign:"center",lineHeight:1.2}}>
+                Avant de publier
+              </h2>
+              <p style={{fontSize:15,color:"#374151",lineHeight:1.75,margin:"0 0 28px",textAlign:"center"}}>
+                En publiant votre annonce sur Localizi.tn, la carte affichera la <strong>position exacte</strong> du bien immobilier.
+                Assurez-vous d'être le propriétaire ou le mandataire exclusif du bien.
+                Vous pouvez déplacer la position sur la carte si nécessaire.
+              </p>
+
+              <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
+                <button onClick={() => setShowPublishWarn(false)} style={{
+                  padding:"13px 28px", borderRadius:12, border:"1.5px solid #e2e8f0",
+                  background:"#fff", fontSize:15, fontWeight:600, color:"#374151",
+                  cursor:"pointer", minWidth:130,
+                }}>
+                  Annuler
+                </button>
+                <button onClick={() => { setShowPublishWarn(false); navigate("/creer_annonce"); }} style={{
+                  padding:"13px 36px", borderRadius:12, border:"none",
+                  background:"#0f172a", color:"#fff",
+                  fontSize:16, fontWeight:800, cursor:"pointer", minWidth:150,
+                  letterSpacing:".01em",
+                }}>
+                  Je publie
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
