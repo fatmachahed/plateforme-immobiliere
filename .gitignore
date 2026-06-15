@@ -39,3 +39,8 @@ Thumbs.db
 # ── Divers projet ─────────────────────────────────────────────
 structure.txt
 vercel.json
+# Scripts ponctuels / artefacts de dev
+reset_*.py
+fix_*.py
+migrate_*.py
+backend/migrate_*.py
