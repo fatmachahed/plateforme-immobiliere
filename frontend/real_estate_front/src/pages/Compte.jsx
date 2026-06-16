@@ -136,7 +136,7 @@ export default function Compte() {
   const [remettreCarte, setRemettreCarte] = useState(null); // { id, titre, categorie }
   const [search,     setSearch]         = useState("");
   const [typeFilter, setTypeFilter]     = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("En cours");
   const [dateFilter, setDateFilter]     = useState("");
   const [dateStart,  setDateStart]      = useState("");
   const [dateEnd,    setDateEnd]        = useState("");
@@ -800,7 +800,7 @@ export default function Compte() {
                   </select>
                   <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} style={{flex:1,minWidth:0,border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 8px",fontSize:12.5,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}>
                     <option value="">Tous statuts</option>
-                    <option value="En cours">En cours</option>
+                    <option value="En cours">Approuvée (en cours)</option>
                     <option value="En attente">En attente</option>
                     <option value="Refusée">Refusée</option>
                     <option value="Vendu">Déjà vendu</option>
