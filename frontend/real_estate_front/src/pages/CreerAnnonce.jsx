@@ -1293,7 +1293,7 @@ export const CreateListingForm = ({ editId = null }) => {
         }
 
         toast("Annonce mise à jour !");
-        setTimeout(() => { window.location.href = "/compte?tab=annonces"; }, 1200);
+        setTimeout(() => { window.location.href = "/compte?tab=annonces&statut=en_attente"; }, 1200);
         return;
       }
 
@@ -1372,7 +1372,7 @@ export const CreateListingForm = ({ editId = null }) => {
 
       clearFormStorage();
       toast("Annonce enregistrée — approuvée dans les délais de 24h !");
-      setTimeout(() => { window.location.href = "/compte?tab=annonces"; }, 1200);
+      setTimeout(() => { window.location.href = "/compte?tab=annonces&statut=en_attente"; }, 1200);
     } catch (err) {
       if (err.message !== "session_expired") {
         console.error("[CreerAnnonce] Erreur soumission:", err);

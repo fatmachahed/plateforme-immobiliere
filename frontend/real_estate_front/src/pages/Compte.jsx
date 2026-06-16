@@ -136,7 +136,9 @@ export default function Compte() {
   const [remettreCarte, setRemettreCarte] = useState(null); // { id, titre, categorie }
   const [search,     setSearch]         = useState("");
   const [typeFilter, setTypeFilter]     = useState("");
-  const [statusFilter, setStatusFilter] = useState("En cours");
+  const _statutParam = searchParams.get("statut");
+  const _statusInit = _statutParam === "en_attente" ? "En attente" : "En cours";
+  const [statusFilter, setStatusFilter] = useState(_statusInit);
   const [dateFilter, setDateFilter]     = useState("");
   const [dateStart,  setDateStart]      = useState("");
   const [dateEnd,    setDateEnd]        = useState("");
