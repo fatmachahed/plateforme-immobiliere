@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+﻿import React, { useState, useEffect, useRef, useCallback } from "react";
 import ReactDOM from "react-dom";
 import API_URL, { fmtDevise, convertPrice, fmtPriceApprox } from '../config';
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -17,6 +17,8 @@ import useLocalisation from "../hooks/useLocalisation";
 import { getDelegations } from "../api/localisation.api";
 import AnnonceModal from "../components/AnnonceModal";
 import "leaflet/dist/leaflet.css";
+import "leaflet.markercluster/dist/MarkerCluster.css";
+import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 
 /* -------------------------------------------------------------
    POINT-IN-POLYGON – ray casting algorithm
@@ -592,6 +594,7 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
   const mapRef          = useRef(null);
   const leafletRef      = useRef(null);   /* ? Leaflet stock� ici d�s son chargement */
   const markersRef      = useRef({});
+  const clusterGroupRef = useRef(null); /* MarkerClusterGroup leaflet.markercluster */
   const geoLayerRef     = useRef(null); /* legacy – plus utilisé mais conservé pour éviter les erreurs */
   const govInteractiveRef = useRef(null); /* couche interactive gouvernorats */
   const delInteractiveRef = useRef(null); /* couche interactive délégations */
@@ -635,208 +638,118 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
   }, [centerTarget]);
 
 
-  const drawPins = useCallback((L, map, props, active) => {
-    Object.values(markersRef.current).forEach((m) => m.remove());
+  const drawPins = useCallback(async (L, map, props, active) => {
+    // Supprimer l'ancien cluster group
+    if (clusterGroupRef.current) {
+      clusterGroupRef.current.clearLayers();
+      map.removeLayer(clusterGroupRef.current);
+      clusterGroupRef.current = null;
+    }
     markersRef.current = {};
 
-    // Helper: add a single pin with hover popup
-    const addSinglePin = (p) => {
-      const isA    = active === p.id;
-      const catCls = p.categorie ? `pin-dot--${p.categorie}` : "pin-dot--std";
-      const cls    = `pin-dot ${catCls}${isA ? " pin-dot--active" : ""}`;
-      const icon = L.divIcon({
-        className: "",
-        html: `<div class="${cls}"></div>`,
-        iconSize: [null, null], iconAnchor: [10, 10],
-      });
-      const m = L.marker([p.lat, p.lng], { icon }).addTo(map);
-      /* Clic sur pin simple → ouvre la HoverCard (pas le modal directement) */
-      m.on("click", (e) => {
-        L.DomEvent.stopPropagation(e);
-        const px = e.containerPoint.x;
-        const py = e.containerPoint.y;
-        onPinHoverRef.current?.({ ...p, _px: px, _py: py });
-      });
+    await import("leaflet.markercluster");
 
-      markersRef.current[p.id] = m;
+    const catBgMap = { vente:"#166534", location:"#1e40af", vacances:"#854d0e" };
+    const catFgMap = { vente:"#fff",    location:"#fff",    vacances:"#fff"    };
+
+    /* Cluster group geographique avec icone personnalisee */
+    const clusterGroup = L.markerClusterGroup({
+      maxClusterRadius: 60,
+      disableClusteringAtZoom: 16,
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false,
+      zoomToBoundsOnClick: true,
+      iconCreateFunction: (cluster) => {
+        const count = cluster.getChildCount();
+        const size  = count < 10 ? 38 : count < 50 ? 46 : 54;
+        const fs    = count < 10 ? 13 : count < 50 ? 14 : 16;
+        return L.divIcon({
+          className: "",
+          html: `<div style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;background:#1e40af;color:#fff;border-radius:50%;border:3px solid #fff;box-shadow:0 3px 12px rgba(30,64,175,.45);font-family:system-ui,sans-serif;font-size:${fs}px;font-weight:800;cursor:pointer;">${count}</div>`,
+          iconSize: [size, size],
+          iconAnchor: [size/2, size/2],
+        });
+      },
+    });
+
+    /* Popup pour biens empiles (meme coordonnee exacte) */
+    const bindStackedPopup = (marker, group) => {
+      const count = group.length;
+      let currentIdx = 0;
+      const buildPopup = () => {
+        const pin = group[currentIdx];
+        const img = (pin.images && pin.images[0]) || "";
+        const bg2 = catBgMap[pin.categorie] || "#f1f5f9";
+        const cc  = catFgMap[pin.categorie] || "#475569";
+        const dev = fmtDevise(pin.devise);
+        const rid = pin._realId || pin.id.toString().replace("api_","");
+        return `<div style="width:460px;font-family:'Inter',system-ui,sans-serif;overflow:hidden;border-radius:2px;cursor:pointer;" onclick="window.location.href='/annonce/${rid}'">
+          <div style="position:relative;height:190px;overflow:hidden;background:#f1f5f9;">
+            ${img ? `<img src="${img}" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.src='https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=70'"/>` : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:48px;color:#cbd5e1;">&#127968;</div>`}
+          </div>
+          <div style="padding:14px 16px 12px;border-top:2px solid ${bg2};">
+            <div style="font-size:14px;font-weight:800;color:#0f172a;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${pin.titre || "Bien immobilier"}</div>
+            <div style="font-size:19px;font-weight:900;color:#0f172a;margin-bottom:8px;">${(pin.prix||0).toLocaleString("fr-TN")} <span style="font-size:12px;font-weight:600;color:#64748b;">${dev}</span></div>
+            <div style="display:flex;gap:12px;font-size:12px;color:#475569;margin-bottom:6px;flex-wrap:wrap;">
+              ${pin.area ? `<span>&#9634; ${pin.area} m&sup2;</span>` : ""}
+              ${pin.beds != null ? `<span>&#128716; ${pin.beds} ch.</span>` : ""}
+              ${pin.baths != null ? `<span>&#128703; ${pin.baths}</span>` : ""}
+            </div>
+            ${pin.delegation ? `<div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">&#128205; ${pin.delegation}${pin.gouvernorat ? ` &middot; ${pin.gouvernorat}` : ""}</div>` : ""}
+            <div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:6px;padding-top:6px;border-top:1px solid #f1f5f9;font-size:13px;font-weight:800;color:${bg2};">Voir d&eacute;tails &#8594;</div>
+            ${count > 1 ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px solid #f1f5f9;">
+              <button onclick="event.stopPropagation();window._stPrev_${group[0].id}()" style="padding:6px 14px;border:1.5px solid #e5e7eb;border-radius:4px;background:#f8fafc;cursor:pointer;font-size:13px;font-weight:700;color:#374151;font-family:inherit;">&#8592; Pr&eacute;c&eacute;dent</button>
+              <span style="font-size:12px;color:#94a3b8;font-weight:600;">Bien ${currentIdx+1} sur ${count}</span>
+              <button onclick="event.stopPropagation();window._stNext_${group[0].id}()" style="padding:6px 14px;border:none;border-radius:4px;background:${bg2};cursor:pointer;font-size:13px;font-weight:700;color:${cc};font-family:inherit;">Suivant &#8594;</button>
+            </div>` : ""}
+          </div>
+        </div>`;
+      };
+      const gid = group[0].id;
+      window[`_stPrev_${gid}`] = () => { currentIdx=(currentIdx-1+count)%count; marker.setPopupContent(buildPopup()); };
+      window[`_stNext_${gid}`] = () => { currentIdx=(currentIdx+1)%count;       marker.setPopupContent(buildPopup()); };
+      marker.bindPopup(buildPopup(), { maxWidth:480, closeButton:true, className:"cluster-popup", offset:L.point(0,-8), autoPan:true, autoPanPadding:[20,20] });
+      marker.on("click", (e) => { L.DomEvent.stopPropagation(e); onPinHoverRef.current?.(null); });
     };
 
-    // Group pins by exact lat/lng for clustering
+    /* Grouper par coordonnees exactes */
     const grouped = {};
     props.forEach(p => {
       if (!p.lat || !p.lng) return;
-      const key = `${p.lat}_${p.lng}`;
+      const key = `${(+p.lat).toFixed(6)}_${(+p.lng).toFixed(6)}`;
       if (!grouped[key]) grouped[key] = [];
       grouped[key].push(p);
     });
 
     Object.values(grouped).forEach(group => {
+      const isA = group.some(p => p.id === active);
       if (group.length === 1) {
-        addSinglePin(group[0]);
+        const p      = group[0];
+        const catCls = p.categorie ? `pin-dot--${p.categorie}` : "pin-dot--std";
+        const cls    = `pin-dot ${catCls}${isA ? " pin-dot--active" : ""}`;
+        const icon   = L.divIcon({ className:"", html:`<div class="${cls}"></div>`, iconSize:[null,null], iconAnchor:[10,10] });
+        const m      = L.marker([p.lat, p.lng], { icon });
+        m.on("click", (e) => { L.DomEvent.stopPropagation(e); onPinHoverRef.current?.({ ...p, _px: e.containerPoint.x, _py: e.containerPoint.y }); });
+        markersRef.current[p.id] = m;
+        clusterGroup.addLayer(m);
       } else {
-        // Cluster pin � couleur selon catégorie dominante
-        const cluster = group[0];
-        const count = group.length;
-        // Catégorie dominante (plus fr�quente dans le groupe)
+        const rep = group[0];
+        const cnt = group.length;
         const catCount = {};
         group.forEach(p => { catCount[p.categorie||"std"] = (catCount[p.categorie||"std"]||0)+1; });
-        const dominantCat = Object.entries(catCount).sort((a,b)=>b[1]-a[1])[0][0];
-        const clusterColor = dominantCat === "vente" ? "#166534"
-          : dominantCat === "location" ? "#1e40af"
-          : dominantCat === "vacances" ? "#d97706"
-          : "#9b1c2e";
-        const clusterHtml = `
-          <div style="
-            display:inline-flex; align-items:center; gap:6px;
-            background:${clusterColor}; color:#fff;
-            border-radius:20px; padding:7px 14px 7px 10px;
-            border:2.5px solid #fff;
-            box-shadow:0 4px 14px rgba(0,0,0,.35);
-            white-space:nowrap; cursor:pointer;
-            font-family:system-ui,sans-serif;
-          ">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="2" y="2" width="20" height="22" rx="1" fill="rgba(255,255,255,0.2)"/>
-              <line x1="2" y1="8" x2="22" y2="8"/>
-              <line x1="9" y1="22" x2="9" y2="8"/>
-              <rect x="5" y="4" width="2" height="2" fill="white" stroke="none"/>
-              <rect x="12" y="4" width="2" height="2" fill="white" stroke="none"/>
-              <rect x="5" y="11" width="2" height="2" fill="white" stroke="none"/>
-              <rect x="12" y="11" width="2" height="2" fill="white" stroke="none"/>
-              <rect x="5" y="15" width="2" height="2" fill="white" stroke="none"/>
-              <rect x="12" y="15" width="2" height="2" fill="white" stroke="none"/>
-            </svg>
-            <span style="font-size:13px;font-weight:800;line-height:1;">${count}</span>
-          </div>
-        `;
-        const clusterIcon = L.divIcon({
-          className: '',
-          html: clusterHtml,
-          iconSize: null,
-          iconAnchor: [0, 0],
-        });
-
-        const marker = L.marker([cluster.lat, cluster.lng], { icon: clusterIcon }).addTo(map);
-
-        /* -- Popup cluster : image GAUCHE, texte DROITE, navigation stable -- */
-        let currentIdx = 0;
-        /* Même palette que les badges des cartes à droite */
-        const catBgMap = { vente:"#166534", location:"#1e40af", vacances:"#854d0e" };
-        const catFgMap = { vente:"#fff", location:"#fff", vacances:"#fff" };
-        const catColor = { vente:"#166534", location:"#1e40af", vacances:"#854d0e" };
-        const catLabel = { vente:"ACHAT", location:"LOCATION", vacances:"VACANCES" };
-
-        const buildPopup = () => {
-          const pin = group[currentIdx];
-          const img = (pin.images && pin.images[0]) || "";
-          const cc  = catFgMap[pin.categorie] || "#475569";
-          const bg2 = catBgMap[pin.categorie] || "#f1f5f9";
-          const cl  = catLabel[pin.categorie] ?? null;
-          const dev = fmtDevise(pin.devise);
-          return `
-            <div style="
-              width:480px; font-family:'Inter',system-ui,sans-serif;
-              overflow:hidden; border-radius:2px; cursor:pointer;
-            " onclick="window.location.href='/annonce/${pin._realId || pin.id.toString().replace('api_','')}'">
-              <!-- Image pleine largeur en haut -->
-              <div style="position:relative;height:200px;overflow:hidden;background:#f1f5f9;">
-                ${img
-                  ? `<img src="${img}" style="width:100%;height:100%;object-fit:cover;display:block;"
-                       onerror="this.src='https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=70'"/>`
-                  : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:56px;color:#cbd5e1;">??</div>`
-                }
-                <!-- badge catégorie supprim� -->
-                <!-- Compteur biens supprim� � affich� en bas dans la navigation -->
-              </div>
-
-              <!-- Corps texte -->
-              <div style="padding:16px 18px 14px;border-top:2px solid ${bg2};">
-                <!-- Titre -->
-                <div style="
-                    font-size:15px;font-weight:800;color:#0f172a;
-                    margin-bottom:6px;line-height:1.3;
-                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-                  ">${pin.titre || "Bien immobilier"}</div>
-
-                <!-- Prix -->
-                <div style="font-size:20px;font-weight:900;color:#0f172a;margin-bottom:10px;letter-spacing:-.02em;">
-                  ${(pin.prix||0).toLocaleString("fr-TN")}
-                  <span style="font-size:13px;font-weight:600;color:#64748b;margin-left:5px;">${dev}</span>
-                </div>
-
-                <!-- Specs -->
-                <div style="display:flex;gap:14px;font-size:12.5px;color:#475569;margin-bottom:8px;flex-wrap:wrap;">
-                  ${pin.area  ? `<span style="display:flex;align-items:center;gap:4px;">&#x25A6; ${pin.area} m&sup2;</span>` : ""}
-                  ${pin.beds  != null ? `<span>&#x1F6CF; ${pin.beds} ch.</span>` : ""}
-                  ${pin.baths != null ? `<span>&#x1F6BF; ${pin.baths}</span>` : ""}
-                </div>
-
-                <!-- Localisation -->
-                ${pin.delegation ? `
-                  <div style="font-size:11.5px;color:#94a3b8;display:flex;align-items:center;gap:4px;margin-bottom:6px;">
-                    &#x1F4CD; ${pin.delegation}${pin.gouvernorat ? ` &middot; ${pin.gouvernorat}` : ""}
-                  </div>
-                ` : ""}
-                <!-- Lien voir le détail � texte color� fond blanc -->
-                <div style="
-                    display:flex;align-items:center;justify-content:center;gap:4px;
-                    margin-top:8px;padding-top:8px;border-top:1px solid #f1f5f9;
-                    font-size:13px;font-weight:800;color:${bg2};
-                    letter-spacing:.01em;">Voir d&eacute;tails <span style="font-size:15px;">&#x2192;</span></div>
-
-                <!-- Navigation entre biens -->
-                ${count > 1 ? `
-                  <div style="
-                    display:flex;align-items:center;justify-content:space-between;
-                    margin-top:14px;padding-top:12px;border-top:1px solid #f1f5f9;
-                  ">
-                    <button onclick="event.stopPropagation();window._clPrev_${cluster.lat.toFixed(5).replace('.','_')}()"
-                      style="
-                        display:flex;align-items:center;gap:5px;
-                        padding:7px 16px;border:1.5px solid #e5e7eb;border-radius:4px;
-                        background:#f8fafc;cursor:pointer;
-                        font-size:13px;font-weight:700;color:#374151;
-                        font-family:inherit;
-                      ">&#8592; Précédent</button>
-                    <span style="font-size:12px;color:#94a3b8;font-weight:600;">
-                      Bien ${currentIdx+1} sur ${count}
-                    </span>
-                    <button onclick="event.stopPropagation();window._clNext_${cluster.lat.toFixed(5).replace('.','_')}()"
-                      style="
-                        display:flex;align-items:center;gap:5px;
-                        padding:7px 16px;border:none;border-radius:4px;
-                        background:${bg2};cursor:pointer;
-                        font-size:13px;font-weight:700;color:${cc};
-                        font-family:inherit;
-                      ">Suivant &#8594;</button>
-                  </div>
-                ` : ""}
-              </div>
-            </div>
-          `;
-        };
-
-        const clKey = cluster.lat.toFixed(5).replace('.','_');
-        window[`_clPrev_${clKey}`] = () => { currentIdx=(currentIdx-1+count)%count; marker.setPopupContent(buildPopup()); };
-        window[`_clNext_${clKey}`] = () => { currentIdx=(currentIdx+1)%count;       marker.setPopupContent(buildPopup()); };
-
-        marker.bindPopup(buildPopup(), {
-          maxWidth:500, closeButton:true, className:"cluster-popup",
-          offset:L.point(0,-8), autoPan:true, autoPanPadding:[20,20],
-        });
-        /* Cluster : ouvre le grand popup au hover (pas au clic) ------------------
-           Le popup reste ouvert quand le curseur se d&eacute;place vers les boutons Prev/Next.
-           Il se ferme seulement quand le curseur quitte &agrave; la fois le marker ET le popup. */
-        /* Clic sur cluster → ouvre le popup (pas le modal) */
-        marker.on("click", (e) => {
-          L.DomEvent.stopPropagation(e);
-          onPinHoverRef.current?.(null);
-        });
-
-        // Store under a cluster key
-        markersRef.current[`cluster_${cluster.lat}_${cluster.lng}`] = marker;
+        const dom = Object.entries(catCount).sort((a,b)=>b[1]-a[1])[0][0];
+        const col = dom === "vente" ? "#166534" : dom === "location" ? "#1e40af" : dom === "vacances" ? "#d97706" : "#9b1c2e";
+        const pillHtml = `<div style="display:inline-flex;align-items:center;gap:5px;background:${col};color:#fff;border-radius:20px;padding:6px 13px 6px 9px;border:2.5px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,.35);white-space:nowrap;cursor:pointer;font-family:system-ui,sans-serif;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><rect x="2" y="2" width="20" height="22" rx="1" fill="rgba(255,255,255,.2)"/><line x1="2" y1="8" x2="22" y2="8"/><line x1="9" y1="22" x2="9" y2="8"/></svg><span style="font-size:13px;font-weight:800;line-height:1;">${cnt}</span></div>`;
+        const pillIcon = L.divIcon({ className:"", html:pillHtml, iconSize:null, iconAnchor:[0,0] });
+        const m = L.marker([rep.lat, rep.lng], { icon: pillIcon });
+        bindStackedPopup(m, group);
+        markersRef.current[`stack_${rep.lat}_${rep.lng}`] = m;
+        clusterGroup.addLayer(m);
       }
     });
+
+    clusterGroupRef.current = clusterGroup;
+    map.addLayer(clusterGroup);
   }, [onPinClick]);
 
   /* init */
