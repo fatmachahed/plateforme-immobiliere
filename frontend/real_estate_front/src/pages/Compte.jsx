@@ -30,7 +30,7 @@ const TYPE_LABEL_MAP = {
   ferme:"Ferme agricole", ferme_agricole:"Ferme agricole", local_commercial:"Local commercial",
   garage_parking:"Garage / Parking", depot_stockage:"Dépôt de stockage", immobiliers_divers:"Immobiliers divers",
 };
-const STATUS_LABEL_MAP = { approuvee:"Approuvée", en_attente:"En attente", refusee:"Refusée" };
+const STATUS_LABEL_MAP = { approuvee:"En cours", en_attente:"En attente", refusee:"Refusée", vendue:"Vendu", louee:"Loué" };
 
 function typeBienLabel(t) { return TYPE_LABEL_MAP[t] || t; }
 function categorieLabel(c) { return CAT_FR_LABEL[c] || c; }
@@ -132,7 +132,8 @@ export default function Compte() {
   const [annonceStats,  setAnnonceStats]  = useState({});
   const [refreshingId,  setRefreshingId]  = useState(null);
   const [delItem,    setDelItem]        = useState(null);
-  const [soldConfirm, setSoldConfirm]   = useState(null);
+  const [soldConfirm, setSoldConfirm]   = useState(null); // { id, label:'vendu'|'loue', titre }
+  const [remettreCarte, setRemettreCarte] = useState(null); // { id, titre, categorie }
   const [search,     setSearch]         = useState("");
   const [typeFilter, setTypeFilter]     = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -345,6 +346,32 @@ export default function Compte() {
       if(!res.ok) throw new Error();
       setAnnonces(prev=>prev.filter(a=>a.id!==id)); setDelItem(null); toast("Annonce supprimée.");
     } catch { toast("Erreur suppression.","error"); }
+  };
+
+  const handleStatutPublication = async (id, statut) => {
+    try {
+      const res = await fetch(`${API_URL}/annonces/${id}/statut-publication`, {
+        method:"PATCH", headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},
+        body: JSON.stringify({ statut }),
+      });
+      if (!res.ok) throw new Error();
+      setAnnonces(prev => prev.map(a => a.id===id ? {...a, status: statut} : a));
+      setSoldConfirm(null);
+      toast(statut==="vendue" ? "Annonce marquée comme vendue." : "Annonce marquée comme louée.");
+    } catch { toast("Erreur.","error"); }
+  };
+
+  const handleRemettreSurCarte = async (id) => {
+    try {
+      const res = await fetch(`${API_URL}/annonces/${id}/statut-publication`, {
+        method:"PATCH", headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},
+        body: JSON.stringify({ statut: "approuvee" }),
+      });
+      if (!res.ok) throw new Error();
+      setAnnonces(prev => prev.map(a => a.id===id ? {...a, status:"approuvee"} : a));
+      setRemettreCarte(null);
+      toast("Annonce remise en ligne sur la carte.");
+    } catch { toast("Erreur.","error"); }
   };
 
   const updateAnnonceAccompagnement = async (id, accompagnement, agence_id=undefined) => {
@@ -772,7 +799,12 @@ export default function Compte() {
                     {[["appartement","Appartement"],["villa_maison","Villa/Maison"],["immeuble","Immeuble"],["terrain","Terrain"],["local_commercial","Local commercial"],["bureau","Bureau"],["ferme_agricole","Ferme agricole"],["garage_parking","Garage / Parking"],["depot_stockage","Dépôt de stockage"],["immobiliers_divers","Immobiliers divers"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
                   </select>
                   <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} style={{flex:1,minWidth:0,border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 8px",fontSize:12.5,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}>
-                    <option value="">Tous statuts</option><option value="En attente">En attente</option><option value="Approuvée">Approuvée</option><option value="Refusée">Refusée</option>
+                    <option value="">Tous statuts</option>
+                    <option value="En cours">En cours</option>
+                    <option value="En attente">En attente</option>
+                    <option value="Refusée">Refusée</option>
+                    <option value="Vendu">Déjà vendu</option>
+                    <option value="Loué">Déjà loué</option>
                   </select>
                   <select value={dateFilter} onChange={e=>{setDateFilter(e.target.value);setDateStart("");setDateEnd("");}} style={{flex:1,minWidth:0,border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 8px",fontSize:12.5,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}>
                     <option value="">Toutes dates</option><option value="Aujourd'hui">Aujourd'hui</option><option value="Cette semaine">Cette semaine</option><option value="Ce mois">Ce mois</option>
@@ -797,10 +829,17 @@ export default function Compte() {
                     const rawImg=a.image_principale||prop?.image_principale||null;
                     const imgSrc=rawImg?(rawImg.startsWith("http")?rawImg:`${API_URL}${rawImg}`):null;
                     return(
-                      <div key={a.id} className="db-card" style={{flexWrap:"wrap",rowGap:10,padding:0,overflow:"hidden"}}>
+                      <div key={a.id} className="db-card" style={{flexWrap:"wrap",rowGap:10,padding:0,overflow:"hidden",opacity:a.status==="vendue"||a.status==="louee"?0.82:1}}>
                         {/* Image collée aux bords gauche/haut/bas */}
-                        <div style={{width:100,alignSelf:"stretch",flexShrink:0,background:"#e5e7eb",overflow:"hidden",borderRadius:0}}>
+                        <div style={{width:100,alignSelf:"stretch",flexShrink:0,background:"#e5e7eb",overflow:"hidden",borderRadius:0,position:"relative"}}>
                           {imgSrc?<img src={imgSrc} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} loading="lazy"/>:<div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center"}}><Home size={26} style={{color:"#94a3b8"}}/></div>}
+                          {(a.status==="vendue"||a.status==="louee")&&(
+                            <div style={{position:"absolute",inset:0,background:"rgba(15,23,42,0.55)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                              <span style={{background:a.status==="vendue"?"#166534":"#1e40af",color:"#fff",fontSize:10,fontWeight:800,padding:"3px 7px",borderRadius:6,letterSpacing:".04em",textTransform:"uppercase"}}>
+                                {a.status==="vendue"?"Vendu":"Loué"}
+                              </span>
+                            </div>
+                          )}
                         </div>
                         {/* Contenu avec padding rétabli */}
                         <div style={{flex:1,display:"flex",alignItems:"center",gap:18,padding:"16px 18px",flexWrap:"wrap",rowGap:10,minWidth:0}}>
@@ -856,9 +895,20 @@ export default function Compte() {
                               {agencesList.map(ag=><option key={ag.id} value={ag.id}>{ag.nom||ag.email}</option>)}
                             </select>
                           </div>
-                          <button onClick={()=>{const label=a.categorie==="vente"?"vendu":"loué"; setSoldConfirm({id:a.id,label,titre:a.titre});}} style={{padding:"6px 12px",borderRadius:8,border:"1.5px solid #fbbf24",background:"#fffbeb",color:"#92400e",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
-                            {a.categorie==="vente"?"Déjà vendu ?":"Déjà loué ?"}
-                          </button>
+                          {/* Bouton vendu/loué — visible seulement si annonce en cours ou en attente */}
+                          {(a.status==="approuvee"||a.status==="en_attente")&&(
+                            <button onClick={()=>setSoldConfirm({id:a.id, label:a.categorie==="vente"?"vendu":"loue", titre:a.titre, categorie:a.categorie})}
+                              style={{padding:"6px 12px",borderRadius:8,border:"1.5px solid #fbbf24",background:"#fffbeb",color:"#92400e",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
+                              {a.categorie==="vente"?"Déjà vendu ?":"Déjà loué ?"}
+                            </button>
+                          )}
+                          {/* Bouton remettre sur la carte — location/vacances déjà loué */}
+                          {a.status==="louee"&&(a.categorie==="location"||a.categorie==="vacances")&&(
+                            <button onClick={()=>setRemettreCarte({id:a.id,titre:a.titre,categorie:a.categorie})}
+                              style={{padding:"6px 12px",borderRadius:8,border:"1.5px solid #6366f1",background:"#eef2ff",color:"#4338ca",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
+                              Remettre sur la carte
+                            </button>
+                          )}
                           <button className="db-action db-action--del" style={{alignSelf:"center"}} title="Supprimer" onClick={()=>setDelItem(a)}><Trash2 size={16}/></button>
                         </div>
                         </div>{/* fin wrapper contenu */}
@@ -1209,16 +1259,74 @@ export default function Compte() {
         </div>
       )}
 
-      {/* ── Confirm sold ── */}
+      {/* ── Popup : marquer vendu / loué ── */}
       {soldConfirm&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}}>
-          <div style={{background:"#fff",borderRadius:16,padding:"32px 28px",maxWidth:400,width:"90%",boxShadow:"0 20px 60px rgba(0,0,0,.25)",fontFamily:"'Inter',system-ui,sans-serif"}}>
-            <div style={{fontSize:32,textAlign:"center",marginBottom:12}}>{soldConfirm.label==="vendu"?"🏡":"🔑"}</div>
-            <h3 style={{fontSize:18,fontWeight:800,color:"#0f172a",textAlign:"center",marginBottom:8}}>Bien {soldConfirm.label} !</h3>
-            <p style={{fontSize:14,color:"#64748b",textAlign:"center",marginBottom:24,lineHeight:1.6}}><strong>"{soldConfirm.titre}"</strong><br/>En confirmant, cette annonce sera <strong>supprimée définitivement</strong>.<br/>Êtes-vous sûr(e) ?</p>
-            <div style={{display:"flex",gap:12,justifyContent:"center"}}>
-              <button onClick={()=>setSoldConfirm(null)} style={{padding:"10px 22px",borderRadius:9,border:"1.5px solid #e5e7eb",background:"#fff",color:"#374151",fontWeight:600,cursor:"pointer",fontSize:14,fontFamily:"inherit"}}>Annuler</button>
-              <button onClick={async()=>{try{const res=await fetch(`${API_URL}/annonces/${soldConfirm.id}`,{method:"DELETE",headers:{Authorization:`Bearer ${token}`}});if(!res.ok) throw new Error();setAnnonces(prev=>prev.filter(a=>a.id!==soldConfirm.id));setSoldConfirm(null);toast("Annonce supprimée.");}catch{toast("Erreur.","error");setSoldConfirm(null);}}} style={{padding:"10px 22px",borderRadius:9,border:"none",background:"#dc2626",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14,fontFamily:"inherit"}}>Confirmer la suppression</button>
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={()=>setSoldConfirm(null)}>
+          <div style={{background:"#fff",borderRadius:20,padding:"36px 32px",maxWidth:420,width:"92%",boxShadow:"0 24px 64px rgba(0,0,0,.22)",fontFamily:"'Inter',system-ui,sans-serif"}} onClick={e=>e.stopPropagation()}>
+            {/* Logo / icône monochrome */}
+            <div style={{display:"flex",justifyContent:"center",marginBottom:20}}>
+              <div style={{width:56,height:56,borderRadius:16,background:"#f1f5f9",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                {soldConfirm.label==="vendu"
+                  ? <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0f172a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                  : <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0f172a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                }
+              </div>
+            </div>
+            <h3 style={{fontSize:19,fontWeight:800,color:"#0f172a",textAlign:"center",marginBottom:8}}>
+              {soldConfirm.label==="vendu" ? "Bien vendu ?" : "Bien loué ?"}
+            </h3>
+            <p style={{fontSize:14,color:"#64748b",textAlign:"center",marginBottom:28,lineHeight:1.6}}>
+              <strong style={{color:"#0f172a"}}>"{soldConfirm.titre}"</strong><br/>
+              L'annonce restera visible dans votre tableau de bord avec le statut <strong>{soldConfirm.label==="vendu"?"Vendu":"Loué"}</strong>.<br/>
+              Elle sera retirée de la carte publique.
+            </p>
+            <div style={{display:"flex",gap:10,justifyContent:"center"}}>
+              <button onClick={()=>setSoldConfirm(null)} style={{flex:1,padding:"11px 0",borderRadius:10,border:"1.5px solid #e5e7eb",background:"#fff",color:"#374151",fontWeight:600,cursor:"pointer",fontSize:14,fontFamily:"inherit"}}>
+                Annuler
+              </button>
+              <button onClick={()=>handleStatutPublication(soldConfirm.id, soldConfirm.label==="vendu"?"vendue":"louee")}
+                style={{flex:1,padding:"11px 0",borderRadius:10,border:"none",background:"#0f172a",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14,fontFamily:"inherit"}}>
+                Confirmer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Popup : remettre sur la carte ── */}
+      {remettreCarte&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={()=>setRemettreCarte(null)}>
+          <div style={{background:"#fff",borderRadius:20,padding:"36px 32px",maxWidth:420,width:"92%",boxShadow:"0 24px 64px rgba(0,0,0,.22)",fontFamily:"'Inter',system-ui,sans-serif"}} onClick={e=>e.stopPropagation()}>
+            {/* Logo monochrome */}
+            <div style={{display:"flex",justifyContent:"center",marginBottom:20}}>
+              <div style={{width:56,height:56,borderRadius:16,background:"#f1f5f9",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0f172a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+                </svg>
+              </div>
+            </div>
+            <h3 style={{fontSize:19,fontWeight:800,color:"#0f172a",textAlign:"center",marginBottom:8}}>
+              Remettre sur la carte
+            </h3>
+            <p style={{fontSize:14,color:"#64748b",textAlign:"center",marginBottom:28,lineHeight:1.6}}>
+              <strong style={{color:"#0f172a"}}>"{remettreCarte.titre}"</strong><br/>
+              Souhaitez-vous modifier l'annonce avant de la republier, ou la remettre directement en ligne ?
+            </p>
+            <div style={{display:"flex",gap:10,justifyContent:"center"}}>
+              <button onClick={()=>{setRemettreCarte(null); window.location.href=`/modifier_annonce/${remettreCarte.id}`;}}
+                style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:8,padding:"16px 12px",borderRadius:12,border:"1.5px solid #e5e7eb",background:"#f8fafc",color:"#374151",fontWeight:600,cursor:"pointer",fontSize:13,fontFamily:"inherit"}}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+                Modifier
+              </button>
+              <button onClick={()=>handleRemettreSurCarte(remettreCarte.id)}
+                style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:8,padding:"16px 12px",borderRadius:12,border:"none",background:"#0f172a",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13,fontFamily:"inherit"}}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+                </svg>
+                Mettre sur la carte
+              </button>
             </div>
           </div>
         </div>

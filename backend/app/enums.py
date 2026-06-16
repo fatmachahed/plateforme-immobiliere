@@ -43,6 +43,8 @@ class StatusEnum(str, enum.Enum):
     en_attente = "en_attente"
     approuvee = "approuvee"
     refusee = "refusee"
+    vendue = "vendue"
+    louee = "louee"
 
 class TypeAppartementEnum(str, enum.Enum):
     studio = "studio"

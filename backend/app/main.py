@@ -117,6 +117,9 @@ with engine.connect() as conn:
             created_at TIMESTAMP DEFAULT NOW()
         );
         """,
+        # Ajout statuts vendue/louee dans l'enum PostgreSQL
+        "ALTER TYPE statusenum ADD VALUE IF NOT EXISTS 'vendue';",
+        "ALTER TYPE statusenum ADD VALUE IF NOT EXISTS 'louee';",
     ]
     for sql in migrations:
         try:

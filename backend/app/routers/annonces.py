@@ -476,6 +476,31 @@ def update_accompagnement(
 
 
 # ===============================
+# STATUT PUBLICATION — vendue / louee / remettre en ligne
+# ===============================
+@router.patch("/{annonce_id}/statut-publication")
+def set_statut_publication(
+    annonce_id: int,
+    body: dict,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    from app.enums import StatusEnum
+    annonce = db.query(models.Annonce).filter(models.Annonce.id == annonce_id).first()
+    if not annonce:
+        raise HTTPException(status_code=404, detail="Annonce non trouvée")
+    if annonce.utilisateur_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Action interdite")
+    nouveau_statut = body.get("statut")
+    if nouveau_statut not in [s.value for s in StatusEnum]:
+        raise HTTPException(status_code=400, detail="Statut invalide")
+    annonce.status = StatusEnum(nouveau_statut)
+    db.commit()
+    db.refresh(annonce)
+    return {"id": annonce_id, "status": annonce.status}
+
+
+# ===============================
 # REFRESH — remonte l'annonce en tête de liste
 # ===============================
 @router.patch("/{annonce_id}/refresh")
