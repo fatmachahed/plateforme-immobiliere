@@ -602,6 +602,7 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
   const onGovSelectRef  = useRef(onGovSelect);
   const onDelSelectRef  = useRef(onDelSelect);
   const selectedDelRef  = useRef(selectedDel);
+  const drawModeRef     = useRef(drawMode);
   const poiLayersRef    = useRef({ schools: [], mosques: [], faculties: [], grandSurfaces: [] });
   const prevGov         = useRef(null);
   const hoverTimerRef   = useRef(null);
@@ -616,6 +617,7 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
   useEffect(() => { onGovSelectRef.current  = onGovSelect;   }, [onGovSelect]);
   useEffect(() => { onDelSelectRef.current  = onDelSelect;   }, [onDelSelect]);
   useEffect(() => { selectedDelRef.current  = selectedDel;   }, [selectedDel]);
+  useEffect(() => { drawModeRef.current     = drawMode;      }, [drawMode]);
 
   /* -- Zoom automatique quand un filtre de localisation est sélectionné -- */
   const lastCenterQuery = useRef(null);
@@ -729,7 +731,7 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
         const cls    = `pin-dot ${catCls}${isA ? " pin-dot--active" : ""}`;
         const icon   = L.divIcon({ className:"", html:`<div class="${cls}"></div>`, iconSize:[null,null], iconAnchor:[10,10] });
         const m      = L.marker([p.lat, p.lng], { icon });
-        m.on("click", (e) => { L.DomEvent.stopPropagation(e); onPinHoverRef.current?.({ ...p, _px: e.containerPoint.x, _py: e.containerPoint.y }); });
+        m.on("click", (e) => { if (drawModeRef.current) return; L.DomEvent.stopPropagation(e); onPinHoverRef.current?.({ ...p, _px: e.containerPoint.x, _py: e.containerPoint.y }); });
         markersRef.current[p.id] = m;
         clusterGroup.addLayer(m);
       } else {
@@ -770,8 +772,8 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
         { attribution:"� OpenStreetMap � CARTO", maxZoom:19 }).addTo(map);
       L.control.zoom({ position:"bottomright" }).addTo(map);
       setTimeout(()=>map.invalidateSize(), 80);
-      /* Clic sur le fond de la carte → ferme la HoverCard */
-      map.on("click", () => onPinHoverRef.current?.(null));
+      /* Clic sur le fond de la carte → ferme la HoverCard (pas en mode dessin) */
+      map.on("click", () => { if (!drawModeRef.current) onPinHoverRef.current?.(null); });
       drawPins(L, map, properties, activeId);
 
       /* Couche interactive gouvernorats : fichier statique, chargement instantané */
@@ -790,15 +792,17 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
             const normStr = _n;
             layer.on({
               mouseover: () => {
-                /* Toujours actif — ne pas hover le gov déjà sélectionné */
+                if (drawModeRef.current) return;
                 if (normStr(selectedGovRef.current) === normStr(govNom)) return;
                 layer.setStyle(styleHover);
               },
               mouseout: () => {
+                if (drawModeRef.current) return;
                 if (normStr(selectedGovRef.current) === normStr(govNom)) return;
                 layer.setStyle(styleDefault);
               },
               click: () => {
+                if (drawModeRef.current) return;
                 govLayer.eachLayer(l => {
                   const n = l.feature?.properties?.govNom || "";
                   l.setStyle(normStr(n) === normStr(govNom) ? styleSelected : styleDefault);
@@ -848,21 +852,20 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
             };
             layer.on({
               mouseover: () => {
-                /* Phase 1 : pas de gov sélectionné → délégations inactives */
+                if (drawModeRef.current) return;
                 if (!sameGov()) return;
-                /* Utilise matchDel pour comparer nom GADM et nom API (alias inclus) */
                 if (matchDel(delNom, selectedDelRef.current)) return;
                 layer.setStyle(sdHov);
               },
               mouseout: () => {
+                if (drawModeRef.current) return;
                 if (!sameGov()) return;
-                /* Utilise matchDel pour comparer nom GADM et nom API (alias inclus) */
                 if (matchDel(delNom, selectedDelRef.current)) return;
                 layer.setStyle(sdDef);
               },
               click: (e) => {
                 L.DomEvent.stopPropagation(e);
-                /* Phase 1 ou mauvais gouvernorat : ignorer */
+                if (drawModeRef.current) return;
                 if (!sameGov()) return;
                 delLayer.eachLayer(l => {
                   const dn = l.feature?.properties?.delNom || "";
