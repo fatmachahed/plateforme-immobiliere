@@ -51,6 +51,7 @@ def google_login(body: GoogleTokenBody, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Email Google non vérifié.")
 
     user = db.query(models.User).filter(models.User.email == email).first()
+    is_new = user is None
 
     if not user:
         # Créer le compte automatiquement
@@ -71,6 +72,7 @@ def google_login(body: GoogleTokenBody, db: Session = Depends(get_db)):
             hashed_password=hash_password(random_password()),
             role=RoleEnum.particulier,
             profile_picture=info.get("picture"),
+            objectif="autre",
         )
         db.add(user)
         db.commit()
@@ -81,6 +83,7 @@ def google_login(body: GoogleTokenBody, db: Session = Depends(get_db)):
     return {
         "access_token": access_token,
         "token_type": "bearer",
+        "is_new": is_new,
         "user": {
             "id": user.id,
             "username": user.username,

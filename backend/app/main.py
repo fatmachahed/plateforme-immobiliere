@@ -15,6 +15,15 @@ async def security_headers(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://accounts.google.com; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: blob: https:; "
+        "connect-src 'self' https://nominatim.openstreetmap.org https://translate.googleapis.com https://api.mymemory.translated.net; "
+        "frame-src https://accounts.google.com"
+    )
     if request.url.scheme == "https":
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
@@ -60,6 +69,7 @@ with engine.connect() as conn:
         "ALTER TABLE annonces ADD COLUMN IF NOT EXISTS duree_valeur VARCHAR;",
         "ALTER TABLE annonces ADD COLUMN IF NOT EXISTS capacite_accueil INTEGER;",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS secteur_partenaire VARCHAR;",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS metier_artisan VARCHAR;",
         "ALTER TABLE caractere_general ADD COLUMN IF NOT EXISTS animaux_admis BOOLEAN DEFAULT FALSE;",
         "ALTER TABLE annonces ADD COLUMN IF NOT EXISTS accompagnement_agence_id INTEGER REFERENCES users(id) ON DELETE SET NULL;",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS gouvernorat VARCHAR;",
@@ -153,6 +163,7 @@ from fastapi import Depends
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional
+import html as _html  # pour échapper les inputs utilisateur dans les emails
 from app import models
 
 class ContactBody(BaseModel):
@@ -177,11 +188,16 @@ def submit_contact(body: ContactBody, db: Session = Depends(get_db)):
     db.refresh(msg)
 
     # Envoi email à l'admin si SMTP configuré
-    admin_email = os.environ.get("ADMIN_EMAIL", os.environ.get("SMTP_FROM", "xpertiseimmo@gmail.com"))
+    admin_email = os.environ.get("ADMIN_EMAIL", os.environ.get("SMTP_FROM", "localizi.tn@gmail.com"))
     if admin_email:
         from app.email_utils import send_email
         import base64, uuid, mimetypes
-        sujet_label = body.sujet or "Message de contact"
+        # Échapper tous les inputs utilisateur pour éviter l'injection HTML dans l'email
+        safe_nom      = _html.escape(body.nom      or "")
+        safe_email    = _html.escape(body.email    or "")
+        safe_tel      = _html.escape(body.telephone or "")
+        safe_message  = _html.escape(body.message  or "")
+        sujet_label   = _html.escape(body.sujet    or "Message de contact")
 
         # Décoder l'image base64 en bytes pour pièce jointe
         import base64 as b64mod, mimetypes
@@ -208,22 +224,22 @@ def submit_contact(body: ContactBody, db: Session = Depends(get_db)):
           <div style="background:#f8fafc;padding:24px 28px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 10px 10px">
             <table style="width:100%;border-collapse:collapse;font-size:14px">
               <tr><td style="padding:8px 0;color:#64748b;width:110px">De :</td>
-                  <td style="padding:8px 0;font-weight:600">{body.nom}</td></tr>
+                  <td style="padding:8px 0;font-weight:600">{safe_nom}</td></tr>
               <tr><td style="padding:8px 0;color:#64748b">Email :</td>
-                  <td style="padding:8px 0">{body.email or "—"}</td></tr>
+                  <td style="padding:8px 0">{safe_email or "—"}</td></tr>
               <tr><td style="padding:8px 0;color:#64748b">Téléphone :</td>
-                  <td style="padding:8px 0">{body.telephone or "—"}</td></tr>
+                  <td style="padding:8px 0">{safe_tel or "—"}</td></tr>
               <tr><td style="padding:8px 0;color:#64748b">Sujet :</td>
                   <td style="padding:8px 0;font-weight:600">{sujet_label}</td></tr>
             </table>
             <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0"/>
-            <p style="font-size:14px;line-height:1.7;white-space:pre-wrap">{body.message or ""}</p>
+            <p style="font-size:14px;line-height:1.7;white-space:pre-wrap">{safe_message}</p>
             {image_note_html}
             <p style="font-size:11px;color:#94a3b8;margin-top:20px">Message #{msg.id} reçu via Localizi</p>
           </div>
         </div>
         """
-        send_email(admin_email, f"[Localizi] {sujet_label} — {body.nom}", html,
+        send_email(admin_email, f"[Localizi] {sujet_label} — {safe_nom}", html,
                    attachment=image_attachment)
 
         # Accusé de réception à l'expéditeur
@@ -245,33 +261,10 @@ def submit_contact(body: ContactBody, db: Session = Depends(get_db)):
 
     return {"detail": "Message enregistré avec succès.", "id": msg.id}
 
-# Routes de test CORS
-@app.get("/")
-def root():
-    return {"message": "API avec CORS activé!"}
-
-
-
-@app.get("/test-cors")
-def test_cors():
-    return {"message": "CORS fonctionne!", "status": "ok"}
-
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
-# 6. Gestionnaire OPTIONS global
-@app.options("/{path:path}")
-async def options_handler(path: str):
-    return JSONResponse(
-        content={"message": "Preflight OK"},
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "*",
-            "Access-Control-Allow-Headers": "*",
-        }
-    )
-
-# 7. Lancer Uvicorn
+# Lancer Uvicorn
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

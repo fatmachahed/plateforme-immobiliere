@@ -235,6 +235,8 @@ function PropCard({ p, delay = 0, onOpen }) {
   const isNew = p.date_creation && (Date.now() - new Date(p.date_creation).getTime()) < 7 * 24 * 3600 * 1000;
   const realId = String(p.id).replace("api_", "");
   const images = p.images && p.images.length > 0 ? p.images : [p.image];
+  /* p.prix peut être un nombre OU une chaîne déjà formatée ("850 000") → on extrait l'entier */
+  const prixNum = typeof p.prix === "number" ? p.prix : Number(String(p.prix ?? "").replace(/[^0-9]/g, ""));
   const [imgIdx,    setImgIdx]  = useState(0);
   const [prevImg,   setPrevImg] = useState(null);
   const [slideDir,  setSlideDir]= useState(1);
@@ -261,7 +263,10 @@ function PropCard({ p, delay = 0, onOpen }) {
   const [isFav, setIsFav] = useState(() => {
     try { return JSON.parse(localStorage.getItem("localizi_favs")||"[]").includes(Number(realId)||realId); } catch { return false; }
   });
-  const prixM2 = p.area > 0 ? Math.round(Number(p.prix) / p.area) : null;
+  const prixM2 = (p.area > 0 && prixNum > 0) ? (() => {
+    const v = Math.ceil((prixNum / p.area) * 10) / 10;
+    return v > 0 ? v.toLocaleString("fr-TN", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : null;
+  })() : null;
 
   const toggleFav = (e) => {
     e.stopPropagation();
@@ -296,6 +301,11 @@ function PropCard({ p, delay = 0, onOpen }) {
           zIndex:2,
         }}/>
         {isNew && <span className="hp-card__new" style={{zIndex:5}}>NOUVEAU</span>}
+        {p.spotlight && (
+          <span style={{position:"absolute",bottom:8,left:8,background:"rgba(234,88,12,.92)",color:"#fff",borderRadius:7,padding:"3px 8px",fontSize:10,fontWeight:800,display:"flex",alignItems:"center",gap:3,backdropFilter:"blur(4px)",zIndex:5,letterSpacing:".03em"}}>
+            ⭐ À ne pas manquer
+          </span>
+        )}
 
         {/* Label Colocation — haut gauche */}
         {p.colocation && (
@@ -355,8 +365,8 @@ function PropCard({ p, delay = 0, onOpen }) {
         </div>
         <div className="hp-card__footer">
           <div>
-            <div className="hp-card__price">{isNaN(Number(p.prix)) || !p.prix ? "Prix sur demande" : Number(p.prix).toLocaleString("fr-TN")} {!isNaN(Number(p.prix)) && p.prix ? <span className="hp-card__devise">{p.devise}</span> : null}</div>
-            {prixM2 && !isNaN(prixM2) && <div className="hp-card__price-m2">{prixM2.toLocaleString("fr-TN")} {p.devise}/m²</div>}
+            <div className="hp-card__price">{!prixNum ? "Prix sur demande" : prixNum.toLocaleString("fr-TN")} {prixNum ? <span className="hp-card__devise">{p.devise}</span> : null}</div>
+            {prixM2 && <div className="hp-card__price-m2">{prixM2} {p.devise}/m²</div>}
           </div>
           <span className="hp-card__cta">Voir <ArrowRight size={13} /></span>
         </div>
@@ -486,6 +496,7 @@ export default function HomePage() {
             type:             a.type_bien || "",
             categorie:        a.categorie || "vente",
             boost:            a.boost_level || 0,
+            spotlight:        a.spotlight_active || false,
             date_creation:    a.date_creation || null,
             duree_type:       a.duree_type   || null,
             duree_valeur:     a.duree_valeur || null,
@@ -582,14 +593,16 @@ export default function HomePage() {
               ))}
             </div>
             <form className="hp-search__box" onSubmit={handleSearch}>
-              <MapPin size={18} className="hp-search__pin" />
-              <input
-                type="text"
-                placeholder="Ville, quartier…"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="hp-search__input"
-              />
+              <div className="hp-search__field">
+                <MapPin size={18} className="hp-search__pin" />
+                <input
+                  type="text"
+                  placeholder="Ville, quartier…"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="hp-search__input"
+                />
+              </div>
               <select
                 value={selectedGov}
                 onChange={e => setSelectedGov(e.target.value)}
@@ -661,10 +674,11 @@ export default function HomePage() {
           src={statsIllustration}
           alt=""
           aria-hidden="true"
+          className="hp-stats-illustration"
           style={{
-            position:"absolute", right:"-120px", bottom:"0px",
+            position:"absolute", right:"-160px", bottom:"0px",
             zIndex:2,
-            height:"75%", width:"auto",
+            height:"58%", width:"auto",
             filter:"drop-shadow(0 16px 48px rgba(99,102,241,.35))",
             pointerEvents:"none", userSelect:"none",
           }}
@@ -711,7 +725,7 @@ export default function HomePage() {
         <div className="container">
           <div className="hp-map-cta__inner">
             <div className="hp-map-cta__text">
-              <span className="section-eyebrow" style={{background:"rgba(99,102,241,.18)",color:"#a5b4fc",border:"1px solid rgba(99,102,241,.35)"}}>Carte interactive</span>
+              <span className="section-eyebrow" style={{display:"inline-block",background:"rgba(99,102,241,.18)",color:"#a5b4fc",border:"1px solid rgba(99,102,241,.35)",borderRadius:20,padding:"6px 16px"}}>Carte interactive</span>
               <h2 style={{color:"#fff",fontSize:"clamp(30px,3.5vw,46px)",marginTop:16,marginBottom:18,fontWeight:800,lineHeight:1.1}}>
                 Explorez tous les biens<br/>directement sur la carte
               </h2>
@@ -798,7 +812,7 @@ export default function HomePage() {
       {modalId && <AnnonceModal annonceId={modalId} onClose={() => setModalId(null)} />}
 
       {/* ── Bouton flottant Aide & FAQ ── */}
-      <Link to="/faq" style={{
+      <Link to="/faq" className="hp-faq-fab" style={{
         position:"fixed", bottom:28, right:28, zIndex:9999,
         display:"flex", alignItems:"center", gap:10,
         background:"#fff", color:"#0a0a0a",
@@ -1010,6 +1024,7 @@ export default function HomePage() {
           padding: 10px 10px 10px 22px;
           box-shadow: 0 20px 60px rgba(0,0,0,.4);
         }
+        .hp-search__field { display: flex; align-items: center; flex: 1; min-width: 0; }
         .hp-search__pin { color: var(--primary); margin-right: 14px; flex-shrink: 0; }
         .hp-search__input {
           flex: 1; border: none; outline: none;
@@ -1270,23 +1285,126 @@ export default function HomePage() {
           .hp-map-cta__inner{ grid-template-columns: 1fr; gap: 36px; }
           .hp-gov__grid     { grid-template-columns: repeat(4, 1fr); }
         }
+        /* Masquer l'illustration (dame) dès la tablette/mobile */
+        @media (max-width: 1100px) {
+          .hp-stats-illustration { display: none !important; }
+        }
         @media (max-width: 700px) {
-          .hp-hero { min-height: 100vh; }
-          .hp-search__box { flex-direction: column; padding: 12px; gap: 8px; border-radius: 0 12px 12px 12px; }
+          /* Hero height réduite */
+          .hp-hero { min-height: 78vh; }
+          /* Titre centré et plus grand */
+          .hp-hero__title { font-size: 30px !important; line-height: 1.2 !important; margin-bottom: 10px !important; text-align: center !important; }
+          .hp-hero__highlight { font-size: inherit !important; }
+          .hp-hero__sub { font-size: 13px !important; margin-bottom: 20px !important; text-align: center !important; }
+          /* Champ recherche : centré */
+          .hp-hero__content { text-align: center !important; padding: 28px 16px 60px !important; }
+          .hp-search__box { flex-direction: column; padding: 10px 12px; gap: 8px; border-radius: 0 12px 12px 12px; }
+          .hp-search__field { align-items: center !important; }
+          .hp-search__pin { width: 15px !important; height: 15px !important; margin-right: 10px !important; flex-shrink: 0 !important; }
+          .hp-search__input { font-size: 14px !important; }
+          .hp-search__input::placeholder { }
           .hp-search__btn { width: 100%; justify-content: center; }
           .hp-search__gov-select { border-left: none; border-top: 1px solid #e5e7eb; max-width: 100%; width: 100%; padding: 8px 12px; }
           .hp-hero__floats { display: none; }
-          .hp-recent__grid { grid-template-columns: repeat(2, 1fr); }
-          .hp-types__grid  { grid-template-columns: 1fr 1fr; }
+          /* "Populaire" et tags plus petits */
+          .hp-search__hint { margin-top: 12px !important; gap: 6px !important; }
+          .hp-search__hint span { font-size: 11px !important; }
+          .hp-search__tag { font-size: 11px !important; padding: 4px 10px !important; }
+          /* Tabs de recherche */
+          .hp-search__tab { font-size: 12px !important; padding: 8px 14px !important; }
+          /* Régions populaires : nom plus petit */
+          .hp-gov-card__name { font-size: 11.5px !important; line-height: 1.1 !important; }
+          .hp-gov-card__cta { font-size: 10px !important; }
+          /* Annonces récentes : 1 par ligne, écriture réduite, bouton compact & centré */
+          .hp-recent__grid { grid-template-columns: 1fr; }
+          .hp-recent .section-header p { font-size: 13px !important; }
+          .hp-recent .hp-card__title    { font-size: 14.5px; }
+          .hp-recent .hp-card__location { font-size: 12.5px; }
+          .hp-recent .hp-card__specs span { font-size: 12px; }
+          .hp-recent .hp-card__price    { font-size: 17px; }
+          .hp-recent .hp-card__cta      { font-size: 12.5px; }
+          .hp-recent .btn-lg { padding: 10px 22px !important; font-size: 13.5px !important; }
+          /* Types : 2 par ligne, écriture plus compacte */
+          .hp-types__grid  { grid-template-columns: 1fr 1fr; gap: 10px; }
+          .hp-type-card        { padding: 16px 10px; }
+          .hp-type-card__icon  { width: 48px; height: 48px; margin-bottom: 10px; }
+          .hp-type-card__icon svg { width: 26px; height: 26px; }
+          .hp-type-card__label { font-size: 13px; margin: 6px 0 8px; }
+          .hp-type-card__link  { font-size: 12.5px; }
           .hp-features__grid { grid-template-columns: 1fr; }
           .hp-stats__grid { grid-template-columns: 1fr 1fr; gap: 20px; }
           .hp-stat__val { font-size: 32px; }
+          /* Gouvernorats : 3 par ligne, cartes plus petites/basses, texte plus petit */
           .hp-gov__grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+          .hp-gov-card { aspect-ratio: 1 / 1; border-radius: 10px; }
+          .hp-gov-card__content { padding: 8px 8px 7px; }
+          .hp-gov-card__name { font-size: 13.5px; line-height: 1.15; }
+          /* Bouton FAQ flottant : à droite, plus petit */
+          .hp-faq-fab {
+            bottom: 16px !important; right: 16px !important; left: auto !important;
+            padding: 9px 14px !important; font-size: 12.5px !important;
+            border-width: 2px !important;
+          }
+          .hp-faq-fab svg { width: 15px !important; height: 15px !important; }
+
+          /* Sections "Carte interactive" + "Accompagnement pro" : texte & boutons plus petits */
+          .hp-map-cta__text h2,
+          .hp-agents-section__content h2 { font-size: 24px !important; }
+          .hp-map-cta__text p,
+          .hp-agents-section__content p { font-size: 15px !important; }
+          .hp-map-cta__checks li,
+          .hp-agents-section__list span { font-size: 14px !important; }
+          .hp-map-cta__text a,
+          .hp-agents-section__content a {
+            padding: 11px 20px !important; font-size: 14px !important;
+          }
+          .hp-map-cta__text a svg,
+          .hp-agents-section__content a svg { width: 16px !important; height: 16px !important; }
+
+          /* "Pourquoi Localizi.tn" : icône + titre sur une ligne, description dessous */
+          .hp-feature {
+            display: grid; grid-template-columns: auto 1fr;
+            align-items: center; column-gap: 12px; row-gap: 8px;
+            padding: 18px 16px;
+          }
+          .hp-feature__icon { margin-bottom: 0; width: 42px; height: 42px; }
+          .hp-feature h4 { margin-bottom: 0; font-size: 16px; }
+          .hp-feature p  { grid-column: 1 / -1; font-size: 14px; }
+
+          /* Accompagnement pro : padding réduit → puces décalées à gauche, une seule ligne chacune */
+          .hp-agents-section__content { padding: 44px 16px !important; }
+          .hp-agents-section__list li { gap: 8px; }
+          .hp-agents-section__list li svg { width: 16px !important; height: 16px !important; }
+          .hp-agents-section__list span { font-size: 12.5px !important; line-height: 1.3; white-space: nowrap; }
+
+          /* Les deux boutons (Trouver un agent / En savoir plus) sur la même ligne */
+          .hp-agents-section__content > div:last-child { flex-wrap: nowrap !important; gap: 10px !important; }
+          .hp-agents-section__content > div:last-child a {
+            flex: 1; justify-content: center; white-space: nowrap;
+            padding: 11px 10px !important; font-size: 13px !important;
+          }
+
+          /* Section "Besoin d'aide ?" : icône + titre sur une ligne, contenu dessous */
+          .hp-help-card {
+            display: grid !important;
+            grid-template-columns: auto 1fr;
+            align-items: center; column-gap: 12px; row-gap: 6px;
+            padding: 16px 16px;
+          }
+          .hp-help-card__icon { grid-column: 1; grid-row: 1; width: 30px !important; height: 30px !important; border-radius: 8px !important; align-self: center; }
+          .hp-help-card__icon svg { width: 17px !important; height: 17px !important; }
+          .hp-help-card__body { display: contents; }
+          .hp-help-card__body h3 { grid-column: 2; grid-row: 1; font-size: 16px !important; margin-bottom: 0 !important; align-self: center; }
+          .hp-help-card__body p  { grid-column: 1 / -1; grid-row: 2; font-size: 13px !important; }
+          .hp-help-card__cta { grid-column: 1 / -1; grid-row: 3; margin-left: 0; font-size: 13.5px; }
         }
         @media (max-width: 420px) {
-          .hp-types__grid { grid-template-columns: 1fr; }
+          /* Types : on garde 2 par ligne même sur petit écran */
+          .hp-types__grid { grid-template-columns: 1fr 1fr; }
           .hp-stats__grid { grid-template-columns: 1fr; }
-          .hp-gov__grid   { grid-template-columns: repeat(2, 1fr); }
+          /* Gouvernorats : on garde 3 par ligne même sur petit écran */
+          .hp-gov__grid   { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+          .hp-gov-card__name { font-size: 12.5px; }
         }
 
         /* ── Badge NOUVEAU ── */
@@ -1545,7 +1663,8 @@ export default function HomePage() {
           position: relative; z-index: 1;
         }
         @media (max-width: 1100px) {
-          .hp-stats-grid { grid-template-columns: repeat(3, 1fr); border-radius: 20px; }
+          /* plus d'illustration → on annule le décalage prévu pour elle */
+          .hp-stats-grid { grid-template-columns: repeat(3, 1fr); border-radius: 20px; margin-left: 0 !important; }
           .hp-stat-card:nth-child(3) { border-right: none; }
           .hp-stat-card:nth-child(4),
           .hp-stat-card:nth-child(5),
@@ -1556,6 +1675,14 @@ export default function HomePage() {
           .hp-stat-card:nth-child(2n) { border-right: none; }
           .hp-stat-card:nth-child(n+3) { border-top: 1px solid rgba(255,255,255,.07); }
           .hp-stat-card { padding: 36px 18px 32px; }
+        }
+        /* Mobile : section chiffres plus compacte (moins d'espace vide) */
+        @media (max-width: 700px) {
+          .hp-stats-section { padding: 44px 0 48px; }
+          .hp-stats-headline { margin-bottom: 24px; }
+          .hp-stats-title { font-size: 21px; line-height: 1.2; }
+          .hp-stats-desc { font-size: 13.5px; max-width: 320px; }
+          .hp-stat-card { padding: 26px 16px 24px; }
         }
       `}</style>
     </div>

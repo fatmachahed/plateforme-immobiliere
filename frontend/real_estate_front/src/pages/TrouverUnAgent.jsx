@@ -168,9 +168,16 @@ export default function TrouverUnAgent() {
   const [filterDelNom, setFilterDelNom]   = useState("");
 
   useEffect(() => {
-    fetch(`${API_URL}/users/agencies/public`)
-      .then(r => r.ok ? r.json() : [])
-      .then(data => { setProfessionals(Array.isArray(data) ? data : []); setLoading(false); })
+    Promise.all([
+      fetch(`${API_URL}/users/agencies/public`).then(r => r.ok ? r.json() : []),
+      fetch(`${API_URL}/users/agents/public`).then(r => r.ok ? r.json() : []),
+    ])
+      .then(([agencies, agents]) => {
+        const agencyIds = new Set((agencies || []).map(a => a.id));
+        const agentsOnly = (agents || []).filter(a => !agencyIds.has(a.id));
+        setProfessionals([...(agencies || []), ...agentsOnly]);
+        setLoading(false);
+      })
       .catch(() => setLoading(false));
 
     fetch(`${API_URL}/localisation/gouvernorats`)
@@ -211,10 +218,11 @@ export default function TrouverUnAgent() {
       }}>
         <div style={{position:"absolute",inset:0,opacity:.04,backgroundImage:"radial-gradient(rgba(255,255,255,1) 1px,transparent 1px)",backgroundSize:"28px 28px",pointerEvents:"none"}}/>
 
-        {/* Image décorative — positionnée à droite, z-index élevé */}
+        {/* Image décorative — masquée sur mobile */}
         <img
           src="/images/creer-annonce-illus.png"
           alt=""
+          className="tua-hero-illus"
           style={{
             position:"absolute", right:40, bottom:0,
             height:"95%", width:"auto",
@@ -225,6 +233,7 @@ export default function TrouverUnAgent() {
             opacity:1,
           }}
         />
+        <style>{`@media (max-width:860px){.tua-hero-illus{display:none!important;}}`}</style>
 
         <div style={{position:"relative", zIndex:11}}>
           <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:60,height:60,borderRadius:"50%",background:"rgba(99,102,241,.25)",marginBottom:20,border:"1.5px solid rgba(99,102,241,.4)"}}>
@@ -293,7 +302,7 @@ export default function TrouverUnAgent() {
       <div style={{background:"#fff",borderTop:"1px solid #e2e8f0",padding:"48px 24px",textAlign:"center"}}>
         <h2 style={{fontSize:22,fontWeight:800,color:"#0f172a",margin:"0 0 10px"}}>Vous êtes une agence ou un agent immobilier ?</h2>
         <p style={{fontSize:14,color:"#64748b",margin:"0 auto 24px",maxWidth:500}}>Inscrivez-vous sur Localizi.tn pour être référencé dans cet annuaire et recevoir des demandes de clients.</p>
-        <Link to="/register" style={{display:"inline-block",background:"#0f172a",color:"#fff",fontWeight:700,fontSize:14,padding:"13px 32px",borderRadius:11,textDecoration:"none"}}>
+        <Link to="/register?type=professionnel" style={{display:"inline-block",background:"#0f172a",color:"#fff",fontWeight:700,fontSize:14,padding:"13px 32px",borderRadius:11,textDecoration:"none"}}>
           Créer un compte Agence / Agent
         </Link>
       </div>

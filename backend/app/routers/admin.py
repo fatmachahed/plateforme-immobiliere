@@ -8,7 +8,8 @@ from passlib.context import CryptContext
 from app import models, database
 from app.utils.auth import get_current_admin
 from app.enums import RoleEnum
-from app.email_utils import notify_saved_searches_for_annonce
+from app.email_utils import notify_saved_searches_for_annonce, send_email, LOGO_IMG_HTML
+import json as _json, os as _os
 
 _pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -112,8 +113,9 @@ def list_annonces(
 
 # ── Changer le statut d'une annonce ─────────────────────────
 class StatusUpdate(BaseModel):
-    status:  str
-    message: Optional[str] = None
+    status:   str
+    message:  Optional[str] = None
+    raisons:  Optional[list] = None   # list of refusal reason strings
 
 @router.put("/annonces/{annonce_id}/status")
 def update_annonce_status(
@@ -129,6 +131,9 @@ def update_annonce_status(
         raise HTTPException(404, "Annonce non trouvée")
     was_approved = (a.status.value if hasattr(a.status, "value") else a.status) == "approuvee"
     a.status = body.status
+    if body.status == "refusee":
+        a.refus_raisons = _json.dumps(body.raisons or [], ensure_ascii=False)
+        a.refus_message = body.message or ""
     db.commit()
     db.refresh(a)
     if body.status == "approuvee" and not was_approved:
@@ -136,7 +141,41 @@ def update_annonce_status(
             notify_saved_searches_for_annonce(db, a)
         except Exception:
             pass
-    return {"id": a.id, "status": body.status, "message": body.message}
+    if body.status == "refusee":
+        try:
+            owner = db.query(models.User).filter(models.User.id == a.utilisateur_id).first()
+            if owner and owner.email:
+                raisons = body.raisons or []
+                frontend = _os.environ.get("FRONTEND_URL", "")
+                raisons_html = "".join(f"<li>{r}</li>" for r in raisons) if raisons else ""
+                msg_html = f"<p style='margin-top:8px;color:#374151'>{body.message}</p>" if body.message else ""
+                html = f"""
+                <div style="font-family:sans-serif;max-width:540px;margin:0 auto;background:#f8fafc;padding:24px">
+                  <div style="text-align:center;padding:16px 0 20px">
+                    {LOGO_IMG_HTML}
+                  </div>
+                  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:32px">
+                    <h2 style="color:#dc2626;margin:0 0 16px;font-size:20px">Annonce refusée</h2>
+                    <p style="margin:0 0 8px">Bonjour <strong>{owner.username or ''}</strong>,</p>
+                    <p style="margin:0 0 16px;color:#374151">Votre annonce <strong>« {a.titre} »</strong> a été refusée par notre équipe de modération.</p>
+                    {"<p style='font-weight:700;margin:0 0 8px;color:#0f172a'>Raison(s) du refus :</p><ul style='margin:0 0 16px;padding-left:20px;color:#374151;line-height:1.8'>" + raisons_html + "</ul>" if raisons_html else ""}
+                    {msg_html}
+                    <p style="margin:16px 0;color:#6b7280;font-size:13px">
+                      Vous pouvez modifier votre annonce et la resoumettre pour validation.
+                    </p>
+                    <a href="{frontend}/modifier_annonce/{a.id}"
+                       style="display:inline-block;padding:12px 24px;background:#6366f1;color:#fff;
+                              text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">
+                      Modifier mon annonce
+                    </a>
+                  </div>
+                  <p style="text-align:center;font-size:11px;color:#9ca3af;margin-top:16px">© Localizi.tn</p>
+                </div>"""
+                send_email(owner.email, f"Votre annonce « {a.titre} » a été refusée", html)
+        except Exception as _e:
+            import traceback; traceback.print_exc()
+            print(f"[REFUS EMAIL ERROR] {_e}")
+    return {"id": a.id, "status": body.status}
 
 
 # ── Supprimer une annonce (admin) ────────────────────────────
@@ -381,3 +420,65 @@ def update_agency(
         "note_admin":       ag.note_admin,
         "frais_mensuel":    ag.frais_mensuel,
     }
+
+
+# ── Conventions ─────────────────────────────────────────────
+import json as _json
+
+@router.get("/conventions")
+def list_conventions(
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_admin),
+):
+    rows = db.query(models.ConventionSubmission).order_by(
+        models.ConventionSubmission.submitted_at.desc()
+    ).all()
+    result = []
+    for r in rows:
+        u = r.user
+        try:
+            data = _json.loads(r.form_data or "{}")
+        except Exception:
+            data = {}
+        result.append({
+            "id":           r.id,
+            "type":         r.type,
+            "status":       r.status,
+            "submitted_at": r.submitted_at.isoformat() if r.submitted_at else None,
+            "updated_at":   r.updated_at.isoformat()   if r.updated_at   else None,
+            "user": {
+                "id":           u.id,
+                "username":     u.username,
+                "email":        u.email,
+                "nom":          u.nom,
+                "prenom":       u.prenom,
+                "nom_entreprise": u.nom_entreprise,
+                "phone_number": u.phone_number,
+            },
+            "form_data": data,
+        })
+    return result
+
+
+class ConventionStatusBody(BaseModel):
+    status: str  # soumis / accepte / refuse
+
+
+@router.patch("/conventions/{convention_id}/status")
+def update_convention_status(
+    convention_id: int,
+    body: ConventionStatusBody,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_admin),
+):
+    row = db.query(models.ConventionSubmission).filter(
+        models.ConventionSubmission.id == convention_id
+    ).first()
+    if not row:
+        raise HTTPException(404, "Convention introuvable")
+    if body.status not in ("soumis", "accepte", "refuse"):
+        raise HTTPException(400, "Statut invalide")
+    row.status = body.status
+    db.commit()
+    return {"id": row.id, "status": row.status}
+

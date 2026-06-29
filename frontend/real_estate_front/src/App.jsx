@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import { BrowserRouter as Router, Route, Routes, Navigate, useParams } from "react-router-dom";
 import "leaflet/dist/leaflet.css";
 import { ToastProvider } from "./components/Toast";
 import CookieBanner    from "./components/CookieBanner";
@@ -40,6 +40,29 @@ import MentionsLegales          from "./pages/MentionsLegales";
 import Cookies                  from "./pages/Cookies";
 import VendrePage               from "./pages/VendrePage";
 import AgenceAgents             from "./pages/AgenceAgents";
+import AgenceOnboarding         from "./pages/AgenceOnboarding";
+import PromoteurOnboarding      from "./pages/PromoteurOnboarding";
+import TrouverUnPromoteur       from "./pages/TrouverUnPromoteur";
+import TrouverUnPrestataire     from "./pages/TrouverUnPrestataire";
+import Geolocalisation          from "./pages/Geolocalisation";
+
+function AnnonceRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/carte?annonce=${id}`} replace />;
+}
+
+/* Lien email alerte : déconnecte silencieusement puis recharge la page carte en mode invité */
+function VoirAnnonceAlert() {
+  const { id } = useParams();
+  /* Vider localStorage ET sessionStorage (Login utilise l'un ou l'autre selon "Se souvenir de moi") */
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+  sessionStorage.removeItem("token");
+  sessionStorage.removeItem("user");
+  /* Rechargement complet — vide tout le state React en mémoire (Navbar, userData, etc.) */
+  window.location.replace(`/carte?annonce=${id}`);
+  return null;
+}
 
 function App() {
   return (
@@ -55,7 +78,8 @@ function App() {
           {/* Recherche / annonces */}
           <Route path="/recherche_annonce"       element={<RechercheAnnonce />} />
           <Route path="/recherche_annonce_carte" element={<CartePage />} />
-          <Route path="/annonce/:id"             element={<AnnonceDetail />} />
+          <Route path="/annonce/:id"             element={<AnnonceRedirect />} />
+          <Route path="/voir-annonce/:id"        element={<VoirAnnonceAlert />} />
           <Route path="/creer_annonce"           element={<CreerAnnonce />} />
           <Route path="/modifier_annonce/:id"    element={<EditAnnonce />} />
           <Route path="/booster"                element={<BoosterPage />} />
@@ -84,6 +108,7 @@ function App() {
           <Route path="/cgu"                        element={<CGU />} />
           <Route path="/trouver-un-agent"           element={<TrouverUnAgent />} />
           <Route path="/agent/:id"                  element={<AgentProfile />} />
+          <Route path="/promoteur/:id"              element={<AgentProfile />} />
           <Route path="/comment-ca-marche"          element={<CommentCaMarche />} />
           <Route path="/signaler-probleme"          element={<SignalerProbleme />} />
           <Route path="/partenaires"               element={<Partenaires />} />
@@ -91,6 +116,11 @@ function App() {
           <Route path="/cookies"                   element={<Cookies />} />
           <Route path="/vendre"                    element={<VendrePage />} />
           <Route path="/espace-agence/agents"      element={<AgenceAgents />} />
+          <Route path="/espace-agence/onboarding"    element={<Navigate to="/compte?tab=onboarding_agence" replace />} />
+          <Route path="/espace-promoteur/onboarding" element={<Navigate to="/compte?tab=onboarding_promoteur" replace />} />
+          <Route path="/trouver-un-promoteur"      element={<TrouverUnPromoteur />} />
+          <Route path="/trouver-un-prestataire"   element={<TrouverUnPrestataire />} />
+          <Route path="/faq/geolocalisation-immobilier" element={<Geolocalisation />} />
         </Routes>
       </Router>
       <CookieBanner />

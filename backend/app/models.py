@@ -34,9 +34,11 @@ class User(Base):
     registre_commerce= Column(String, nullable=True)   # registre de commerce professionnel
     is_blocked         = Column(Boolean, default=False, nullable=True)
     secteur_partenaire = Column(String, nullable=True)
+    metier_artisan     = Column(String, nullable=True)
     is_verified        = Column(Boolean, default=False, nullable=True)
     email_verify_token = Column(String, nullable=True)
     profil_user        = Column(String, nullable=True)   # etudiant | parent | couple
+    objectif           = Column(String, nullable=True)   # achete | vend | loue | met_location
     last_login         = Column(DateTime, nullable=True)
     created_at         = Column(DateTime, default=datetime.utcnow, nullable=True)
     updated_at         = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=True)
@@ -105,6 +107,8 @@ class Annonce(Base):
     prix = Column(Numeric(12, 2))
     devise = Column(SqlEnum(DeviseEnum), default=DeviseEnum.DT)
     status = Column(SqlEnum(StatusEnum), default=StatusEnum.en_attente)
+    refus_raisons  = Column(String, nullable=True)   # JSON list of reasons
+    refus_message  = Column(String, nullable=True)   # free text from admin
 
     nb_pieces = Column(Integer, nullable=True)
     nb_chambres = Column(Integer, nullable=True)
@@ -155,7 +159,11 @@ class Annonce(Base):
     # Boost / abonnement (0=gratuit, 1=standard, 2=premium, 3=boost)
     boost_level = Column(Integer, default=0)
     boost_expires_at = Column(DateTime, nullable=True)
+    # Spotlight — badge "À ne pas manquer" sur carte + résultats
+    spotlight_active = Column(Boolean, default=False)
+    spotlight_expires_at = Column(DateTime, nullable=True)
     views_count = Column(Integer, default=0)
+    prix_ancien = Column(Numeric(12, 2), nullable=True)
 
     date_creation = Column(DateTime, default=datetime.utcnow)
     date_mise_a_jour = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -180,6 +188,22 @@ class Annonce(Base):
     chambres_colocation = relationship("ChambreColocation", back_populates="annonce", cascade="all, delete-orphan")
     # Réactions / notes visiteurs
     reactions = relationship("AnnonceReaction", back_populates="annonce", cascade="all, delete-orphan")
+
+
+# ----------------------------------------
+# Demandes de convention (agence / promoteur)
+# ----------------------------------------
+class ConventionSubmission(Base):
+    __tablename__ = "convention_submissions"
+    id           = Column(Integer, primary_key=True, index=True)
+    user_id      = Column(Integer, ForeignKey("users.id"), nullable=False)
+    type         = Column(String, nullable=False)   # "agence" | "promoteur"
+    status       = Column(String, default="soumis") # soumis / accepte / refuse
+    form_data    = Column(String, nullable=True)    # JSON string
+    submitted_at = Column(DateTime, default=datetime.utcnow)
+    updated_at   = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", foreign_keys=[user_id])
 
 
 # ----------------------------------------
@@ -382,6 +406,20 @@ class SavedSearch(Base):
 # ----------------------------------------
 # Messages de contact (formulaire Contact)
 # ----------------------------------------
+# ----------------------------------------
+# Alertes baisse de prix
+# ----------------------------------------
+class PrixAlert(Base):
+    __tablename__ = "prix_alerts"
+    id         = Column(Integer, primary_key=True, index=True)
+    annonce_id = Column(Integer, ForeignKey("annonces.id", ondelete="CASCADE"), nullable=False)
+    email      = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    __table_args__ = (UniqueConstraint("annonce_id", "email", name="uq_prix_alert"),)
+
+    annonce = relationship("Annonce", backref="prix_alerts", foreign_keys=[annonce_id])
+
+
 class ContactMessage(Base):
     __tablename__ = "contact_messages"
     id         = Column(Integer, primary_key=True)

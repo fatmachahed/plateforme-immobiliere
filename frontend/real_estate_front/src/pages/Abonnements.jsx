@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
+import PublierAnnonceBtn from "../components/PublierAnnonceBtn";
 import {
   Zap, CheckCircle, TrendingUp,
   MapPin, Eye, Crown, ArrowRight, X, Check
@@ -397,9 +398,9 @@ export default function Abonnements() {
           <h2 style={{ color: "white", marginBottom: 12 }}>Prêt à booster vos annonces ?</h2>
           <p style={{ color: "rgba(255,255,255,.7)", marginBottom: 32, fontSize: 16 }}>Commencez gratuitement, upgradez quand vous voulez.</p>
           <div className="flex-center gap-16">
-            <Link to="/creer_annonce" className="btn btn-gold btn-lg btn-round">
+            <PublierAnnonceBtn className="btn btn-gold btn-lg btn-round">
               <Zap size={17} /> Publier et booster
-            </Link>
+            </PublierAnnonceBtn>
             <Link to="/carte" className="btn btn-lg btn-round" style={{ background: "rgba(255,255,255,.12)", color: "white", border: "1.5px solid rgba(255,255,255,.25)" }}>
               Voir la carte <ArrowRight size={15} />
             </Link>

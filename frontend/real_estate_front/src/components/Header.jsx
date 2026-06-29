@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Menu, X, User, BarChart3, LogOut, LogIn, UserPlus, Globe } from "lucide-react";
 import logoLocalizi from "../assets/logo_vert_new.png";
+import PublierAnnonceBtn from "./PublierAnnonceBtn";
 
 
 
@@ -39,7 +40,7 @@ const Header = ({ user, logo }) => {
       <div className="top-bar">
         <div className="top-bar-content">
           <div className="email-marquee">
-            <marquee direction="left">E-mail: xpertiseimmo@gmail.com</marquee>
+            <marquee direction="left">E-mail: localizi.tn@gmail.com</marquee>
           </div>
           
           {/* Language dropdown */}
@@ -71,8 +72,8 @@ const Header = ({ user, logo }) => {
         {!isMobile && (
           <nav className="nav-left">
             <a href="/recherche_annonce">Acheter</a>
-            <a href="/creer_annonce">Louer</a>
-            <a href="/creer_annonce">Vendre</a>
+            <PublierAnnonceBtn as="a" className="nav-link">Louer</PublierAnnonceBtn>
+            <PublierAnnonceBtn as="a" className="nav-link">Vendre</PublierAnnonceBtn>
           </nav>
         )}
 
@@ -182,7 +183,7 @@ const Header = ({ user, logo }) => {
             <div className="separator"></div>
             <a href="/recherche_annonce" onClick={handleLinkClick}>Acheter</a>
             <a href="#" onClick={handleLinkClick}>Louer</a>
-            <a href="/creer_annonce" onClick={handleLinkClick}>Vendre</a>
+            <PublierAnnonceBtn as="a" onClick={handleLinkClick}>Vendre</PublierAnnonceBtn>
             <div className="separator"></div>
             
             {user ? (

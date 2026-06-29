@@ -9,13 +9,15 @@ import {
   Waves, Mountain, TreePine, Fence, Sun, Flower2, Droplets, ParkingCircle,
   ArrowUpDown, Car, Package, Sofa, Users, ShieldCheck,
   UtensilsCrossed, Wind, Thermometer, Flame, DoorClosed, LockKeyhole,
-  Fingerprint, Wifi, Monitor, RefreshCw, KeyRound, PhoneCall, Check
+  Fingerprint, Wifi, Monitor, RefreshCw, KeyRound, PhoneCall, Check, PenLine,
+  Layers
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Logo from "../components/Logo";
 import useLocalisation from "../hooks/useLocalisation";
 import { getDelegations } from "../api/localisation.api";
 import AnnonceModal from "../components/AnnonceModal";
+import AnnonceDetailModal from "./AnnonceDetailModal";
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
@@ -73,66 +75,170 @@ const PoiSvg = ({ path, size=13 }) => (
 
 /* POIs � Écoles & Mosquées (d�mo) */
 const SCHOOLS = [
-  { id:"sc1", nom:"Lycée Pilote de Tunis",        lat:36.821, lng:10.159, gov:"Tunis"   },
-  { id:"sc2", nom:"Collège Ibn Khaldoun",          lat:36.833, lng:10.171, gov:"Tunis"   },
-  { id:"sc3", nom:"École El Menzah VI",            lat:36.846, lng:10.206, gov:"Tunis"   },
-  { id:"sc4", nom:"Lycée Technique Ariana",        lat:36.866, lng:10.197, gov:"Ariana"  },
-  { id:"sc5", nom:"Collège La Soukra",             lat:36.882, lng:10.213, gov:"Ariana"  },
-  { id:"sc6", nom:"Lycée Habib Bourguiba Sousse",  lat:35.830, lng:10.638, gov:"Sousse"  },
-  { id:"sc7", nom:"École Primaire Port Kantaoui",  lat:35.892, lng:10.612, gov:"Sousse"  },
-  { id:"sc8", nom:"Lycée Farhat Hached Sfax",      lat:34.744, lng:10.762, gov:"Sfax"    },
-  { id:"sc9", nom:"Collège Ibn Sina Sfax",         lat:34.737, lng:10.756, gov:"Sfax"    },
-  { id:"sc10",nom:"École Tahar Haddad Hammamet",   lat:36.403, lng:10.617, gov:"Nabeul"  },
-  { id:"sc11",nom:"Lycée Pilote Nabeul",           lat:36.458, lng:10.732, gov:"Nabeul"  },
-  { id:"sc12",nom:"École Erriadh Monastir",        lat:35.785, lng:10.815, gov:"Monastir"},
-  { id:"sc13",nom:"Collège Djerba Midoun",         lat:33.825, lng:10.885, gov:"Médenine"},
-  { id:"sc14",nom:"Lycée Teboulba Ben Arous",      lat:36.720, lng:10.240, gov:"Ben Arous"},
+  { id:"sc1", nom:"Lycée Pilote de Tunis",        lat:36.821, lng:10.159, gov:"Tunis"      },
+  { id:"sc2", nom:"Collège Ibn Khaldoun",          lat:36.833, lng:10.171, gov:"Tunis"      },
+  { id:"sc3", nom:"École El Menzah VI",            lat:36.846, lng:10.206, gov:"Tunis"      },
+  { id:"sc4", nom:"Lycée Technique Ariana",        lat:36.866, lng:10.197, gov:"Ariana"     },
+  { id:"sc5", nom:"Collège La Soukra",             lat:36.882, lng:10.213, gov:"Ariana"     },
+  { id:"sc6", nom:"Lycée Habib Bourguiba Sousse",  lat:35.830, lng:10.638, gov:"Sousse"     },
+  { id:"sc7", nom:"École Primaire Port Kantaoui",  lat:35.892, lng:10.612, gov:"Sousse"     },
+  { id:"sc8", nom:"Lycée Farhat Hached Sfax",      lat:34.744, lng:10.762, gov:"Sfax"       },
+  { id:"sc9", nom:"Collège Ibn Sina Sfax",         lat:34.737, lng:10.756, gov:"Sfax"       },
+  { id:"sc10",nom:"École Tahar Haddad Hammamet",   lat:36.403, lng:10.617, gov:"Nabeul"     },
+  { id:"sc11",nom:"Lycée Pilote Nabeul",           lat:36.458, lng:10.732, gov:"Nabeul"     },
+  { id:"sc12",nom:"École Erriadh Monastir",        lat:35.785, lng:10.815, gov:"Monastir"   },
+  { id:"sc13",nom:"Collège Djerba Midoun",         lat:33.825, lng:10.885, gov:"Médenine"   },
+  { id:"sc14",nom:"Lycée Teboulba Ben Arous",      lat:36.720, lng:10.240, gov:"Ben Arous"  },
+  { id:"sc15",nom:"Lycée de Bizerte",              lat:37.274, lng:9.872,  gov:"Bizerte"    },
+  { id:"sc16",nom:"Collège Zarzouna Bizerte",      lat:37.263, lng:9.887,  gov:"Bizerte"    },
+  { id:"sc17",nom:"Lycée Pilote Béja",             lat:36.727, lng:9.183,  gov:"Béja"       },
+  { id:"sc18",nom:"Collège Ibn Rachiq Béja",       lat:36.733, lng:9.190,  gov:"Béja"       },
+  { id:"sc19",nom:"Lycée Jendouba",                lat:36.502, lng:8.779,  gov:"Jendouba"   },
+  { id:"sc20",nom:"Collège Garçons Jendouba",      lat:36.508, lng:8.785,  gov:"Jendouba"   },
+  { id:"sc21",nom:"Lycée Siliana",                 lat:36.088, lng:9.372,  gov:"Siliana"    },
+  { id:"sc22",nom:"Lycée Zaghouan",                lat:36.408, lng:10.143, gov:"Zaghouan"   },
+  { id:"sc23",nom:"Lycée Kairouan",                lat:35.678, lng:10.100, gov:"Kairouan"   },
+  { id:"sc24",nom:"Lycée Mahdia",                  lat:35.502, lng:11.066, gov:"Mahdia"     },
+  { id:"sc25",nom:"Collège Ouled Chamekh Mahdia",  lat:35.488, lng:11.044, gov:"Mahdia"     },
+  { id:"sc26",nom:"Lycée de Gabès",                lat:33.881, lng:10.098, gov:"Gabès"      },
+  { id:"sc27",nom:"Collège Gabès Centre",          lat:33.887, lng:10.104, gov:"Gabès"      },
+  { id:"sc28",nom:"Lycée Kébili",                  lat:33.705, lng:8.965,  gov:"Kébili"     },
+  { id:"sc29",nom:"Lycée Gafsa",                   lat:34.422, lng:8.780,  gov:"Gafsa"      },
+  { id:"sc30",nom:"Collège Redeyef Gafsa",         lat:34.373, lng:8.195,  gov:"Gafsa"      },
+  { id:"sc31",nom:"Lycée Kasserine",               lat:35.167, lng:8.834,  gov:"Kasserine"  },
+  { id:"sc32",nom:"Lycée Sidi Bouzid",             lat:35.039, lng:9.484,  gov:"Sidi Bouzid"},
+  { id:"sc33",nom:"Lycée Tataouine",               lat:32.929, lng:10.450, gov:"Tataouine"  },
+  { id:"sc34",nom:"Lycée Tozeur",                  lat:33.924, lng:8.130,  gov:"Tozeur"     },
+  { id:"sc35",nom:"Lycée Manouba",                 lat:36.810, lng:10.099, gov:"Manouba"    },
 ];
 
 const MOSQUES = [
-  { id:"mo1", nom:"Mosquée Zitouna",               lat:36.798, lng:10.174, gov:"Tunis"   },
-  { id:"mo2", nom:"Mosquée El Fath Lac",           lat:36.840, lng:10.234, gov:"Tunis"   },
-  { id:"mo3", nom:"Mosquée Ennasr",                lat:36.858, lng:10.193, gov:"Ariana"  },
-  { id:"mo4", nom:"Mosquée Raoued",                lat:36.890, lng:10.177, gov:"Ariana"  },
-  { id:"mo5", nom:"Mosquée Boujemaa Sousse",       lat:35.826, lng:10.636, gov:"Sousse"  },
-  { id:"mo6", nom:"Mosquée Sidi Bouali Sousse",    lat:35.818, lng:10.644, gov:"Sousse"  },
-  { id:"mo7", nom:"Mosquée Trois Portes Sfax",     lat:34.739, lng:10.759, gov:"Sfax"    },
-  { id:"mo8", nom:"Mosquée Sidi Lakhmi Sfax",      lat:34.746, lng:10.767, gov:"Sfax"    },
-  { id:"mo9", nom:"Mosquée El Kebir Hammamet",     lat:36.397, lng:10.621, gov:"Nabeul"  },
-  { id:"mo10",nom:"Mosquée Nabeul Ville",          lat:36.452, lng:10.739, gov:"Nabeul"  },
-  { id:"mo11",nom:"Mosquée Monastir Médina",       lat:35.776, lng:10.827, gov:"Monastir"},
-  { id:"mo12",nom:"Mosquée Erriadh Djerba",        lat:33.833, lng:10.862, gov:"Médenine"},
-  { id:"mo13",nom:"Mosquée Ben Arous",             lat:36.753, lng:10.229, gov:"Ben Arous"},
-  { id:"mo14",nom:"Mosquée Kairouan Okba",         lat:35.681, lng:10.098, gov:"Kairouan"},
+  { id:"mo1", nom:"Mosquée Zitouna",               lat:36.798, lng:10.174, gov:"Tunis"      },
+  { id:"mo2", nom:"Mosquée El Fath Lac",           lat:36.840, lng:10.234, gov:"Tunis"      },
+  { id:"mo3", nom:"Mosquée Ennasr",                lat:36.858, lng:10.193, gov:"Ariana"     },
+  { id:"mo4", nom:"Mosquée Raoued",                lat:36.890, lng:10.177, gov:"Ariana"     },
+  { id:"mo5", nom:"Mosquée Boujemaa Sousse",       lat:35.826, lng:10.636, gov:"Sousse"     },
+  { id:"mo6", nom:"Mosquée Sidi Bouali Sousse",    lat:35.818, lng:10.644, gov:"Sousse"     },
+  { id:"mo7", nom:"Mosquée Trois Portes Sfax",     lat:34.739, lng:10.759, gov:"Sfax"       },
+  { id:"mo8", nom:"Mosquée Sidi Lakhmi Sfax",      lat:34.746, lng:10.767, gov:"Sfax"       },
+  { id:"mo9", nom:"Mosquée El Kebir Hammamet",     lat:36.397, lng:10.621, gov:"Nabeul"     },
+  { id:"mo10",nom:"Mosquée Nabeul Ville",          lat:36.452, lng:10.739, gov:"Nabeul"     },
+  { id:"mo11",nom:"Mosquée Monastir Médina",       lat:35.776, lng:10.827, gov:"Monastir"   },
+  { id:"mo12",nom:"Mosquée Erriadh Djerba",        lat:33.833, lng:10.862, gov:"Médenine"   },
+  { id:"mo13",nom:"Mosquée Ben Arous",             lat:36.753, lng:10.229, gov:"Ben Arous"  },
+  { id:"mo14",nom:"Mosquée Kairouan Okba",         lat:35.681, lng:10.098, gov:"Kairouan"   },
+  { id:"mo15",nom:"Grande Mosquée de Bizerte",     lat:37.275, lng:9.869,  gov:"Bizerte"    },
+  { id:"mo16",nom:"Mosquée Zarzouna Bizerte",      lat:37.263, lng:9.889,  gov:"Bizerte"    },
+  { id:"mo17",nom:"Mosquée Béja Médina",           lat:36.727, lng:9.185,  gov:"Béja"       },
+  { id:"mo18",nom:"Mosquée Jendouba Centre",       lat:36.503, lng:8.780,  gov:"Jendouba"   },
+  { id:"mo19",nom:"Mosquée Bou Salem Jendouba",    lat:36.621, lng:8.968,  gov:"Jendouba"   },
+  { id:"mo20",nom:"Mosquée Siliana Centre",        lat:36.088, lng:9.369,  gov:"Siliana"    },
+  { id:"mo21",nom:"Mosquée Zaghouan",              lat:36.408, lng:10.143, gov:"Zaghouan"   },
+  { id:"mo22",nom:"Mosquée Mahdia Médina",         lat:35.503, lng:11.068, gov:"Mahdia"     },
+  { id:"mo23",nom:"Mosquée Gabès Centre",          lat:33.883, lng:10.100, gov:"Gabès"      },
+  { id:"mo24",nom:"Mosquée Sidi Bouzid",           lat:35.039, lng:9.484,  gov:"Sidi Bouzid"},
+  { id:"mo25",nom:"Mosquée Kasserine",             lat:35.167, lng:8.835,  gov:"Kasserine"  },
+  { id:"mo26",nom:"Mosquée Gafsa Médina",          lat:34.425, lng:8.781,  gov:"Gafsa"      },
+  { id:"mo27",nom:"Mosquée Kébili",                lat:33.706, lng:8.966,  gov:"Kébili"     },
+  { id:"mo28",nom:"Mosquée Tataouine",             lat:32.930, lng:10.451, gov:"Tataouine"  },
+  { id:"mo29",nom:"Mosquée Tozeur Médina",         lat:33.922, lng:8.131,  gov:"Tozeur"     },
+  { id:"mo30",nom:"Mosquée Manouba",               lat:36.811, lng:10.098, gov:"Manouba"    },
 ];
 
 /* POIs statiques – Facultés & Grandes surfaces (fallback si Overpass indisponible) */
 const FACULTIES = [
-  { id:"fac1", nom:"Université Tunis El Manar",        lat:36.838, lng:10.168, gov:"Tunis"    },
-  { id:"fac2", nom:"Faculté des Sciences de Tunis",    lat:36.835, lng:10.172, gov:"Tunis"    },
-  { id:"fac3", nom:"INSAT Tunis",                      lat:36.855, lng:10.197, gov:"Tunis"    },
-  { id:"fac4", nom:"Université Carthage",              lat:36.870, lng:10.184, gov:"Tunis"    },
-  { id:"fac5", nom:"ISSAT Sousse",                     lat:35.822, lng:10.631, gov:"Sousse"   },
-  { id:"fac6", nom:"Faculté de Médecine Sousse",       lat:35.840, lng:10.647, gov:"Sousse"   },
-  { id:"fac7", nom:"Université de Sfax",               lat:34.749, lng:10.758, gov:"Sfax"     },
-  { id:"fac8", nom:"FSEG Sfax",                        lat:34.740, lng:10.752, gov:"Sfax"     },
-  { id:"fac9", nom:"IPEIM Monastir",                   lat:35.778, lng:10.826, gov:"Monastir" },
-  { id:"fac10",nom:"Université Manouba",               lat:36.828, lng:10.093, gov:"Manouba"  },
-  { id:"fac11",nom:"ISG Tunis",                        lat:36.812, lng:10.147, gov:"Tunis"    },
-  { id:"fac12",nom:"Faculté Droit Sciences Politiques",lat:36.795, lng:10.181, gov:"Tunis"    },
+  { id:"fac1", nom:"Université Tunis El Manar",        lat:36.838, lng:10.168, gov:"Tunis"      },
+  { id:"fac2", nom:"Faculté des Sciences de Tunis",    lat:36.835, lng:10.172, gov:"Tunis"      },
+  { id:"fac3", nom:"INSAT Tunis",                      lat:36.855, lng:10.197, gov:"Tunis"      },
+  { id:"fac4", nom:"Université Carthage",              lat:36.870, lng:10.184, gov:"Tunis"      },
+  { id:"fac5", nom:"ISSAT Sousse",                     lat:35.822, lng:10.631, gov:"Sousse"     },
+  { id:"fac6", nom:"Faculté de Médecine Sousse",       lat:35.840, lng:10.647, gov:"Sousse"     },
+  { id:"fac7", nom:"Université de Sfax",               lat:34.749, lng:10.758, gov:"Sfax"       },
+  { id:"fac8", nom:"FSEG Sfax",                        lat:34.740, lng:10.752, gov:"Sfax"       },
+  { id:"fac9", nom:"IPEIM Monastir",                   lat:35.778, lng:10.826, gov:"Monastir"   },
+  { id:"fac10",nom:"Université Manouba",               lat:36.828, lng:10.093, gov:"Manouba"    },
+  { id:"fac11",nom:"ISG Tunis",                        lat:36.812, lng:10.147, gov:"Tunis"      },
+  { id:"fac12",nom:"Faculté Droit Sciences Politiques",lat:36.795, lng:10.181, gov:"Tunis"      },
+  { id:"fac13",nom:"ISSAT Bizerte",                    lat:37.279, lng:9.871,  gov:"Bizerte"    },
+  { id:"fac14",nom:"ISBA Bizerte",                     lat:37.268, lng:9.876,  gov:"Bizerte"    },
+  { id:"fac15",nom:"Institut Supérieur Béja",          lat:36.730, lng:9.186,  gov:"Béja"       },
+  { id:"fac16",nom:"Faculté Sciences Jendouba",        lat:36.505, lng:8.782,  gov:"Jendouba"   },
+  { id:"fac17",nom:"Institut Sup. Siliana",            lat:36.090, lng:9.374,  gov:"Siliana"    },
+  { id:"fac18",nom:"Institut Sup. Zaghouan",           lat:36.410, lng:10.145, gov:"Zaghouan"   },
+  { id:"fac19",nom:"Université de Kairouan",           lat:35.675, lng:10.096, gov:"Kairouan"   },
+  { id:"fac20",nom:"Faculté Sciences Mahdia",          lat:35.497, lng:11.062, gov:"Mahdia"     },
+  { id:"fac21",nom:"Université de Gabès",              lat:33.879, lng:10.097, gov:"Gabès"      },
+  { id:"fac22",nom:"Institut Sup. Gafsa",              lat:34.423, lng:8.782,  gov:"Gafsa"      },
+  { id:"fac23",nom:"Institut Sup. Kasserine",          lat:35.170, lng:8.836,  gov:"Kasserine"  },
+  { id:"fac24",nom:"Institut Sup. Sidi Bouzid",        lat:35.041, lng:9.486,  gov:"Sidi Bouzid"},
+  { id:"fac25",nom:"Institut Sup. Kébili",             lat:33.707, lng:8.967,  gov:"Kébili"     },
+  { id:"fac26",nom:"Institut Sup. Tataouine",          lat:32.931, lng:10.452, gov:"Tataouine"  },
+  { id:"fac27",nom:"Institut Sup. Tozeur",             lat:33.925, lng:8.132,  gov:"Tozeur"     },
+  { id:"fac28",nom:"ISLAIB Nabeul",                    lat:36.460, lng:10.735, gov:"Nabeul"     },
+  { id:"fac29",nom:"Faculté Sciences Médenine",        lat:33.360, lng:10.505, gov:"Médenine"   },
 ];
 
+const HOSPITALS = [
+  { id:"ho1",  nom:"Hôpital Charles Nicolle",          lat:36.820, lng:10.172, gov:"Tunis"      },
+  { id:"ho2",  nom:"Hôpital La Rabta",                 lat:36.831, lng:10.167, gov:"Tunis"      },
+  { id:"ho3",  nom:"Hôpital Mongi Slim La Marsa",      lat:36.876, lng:10.321, gov:"Tunis"      },
+  { id:"ho4",  nom:"Clinique Les Oliviers Ariana",     lat:36.854, lng:10.195, gov:"Ariana"     },
+  { id:"ho5",  nom:"Hôpital Régional Ariana",          lat:36.868, lng:10.190, gov:"Ariana"     },
+  { id:"ho6",  nom:"Hôpital Farhat Hached Sousse",     lat:35.828, lng:10.635, gov:"Sousse"     },
+  { id:"ho7",  nom:"Clinique Avicenne Sousse",         lat:35.835, lng:10.644, gov:"Sousse"     },
+  { id:"ho8",  nom:"CHU Habib Bourguiba Sfax",         lat:34.746, lng:10.760, gov:"Sfax"       },
+  { id:"ho9",  nom:"Polyclinique CNSS Sfax",           lat:34.739, lng:10.754, gov:"Sfax"       },
+  { id:"ho10", nom:"Hôpital Régional Hammamet",        lat:36.400, lng:10.619, gov:"Nabeul"     },
+  { id:"ho11", nom:"Hôpital Monastir",                 lat:35.780, lng:10.820, gov:"Monastir"   },
+  { id:"ho12", nom:"Hôpital Régional Médenine",        lat:33.356, lng:10.502, gov:"Médenine"   },
+  { id:"ho13", nom:"Hôpital de la Manouba",            lat:36.830, lng:10.097, gov:"Manouba"    },
+  { id:"ho14", nom:"Hôpital Ben Arous",                lat:36.749, lng:10.232, gov:"Ben Arous"  },
+  { id:"ho15", nom:"Hôpital Régional Kairouan",        lat:35.676, lng:10.093, gov:"Kairouan"   },
+  { id:"ho16", nom:"Hôpital Régional Bizerte",         lat:37.275, lng:9.866,  gov:"Bizerte"    },
+  { id:"ho17", nom:"Hôpital Régional Béja",            lat:36.726, lng:9.182,  gov:"Béja"       },
+  { id:"ho18", nom:"Hôpital Régional Jendouba",        lat:36.502, lng:8.778,  gov:"Jendouba"   },
+  { id:"ho19", nom:"Hôpital Régional Siliana",         lat:36.085, lng:9.370,  gov:"Siliana"    },
+  { id:"ho20", nom:"Hôpital Régional Zaghouan",        lat:36.406, lng:10.141, gov:"Zaghouan"   },
+  { id:"ho21", nom:"Hôpital Régional Mahdia",          lat:35.500, lng:11.064, gov:"Mahdia"     },
+  { id:"ho22", nom:"CHU Habib Bourguiba Gabès",        lat:33.884, lng:10.099, gov:"Gabès"      },
+  { id:"ho23", nom:"Hôpital Régional Kébili",          lat:33.704, lng:8.964,  gov:"Kébili"     },
+  { id:"ho24", nom:"Hôpital Régional Gafsa",           lat:34.420, lng:8.779,  gov:"Gafsa"      },
+  { id:"ho25", nom:"Hôpital Régional Kasserine",       lat:35.165, lng:8.833,  gov:"Kasserine"  },
+  { id:"ho26", nom:"Hôpital Régional Sidi Bouzid",     lat:35.037, lng:9.482,  gov:"Sidi Bouzid"},
+  { id:"ho27", nom:"Hôpital Régional Tataouine",       lat:32.927, lng:10.449, gov:"Tataouine"  },
+  { id:"ho28", nom:"Hôpital Régional Tozeur",          lat:33.921, lng:8.129,  gov:"Tozeur"     },
+];
+
+const HOSPITAL_SVG = '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8M8 12h8"/>';
+
 const GRAND_SURFACES = [
-  { id:"gs1", nom:"Carrefour Lac Tunis",               lat:36.841, lng:10.237, gov:"Tunis"    },
-  { id:"gs2", nom:"Géant Casino Ennasr",               lat:36.859, lng:10.192, gov:"Ariana"   },
-  { id:"gs3", nom:"Monoprix Menzah",                   lat:36.848, lng:10.207, gov:"Tunis"    },
-  { id:"gs4", nom:"Carrefour Market Ariana",           lat:36.866, lng:10.199, gov:"Ariana"   },
-  { id:"gs5", nom:"Azur Sousse",                       lat:35.834, lng:10.641, gov:"Sousse"   },
-  { id:"gs6", nom:"Carrefour Market Sfax",             lat:34.741, lng:10.763, gov:"Sfax"     },
-  { id:"gs7", nom:"Géant Hammamet",                    lat:36.405, lng:10.624, gov:"Nabeul"   },
-  { id:"gs8", nom:"Monoprix Centre-ville Tunis",       lat:36.803, lng:10.180, gov:"Tunis"    },
-  { id:"gs9", nom:"Carrefour Ben Arous",               lat:36.741, lng:10.226, gov:"Ben Arous" },
-  { id:"gs10",nom:"MG Monastir",                       lat:35.781, lng:10.831, gov:"Monastir" },
+  { id:"gs1", nom:"Carrefour Lac Tunis",               lat:36.841, lng:10.237, gov:"Tunis"      },
+  { id:"gs2", nom:"Géant Casino Ennasr",               lat:36.859, lng:10.192, gov:"Ariana"     },
+  { id:"gs3", nom:"Monoprix Menzah",                   lat:36.848, lng:10.207, gov:"Tunis"      },
+  { id:"gs4", nom:"Carrefour Market Ariana",           lat:36.866, lng:10.199, gov:"Ariana"     },
+  { id:"gs5", nom:"Azur Sousse",                       lat:35.834, lng:10.641, gov:"Sousse"     },
+  { id:"gs6", nom:"Carrefour Market Sfax",             lat:34.741, lng:10.763, gov:"Sfax"       },
+  { id:"gs7", nom:"Géant Hammamet",                    lat:36.405, lng:10.624, gov:"Nabeul"     },
+  { id:"gs8", nom:"Monoprix Centre-ville Tunis",       lat:36.803, lng:10.180, gov:"Tunis"      },
+  { id:"gs9", nom:"Carrefour Ben Arous",               lat:36.741, lng:10.226, gov:"Ben Arous"  },
+  { id:"gs10",nom:"MG Monastir",                       lat:35.781, lng:10.831, gov:"Monastir"   },
+  { id:"gs11",nom:"Magasin Général Bizerte",           lat:37.272, lng:9.873,  gov:"Bizerte"    },
+  { id:"gs12",nom:"Monoprix Bizerte",                  lat:37.270, lng:9.869,  gov:"Bizerte"    },
+  { id:"gs13",nom:"MG Béja",                           lat:36.729, lng:9.187,  gov:"Béja"       },
+  { id:"gs14",nom:"Magasin Général Jendouba",          lat:36.504, lng:8.781,  gov:"Jendouba"   },
+  { id:"gs15",nom:"Magasin Général Siliana",           lat:36.087, lng:9.371,  gov:"Siliana"    },
+  { id:"gs16",nom:"Magasin Général Zaghouan",          lat:36.409, lng:10.142, gov:"Zaghouan"   },
+  { id:"gs17",nom:"MG Kairouan",                       lat:35.679, lng:10.100, gov:"Kairouan"   },
+  { id:"gs18",nom:"Magasin Général Mahdia",            lat:35.501, lng:11.065, gov:"Mahdia"     },
+  { id:"gs19",nom:"MG Gabès",                          lat:33.882, lng:10.101, gov:"Gabès"      },
+  { id:"gs20",nom:"Magasin Général Gafsa",             lat:34.424, lng:8.782,  gov:"Gafsa"      },
+  { id:"gs21",nom:"Magasin Général Kasserine",         lat:35.168, lng:8.835,  gov:"Kasserine"  },
+  { id:"gs22",nom:"Magasin Général Sidi Bouzid",       lat:35.040, lng:9.485,  gov:"Sidi Bouzid"},
+  { id:"gs23",nom:"Magasin Général Médenine",          lat:33.358, lng:10.504, gov:"Médenine"   },
+  { id:"gs24",nom:"Magasin Général Kébili",            lat:33.706, lng:8.966,  gov:"Kébili"     },
+  { id:"gs25",nom:"Magasin Général Tataouine",         lat:32.929, lng:10.451, gov:"Tataouine"  },
+  { id:"gs26",nom:"Magasin Général Tozeur",            lat:33.923, lng:8.131,  gov:"Tozeur"     },
+  { id:"gs27",nom:"MG Manouba",                        lat:36.812, lng:10.100, gov:"Manouba"    },
 ];
 
 const TYPES    = ["appartement","villa_maison","immeuble","terrain","local_commercial","bureau","ferme_agricole","garage_parking","depot_stockage","immobiliers_divers"];
@@ -204,9 +310,27 @@ function Carousel({ images, h = 190 }) {
           : "none",
         zIndex:2,
       }} loading="lazy"/>
+      {/* Filigrane logo */}
+      <div style={{
+        position:"absolute", inset:0, zIndex:3,
+        display:"flex", alignItems:"center", justifyContent:"center",
+        pointerEvents:"none",
+      }}>
+        <span style={{
+          fontSize:18, fontWeight:900, letterSpacing:"-0.5px",
+          fontFamily:"Arial,sans-serif",
+          color:"rgba(255,255,255,0.22)",
+          textShadow:"0 1px 3px rgba(0,0,0,0.18)",
+          userSelect:"none",
+          transform:"rotate(-15deg)",
+        }}>
+          LOCAL<span style={{color:"rgba(99,102,241,0.30)"}}>IZI</span>.TN
+        </span>
+      </div>
+
       {images.length > 1 && <>
-        <button onClick={e=>go(e,-1)} style={{...arrowBtn("left"),zIndex:3}}><ChevronLeft size={14}/></button>
-        <button onClick={e=>go(e,+1)} style={{...arrowBtn("right"),zIndex:3}}><ChevronRight size={14}/></button>
+        <button onClick={e=>go(e,-1)} style={{...arrowBtn("left"),zIndex:4}}><ChevronLeft size={14}/></button>
+        <button onClick={e=>go(e,+1)} style={{...arrowBtn("right"),zIndex:4}}><ChevronRight size={14}/></button>
         <div style={{ position:"absolute", bottom:7, left:"50%", transform:"translateX(-50%)", display:"flex", gap:4, zIndex:3 }}>
           {images.map((_,i) => (
             <span key={i} onClick={(e)=>goTo(e,i)}
@@ -375,20 +499,41 @@ function PropCard({ p, active, onHover, onClick, govMarketStats, compact }) {
             {p.categorie === "location" ? "Location" : "Vacances"}
           </span>
         )}
-        {p.colocation && (
-          <span style={{position:"absolute",top:8,left:8,zIndex:10,background:"rgba(99,102,241,.92)",color:"#fff",borderRadius:8,padding:"3px 8px",fontSize:10.5,fontWeight:700,display:"flex",alignItems:"center",gap:4,backdropFilter:"blur(4px)"}}>
-            <Users size={11}/> Colocation
-          </span>
-        )}
+        {(() => {
+          const isNeuf = p.etat === "nouveau" && p.categorie === "vente";
+          const badgeStyle = (top) => ({position:"absolute",top,left:8,zIndex:10,borderRadius:8,padding:"3px 9px",fontSize:10.5,fontWeight:800,display:"flex",alignItems:"center",gap:4,backdropFilter:"blur(4px)"});
+          return <>
+            {isNeuf && (
+              <span style={{...badgeStyle(8),background:"rgba(5,150,105,.93)",color:"#fff",letterSpacing:".04em",textTransform:"uppercase"}}>
+                ✦ Neuf
+              </span>
+            )}
+            {p.colocation && (
+              <span style={{...badgeStyle(isNeuf ? 36 : 8),background:"rgba(99,102,241,.92)",color:"#fff",fontWeight:700}}>
+                <Users size={11}/> Coloc
+              </span>
+            )}
+          </>;
+        })()}
       </div>
       <div className="pc__body">
         <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
           <div style={{minWidth:0, flex:1}}>
-            <p className="pc__price">
+            {p.prix_ancien && (
+              <p style={{fontSize:12,color:"#94a3b8",margin:"0 0 1px",fontWeight:500,lineHeight:1.2,textDecoration:"line-through"}}>
+                {fmtFull(p.prix_ancien)} {fmtDevise(p.devise)}
+              </p>
+            )}
+            <p className="pc__price" style={{fontSize: p.prix_ancien ? 17 : undefined}}>
               {fmtFull(p.prix)}
+              {p.prix_ancien && (
+                <span style={{fontSize:10,fontWeight:700,color:"#ef4444",background:"#fef2f2",border:"1px solid #fecaca",borderRadius:5,padding:"1px 5px",marginLeft:6,verticalAlign:"middle"}}>
+                  ▼ {Math.round((1 - p.prix / p.prix_ancien) * 100)}%
+                </span>
+              )}
               <span className="pc__devise">
                 {fmtDevise(p.devise)}
-                {p.categorie === "location" ? (p.colocation ? " /mois" : " /mois")
+                {p.categorie === "location" ? " /mois"
                   : p.categorie === "vacances" ? (
                     p.duree_type === "nuit"   ? " /nuitée"
                     : p.duree_type === "semaine" ? " /sem."
@@ -589,12 +734,13 @@ const matchDel = (gadmName, apiName) => {
 };
 
 /* --- Carte Leaflet --- */
-function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedDel, onDelSelect, onPinClick, onBoundsChange, showSchools, showMosques, showFaculties, showGrandSurfaces, liveSchools = [], liveMosques = [], liveFaculties = [], liveGrandSurfaces = [], onPinHover, sharedHoverTimer, centerTarget, initialView, drawMode, drawnZones, onZoneDrawn, eraseMode, eraseSelectedIdx, onEraseSelect }) {
+function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedDel, onDelSelect, onPinClick, onBoundsChange, showSchools, showMosques, showFaculties, showGrandSurfaces, showHospitals, liveSchools = [], liveMosques = [], liveFaculties = [], liveGrandSurfaces = [], liveHospitals = [], onPinHover, sharedHoverTimer, centerTarget, initialView, drawMode, drawnZones, onZoneDrawn, eraseMode, eraseSelectedIdx, onEraseSelect, onMapRef }) {
   const containerRef    = useRef(null);
   const mapRef          = useRef(null);
   const leafletRef      = useRef(null);   /* ? Leaflet stock� ici d�s son chargement */
   const markersRef      = useRef({});
   const clusterGroupRef = useRef(null); /* MarkerClusterGroup leaflet.markercluster */
+  const drawPinsSeqRef  = useRef(0);   /* compteur d'annulation pour les appels async de drawPins */
   const geoLayerRef     = useRef(null); /* legacy – plus utilisé mais conservé pour éviter les erreurs */
   const govInteractiveRef = useRef(null); /* couche interactive gouvernorats */
   const delInteractiveRef = useRef(null); /* couche interactive délégations */
@@ -603,8 +749,10 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
   const onDelSelectRef  = useRef(onDelSelect);
   const selectedDelRef  = useRef(selectedDel);
   const drawModeRef     = useRef(drawMode);
-  const poiLayersRef    = useRef({ schools: [], mosques: [], faculties: [], grandSurfaces: [] });
+  const poiLayersRef    = useRef({ schools: [], mosques: [], faculties: [], grandSurfaces: [], hospitals: [] });
   const prevGov         = useRef(null);
+  /* Bloque le reset automatique vers toute la Tunisie au premier rendu quand une vue sauvegardée est restaurée */
+  const skipAutoResetRef = useRef(!!initialView);
   const hoverTimerRef   = useRef(null);
   const selectedGovRef  = useRef(selectedGov);
   /* Ref vers onPinHover � toujours à jour, évite les closures stales dans drawPins */
@@ -641,6 +789,8 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
 
 
   const drawPins = useCallback(async (L, map, props, active) => {
+    const seq = ++drawPinsSeqRef.current;
+
     // Supprimer l'ancien cluster group
     if (clusterGroupRef.current) {
       clusterGroupRef.current.clearLayers();
@@ -650,6 +800,9 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
     markersRef.current = {};
 
     await import("leaflet.markercluster");
+
+    // Si un appel plus récent a démarré entre-temps, on abandonne
+    if (seq !== drawPinsSeqRef.current) return;
 
     const catBgMap = { vente:"#166534", location:"#1e40af", vacances:"#854d0e" };
     const catFgMap = { vente:"#fff",    location:"#fff",    vacances:"#fff"    };
@@ -662,12 +815,21 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
       showCoverageOnHover: false,
       zoomToBoundsOnClick: true,
       iconCreateFunction: (cluster) => {
-        const count = cluster.getChildCount();
+        const markers = cluster.getAllChildMarkers();
+        const count = markers.reduce((s, m) => s + (m.options.bienCount || 1), 0);
+        const catCount = {};
+        markers.forEach(m => {
+          const cat = m.options.dominantCategorie || m.options.categorie || "std";
+          catCount[cat] = (catCount[cat] || 0) + (m.options.bienCount || 1);
+        });
+        const dom = Object.entries(catCount).sort((a,b) => b[1]-a[1])[0]?.[0] || "std";
+        const col = dom === "vente" ? "#166534" : dom === "location" ? "#1e40af" : dom === "vacances" ? "#d97706" : "#64748b";
+        const shadow = dom === "vente" ? "rgba(22,101,52,.45)" : dom === "location" ? "rgba(30,64,175,.45)" : dom === "vacances" ? "rgba(217,119,6,.45)" : "rgba(0,0,0,.3)";
         const size  = count < 10 ? 38 : count < 50 ? 46 : 54;
         const fs    = count < 10 ? 13 : count < 50 ? 14 : 16;
         return L.divIcon({
           className: "",
-          html: `<div style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;background:#1e40af;color:#fff;border-radius:50%;border:3px solid #fff;box-shadow:0 3px 12px rgba(30,64,175,.45);font-family:system-ui,sans-serif;font-size:${fs}px;font-weight:800;cursor:pointer;">${count}</div>`,
+          html: `<div style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;background:${col};color:#fff;border-radius:50%;border:3px solid #fff;box-shadow:0 3px 12px ${shadow};font-family:system-ui,sans-serif;font-size:${fs}px;font-weight:800;cursor:pointer;">${count}</div>`,
           iconSize: [size, size],
           iconAnchor: [size/2, size/2],
         });
@@ -685,9 +847,10 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
         const cc  = catFgMap[pin.categorie] || "#475569";
         const dev = fmtDevise(pin.devise);
         const rid = pin._realId || pin.id.toString().replace("api_","");
-        return `<div style="width:460px;font-family:'Inter',system-ui,sans-serif;overflow:hidden;border-radius:2px;cursor:pointer;" onclick="window.location.href='/annonce/${rid}'">
+        return `<div style="width:460px;font-family:'Inter',system-ui,sans-serif;overflow:hidden;border-radius:2px;cursor:pointer;" onclick="if(window.__openAnnonceModal){window.__openAnnonceModal('${rid}');}else{window.location.href='/annonce/${rid}';}event.stopPropagation();">
           <div style="position:relative;height:190px;overflow:hidden;background:#f1f5f9;">
             ${img ? `<img src="${img}" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.src='https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=70'"/>` : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:48px;color:#cbd5e1;">&#127968;</div>`}
+            ${pin.spotlight ? `<span style="position:absolute;bottom:8px;left:8px;background:rgba(234,88,12,.92);color:#fff;border-radius:7px;padding:3px 8px;font-size:10px;font-weight:800;backdrop-filter:blur(4px);">&#11088; &Agrave; ne pas manquer</span>` : ""}
           </div>
           <div style="padding:14px 16px 12px;border-top:2px solid ${bg2};">
             <div style="font-size:14px;font-weight:800;color:#0f172a;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${pin.titre || "Bien immobilier"}</div>
@@ -730,7 +893,7 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
         const catCls = p.categorie ? `pin-dot--${p.categorie}` : "pin-dot--std";
         const cls    = `pin-dot ${catCls}${isA ? " pin-dot--active" : ""}`;
         const icon   = L.divIcon({ className:"", html:`<div class="${cls}"></div>`, iconSize:[null,null], iconAnchor:[10,10] });
-        const m      = L.marker([p.lat, p.lng], { icon });
+        const m      = L.marker([p.lat, p.lng], { icon, bienCount: 1, categorie: p.categorie });
         m.on("click", (e) => { if (drawModeRef.current) return; L.DomEvent.stopPropagation(e); onPinHoverRef.current?.({ ...p, _px: e.containerPoint.x, _py: e.containerPoint.y }); });
         markersRef.current[p.id] = m;
         clusterGroup.addLayer(m);
@@ -743,7 +906,7 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
         const col = dom === "vente" ? "#166534" : dom === "location" ? "#1e40af" : dom === "vacances" ? "#d97706" : "#9b1c2e";
         const pillHtml = `<div style="display:inline-flex;align-items:center;gap:5px;background:${col};color:#fff;border-radius:20px;padding:6px 13px 6px 9px;border:2.5px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,.35);white-space:nowrap;cursor:pointer;font-family:system-ui,sans-serif;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><rect x="2" y="2" width="20" height="22" rx="1" fill="rgba(255,255,255,.2)"/><line x1="2" y1="8" x2="22" y2="8"/><line x1="9" y1="22" x2="9" y2="8"/></svg><span style="font-size:13px;font-weight:800;line-height:1;">${cnt}</span></div>`;
         const pillIcon = L.divIcon({ className:"", html:pillHtml, iconSize:null, iconAnchor:[0,0] });
-        const m = L.marker([rep.lat, rep.lng], { icon: pillIcon });
+        const m = L.marker([rep.lat, rep.lng], { icon: pillIcon, bienCount: cnt, dominantCategorie: dom });
         bindStackedPopup(m, group);
         markersRef.current[`stack_${rep.lat}_${rep.lng}`] = m;
         clusterGroup.addLayer(m);
@@ -768,8 +931,9 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
       const map = L.map(containerRef.current, { zoomControl:false })
         .setView(initCenter, initZoom);
       mapRef.current = map;
+      onMapRef?.(map);
       L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-        { attribution:"� OpenStreetMap � CARTO", maxZoom:19 }).addTo(map);
+        { attribution:"&copy; OpenStreetMap &copy; CARTO", maxZoom:19 }).addTo(map);
       L.control.zoom({ position:"bottomright" }).addTo(map);
       setTimeout(()=>map.invalidateSize(), 80);
       /* Clic sur le fond de la carte → ferme la HoverCard (pas en mode dessin) */
@@ -969,8 +1133,14 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
       });
     }
 
-    /* Zoom : délégation en priorité, sinon gouvernorat, sinon vue Tunisie */
-    if (selectedDel && delLayer && mapRef.current) {
+    /* Zoom : délégation en priorité, sinon gouvernorat, sinon vue Tunisie.
+       skipAutoResetRef bloque le premier zoom automatique sur les 3 branches
+       quand une vue sauvegardée (sessionStorage) est restaurée au refresh. */
+    if (skipAutoResetRef.current) {
+      /* Premier rendu avec vue sauvegardée → on ne touche pas au zoom,
+         on consomme le skip pour que les actions suivantes de l'user déclenchent bien les zooms */
+      skipAutoResetRef.current = false;
+    } else if (selectedDel && delLayer && mapRef.current) {
       let bounds = null;
       delLayer.eachLayer(l => {
         const { govNom, delNom } = l.feature?.properties || {};
@@ -1047,6 +1217,13 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
     "Grande surface", SURFACE_SVG
   ), [showGrandSurfaces, liveGrandSurfaces, selectedGov]);
 
+  /* POIs hôpitaux */
+  useEffect(() => makePOIEffect(
+    "hospitals", showHospitals, liveHospitals,
+    selectedGov ? HOSPITALS.filter(h=>h.gov===selectedGov) : HOSPITALS,
+    "Hôpital / Clinique", HOSPITAL_SVG
+  ), [showHospitals, liveHospitals, selectedGov]);
+
   /* -- Mode dessin de zone -- */
   useEffect(() => {
     const map = mapRef.current;
@@ -1060,60 +1237,90 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
     }
 
     map.getContainer().style.cursor = 'crosshair';
+    map.dragging.disable();
+
     let vertices = [];
-    let polyline  = null;
-    let preview   = null;
-    let dots      = [];
-    let pending   = null;
+    let polyline = null;
+    let drawing  = false;
 
     const redraw = () => {
       if (polyline) { polyline.remove(); polyline = null; }
       if (vertices.length >= 2)
-        polyline = L.polyline(vertices, { color:'#1e40af', weight:2.5, dashArray:'7,4' }).addTo(map);
+        polyline = L.polyline(vertices.map(v => [v.lat, v.lng]),
+          { color:'#1e40af', weight:3, dashArray:'6,3', opacity:.9 }).addTo(map);
     };
 
-    const onClick = (e) => {
-      if (pending) { clearTimeout(pending); pending = null; return; }
-      pending = setTimeout(() => {
-        pending = null;
-        vertices.push({ lat: e.latlng.lat, lng: e.latlng.lng });
-        const dot = L.circleMarker(e.latlng, { radius:5, color:'#1e40af', fillColor:'#fff', fillOpacity:1, weight:2.5 }).addTo(map);
-        dots.push(dot);
-        redraw();
-      }, 220);
+    const onMouseDown = (e) => {
+      drawing = true;
+      vertices = [{ lat: e.latlng.lat, lng: e.latlng.lng }];
+      redraw();
     };
 
-    const onDblClick = (e) => {
-      if (pending) { clearTimeout(pending); pending = null; }
-      L.DomEvent.stopPropagation(e);
-      if (vertices.length < 3) return;
+    const onMouseMove = (e) => {
+      if (!drawing) return;
+      vertices.push({ lat: e.latlng.lat, lng: e.latlng.lng });
+      redraw();
+    };
+
+    const onMouseUp = () => {
+      if (!drawing) return;
+      drawing = false;
+      if (vertices.length < 3) { if (polyline) { polyline.remove(); polyline = null; } vertices = []; return; }
       cleanup();
       onZoneDrawn && onZoneDrawn(vertices);
     };
 
-    const onMouseMove = (e) => {
-      if (!vertices.length) return;
-      if (preview) { preview.remove(); preview = null; }
-      preview = L.polyline(
-        [vertices[vertices.length - 1], { lat: e.latlng.lat, lng: e.latlng.lng }],
-        { color:'#1e40af', weight:1.8, dashArray:'4,4', opacity:.6 }
-      ).addTo(map);
+    const container = map.getContainer();
+
+    /* ── Support tactile (mobile) : convertir les touches en latlng ── */
+    const touchLatLng = (ev) => {
+      const t = ev.touches?.[0] || ev.changedTouches?.[0];
+      if (!t) return null;
+      const rect = container.getBoundingClientRect();
+      return map.containerPointToLatLng(L.point(t.clientX - rect.left, t.clientY - rect.top));
+    };
+    const onTouchStart = (ev) => {
+      if (ev.touches.length !== 1) return;   // ignore le pinch-zoom
+      ev.preventDefault();
+      drawing = true;
+      const ll = touchLatLng(ev);
+      vertices = ll ? [{ lat: ll.lat, lng: ll.lng }] : [];
+      redraw();
+    };
+    const onTouchMove = (ev) => {
+      if (!drawing) return;
+      ev.preventDefault();
+      const ll = touchLatLng(ev);
+      if (ll) { vertices.push({ lat: ll.lat, lng: ll.lng }); redraw(); }
+    };
+    const onTouchEnd = () => {
+      if (!drawing) return;
+      drawing = false;
+      if (vertices.length < 3) { if (polyline) { polyline.remove(); polyline = null; } vertices = []; return; }
+      cleanup();
+      onZoneDrawn && onZoneDrawn(vertices);
     };
 
     const cleanup = () => {
-      clearTimeout(pending);
       if (polyline) polyline.remove();
-      if (preview)  preview.remove();
-      dots.forEach(d => d.remove());
-      map.off('click', onClick);
-      map.off('dblclick', onDblClick);
+      map.off('mousedown', onMouseDown);
       map.off('mousemove', onMouseMove);
+      map.off('mouseup', onMouseUp);
+      container.removeEventListener('mouseup', onMouseUp);
+      container.removeEventListener('touchstart', onTouchStart);
+      container.removeEventListener('touchmove', onTouchMove);
+      container.removeEventListener('touchend', onTouchEnd);
+      map.dragging.enable();
       map.getContainer().style.cursor = '';
     };
 
-    map.on('click', onClick);
-    map.on('dblclick', onDblClick);
+    map.on('mousedown', onMouseDown);
     map.on('mousemove', onMouseMove);
+    map.on('mouseup', onMouseUp);
+    container.addEventListener('mouseup', onMouseUp);
+    container.addEventListener('touchstart', onTouchStart, { passive: false });
+    container.addEventListener('touchmove', onTouchMove, { passive: false });
+    container.addEventListener('touchend', onTouchEnd);
     return cleanup;
   }, [drawMode, onZoneDrawn]); // eslint-disable-line
 
@@ -1273,6 +1480,7 @@ const INIT_F = {
   emplacement_garage:"",
   type_bureau:"",
   anciennete:"",
+  standing:"",
   colocation: false,
   datePubliMin:"",
 };
@@ -1297,49 +1505,75 @@ function countActiveFilters(f) {
   if (f.vocation_terrain)        n++;
   if (f.type_terrain)            n++;
   if (f.anciennete)              n++;
+  if (f.standing)                n++;
+  if (f.etage_min)               n++;
+  if (f.type_appartement)        n++;
   if (f.colocation)              n++;
   n += (f.features||[]).length;
   return n;
 }
 
-function FilterPanel({ filters, onChange, showSchools, showMosques, showFaculties, showGrandSurfaces,
-                       onToggleSchools, onToggleMosques, onToggleFaculties, onToggleGrandSurfaces, poiLoading, poiFetched,
-                       liveSchoolCount, liveMosqueCount, liveFacultyCount, liveGrandSurfaceCount }) {
+function FilterPanel({ filters, onChange, onSaveSearch, showSchools, showMosques, showFaculties, showGrandSurfaces, showHospitals,
+                       onToggleSchools, onToggleMosques, onToggleFaculties, onToggleGrandSurfaces, onToggleHospitals, poiLoading, poiFetched,
+                       liveSchoolCount, liveMosqueCount, liveFacultyCount, liveGrandSurfaceCount, liveHospitalCount }) {
   const [local,         setLocal]         = useState(filters);
   const [advanced,      setAdvanced]      = useState(false);
   const [showFeatModal, setShowFeatModal] = useState(false);
+  const [layersOpen,    setLayersOpen]    = useState(false);
+  const layersBtnRef = useRef(null);
+
+  /* Couches de données POI à afficher sur la carte (menu multi-choix "Couche data") */
+  const LAYER_ITEMS = [
+    { key:"schools",       label:"Écoles",          svg:SCHOOL_SVG,   on:showSchools,       toggle:onToggleSchools,       count:liveSchoolCount },
+    { key:"mosques",       label:"Mosquées",        svg:MOSQUE_SVG,   on:showMosques,       toggle:onToggleMosques,       count:liveMosqueCount },
+    { key:"faculties",     label:"Facultés",        svg:FACULTY_SVG,  on:showFaculties,     toggle:onToggleFaculties,     count:liveFacultyCount },
+    { key:"grandSurfaces", label:"Grandes surfaces",svg:SURFACE_SVG,  on:showGrandSurfaces, toggle:onToggleGrandSurfaces, count:liveGrandSurfaceCount },
+    { key:"hospitals",     label:"Hôpitaux",        svg:HOSPITAL_SVG, on:showHospitals,     toggle:onToggleHospitals,     count:liveHospitalCount },
+  ];
+  const activeLayers = LAYER_ITEMS.filter(l => l.on).length;
 
   /* Resync si les filtres changent depuis l'ext�rieur (ex : navigation via la navbar) */
   useEffect(() => { setLocal(filters); }, [filters]);
 
-  const set    = (k, v) => setLocal(f => ({ ...f, [k]:v }));
-  const apply  = ()     => onChange(local);
-  const reset  = ()     => { setLocal(INIT_F); onChange(INIT_F); };
+  const set          = (k, v) => setLocal(f => ({ ...f, [k]:v }));
+  const apply        = ()     => onChange(local);
+  const applyMobile  = ()     => {
+    onChange(local);
+    setAdvanced(false);
+    // Après fermeture du panneau, le conteneur carte change de taille → Leaflet doit recalculer
+    setTimeout(() => { leafletMapRef.current?.invalidateSize(); }, 320);
+  };
+  const reset        = ()     => { setLocal(INIT_F); onChange(INIT_F); };
 
   return (
     <div className="fp">
       {/* -- Ligne 1 -- */}
       <div className="fp__row1">
 
-        {/* Recherche textuelle */}
-        <div className="fp__search">
-          <Search size={14} className="fp__search-ico"/>
-          <input
-            type="text" placeholder="Titre, quartier, adresse…"
-            value={local.query}
-            onChange={(e)=>set("query",e.target.value)}
-            onKeyDown={(e)=>e.key==="Enter"&&apply()}
-            className="fp__search-inp"
-          />
-          {local.query && <button onClick={()=>set("query","")} className="fp__clear"><X size={11}/></button>}
+        {/* Recherche textuelle + bouton Rechercher accolé */}
+        <div className="fp__search-wrap">
+          <div className="fp__search">
+            <Search size={14} className="fp__search-ico"/>
+            <input
+              type="text" placeholder="Titre, quartier, adresse…"
+              value={local.query}
+              onChange={(e)=>set("query",e.target.value)}
+              onKeyDown={(e)=>e.key==="Enter"&&apply()}
+              className="fp__search-inp"
+            />
+            {local.query && <button onClick={()=>set("query","")} className="fp__clear"><X size={11}/></button>}
+          </div>
+          <button className="fp__submit fp__submit--search" onClick={applyMobile}>
+            <Search size={14}/> <span className="fp__submit-lbl">Rechercher</span>
+          </button>
         </div>
 
         {/* Catégorie � multi-sélection avec bouton Tous */}
         <div className="fp__pill-group">
-          {/* Tous � actif quand aucune catégorie sélectionnée */}
+          {/* Tous — actif quand aucune catégorie sélectionnée */}
           <button
             className={`fp__pill fp__pill--tous${(local.categories||[]).length === 0 ? " fp__pill--on" : ""}`}
-            onClick={() => set("categories", [])}
+            onClick={() => { const updated = { ...local, categories: [] }; setLocal(updated); onChange(updated); }}
           >
             Tous
           </button>
@@ -1350,7 +1584,10 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
                 className={`fp__pill fp__pill--${v}${active ? " fp__pill--on" : ""}`}
                 onClick={() => {
                   const cats = local.categories || [];
-                  set("categories", active ? cats.filter(c => c !== v) : [...cats, v]);
+                  const newCats = active ? cats.filter(c => c !== v) : [...cats, v];
+                  const updated = { ...local, categories: newCats };
+                  setLocal(updated);
+                  onChange(updated);
                 }}
               >
                 {CAT_LBL[v]}
@@ -1360,6 +1597,47 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
         </div>
 
         <div style={{ display:"flex", gap:8, marginLeft:"auto", alignItems:"center" }}>
+          {/* Couche data — menu déroulant multi-choix des POI à afficher sur la carte */}
+          <div className="fp__layers">
+            <button
+              ref={layersBtnRef}
+              className={`fp__adv-btn${activeLayers>0?" fp__adv-btn--on":""}`}
+              onClick={()=>setLayersOpen(o=>!o)}
+              type="button"
+            >
+              <Layers size={13}/>
+              <span>Points d'intérêt</span>
+              {activeLayers>0 && <span className="fp__layers-badge">{activeLayers}</span>}
+              <ChevronDown size={11} style={{ transform:layersOpen?"rotate(180deg)":"none", transition:"transform .2s" }}/>
+            </button>
+            {layersOpen && ReactDOM.createPortal(
+              (() => {
+                const r = layersBtnRef.current?.getBoundingClientRect();
+                const top  = r ? r.bottom + 6 : 80;
+                const left = r ? Math.max(8, Math.min(r.left, window.innerWidth - 238)) : 8;
+                return (
+                  <>
+                    <div className="fp__layers-backdrop" onClick={()=>setLayersOpen(false)}/>
+                    <div className="fp__layers-menu" style={{ position:"fixed", top, left }}>
+                      <div className="fp__layers-title">Données à afficher sur la carte</div>
+                      {LAYER_ITEMS.map(item => (
+                        <label key={item.key} className={`fp__layers-item${item.on?" fp__layers-item--on":""}`}>
+                          <input type="checkbox" checked={item.on} onChange={item.toggle}/>
+                          <span className="fp__layers-ico"><PoiSvg path={item.svg}/></span>
+                          <span className="fp__layers-lbl">{item.label}</span>
+                          {item.on && poiLoading
+                            ? <Loader2 size={12} className="lc__spin"/>
+                            : (item.on && item.count!=null && <span className="fp__layers-cnt">{item.count}</span>)}
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                );
+              })(),
+              document.body
+            )}
+          </div>
+
           {/* Filtres avancés */}
           <button className={`fp__adv-btn${advanced?" fp__adv-btn--on":""}`} onClick={()=>setAdvanced(!advanced)}>
             <SlidersHorizontal size={13}/>
@@ -1367,9 +1645,14 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
             <ChevronDown size={11} style={{ transform:advanced?"rotate(180deg)":"none", transition:"transform .2s" }}/>
           </button>
 
-          {/* Bouton rechercher */}
-          <button className="fp__submit" onClick={apply}>
-            <Search size={14}/> Rechercher
+          {/* Bouton Rechercher — desktop uniquement, à la fin de la ligne */}
+          <button className="fp__submit fp__submit--desktop" onClick={apply}>
+            <Search size={14}/> <span className="fp__submit-lbl">Rechercher</span>
+          </button>
+
+          {/* Bouton Enregistrer — visible sur mobile uniquement (sur desktop il est dans la barre cp-bar) */}
+          <button className="fp__save-search fp__save-search--mobile" onClick={onSaveSearch}>
+            <Save size={13} strokeWidth={2}/> Enregistrer
           </button>
         </div>
       </div>
@@ -1388,59 +1671,38 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
           }}
         />
 
-        {/* Overlays POI */}
+        {/* Overlays POI — boutons cliquables (desktop uniquement ; sur mobile c'est le menu "Couche data") */}
+        {/* POI désactivés si aucun gouvernorat sélectionné — la recherche Overpass nécessite une bbox limitée */}
         <div className="fp__poi-group">
-          <button
-            className={`fp__poi-btn fp__poi-btn--school${showSchools?" fp__poi-btn--on":""}`}
-            onClick={onToggleSchools}
-          >
-            {poiLoading && showSchools
-              ? <Loader2 size={13} className="lc__spin"/>
-              : <PoiSvg path={SCHOOL_SVG}/>
-            }
+          {!local.govNom && (
+            <div style={{fontSize:11,color:"#94a3b8",fontStyle:"italic",padding:"4px 2px"}}>
+              Sélectionnez un gouvernorat pour activer les points d'intérêt
+            </div>
+          )}
+          <button disabled={!local.govNom} className={`fp__poi-btn fp__poi-btn--school${showSchools?" fp__poi-btn--on":""}`} onClick={onToggleSchools} title={!local.govNom?"Sélectionnez un gouvernorat d'abord":""}>
+            {poiLoading && showSchools ? <Loader2 size={13} className="lc__spin"/> : <PoiSvg path={SCHOOL_SVG}/>}
             Écoles
-            {showSchools && !poiLoading && poiFetched && (
-              <span className="fp__poi-count">{liveSchoolCount}</span>
-            )}
+            {showSchools && !poiLoading && <span className="fp__poi-count">{liveSchoolCount}</span>}
           </button>
-          <button
-            className={`fp__poi-btn fp__poi-btn--mosque${showMosques?" fp__poi-btn--on":""}`}
-            onClick={onToggleMosques}
-          >
-            {poiLoading && showMosques
-              ? <Loader2 size={13} className="lc__spin"/>
-              : <PoiSvg path={MOSQUE_SVG}/>
-            }
+          <button disabled={!local.govNom} className={`fp__poi-btn fp__poi-btn--mosque${showMosques?" fp__poi-btn--on":""}`} onClick={onToggleMosques} title={!local.govNom?"Sélectionnez un gouvernorat d'abord":""}>
+            {poiLoading && showMosques ? <Loader2 size={13} className="lc__spin"/> : <PoiSvg path={MOSQUE_SVG}/>}
             Mosquées
-            {showMosques && !poiLoading && poiFetched && (
-              <span className="fp__poi-count">{liveMosqueCount}</span>
-            )}
+            {showMosques && !poiLoading && <span className="fp__poi-count">{liveMosqueCount}</span>}
           </button>
-          <button
-            className={`fp__poi-btn fp__poi-btn--faculty${showFaculties?" fp__poi-btn--on":""}`}
-            onClick={onToggleFaculties}
-          >
-            {poiLoading && showFaculties
-              ? <Loader2 size={13} className="lc__spin"/>
-              : <PoiSvg path={FACULTY_SVG}/>
-            }
+          <button disabled={!local.govNom} className={`fp__poi-btn fp__poi-btn--faculty${showFaculties?" fp__poi-btn--on":""}`} onClick={onToggleFaculties} title={!local.govNom?"Sélectionnez un gouvernorat d'abord":""}>
+            {poiLoading && showFaculties ? <Loader2 size={13} className="lc__spin"/> : <PoiSvg path={FACULTY_SVG}/>}
             Facultés
-            {showFaculties && !poiLoading && poiFetched && (
-              <span className="fp__poi-count">{liveFacultyCount}</span>
-            )}
+            {showFaculties && !poiLoading && <span className="fp__poi-count">{liveFacultyCount}</span>}
           </button>
-          <button
-            className={`fp__poi-btn fp__poi-btn--surface${showGrandSurfaces?" fp__poi-btn--on":""}`}
-            onClick={onToggleGrandSurfaces}
-          >
-            {poiLoading && showGrandSurfaces
-              ? <Loader2 size={13} className="lc__spin"/>
-              : <PoiSvg path={SURFACE_SVG}/>
-            }
+          <button disabled={!local.govNom} className={`fp__poi-btn fp__poi-btn--surface${showGrandSurfaces?" fp__poi-btn--on":""}`} onClick={onToggleGrandSurfaces} title={!local.govNom?"Sélectionnez un gouvernorat d'abord":""}>
+            {poiLoading && showGrandSurfaces ? <Loader2 size={13} className="lc__spin"/> : <PoiSvg path={SURFACE_SVG}/>}
             Grandes surfaces
-            {showGrandSurfaces && !poiLoading && poiFetched && (
-              <span className="fp__poi-count">{liveGrandSurfaceCount}</span>
-            )}
+            {showGrandSurfaces && !poiLoading && <span className="fp__poi-count">{liveGrandSurfaceCount}</span>}
+          </button>
+          <button disabled={!local.govNom} className={`fp__poi-btn fp__poi-btn--hospital${showHospitals?" fp__poi-btn--on":""}`} onClick={onToggleHospitals} title={!local.govNom?"Sélectionnez un gouvernorat d'abord":""}>
+            {poiLoading && showHospitals ? <Loader2 size={13} className="lc__spin"/> : <PoiSvg path={HOSPITAL_SVG}/>}
+            Hôpitaux
+            {showHospitals && !poiLoading && <span className="fp__poi-count">{liveHospitalCount}</span>}
           </button>
         </div>
       </div>
@@ -1448,8 +1710,22 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
       {/* -- Filtres avancés -- */}
       {advanced && (
         <div className="fp__advanced">
+          {/* Localisation — affichée ici uniquement sur mobile (gain de place) */}
+          <div className="fp__adv-loc">
+            <label className="fp__adv-label">Localisation</label>
+            <LocationCascade
+              govId={local.govId} govNom={local.govNom}
+              delId={local.delId} delNom={local.delNom}
+              locId={local.locId} locNom={local.locNom}
+              onChange={(v) => {
+                const updated = { ...local, ...v, query: "" };
+                setLocal(updated);
+                onChange(updated);
+              }}
+            />
+          </div>
           {/* Type de bien — filtré si vacances seulement */}
-          <div className="fp__adv-group">
+          <div className="fp__adv-group fp__adv-group--full">
             <label className="fp__adv-label">Type de bien</label>
             <select className="fp__adv-sel" value={local.type} onChange={(e) => {
               const newType = e.target.value;
@@ -1474,10 +1750,10 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
           {/* Prix min / max avec devise inline */}
           <div className="fp__adv-group">
             <label className="fp__adv-label">Prix min</label>
-            <div style={{display:"flex",gap:4,alignItems:"center"}}>
+            <div style={{display:"flex",gap:3,alignItems:"center"}}>
               <input type="number" placeholder="0" value={local.prixMin}
                 onChange={(e)=>set("prixMin",e.target.value)} className="fp__adv-inp" style={{flex:1,minWidth:0}}/>
-              <select className="fp__adv-sel" style={{minWidth:"unset",width:"56px",padding:"7px 6px",flexShrink:0,cursor:"pointer"}}
+              <select className="fp__adv-sel" style={{minWidth:"unset",width:"60px",padding:"7px 4px",flexShrink:0,cursor:"pointer"}}
                 value={local.filterDevise||"TND"} onChange={e=>set("filterDevise",e.target.value)}>
                 <option value="TND">TND</option><option value="EUR">EUR</option><option value="USD">USD</option>
               </select>
@@ -1485,10 +1761,10 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
           </div>
           <div className="fp__adv-group">
             <label className="fp__adv-label">Prix max</label>
-            <div style={{display:"flex",gap:4,alignItems:"center"}}>
-              <input type="number" placeholder="" value={local.prixMax}
+            <div style={{display:"flex",gap:3,alignItems:"center"}}>
+              <input type="number" placeholder="∞" value={local.prixMax}
                 onChange={(e)=>set("prixMax",e.target.value)} className="fp__adv-inp" style={{flex:1,minWidth:0}}/>
-              <select className="fp__adv-sel" style={{minWidth:"unset",width:"56px",padding:"7px 6px",flexShrink:0,cursor:"pointer"}}
+              <select className="fp__adv-sel" style={{minWidth:"unset",width:"60px",padding:"7px 4px",flexShrink:0,cursor:"pointer"}}
                 value={local.filterDevise||"TND"} onChange={e=>set("filterDevise",e.target.value)}>
                 <option value="TND">TND</option><option value="EUR">EUR</option><option value="USD">USD</option>
               </select>
@@ -1501,7 +1777,7 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
           </div>
           <div className="fp__adv-group">
             <label className="fp__adv-label">Superficie max (m²)</label>
-            <input className="fp__adv-inp" type="number" placeholder="8" min="0"
+            <input className="fp__adv-inp" type="number" placeholder="∞" min="0"
               value={local.superficieMax || ""}
               onChange={e => set("superficieMax", e.target.value)}/>
           </div>
@@ -1525,7 +1801,22 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
               </select>
             </div>
           )}
-                    {/* ── APPARTEMENT ── */}
+          {/* État du bien */}
+          {!["terrain","garage_parking","depot_stockage"].includes(local.type) && (
+            <div className="fp__adv-group">
+              <label className="fp__adv-label">État du bien</label>
+              <select className="fp__adv-sel" value={local.etat||""} onChange={e=>set("etat",e.target.value)}>
+                <option value="">Tous</option>
+                <option value="nouveau">Neuf</option>
+                <option value="bon_etat">Bon état</option>
+                <option value="a_renover">À rénover</option>
+                {!(local.categories?.length===1 && local.categories[0]==="location") && (
+                  <option value="cours_construction">En construction</option>
+                )}
+              </select>
+            </div>
+          )}
+          {/* ── APPARTEMENT ── */}
           {local.type === "appartement" && (<>
             <div className="fp__adv-group">
               <label className="fp__adv-label">Type de logement</label>
@@ -1669,7 +1960,7 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
 
           {/* Titre foncier — terrain seulement */}
           {local.type === "terrain" && (
-            <div className="fp__adv-group" style={{alignSelf:"flex-end"}}>
+            <div className="fp__adv-group fp__adv-group--full" style={{alignSelf:"flex-end",flex:"none"}}>
               <label className="fp__adv-label">Titre foncier</label>
               <label style={{
                 display:"flex", alignItems:"center", gap:8, cursor:"pointer",
@@ -1686,14 +1977,14 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
             </div>
           )}
           {/* Ancienneté de publication */}
-          <div style={{display:"flex",flexDirection:"column",gap:3}}>
+          <div className="fp__adv-group" style={{display:"flex",flexDirection:"column",gap:3}}>
             <span style={{fontSize:10,fontWeight:600,color:"#64748b",textTransform:"uppercase",letterSpacing:"0.05em"}}>Date publication</span>
           <select
             className="fp__adv-sel"
             value={local.anciennete||""}
             onChange={e => set("anciennete", e.target.value)}
             title="Date de publication"
-            style={{minWidth:160}}
+            style={{minWidth:130}}
           >
             <option value="">Toutes dates</option>
             <option value="1">Aujourd'hui</option>
@@ -1720,7 +2011,7 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
 
           {/* Colocation */}
           {(local.type === "" || local.type === "appartement" || local.type === "villa" || local.type === "villa_maison") && (
-            <div className="fp__adv-group" style={{alignSelf:"flex-end"}}>
+            <div className="fp__adv-group fp__adv-group--full" style={{alignSelf:"flex-end",flex:"none"}}>
               <label className="fp__adv-label">Colocation</label>
               <label style={{
                 display:"flex", alignItems:"center", gap:8, cursor:"pointer",
@@ -1737,18 +2028,24 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
             </div>
           )}
 
-          {/* Autres critères� masqu� pour terrain (non pertinent) */}
-          {!["terrain","garage_parking","depot_stockage"].includes(local.type) && (
-          <button
-            className={`fp__adv-btn${(local.features||[]).length > 0 ? " fp__adv-btn--on" : ""}`}
-            type="button"
-            onClick={() => setShowFeatModal(true)}
-            style={{ alignSelf:"flex-end" }}
-          >
-            Autres critères{(local.features||[]).length > 0 ? ` (${local.features.length})` : " +"}
+          {/* Actions : Autres critères (gauche) + Réinitialiser (droite) — toujours même ligne, à la fin */}
+          <div className="fp__adv-actions">
+            {!["terrain","garage_parking","depot_stockage"].includes(local.type) && (
+              <button
+                className={`fp__adv-btn${(local.features||[]).length > 0 ? " fp__adv-btn--on" : ""}`}
+                type="button"
+                onClick={() => setShowFeatModal(true)}
+              >
+                Autres critères{(local.features||[]).length > 0 ? ` (${local.features.length})` : " +"}
+              </button>
+            )}
+            <button className="fp__reset" onClick={reset}><X size={11}/> Réinitialiser</button>
+          </div>
+
+          {/* Bouton Rechercher en bas du panneau — mobile uniquement */}
+          <button className="fp__adv-search-btn" onClick={applyMobile}>
+            <Search size={14}/> Rechercher
           </button>
-          )}
-          <button className="fp__reset" onClick={reset}><X size={11}/> Réinitialiser</button>
         </div>
       )}
 
@@ -1758,20 +2055,20 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
           position:"fixed", inset:0, background:"rgba(0,0,0,.60)", zIndex:999999,
           display:"flex", alignItems:"center", justifyContent:"center", padding:"16px"
         }} onClick={e=>{ if(e.target===e.currentTarget) setShowFeatModal(false); }}>
-          <div style={{
-            background:"#fff", borderRadius:20, width:"100%", maxWidth:760,
+          <div className="feat-modal" style={{
+            background:"#fff", borderRadius:20, width:"100%", maxWidth:460,
             maxHeight:"88vh", overflow:"hidden", display:"flex", flexDirection:"column",
             boxShadow:"0 24px 80px rgba(0,0,0,.30)",
             fontFamily:"'Inter',system-ui,sans-serif"
           }}>
             {/* Header */}
-            <div style={{
+            <div className="feat-modal__header" style={{
               display:"flex", alignItems:"center", justifyContent:"space-between",
               padding:"22px 28px 18px", borderBottom:"1px solid #f1f5f9", flexShrink:0
             }}>
               <div>
-                <h3 style={{fontSize:19,fontWeight:800,color:"#0f172a",margin:0}}>Caractéristiques</h3>
-                <p style={{fontSize:13,color:"#64748b",margin:"4px 0 0"}}>Sélectionnez les équipements souhaités</p>
+                <h3 className="feat-modal__title" style={{fontSize:19,fontWeight:800,color:"#0f172a",margin:0}}>Caractéristiques</h3>
+                <p className="feat-modal__sub" style={{fontSize:13,color:"#64748b",margin:"4px 0 0"}}>Sélectionnez les équipements souhaités</p>
               </div>
               <button onClick={()=>setShowFeatModal(false)}
                 style={{width:34,height:34,borderRadius:"50%",background:"#f1f5f9",border:"none",
@@ -1781,7 +2078,7 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
             </div>
 
             {/* Body scrollable */}
-            <div style={{flex:1,overflowY:"auto",padding:"20px 28px"}}>
+            <div className="feat-modal__body" style={{flex:1,overflowY:"auto",padding:"20px 28px"}}>
               {[
                 { section:"Vue", items:[
                   {k:"vue_mer",     l:"Vue sur mer",    Ico:Waves       },
@@ -1819,49 +2116,24 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
                   {k:"interphone",       l:"Interphone",       Ico:PhoneCall      },
                 ]},
               ].map(({section, items}) => (
-                <div key={section} style={{marginBottom:28}}>
-                  <div style={{
-                    fontSize:11,fontWeight:700,color:"#64748b",textTransform:"uppercase",
-                    letterSpacing:".6px",marginBottom:14,display:"flex",alignItems:"center",gap:8
-                  }}>{section}</div>
-                  <div style={{
-                    display:"grid",
-                    gridTemplateColumns:"repeat(auto-fill,minmax(110px,1fr))",
-                    gap:10
-                  }}>
+                <div key={section} className="feat-modal__section">
+                  <div className="feat-modal__section-label">{section}</div>
+                  <div className="feat-modal__grid">
                     {items.map(({k, l, Ico}) => {
                       const isOn = (local.features||[]).includes(k);
                       return (
-                        <button key={k} type="button"
+                        <button key={k} type="button" className={`feat-modal__btn${isOn?" feat-modal__btn--on":""}`}
                           onClick={() => {
                             const cur = local.features||[];
                             set("features", isOn ? cur.filter(f=>f!==k) : [...cur,k]);
                           }}
-                          style={{
-                            position:"relative",
-                            display:"flex",flexDirection:"column",alignItems:"center",
-                            gap:7,padding:"18px 8px 14px",
-                            borderRadius:14,border:"none",
-                            background: isOn ? "#eef2ff" : "transparent",
-                            cursor:"pointer",fontFamily:"inherit",
-                            transition:"background .15s,transform .15s",
-                            minHeight:90,
-                          }}
                           onMouseEnter={e=>{ if(!isOn) e.currentTarget.style.background="#f8faff"; }}
-                          onMouseLeave={e=>{ if(!isOn) e.currentTarget.style.background="transparent"; }}
+                          onMouseLeave={e=>{ if(!isOn) e.currentTarget.style.background=""; }}
                         >
-                          <Ico size={36} strokeWidth={1.4}
-                            style={{color: isOn?"#4f46e5":"#94a3b8",transition:"color .15s"}}/>
-                          <span style={{
-                            fontSize:11.5,fontWeight:600,textAlign:"center",lineHeight:1.3,
-                            color:isOn?"#4f46e5":"#6b7280"
-                          }}>{l}</span>
+                          <Ico className="feat-modal__ico" strokeWidth={1.5}/>
+                          <span className="feat-modal__lbl">{l}</span>
                           {isOn && (
-                            <div style={{
-                              position:"absolute",top:7,right:7,
-                              width:16,height:16,borderRadius:"50%",
-                              background:"#4f46e5",display:"flex",alignItems:"center",justifyContent:"center"
-                            }}>
+                            <div className="feat-modal__check">
                               <Check size={10} color="#fff" strokeWidth={3}/>
                             </div>
                           )}
@@ -1874,12 +2146,12 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
             </div>
 
             {/* Footer */}
-            <div style={{
+            <div className="feat-modal__footer" style={{
               display:"flex",gap:12,justifyContent:"space-between",alignItems:"center",
               padding:"16px 28px 20px",borderTop:"1px solid #f1f5f9",flexShrink:0,
               background:"#fafafa"
             }}>
-              <span style={{fontSize:13,color:"#64748b"}}>
+              <span className="feat-modal__count" style={{fontSize:13,color:"#64748b"}}>
                 {(local.features||[]).length > 0
                   ? `${local.features.length} critère${local.features.length>1?"s":""} sélectionné${local.features.length>1?"s":""}`
                   : "Aucun critère sélectionné"}
@@ -1887,12 +2159,14 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
               <div style={{display:"flex",gap:10}}>
                 <button type="button"
                   onClick={() => set("features",[])}
+                  className="feat-modal__clear"
                   style={{padding:"10px 18px",borderRadius:10,border:"1.5px solid #e5e7eb",
                     background:"#fff",color:"#374151",fontWeight:600,cursor:"pointer",
                     fontSize:13,fontFamily:"inherit"}}
                 >Tout effacer</button>
                 <button type="button"
                   onClick={() => { onChange({...local}); setShowFeatModal(false); }}
+                  className="feat-modal__apply"
                   style={{padding:"10px 22px",borderRadius:10,border:"none",
                     background:"#0f172a",color:"#fff",fontWeight:700,cursor:"pointer",
                     fontSize:13,fontFamily:"inherit",
@@ -1927,15 +2201,15 @@ function FilterPanel({ filters, onChange, showSchools, showMosques, showFacultie
    la qualité et la fraîcheur, pas aléatoirement.
 -------------------------------------------------------------- */
 function computeScore(p) {
-  const boost     = (p.boost || 0) * 1000;
-  const photos    = Math.min((p.images?.length || 0), 5) * 40;            // 40pts � nb photos (max 200)
-  const desc      = (p.description?.length || 0) >= 200 ? 100
-                  : (p.description?.length || 0) >= 50  ? 50 : 0;
-  const tf        = p.titre_foncier ? 150 : 0;
-  const freshness = p.date_creation
-    ? Math.max(0, 500 - Math.floor((Date.now() - new Date(p.date_creation)) / 86_400_000))
-    : 0;
-  return boost + photos + desc + tf + freshness;
+  const boost   = (p.boost || 0) * 1_000_000;
+  const photos  = Math.min((p.images?.length || 0), 5) * 40;
+  const desc    = (p.description?.length || 0) >= 200 ? 100
+                : (p.description?.length || 0) >= 50  ? 50 : 0;
+  const tf      = p.titre_foncier ? 150 : 0;
+  // Fraîcheur : date de refresh/modification en priorité, sinon date de création
+  const refDate   = p.date_mise_a_jour || p.date_creation;
+  const freshness = refDate ? new Date(refDate).getTime() : 0;
+  return boost + freshness + photos + desc + tf;
 }
 
 function transformApiAnnonce(a) {
@@ -1969,8 +2243,10 @@ function transformApiAnnonce(a) {
     hauteur_immeuble: a.hauteur_immeuble   || null,
     emplacement_garage: a.emplacement_garage || null,
     boost:         a.boost_level   || 0,
+    spotlight:     a.spotlight_active || false,
     description:   a.description   || "",
-    date_creation: a.date_creation || null,
+    date_creation:    a.date_creation    || null,
+    date_mise_a_jour: a.date_mise_a_jour || null,
     lat:           a.latitude,
     lng:           a.longitude,
     images:        (a.images || []).length > 0
@@ -1992,7 +2268,7 @@ const FEAT_KEY_TO_LABEL = {
   jardin:"Jardin", terrasse:"Terrasse", balcon:"Balcon", parking:"Parking",
   garage:"Garage", ascenseur:"Ascenseur", vue_mer:"Vue sur mer",
   vue_montagne:"Vue sur montagne", vue_foret:"Vue sur forêt", piscine:"Piscine",
-  concierge:"Concierge", cellier:"Cellier", meuble:"Meublé",
+  concierge:"Concierge", cellier:"Chambre rangement", meuble:"Meublé",
   gardien:"Gardien", animaux_admis:"Animaux admis",
   cuisine_equipee:"Cuisine équipée", climatisation:"Climatisation",
   chauffage_centrale:"Chauffage central", cheminee:"Cheminée",
@@ -2363,8 +2639,12 @@ export default function CartePage() {
     etat:          sp.get("etat")        || "",
     titre_foncier: sp.get("tf")          || "",
     features:      (sp.get("feat") || "").split(",").map(s=>s.trim()).filter(Boolean),
-    type_terrain:    sp.get("tterrain") || "",
-    vocation_terrain:sp.get("vterrain") || "",
+    type_terrain:    sp.get("tterrain")   || "",
+    vocation_terrain:sp.get("vterrain")   || "",
+    standing:        sp.get("standing")   || "",
+    anciennete:      sp.get("anciennete") || "",
+    etage_min:       sp.get("etage_min")  || "",
+    type_appartement:sp.get("type_appt")  || "",
     colocation:      sp.get("colocation") === "1",
   }), []);
 
@@ -2457,8 +2737,11 @@ export default function CartePage() {
     if (f.type_terrain)     sp.set("tterrain", f.type_terrain);
     if (f.vocation_terrain) sp.set("vterrain", f.vocation_terrain);
     if (f.features && f.features.length > 0) sp.set("feat", f.features.join(","));
-    if (f.standing)          sp.set("standing",    f.standing);
-    if (f.colocation)        sp.set("colocation",  "1");
+    if (f.standing)          sp.set("standing",       f.standing);
+    if (f.anciennete)        sp.set("anciennete",     f.anciennete);
+    if (f.etage_min)         sp.set("etage_min",      f.etage_min);
+    if (f.type_appartement)  sp.set("type_appt",      f.type_appartement);
+    if (f.colocation)        sp.set("colocation",     "1");
     /* setSearchParams déclenche le useEffect ci-dessus qui met à jour filters */
     setSearchParams(sp, { replace: true });
   }, [setSearchParams]);
@@ -2466,28 +2749,39 @@ export default function CartePage() {
   const _savedPOI     = (() => { try { return JSON.parse(sessionStorage.getItem("localizi_carte_poi")  || "null"); } catch { return null; } })();
   const [savedMapView] = useState(() => { try { return JSON.parse(sessionStorage.getItem("localizi_carte_view") || "null"); } catch { return null; } });
   const [drawMode,         setDrawMode]         = useState(false);
-  const [drawnZones,       setDrawnZones]       = useState([]); /* [{lat,lng}][] */
+  const [drawnZones,       setDrawnZones]       = useState(() => { try { return JSON.parse(sessionStorage.getItem("localizi_carte_zones") || "null") || []; } catch { return []; } });
   const [eraseMode,        setEraseMode]        = useState(false);
   const [eraseSelectedIdx, setEraseSelectedIdx] = useState(null);
-  const [modalId,          setModalId]          = useState(null);
+  const [modalId,          setModalId]          = useState(() => searchParams.get("annonce") || null);
+  useEffect(() => { window.__openAnnonceModal = (id) => setModalId(id); return () => { delete window.__openAnnonceModal; }; }, []);
+  /* Ouvrir le modal depuis l'URL ?annonce=ID (lien email alerte) */
+  useEffect(() => {
+    const id = searchParams.get("annonce");
+    if (id) { setModalId(id); }
+  }, []);
   const [showSaveModal,    setShowSaveModal]    = useState(false);
   const [saveModalName,    setSaveModalName]    = useState("Ma recherche");
   const [saveModalLoading, setSaveModalLoading] = useState(false);
   const [saveModalSuccess, setSaveModalSuccess] = useState(false);
   const [saveFilterAlert,  setSaveFilterAlert]  = useState(false);
   const [showMinFiltersModal, setShowMinFiltersModal] = useState(false);
+  const [showFiltersSummary,  setShowFiltersSummary]  = useState(false);
+  const filterSumBtnRef = useRef(null);
   const [showSchools,      setShowSchools]      = useState(_savedPOI?.showSchools      ?? false);
   const [showMosques,      setShowMosques]      = useState(_savedPOI?.showMosques      ?? false);
   const [showFaculties,    setShowFaculties]    = useState(_savedPOI?.showFaculties    ?? false);
   const [showGrandSurfaces,setShowGrandSurfaces]= useState(_savedPOI?.showGrandSurfaces ?? false);
-  const [listMode,         setListMode]         = useState(searchParams.get("vue") === "liste");
+  const [showHospitals,    setShowHospitals]    = useState(_savedPOI?.showHospitals    ?? false);
+  const [listMode,         setListMode]         = useState(() => searchParams.get("vue") === "liste" || sessionStorage.getItem("localizi_carte_listmode") === "1");
+  const [sortPrice,        setSortPrice]        = useState(null); // null | "asc" | "desc"
   const [listPage,         setListPage]         = useState(1);
   const [listLoading,      setListLoading]      = useState(false);
   const PAGE_SIZE = 30;
-  const [livePOIs,         setLivePOIs]         = useState({ schools: [], mosques: [], faculties: [], grandSurfaces: [], loading: false, fetched: false });
+  const [livePOIs,         setLivePOIs]         = useState({ schools: [], mosques: [], faculties: [], grandSurfaces: [], hospitals: [], loading: false, fetched: false });
   const [hoveredPin,       setHoveredPin]       = useState(null);
   /* Timer partag� : PropertyMap (mouseleave pin) ET hover card (onMouseEnter) l'utilisent */
   const sharedHoverTimer = useRef(null);
+  const leafletMapRef    = useRef(null);
   /* Basculer vers vue carte via événement custom (bouton Map de la Navbar) */
   React.useEffect(() => {
     const h = () => setListMode(false);
@@ -2517,6 +2811,8 @@ export default function CartePage() {
         `  way["amenity"="college"](${bbox});\n` +
         `  node["shop"~"supermarket|mall|department_store"](${bbox});\n` +
         `  way["shop"~"supermarket|mall|department_store"](${bbox});\n` +
+        `  node["amenity"~"hospital|clinic"](${bbox});\n` +
+        `  way["amenity"~"hospital|clinic"](${bbox});\n` +
         `);\nout center;`;
 
       const ovRes = await fetch("https://overpass-api.de/api/interpreter", {
@@ -2550,7 +2846,12 @@ export default function CartePage() {
         .map(e => ({ id:`ov_gs_${e.id}`, nom: e.tags?.name || "Grande surface", ...toPoint(e) }))
         .filter(e => e.lat && e.lng);
 
-      setLivePOIs({ schools, mosques, faculties, grandSurfaces, loading: false, fetched: true });
+      const hospitals = elements
+        .filter(e => e.tags?.amenity === "hospital" || e.tags?.amenity === "clinic")
+        .map(e => ({ id:`ov_ho_${e.id}`, nom: e.tags?.name || "Hôpital", ...toPoint(e) }))
+        .filter(e => e.lat && e.lng);
+
+      setLivePOIs({ schools, mosques, faculties, grandSurfaces, hospitals, loading: false, fetched: true });
     } catch {
       setLivePOIs(prev => ({ ...prev, loading: false, fetched: true }));
     } finally {
@@ -2572,7 +2873,7 @@ export default function CartePage() {
     if (!mapBounds) return;
     const newBbox = boundsToOverpassBbox(mapBounds);
     mapBboxRef.current = newBbox;
-    const anyActive = showSchools || showMosques || showFaculties || showGrandSurfaces;
+    const anyActive = showSchools || showMosques || showFaculties || showGrandSurfaces || showHospitals;
     if (!anyActive) return;
     /* Réinitialise fetched pour forcer un nouveau fetch sur la nouvelle zone */
     setLivePOIs(prev => ({ ...prev, fetched: false }));
@@ -2594,6 +2895,7 @@ export default function CartePage() {
       if (type === "mosques")       setShowMosques(false);
       if (type === "faculties")     setShowFaculties(false);
       if (type === "grandSurfaces") setShowGrandSurfaces(false);
+      if (type === "hospitals")     setShowHospitals(false);
       return;
     }
 
@@ -2602,6 +2904,7 @@ export default function CartePage() {
     if (type === "mosques")       setShowMosques(true);
     if (type === "faculties")     setShowFaculties(true);
     if (type === "grandSurfaces") setShowGrandSurfaces(true);
+    if (type === "hospitals")     setShowHospitals(true);
 
     const current = livePOIsRef.current;
     /* Fetch uniquement si pas encore charg� ET pas en cours de chargement */
@@ -2624,12 +2927,22 @@ export default function CartePage() {
 
   /* Persist POI state to sessionStorage */
   useEffect(() => {
-    sessionStorage.setItem("localizi_carte_poi", JSON.stringify({ showSchools, showMosques, showFaculties, showGrandSurfaces }));
-  }, [showSchools, showMosques, showFaculties, showGrandSurfaces]);
+    sessionStorage.setItem("localizi_carte_poi", JSON.stringify({ showSchools, showMosques, showFaculties, showGrandSurfaces, showHospitals }));
+  }, [showSchools, showMosques, showFaculties, showGrandSurfaces, showHospitals]);
+
+  /* Persist drawn zones to sessionStorage */
+  useEffect(() => {
+    sessionStorage.setItem("localizi_carte_zones", JSON.stringify(drawnZones));
+  }, [drawnZones]);
+
+  /* Persist list/map mode to sessionStorage */
+  useEffect(() => {
+    sessionStorage.setItem("localizi_carte_listmode", listMode ? "1" : "0");
+  }, [listMode]);
 
   /* If any POI was restored from sessionStorage, trigger fetch once the map bbox is ready */
   useEffect(() => {
-    if (!(showSchools || showMosques || showFaculties || showGrandSurfaces)) return;
+    if (!(showSchools || showMosques || showFaculties || showGrandSurfaces || showHospitals)) return;
     const waitId = setInterval(() => {
       if (mapBboxRef.current && !livePOIsRef.current.fetched && !livePOIsRef.current.loading) {
         clearInterval(waitId);
@@ -2745,6 +3058,7 @@ export default function CartePage() {
       if (filters.titre_foncier==="1" && !p.titre_foncier)       return false;
       if (filters.type_terrain        && p.type_terrain        !== filters.type_terrain)        return false;
       if (filters.vocation_terrain    && p.vocation_terrain    !== filters.vocation_terrain)    return false;
+      if (filters.standing             && p.standing             !== filters.standing)             return false;
       if (filters.type_appartement    && p.type_appartement    !== filters.type_appartement)    return false;
       if (filters.type_villa          && p.type_villa          !== filters.type_villa)          return false;
       if (filters.type_bureau         && p.type_bureau         !== filters.type_bureau)         return false;
@@ -2783,9 +3097,16 @@ export default function CartePage() {
       ? results.filter(p => p.lat && p.lng && mapBounds.contains && mapBounds.contains([p.lat, p.lng]))
       : results;
 
+  /* Tri par prix */
+  const sortedVisibleResults = sortPrice
+    ? [...visibleResults].sort((a, b) => sortPrice === "asc"
+        ? (parseFloat(a.prix) || 0) - (parseFloat(b.prix) || 0)
+        : (parseFloat(b.prix) || 0) - (parseFloat(a.prix) || 0))
+    : visibleResults;
+
   /* Pagination liste */
-  const listTotalPages = Math.ceil(visibleResults.length / PAGE_SIZE);
-  const listPageResults = visibleResults.slice((listPage - 1) * PAGE_SIZE, listPage * PAGE_SIZE);
+  const listTotalPages = Math.ceil(sortedVisibleResults.length / PAGE_SIZE);
+  const listPageResults = sortedVisibleResults.slice((listPage - 1) * PAGE_SIZE, listPage * PAGE_SIZE);
 
   /* Tags filtres actifs (toujours visibles même si 0 résultats) */
   const activeTags = [
@@ -2804,17 +3125,23 @@ export default function CartePage() {
     filters.chambresMin && { label:`${filters.chambresMin}+ chambres`, key:"chambresMin", color:"#be185d" },
     filters.bedsMin    && { label:`${filters.bedsMin}+ ch.`, key:"bedsMin", color:"#be185d" },
     filters.datePubliMin && { label:`Depuis ${filters.datePubliMin}`, key:"datePubliMin", color:"#0f766e" },
+    filters.type_terrain     && { label: ({agricole:"Agricole",zone_verte:"Zone verte",lotissement:"Lotissement",commercial:"Commercial",industriel:"Industriel",mixte:"Mixte"})[filters.type_terrain] || filters.type_terrain, key:"type_terrain", color:"#854d0e" },
+    filters.vocation_terrain && { label: ({agricole:"Voc. agricole",touristique:"Voc. touristique",mixte:"Voc. mixte",residentielle:"Voc. résidentielle",commerciale:"Voc. commerciale",industrielle:"Voc. industrielle"})[filters.vocation_terrain] || filters.vocation_terrain, key:"vocation_terrain", color:"#713f12" },
+    filters.standing         && { label: ({economique:"Économique",moyen_standing:"Moyen standing",haut_standing:"Haut standing"})[filters.standing] || filters.standing, key:"standing", color:"#0e7490" },
+    filters.anciennete       && { label: ({1:"Aujourd'hui",7:"7 derniers jours",30:"30 derniers jours",60:"60 derniers jours",90:"3 derniers mois",180:"6 derniers mois"})[filters.anciennete] || `${filters.anciennete} jours`, key:"anciennete", color:"#0f766e" },
+    filters.etage_min        && { label: filters.etage_min==="0"?"RDC":`Étage ≥ ${filters.etage_min}`, key:"etage_min", color:"#4338ca" },
+    filters.type_appartement && { label: ({studio:"Studio",s0:"S0","s+1":"S+1","s+2":"S+2","s+3":"S+3","s+4":"S+4",duplex:"Duplex",penthouse:"Penthouse"})[filters.type_appartement] || filters.type_appartement, key:"type_appartement", color:"#be185d" },
     filters.titre_foncier && { label:"Titre foncier",     key:"titre_foncier", color:"#15803d" },
     filters.colocation    && { label:"Colocation",         key:"colocation",    color:"#6366f1" },
     ...(filters.features||[]).map(k => ({ label: k.replace(/_/g," "), key:`feat_${k}`, color:"#7c3aed" })),
   ].filter(Boolean);
 
   /* Click pin ? scroll vers la carte */
-  const handlePin = (id) => {
+  const handlePin = useCallback((id) => {
     setActive(id);
     const el = document.getElementById(`card-${id}`);
     if (el) el.scrollIntoView({ behavior:"smooth", block:"nearest" });
-  };
+  }, []);
 
   /* removeTag passe par applyFilters pour synchroniser URL + sessionStorage */
   const removeTag = (key) => {
@@ -2834,73 +3161,138 @@ export default function CartePage() {
     applyFilters(newF);
   };
 
+  /* -- Calcul des comptes visibles pour chaque couche POI --
+     On utilise les données live Overpass si disponibles, sinon le fallback statique.
+     On filtre ensuite par les bounds actuelles de la carte. */
+  const _govFilter = filters.govNom || null;
+  const _inBounds = (item) => {
+    if (!mapBounds || !mapBounds.contains) return true;
+    return item.lat && item.lng && mapBounds.contains([item.lat, item.lng]);
+  };
+  const _staticSchools  = _govFilter ? SCHOOLS.filter(s=>s.gov===_govFilter)           : SCHOOLS;
+  const _staticMosques  = _govFilter ? MOSQUES.filter(m=>m.gov===_govFilter)           : MOSQUES;
+  const _staticFacults  = _govFilter ? FACULTIES.filter(f=>f.gov===_govFilter)         : FACULTIES;
+  const _staticSurfaces = _govFilter ? GRAND_SURFACES.filter(g=>g.gov===_govFilter)    : GRAND_SURFACES;
+  const _staticHosp     = _govFilter ? HOSPITALS.filter(h=>h.gov===_govFilter)         : HOSPITALS;
+  const _liveSchools    = livePOIs.schools;
+  const _liveMosques    = livePOIs.mosques;
+  const _liveFacults    = livePOIs.faculties;
+  const _liveSurfaces   = livePOIs.grandSurfaces || [];
+  const _liveHosp       = livePOIs.hospitals || [];
+  // For live Overpass data, filter by visible bounds; for static fallback, show all gov results
+  const visSchoolCount   = _liveSchools.length   > 0 ? _liveSchools.filter(_inBounds).length   : _staticSchools.length;
+  const visMosqueCount   = _liveMosques.length   > 0 ? _liveMosques.filter(_inBounds).length   : _staticMosques.length;
+  const visFacultyCount  = _liveFacults.length   > 0 ? _liveFacults.filter(_inBounds).length   : _staticFacults.length;
+  const visSurfaceCount  = _liveSurfaces.length  > 0 ? _liveSurfaces.filter(_inBounds).length  : _staticSurfaces.length;
+  const visHospitalCount = _liveHosp.length      > 0 ? _liveHosp.filter(_inBounds).length      : _staticHosp.length;
+
   return (
     <div className={`cp-root${listMode ? "" : " cp-root--carte"}`}>
       <Navbar />
 
-      <div style={{position:"sticky",top:64,zIndex:200,background:"#fff",boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
+      <div className="cp-sticky-bar" style={{position:"sticky",top:64,zIndex:200,background:"#fff",boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
       <FilterPanel
         filters={filters} onChange={applyFilters}
-        showSchools={showSchools} showMosques={showMosques} showFaculties={showFaculties} showGrandSurfaces={showGrandSurfaces}
+        onSaveSearch={() => {
+          const token = localStorage.getItem("token");
+          if (!token) { window.location.href = "/login?redirect=/carte"; return; }
+          if (countActiveFilters(filters) < 3) { setShowMinFiltersModal(true); return; }
+          setSaveModalName("Ma recherche");
+          setSaveModalSuccess(false);
+          setShowSaveModal(true);
+        }}
+        showSchools={showSchools} showMosques={showMosques} showFaculties={showFaculties} showGrandSurfaces={showGrandSurfaces} showHospitals={showHospitals}
         onToggleSchools={()=>handleTogglePOI("schools",      showSchools)}
         onToggleMosques={()=>handleTogglePOI("mosques",      showMosques)}
         onToggleFaculties={()=>handleTogglePOI("faculties",  showFaculties)}
         onToggleGrandSurfaces={()=>handleTogglePOI("grandSurfaces", showGrandSurfaces)}
+        onToggleHospitals={()=>handleTogglePOI("hospitals",  showHospitals)}
         poiLoading={livePOIs.loading}
         poiFetched={livePOIs.fetched}
-        liveSchoolCount={livePOIs.schools.length}
-        liveMosqueCount={livePOIs.mosques.length}
-        liveFacultyCount={livePOIs.faculties.length}
-        liveGrandSurfaceCount={(livePOIs.grandSurfaces||[]).length}
+        liveSchoolCount={visSchoolCount}
+        liveMosqueCount={visMosqueCount}
+        liveFacultyCount={visFacultyCount}
+        liveGrandSurfaceCount={visSurfaceCount}
+        liveHospitalCount={visHospitalCount}
       />
 
-      {/* Barre compteur + tags */}
+      {/* Barre compteur + résumé filtres */}
       <div className="cp-bar">
         <span className="cp-bar__count">
           <strong>{visibleResults.length}</strong> annonce{visibleResults.length!==1?"s":""} trouvée{visibleResults.length!==1?"s":""}
         </span>
-        {(activeTags.length > 0 || drawnZones.length > 0) && (
-          <div className="cp-bar__tags">
-            {activeTags.map(t=>(
-              <Tag key={t.key} label={t.label} color={t.color} onRemove={()=>removeTag(t.key)} />
-            ))}
-            {drawnZones.map((_, i) => (
-              <span key={i} style={{
-                display:"inline-flex", alignItems:"center", gap:5,
-                background:"#dbeafe", color:"#1e40af",
-                borderRadius:20, padding:"3px 10px", fontSize:12, fontWeight:600,
-              }}>
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/>
-                </svg>
-                Zone {i+1}
-                <button onClick={() => setDrawnZones(z => z.filter((_,j)=>j!==i))} style={{
-                  background:"none", border:"none", cursor:"pointer", padding:0,
-                  color:"#1e40af", display:"flex", alignItems:"center", marginLeft:2,
-                }}>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </button>
-              </span>
-            ))}
-            <button className="cp-bar__clear-all" onClick={()=>{ applyFilters(INIT_F); setDrawnZones([]); setEraseMode(false); setEraseSelectedIdx(null); }}>
-              Tout effacer
-            </button>
-          </div>
-        )}
         <div style={{display:"flex",alignItems:"center",gap:8,marginLeft:"auto"}}>
           <CompareBar />
-          <button className="fp__save-search cp-save-search-bar" onClick={() => {
-            const token = localStorage.getItem("token");
-            if (!token) { window.location.href = "/login?redirect=/carte"; return; }
-            if (countActiveFilters(filters) < 3) {
-              setShowMinFiltersModal(true);
-              return;
-            }
-            setSaveModalName("Ma recherche");
-            setSaveModalSuccess(false);
-            setShowSaveModal(true);
-          }}><Save size={13} strokeWidth={2}/> Enregistrer la recherche</button>
         </div>
+
+        {/* Icône résumé des filtres actifs — juste à gauche de "Vue liste" */}
+        {(activeTags.length > 0 || drawnZones.length > 0) && (
+          <div className="cp-filtersum">
+            <button ref={filterSumBtnRef} className="cp-filtersum__btn" onClick={()=>setShowFiltersSummary(o=>!o)} title="Filtres actifs">
+              <SlidersHorizontal size={14}/>
+              <span className="cp-filtersum__label">Filtres actifs</span>
+              <span className="cp-filtersum__badge" key={activeTags.length + drawnZones.length}>{activeTags.length + drawnZones.length}</span>
+            </button>
+            {showFiltersSummary && ReactDOM.createPortal(
+              (() => {
+                const r = filterSumBtnRef.current?.getBoundingClientRect();
+                const top  = r ? r.bottom + 8 : 110;
+                const left = r ? Math.max(8, Math.min(r.right - 250, window.innerWidth - 258)) : 8;
+                return (
+                  <>
+                    <div className="cp-filtersum__backdrop" onClick={()=>setShowFiltersSummary(false)}/>
+                    <div className="cp-filtersum__menu" style={{ position:"fixed", top, left }}>
+                      <div className="cp-filtersum__title">Filtres actifs</div>
+                      {activeTags.map(t=>(
+                        <div key={t.key} className="cp-filtersum__row">
+                          <span className="cp-filtersum__dot" style={{background:t.color}}/>
+                          <span className="cp-filtersum__lbl">{t.label}</span>
+                          <button className="cp-filtersum__x" onClick={()=>removeTag(t.key)} title="Supprimer"><X size={13}/></button>
+                        </div>
+                      ))}
+                      {drawnZones.map((_, i) => (
+                        <div key={`z${i}`} className="cp-filtersum__row">
+                          <span className="cp-filtersum__dot" style={{background:"#1e40af"}}/>
+                          <span className="cp-filtersum__lbl">Zone {i+1}</span>
+                          <button className="cp-filtersum__x" onClick={()=>setDrawnZones(z=>z.filter((_,j)=>j!==i))} title="Supprimer"><X size={13}/></button>
+                        </div>
+                      ))}
+                      <button className="cp-filtersum__clear" onClick={()=>{
+                        applyFilters(INIT_F); setDrawnZones([]); setEraseMode(false); setEraseSelectedIdx(null);
+                        sessionStorage.removeItem("localizi_carte_zones"); setShowFiltersSummary(false);
+                      }}>Tout effacer</button>
+                    </div>
+                  </>
+                );
+              })(),
+              document.body
+            )}
+          </div>
+        )}
+
+        {/* Bouton Enregistrer — desktop uniquement */}
+        <button className="fp__save-search fp__save-search--desktop" onClick={() => {
+          const token = localStorage.getItem("token");
+          if (!token) { window.location.href = "/login?redirect=/carte"; return; }
+          if (countActiveFilters(filters) < 3) { setShowMinFiltersModal(true); return; }
+          setSaveModalName("Ma recherche");
+          setSaveModalSuccess(false);
+          setShowSaveModal(true);
+        }}>
+          <Save size={13} strokeWidth={2}/> Enregistrer la recherche
+        </button>
+
+        {/* Bouton tri par prix — desktop: toujours visible / mobile: visible seulement en vue liste */}
+        <button
+          className={`cp-toggle-btn${!listMode ? " cp-sort-map-hidden" : ""}`}
+          onClick={() => setSortPrice(s => s === null ? "asc" : s === "asc" ? "desc" : null)}
+          title={sortPrice === "asc" ? "Prix croissant — cliquer pour décroissant" : sortPrice === "desc" ? "Prix décroissant — cliquer pour annuler" : "Trier par prix"}
+          style={sortPrice ? { borderColor: "#6366f1", color: "#6366f1", background: "#eef2ff" } : {}}
+        >
+          <ArrowUpDown size={14}/>
+          {sortPrice === "asc" ? " Prix ↑" : sortPrice === "desc" ? " Prix ↓" : " Trier"}
+        </button>
+
         <button className="cp-toggle-btn" onClick={()=>setListMode(v=>!v)}>
           {listMode
             ? <><MapIcon size={14}/> Vue carte</>
@@ -3027,7 +3419,7 @@ export default function CartePage() {
             onMouseLeave={() => setHoveredPin(null)}
           >
             <PropertyMap
-              properties={allProperties}
+              properties={results}
               activeId={active}
               selectedGov={filters.govNom}
               selectedDel={filters.delNom}
@@ -3094,10 +3486,12 @@ export default function CartePage() {
               showMosques={showMosques}
               showFaculties={showFaculties}
               showGrandSurfaces={showGrandSurfaces}
+              showHospitals={showHospitals}
               liveSchools={livePOIs.schools}
               liveMosques={livePOIs.mosques}
               liveFaculties={livePOIs.faculties}
               liveGrandSurfaces={livePOIs.grandSurfaces||[]}
+              liveHospitals={livePOIs.hospitals||[]}
               onPinHover={setHoveredPin}
               sharedHoverTimer={sharedHoverTimer}
               centerTarget={centerTarget}
@@ -3108,6 +3502,7 @@ export default function CartePage() {
               eraseMode={eraseMode}
               eraseSelectedIdx={eraseSelectedIdx}
               onEraseSelect={(i) => setEraseSelectedIdx(i === eraseSelectedIdx ? null : i)}
+              onMapRef={(map) => { leafletMapRef.current = map; }}
             />
             {/* -- Boutons dessin / effacement zone -- */}
             <div style={{
@@ -3118,18 +3513,16 @@ export default function CartePage() {
                 onClick={() => { setDrawMode(v => !v); setEraseMode(false); setEraseSelectedIdx(null); }}
                 title={drawMode ? "Annuler le dessin" : "Dessiner une zone"}
                 style={{
-                  display:"flex", alignItems:"center", gap:12,
-                  padding:"14px 24px", borderRadius:12, border:"2px solid",
+                  display:"flex", alignItems:"center", gap:7,
+                  padding:"8px 13px", borderRadius:10, border:"2px solid",
                   borderColor: drawMode ? "#1e40af" : "#d1d5db",
                   background: drawMode ? "#dbeafe" : "#fff",
                   color: drawMode ? "#1e40af" : "#374151",
-                  fontWeight:700, fontSize:16, cursor:"pointer",
+                  fontWeight:700, fontSize:13, cursor:"pointer",
                   boxShadow:"0 4px 16px rgba(0,0,0,.18)", whiteSpace:"nowrap",
                 }}
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/>
-                </svg>
+                <PenLine size={15}/>
                 {drawMode ? "Annuler" : "Dessiner une zone"}
               </button>
               {drawnZones.length > 0 && !drawMode && (
@@ -3239,7 +3632,7 @@ export default function CartePage() {
                       </button>
                     )}
                   </div>
-                : visibleResults.map((p) => (
+                : sortedVisibleResults.map((p) => (
                     <div id={`card-${p.id}`} key={p.id}>
                       <PropCard p={p} active={active===p.id} govMarketStats={govMarketStats}
                         compact
@@ -3257,7 +3650,7 @@ export default function CartePage() {
         </div>
 
       {/* -- Modal annonce -- */}
-      {modalId && <AnnonceModal annonceId={modalId} onClose={() => setModalId(null)} />}
+      {modalId && <AnnonceDetailModal annonceId={modalId} onClose={() => setModalId(null)} />}
 
       {/* -- Popup : minimum 3 critères -- */}
       {showMinFiltersModal && ReactDOM.createPortal(
@@ -3350,9 +3743,9 @@ export default function CartePage() {
           display: flex; flex-direction: column;
           min-height: 100vh; overflow-x: clip;
           background: #fff;
-          font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+          font-family: 'Poppins', system-ui, sans-serif;
         }
-        .cp-root--carte { height: 100vh; overflow: hidden; }
+        .cp-root--carte { height: 100vh; height: 100dvh; overflow: hidden; }
 
         /* --------------------------------------
            PANNEAU FILTRES à light theme
@@ -3369,6 +3762,10 @@ export default function CartePage() {
           display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
         }
 
+        .fp__search-wrap { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 240px; }
+        .fp__search-wrap .fp__search { flex: 1; min-width: 120px; }
+        .fp__submit--search  { flex-shrink: 0; display: none !important; }  /* caché sur desktop, visible sur mobile */
+        .fp__submit--desktop { display: flex; }                  /* visible sur desktop après bouton Filtres */
         .fp__search {
           position: relative; display: flex; align-items: center;
           background: #f9fafb; border: 1.5px solid #e5e7eb;
@@ -3419,13 +3816,48 @@ export default function CartePage() {
 
         .fp__adv-btn {
           display: flex; align-items: center; gap: 6px;
-          padding: 8px 14px; border-radius: 10px; font-size: 13.5px;
+          height: 35px; padding: 0 14px; border-radius: 10px; font-size: 13px;
           font-weight: 600; cursor: pointer; font-family: 'Poppins', sans-serif;
           border: 1.5px solid #e5e7eb; background: #f9fafb; color: #6b7280;
-          transition: all .15s; white-space: nowrap;
+          transition: all .15s; white-space: nowrap; box-sizing: border-box;
         }
         .fp__adv-btn:hover { background: #f3f4f6; color: #374151; border-color: #d1d5db; }
         .fp__adv-btn--on { background: #eef2ff; color: #4338ca; border-color: #c7d2fe; }
+
+        /* -- Menu "Couche data" (POI multi-choix) — mobile uniquement -- */
+        .fp__layers { position: relative; display: none; }
+        .fp__layers-badge {
+          display: inline-flex; align-items: center; justify-content: center;
+          min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px;
+          background: #4338ca; color: #fff; font-size: 10.5px; font-weight: 800;
+        }
+        .fp__layers-backdrop { position: fixed; inset: 0; z-index: 99998; }
+        .fp__layers-menu {
+          z-index: 99999;
+          width: 230px; max-width: calc(100vw - 16px);
+          background: #fff; border: 1px solid #e5e7eb;
+          border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,.16);
+          padding: 8px; display: flex; flex-direction: column; gap: 2px;
+        }
+        .fp__layers-title {
+          font-size: 10.5px; font-weight: 700; color: #9ca3af;
+          text-transform: uppercase; letter-spacing: .5px; padding: 6px 8px 8px;
+        }
+        .fp__layers-item {
+          display: flex; align-items: center; gap: 9px;
+          padding: 9px 8px; border-radius: 8px; cursor: pointer;
+          font-size: 13.5px; font-weight: 600; color: #374151;
+          transition: background .12s;
+        }
+        .fp__layers-item:hover { background: #f3f4f6; }
+        .fp__layers-item--on { background: #eef2ff; color: #4338ca; }
+        .fp__layers-item input { width: 15px; height: 15px; accent-color: #6366f1; cursor: pointer; flex-shrink: 0; }
+        .fp__layers-ico { display: flex; align-items: center; flex-shrink: 0; }
+        .fp__layers-lbl { flex: 1; }
+        .fp__layers-cnt {
+          font-size: 11px; font-weight: 700; color: #6366f1;
+          background: #eef2ff; border-radius: 10px; padding: 1px 7px;
+        }
 
         .fp__submit {
           display: flex; align-items: center; gap: 7px;
@@ -3443,6 +3875,10 @@ export default function CartePage() {
           display: flex; align-items: center; gap: 10px;
           margin-top: 10px; flex-wrap: wrap;
         }
+
+        /* Localisation déplacée dans les filtres : visible uniquement sur mobile */
+        .fp__adv-loc { display: none; }
+        .fp__adv-loc .fp__adv-label { display: block; margin-bottom: 6px; }
 
         .loc-cascade {
           display: flex; align-items: center; gap: 4px; flex: 1; flex-wrap: wrap;
@@ -3487,13 +3923,15 @@ export default function CartePage() {
         .fp__poi-btn--school,
         .fp__poi-btn--mosque,
         .fp__poi-btn--faculty,
-        .fp__poi-btn--surface {
+        .fp__poi-btn--surface,
+        .fp__poi-btn--hospital {
           background: #f8fafc; color: #475569; border-color: #cbd5e1;
         }
         .fp__poi-btn--school.fp__poi-btn--on,
         .fp__poi-btn--mosque.fp__poi-btn--on,
         .fp__poi-btn--faculty.fp__poi-btn--on,
-        .fp__poi-btn--surface.fp__poi-btn--on {
+        .fp__poi-btn--surface.fp__poi-btn--on,
+        .fp__poi-btn--hospital.fp__poi-btn--on {
           background: #334155; color: #fff; border-color: #334155;
           box-shadow: 0 2px 8px rgba(51,65,85,.4);
         }
@@ -3506,12 +3944,14 @@ export default function CartePage() {
         }
 
         .fp__advanced {
-          display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap;
-          margin-top: 10px; padding: 14px 16px;
+          display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap;
+          margin-top: 10px; padding: 12px 14px;
           background: #f9fafb; border: 1px solid #e5e7eb;
           border-radius: 12px;
         }
-        .fp__adv-group { display: flex; flex-direction: column; gap: 4px; }
+        .fp__adv-group { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 90px; }
+        .fp__adv-group > .fp__adv-sel,
+        .fp__adv-group > .fp__adv-inp { width: 100%; min-width: 0; box-sizing: border-box; }
         .fp__adv-label {
           font-size: 10.5px; font-weight: 700;
           color: #9ca3af; text-transform: uppercase; letter-spacing: .5px;
@@ -3523,9 +3963,9 @@ export default function CartePage() {
         }
         .fp__adv-sel, .fp__adv-inp {
           border: 1.5px solid #e5e7eb; border-radius: 8px;
-          padding: 7px 10px; font-size: 13px; font-family: inherit;
+          padding: 7px 8px; font-size: 12.5px; font-family: inherit;
           background: #fff; color: #374151; outline: none;
-          transition: border-color .15s; min-width: 110px;
+          transition: border-color .15s; min-width: 80px;
         }
         .fp__adv-sel:focus, .fp__adv-inp:focus {
           border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,.08);
@@ -3540,14 +3980,81 @@ export default function CartePage() {
           transition: all .15s; align-self: flex-end;
         }
         .fp__save-search:hover { background: #dcfce7; border-color: #86efac; }
+        /* Desktop : Enregistrer dans la barre du bas seulement */
+        .fp__save-search--mobile  { display: none; }
+        .fp__save-search--desktop { display: flex; }
         .fp__reset {
-          display: flex; align-items: center; gap: 5px;
-          padding: 7px 13px; border-radius: 8px; font-size: 12.5px;
-          font-weight: 600; cursor: pointer; font-family: inherit;
+          display: flex; align-items: center; gap: 6px;
+          height: 35px; padding: 0 14px; border-radius: 10px; font-size: 13px;
+          font-weight: 600; cursor: pointer; font-family: 'Poppins', sans-serif;
           border: 1.5px solid #e5e7eb; background: #fff; color: #6b7280;
-          transition: all .15s; align-self: flex-end;
+          transition: all .15s; align-self: flex-end; white-space: nowrap; box-sizing: border-box;
         }
         .fp__reset:hover { border-color: #d1d5db; color: #374151; background: #f9fafb; }
+
+        /* ── Modal Caractéristiques ── */
+        .feat-modal { max-width: 780px !important; }
+        .feat-modal__header { padding: 28px 36px 20px !important; }
+        .feat-modal__title  { font-size: 24px !important; }
+        .feat-modal__sub    { font-size: 15px !important; margin: 6px 0 0 !important; }
+        .feat-modal__body   { padding: 24px 32px !important; }
+        .feat-modal__section { margin-bottom: 20px; }
+        .feat-modal__section-label {
+          font-size: 13px; font-weight: 700; color: #64748b; text-transform: uppercase;
+          letter-spacing: .6px; margin-bottom: 10px;
+        }
+        .feat-modal__grid {
+          display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+        }
+        .feat-modal__btn {
+          position: relative; display: flex; flex-direction: column; align-items: center;
+          gap: 6px; padding: 16px 10px 12px; border-radius: 14px; border: none;
+          background: transparent; cursor: pointer; font-family: inherit;
+          transition: background .15s; min-height: 80px;
+        }
+        .feat-modal__btn--on { background: #eef2ff !important; }
+        .feat-modal__ico { width: 30px !important; height: 30px !important; color: #94a3b8; transition: color .15s; }
+        .feat-modal__btn--on .feat-modal__ico { color: #4f46e5; }
+        .feat-modal__lbl {
+          font-size: 12px; font-weight: 600; text-align: center; line-height: 1.3; color: #6b7280;
+        }
+        .feat-modal__btn--on .feat-modal__lbl { color: #4f46e5; }
+        .feat-modal__check {
+          position: absolute; top: 8px; right: 8px; width: 18px; height: 18px;
+          border-radius: 50%; background: #4f46e5;
+          display: flex; align-items: center; justify-content: center;
+        }
+        .feat-modal__footer { padding: 16px 32px 22px !important; }
+        .feat-modal__count  { font-size: 14px !important; }
+        .feat-modal__clear  { padding: 12px 22px !important; font-size: 14px !important; }
+        .feat-modal__apply  { padding: 12px 28px !important; font-size: 14px !important; }
+
+        /* Mobile : tailles plus grandes (format actuel) */
+        @media (max-width: 860px) {
+          .feat-modal { max-width: 460px !important; }
+          .feat-modal__header { padding: 22px 28px 18px !important; }
+          .feat-modal__title  { font-size: 19px !important; }
+          .feat-modal__sub    { font-size: 13px !important; margin: 4px 0 0 !important; }
+          .feat-modal__body   { padding: 20px 28px !important; }
+          .feat-modal__section { margin-bottom: 16px; }
+          .feat-modal__section-label { font-size: 11px; margin-bottom: 8px; }
+          .feat-modal__grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+          .feat-modal__btn  { padding: 10px 6px 8px; border-radius: 12px; min-height: 60px; gap: 4px; }
+          .feat-modal__ico  { width: 22px !important; height: 22px !important; }
+          .feat-modal__lbl  { font-size: 10.5px; }
+          .feat-modal__check { top: 7px; right: 7px; width: 16px; height: 16px; }
+          .feat-modal__footer { padding: 16px 28px 20px !important; }
+          .feat-modal__count  { font-size: 13px !important; }
+          .feat-modal__clear  { padding: 10px 18px !important; font-size: 13px !important; }
+          .feat-modal__apply  { padding: 10px 22px !important; font-size: 13px !important; }
+        }
+
+        /* Ligne d'actions : Autres critères (gauche) + Réinitialiser (droite) */
+        .fp__adv-actions {
+          flex-basis: 100%; width: 100%; display: flex; align-items: center; gap: 8px;
+          margin-top: 14px; padding-top: 12px; border-top: 1px solid #eef0f4;
+        }
+        .fp__adv-actions .fp__reset { margin-left: auto; }
 
         /* --------------------------------------
            BARRE COMPTEUR / TAGS
@@ -3574,9 +4081,63 @@ export default function CartePage() {
           padding: 7px 14px; border-radius: 9px; font-size: 13.5px;
           font-weight: 700; cursor: pointer; font-family: 'Poppins', sans-serif;
           border: 1.5px solid #6366f1; background: #eef2ff; color: #4338ca;
-          transition: all .15s; white-space: nowrap; flex-shrink: 0; margin-left: 8px;
+          transition: all .15s; white-space: nowrap; flex-shrink: 0;
         }
         .cp-toggle-btn:hover { background: #6366f1; color: #fff; }
+
+        /* -- Résumé des filtres actifs (icône + menu) -- */
+        .cp-filtersum { position: relative; display: flex; align-items: center; flex-shrink: 0; }
+        .cp-filtersum__btn {
+          position: relative; display: inline-flex; align-items: center; gap: 7px;
+          height: 35px; padding: 0 13px; border-radius: 9px;
+          border: 1.5px solid #bbf7d0; background: #f0fdf4; color: #16a34a;
+          cursor: pointer; transition: all .15s; flex-shrink: 0;
+          font-family: 'Poppins', sans-serif; font-size: 13px; font-weight: 600;
+        }
+        .cp-filtersum__btn:hover { background: #dcfce7; border-color: #86efac; }
+        .cp-filtersum__label { white-space: nowrap; }
+        .cp-filtersum__badge {
+          display: inline-flex; align-items: center; justify-content: center;
+          min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px;
+          background: #16a34a; color: #fff; font-size: 12px; font-weight: 800;
+          animation: badge-pop .25s cubic-bezier(.36,.07,.19,.97);
+        }
+        @keyframes badge-pop {
+          0%   { transform: scale(.6); }
+          60%  { transform: scale(1.25); }
+          100% { transform: scale(1); }
+        }
+        .cp-filtersum__backdrop { position: fixed; inset: 0; z-index: 99998; }
+        .cp-filtersum__menu {
+          z-index: 99999;
+          width: 250px; max-width: calc(100vw - 16px);
+          background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
+          box-shadow: 0 12px 32px rgba(0,0,0,.18); padding: 8px;
+          display: flex; flex-direction: column; gap: 2px;
+        }
+        .cp-filtersum__title {
+          font-size: 10.5px; font-weight: 700; color: #9ca3af; text-transform: uppercase;
+          letter-spacing: .5px; padding: 6px 8px 8px;
+        }
+        .cp-filtersum__row {
+          display: flex; align-items: center; gap: 9px;
+          padding: 8px; border-radius: 8px; font-size: 13.5px; font-weight: 600; color: #374151;
+        }
+        .cp-filtersum__row:hover { background: #f8fafc; }
+        .cp-filtersum__dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .cp-filtersum__lbl { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .cp-filtersum__x {
+          display: flex; align-items: center; justify-content: center;
+          width: 22px; height: 22px; border-radius: 6px; border: none; background: #f1f5f9;
+          color: #64748b; cursor: pointer; flex-shrink: 0; transition: all .15s;
+        }
+        .cp-filtersum__x:hover { background: #fee2e2; color: #dc2626; }
+        .cp-filtersum__clear {
+          margin-top: 6px; padding: 9px; border-radius: 8px; border: none;
+          background: #f1f5f9; color: #475569; font-size: 13px; font-weight: 700;
+          cursor: pointer; font-family: inherit; transition: all .15s;
+        }
+        .cp-filtersum__clear:hover { background: #fee2e2; color: #dc2626; }
 
         /* --------------------------------------
            LAYOUT CARTE + LISTE
@@ -3688,6 +4249,7 @@ export default function CartePage() {
         .pc__specs {
           display: flex; gap: 10px; flex-wrap: wrap;
           padding-top: 8px; border-top: 1px solid #f1f5f9;
+          max-height: 28px; overflow: hidden;
         }
         .pc__specs span {
           display: flex; align-items: center; gap: 3px;
@@ -3815,31 +4377,125 @@ export default function CartePage() {
         -------------------------------------- */
 
         @media (max-width: 860px) {
-          .cp-layout   { flex-direction: column; }
-          .cp-map      { flex: 1; }
+          /* Colle la barre filtre sous la navbar mobile (54px) sans espace */
+          .cp-sticky-bar { top: 54px !important; }
+          .cp-layout   { flex-direction: column; flex: 1; min-height: 0; }
+          .cp-map      { flex: 1; min-height: 0; height: 100%; }
           .cp-list     { display: none !important; }
-          .cp-listonly { grid-template-columns: 1fr 1fr; padding: 12px; }
-          .cp-bar      { padding: 4px 10px; min-height: 32px; }
+          /* Vue liste mobile : 2 colonnes compactes, comme la home page */
+          .cp-listonly {
+            grid-template-columns: 1fr 1fr;
+            padding: 10px 12px;
+            gap: 10px;
+            flex: 1; overflow-y: auto; min-height: 0;
+          }
+          .cp-listonly > div { width: 100%; min-width: 0; }
+          .cp-listonly .pc   { width: 100%; min-width: 0; border-radius: 12px; }
+          /* Corps vignette compact */
+          .cp-listonly .pc__body        { padding: 8px 10px 9px !important; }
+          .cp-listonly .pc__price       { font-size: 14px !important; }
+          .cp-listonly .pc__devise      { font-size: 11px !important; }
+          .cp-listonly .pc__title       { font-size: 12px !important; margin-bottom: 3px !important; }
+          .cp-listonly .pc__loc         { font-size: 11px !important; margin-bottom: 5px !important; }
+          .cp-listonly .pc__specs       { gap: 4px !important; padding-top: 5px !important; }
+          .cp-listonly .pc__specs span  { font-size: 11px !important; }
+          .cp-listonly .pc__fav         { width: 22px !important; height: 22px !important; }
+          /* cp-bar mobile : compteur à gauche — filtres/trier/vue à droite — 1 seule ligne */
+          .cp-bar {
+            padding: 8px 10px; min-height: 38px; flex-wrap: nowrap;
+            gap: 0; overflow: hidden; justify-content: space-between;
+          }
+          .cp-layout   { margin-top: 3px; }
+          .cp-bar__count { font-size: 12px; flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: auto; }
+          .cp-bar__tags { display: none; }
+          /* CompareBar masqué sur mobile */
+          .cp-bar > div:nth-child(2) { display: none !important; }
+          /* Groupe boutons droite */
+          .cp-filtersum { margin-left: 10px; }
+          .cp-bar > button.cp-toggle-btn { margin-left: 6px; }
+          /* cp-toggle-btn compact sur mobile */
+          .cp-toggle-btn { padding: 5px 10px; font-size: 12px; gap: 4px; }
+          /* Bouton Enregistrer desktop — caché sur mobile dans cp-bar */
+          .fp__save-search--desktop { display: none; }
+          /* Bouton Rechercher — visible sur mobile, caché sur desktop */
+          .fp__submit--search { display: flex !important; }
+          /* Bouton Trier — masqué en vue carte sur mobile, visible en vue liste */
+          .cp-sort-map-hidden { display: none !important; }
 
           /* -- Panneau filtres : tout empil� verticalement -- */
           .fp          { padding: 10px 12px 12px; }
 
-          /* Ligne 1 : barre de recherche + boutons Filtres/Rechercher */
+          /* Ligne 1 : barre de recherche + boutons Filtres/Enregistrer */
           .fp__row1    { flex-direction: column; gap: 8px; align-items: stretch; }
+          .fp__search-wrap { min-width: 0; gap: 6px; }
           .fp__search  { min-width: 0; }
           .fp__pill-group { display: none; }          /* cach�es sur mobile */
-          .fp__row1 > div:last-child { flex-direction: row; justify-content: flex-end; gap: 8px; margin-left: 0; }
+          /* Les 3 boutons (Couche data / Filtres / Enregistrer) partagent la ligne à parts égales → toujours UNE seule ligne */
+          .fp__row1 > div:last-child { flex-direction: row; flex-wrap: nowrap; gap: 5px; margin-left: 0; width: 100%; }
+          .fp__layers { display: block; flex: 1 1 0; min-width: 0; }
+          .fp__layers .fp__adv-btn { width: 100%; }
+          /* Mobile : bouton filtres actifs compact (icône seule, badge absolu) */
+          .cp-filtersum__btn {
+            width: 34px; height: 34px; padding: 0; border-radius: 9px; gap: 0;
+            border-color: #e2e8f0; background: #fff; color: #475569; font-size: 0;
+            justify-content: center;
+          }
+          .cp-filtersum__btn:hover { border-color: #6366f1; color: #6366f1; background: #eef2ff; }
+          .cp-filtersum__label { display: none; }
+          .cp-filtersum__badge {
+            position: absolute; top: -6px; right: -6px;
+            min-width: 16px; height: 16px; padding: 0 4px;
+            font-size: 10px; background: #6366f1;
+          }
 
-          /* Ligne 2 : localisation à chaque select sur sa propre ligne */
-          .fp__loc-row        { flex-direction: column; align-items: stretch; gap: 6px; margin-top: 8px; }
+          /* Mobile : Enregistrer dans le panneau filtre, pas dans la barre du bas */
+          .fp__save-search--mobile  { display: flex; }
+          .fp__save-search--desktop { display: none; }
+          .fp__row1 > div:last-child > .fp__adv-btn,
+          .fp__row1 > div:last-child .fp__save-search { flex: 1 1 0; min-width: 0; }
+          .fp__row1 > div:last-child .fp__adv-btn,
+          .fp__row1 > div:last-child .fp__save-search {
+            height: 34px; padding: 0 6px; font-size: 11.5px; justify-content: center; gap: 4px;
+          }
+          .fp__row1 > div:last-child .fp__adv-btn span {
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+          }
+          /* Chevrons masqués sur mobile pour gagner de la place */
+          .fp__row1 > div:last-child .fp__adv-btn > svg:last-child { display: none; }
+
+          /* Rechercher (ligne du champ) — mobile uniquement */
+          .fp__submit--search  { display: flex !important; flex-shrink: 0; }
+          .fp__submit--desktop { display: none !important; }
+          .fp__submit { padding: 9px 14px !important; font-size: 13px; font-weight: 700; }
+
+          /* Localisation : retirée de la barre principale, déplacée dans les filtres */
+          .fp__loc-row        { display: none !important; }
+          .fp__adv-loc        { display: block; }
           .loc-cascade        { flex-direction: column; gap: 6px; width: 100%; }
           .loc-cascade__arrow { display: none; }
           .loc-cascade__field { width: 100%; flex: none; min-width: 0; }
 
-          /* Boutons POI (Écoles / Mosquées / Facultés) � même ligne */
-          .fp__poi-group      { display: flex; flex-direction: row; gap: 6px; flex-wrap: nowrap; width: 100%; }
-          .fp__poi-btn        { flex: 1; justify-content: center; }
+          /* -- Panneau Filtres : grille 2 colonnes, agencement compact, scrollable -- */
+          .fp__advanced { display: grid !important; grid-template-columns: 1fr 1fr; align-items: start; gap: 10px; max-height: 42vh; max-height: 42dvh; overflow-y: auto; }
+          .fp__advanced > * { align-self: start !important; flex: none !important; min-width: 0 !important; }
+          .fp__advanced .fp__adv-sel,
+          .fp__advanced .fp__adv-inp { min-width: 0 !important; }
+          /* Champs pleine largeur : Localisation, Type de bien, Colocation, ligne d'actions */
+          .fp__adv-loc,
+          .fp__adv-group--full,
+          .fp__adv-actions { grid-column: 1 / -1; }
+          .fp__adv-actions { align-self: start !important; }
+          /* Bouton Rechercher en bas du panneau — mobile seulement */
+          .fp__adv-search-btn {
+            grid-column: 1 / -1; display: flex; align-items: center; justify-content: center;
+            gap: 7px; width: 100%; padding: 11px 0; border-radius: 10px;
+            background: #f97316; color: #fff; border: none; font-size: 14px;
+            font-weight: 700; cursor: pointer; font-family: inherit;
+            margin-top: 4px;
+          }
         }
+        /* Bouton caché sur desktop */
+        .fp__adv-search-btn { display: none; }
 
         @media (max-width: 640px) {
           .cp-listonly { grid-template-columns: 1fr; }

@@ -81,7 +81,13 @@ export default function Login() {
       store.setItem("token", data.access_token);
       if (data.user) store.setItem("user", JSON.stringify(data.user));
       toast("Connexion réussie ! Bienvenue.");
-      window.location.href = redirectAfter;
+      const isFirstLogin = localStorage.getItem("first_login") === "1";
+      if (isFirstLogin) {
+        localStorage.removeItem("first_login");
+        window.location.href = "/compte?welcome=1";
+      } else {
+        window.location.href = redirectAfter;
+      }
     } catch {
       setError("Serveur inaccessible — vérifiez que le backend est démarré.");
     } finally {

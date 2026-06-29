@@ -29,6 +29,36 @@ const _nCA = s => (s||"").normalize("NFD")
   .replace(/\s+/g," ").trim();
 const normDelCA = s => _nCA(s).replace(/^(el |la |le |les |es |bou )/,"");
 
+/* ── Table aliases GADM → API (identique à CartePage) ── */
+const GADM_DEL_ALIASES_CA = Object.fromEntries([
+  ["Ariana Médina","Ariana Ville"],["Kalaat El Andalous","Kalaat Landlous"],["Soukra","La Soukra"],
+  ["Boumhel","Bou Mhel El Bassatine"],["Hammam Chott","Hammam Chatt"],["M'Hamdia","Mohamadia"],
+  ["Ghazala","Ghezala"],
+  ["Hamma","El Hamma"],["Metouia","El Metouia"],["Ghannouch","Ghannouche"],["Matmata Nouvelle","Nouvelle Matmata"],
+  ["Guetar","El Guettar"],["Ksar","El Ksar"],["Mdhilla","El Mdhilla"],["Sened","Sned"],
+  ["Balta Bou Aouane","Balta Bou Aouene"],["Bousalem","Bou Salem"],["Jendouba Nord","Jendouba"],["Jendouba Sud","Jendouba"],
+  ["Bouhajla","Bou Hajla"],["Chrarda","Cherarda"],["Alaa","El Ala"],
+  ["Ayoun","El Ayoun"],["Hidra","Haidra"],["Hassi El Ferid","Hassi El Frid"],["Jedeliane","Jediliane"],["Majel Belabbes","Mejel Bel Abbes"],
+  ["Faouar","El Faouar"],["Souk El Ahed","Souk El Ahad"],
+  ["Ksour","El Ksour"],["Kalaa Khesba","Kalaa El Khasba"],["Kalaat Senan","Kalaat Sinane"],["Kef Est","Le Kef Est"],["Kef Ouest","Le Kef Ouest"],["Es Sers","Le Sers"],["Tajerouine","Touiref"],["Nebeur","Touiref"],
+  ["Boumerdès","Bou Merdes"],["Boumerdes","Bou Merdes"],["Chebba","La Chebba"],["Ksour Essef","Ksour Essaf"],["Ouled Chamekh","Ouled Chamakh"],["Sidi Alouane","Sidi Alouene"],
+  ["Manouba","Mannouba"],
+  ["Djerba Ajim","Ajim"],["Houmt Souk","Houmet Essouk"],["Djerba Midoun","Midoun"],
+  ["Jammel","Jemmal"],["Ksar Hellal","Ksar Helal"],["Sayada-Lamta-Bou Hjar","Sayada Lamta Bou Hajar"],
+  ["Dar Chaabane El Fehri","Dar Chaabane Elfehri"],["Haouaria","El Haouaria"],["Hammam Ghezaz","Hammam El Ghezaz"],
+  ["Hencha","El Hencha"],["Skhira","Esskhira"],["El Ghraiba","Ghraiba"],["Kerkennah","Kerkenah"],["Mahres","Mahras"],["Sfax Médina","Sfax Ville"],["Sfax Medina","Sfax Ville"],
+  ["Bir El Hfay","Bir El Haffey"],["Jelma","Jilma"],["Sabalat Ouled Asker","Cebbala"],["Meknassi","Maknassy"],["Mazzouna","Mezzouna"],["Sidi Ali Ben Aoun","Ben Oun"],
+  ["Bouarada","Bou Arada"],["Laroussa","El Aroussa"],["El Krib","Le Krib"],["Bourouis","Sidi Bou Rouis"],["Rouhia","Rohia"],
+  ["Zriba","Hammam Zriba"],
+].map(([k,v]) => [_nCA(k), _nCA(v)]));
+const GADM_DEL_ALIASES_CA_REV = Object.fromEntries(Object.entries(GADM_DEL_ALIASES_CA).map(([k,v])=>[v,k]));
+const matchDelCA = (gadmName, apiName) => {
+  if (!apiName) return false;
+  const ng = _nCA(gadmName), na = _nCA(apiName);
+  return ng === na || normDelCA(ng) === normDelCA(na) ||
+         GADM_DEL_ALIASES_CA[ng] === na || GADM_DEL_ALIASES_CA_REV[na] === ng;
+};
+
 /* ── Cache GeoJSON (gouvernorats + délégations) ── */
 const CA_GOV_CACHE = { data: null };
 const CA_DEL_CACHE = { data: null };
@@ -263,8 +293,7 @@ function ControlledMap({ position, onLocationChange, govLabel, delLabel, onZoneS
         features = geo.features.filter(f => {
           const fg = _nCA(f.properties.govNom), fg2 = _nCA(govLabel);
           if (fg !== fg2 && normDelCA(fg) !== normDelCA(fg2)) return false;
-          const fd = _nCA(f.properties.delNom), fd2 = _nCA(delLabel);
-          return fd === fd2 || normDelCA(fd) === normDelCA(fd2);
+          return matchDelCA(f.properties.delNom, delLabel);
         });
       } else {
         features = geo.features.filter(f => {
@@ -516,6 +545,9 @@ export const CreateListingForm = ({ editId = null }) => {
       .catch(err => console.error("[AddressHistory error]", err));
   }, []);
 
+  const [typeDropOpen, setTypeDropOpen] = useState(false);
+  const isMobWidth = typeof window !== "undefined" && window.innerWidth <= 860;
+
   /* -- Restore step + non-file form data from localStorage -- */
   const [currentStep, setCurrentStep] = useState(() => {
     if (editId) return 1; // Always start at step 1 in edit mode
@@ -647,21 +679,29 @@ export const CreateListingForm = ({ editId = null }) => {
     try { localStorage.setItem("ca_maploc", JSON.stringify(mapLocation)); } catch { /* ignore */ }
   }, [mapLocation, editId]);
 
-  /* -- Réinitialiser l'index de l'image de preview quand on arrive à l'étape 5 -- */
+  /* -- À l'étape 5, toujours démarrer sur l'index 0 (la principale est placée en tête) -- */
   useEffect(() => {
     if (currentStep === 5) setPreviewImg(0);
-  }, [currentStep]);
+  }, [currentStep]); // eslint-disable-line
 
   /* -- Reset categorie if type_bien changes to terrain/local_commercial and categorie is vacances -- */
   useEffect(() => {
     if (["terrain","local_commercial","immeuble","garage_parking","depot_stockage","bureau"].includes(formData.type_bien) && formData.categorie === "vacances") {
       setFormData(prev => ({ ...prev, categorie: "" }));
     }
+    /* Effacer toutes les erreurs de validation quand le type change */
+    setValidationErrors({});
   }, [formData.type_bien]);
 
-  /* -- Reset etat_bien if categorie changes to location/vacances and etat is cours_construction -- */
+  /* -- Reset etat_bien if categorie changes and current value is no longer a valid option -- */
   useEffect(() => {
-    if ((formData.categorie === "location" || formData.categorie === "vacances") && formData.etat_bien === "cours_construction") {
+    const cat = formData.categorie;
+    const etat = formData.etat_bien;
+    if (!etat) return;
+    if ((cat === "location" || cat === "vacances") && etat === "cours_construction") {
+      setFormData(prev => ({ ...prev, etat_bien: "" }));
+    }
+    if (cat === "vacances" && etat === "a_renover") {
       setFormData(prev => ({ ...prev, etat_bien: "" }));
     }
   }, [formData.categorie]);
@@ -704,9 +744,14 @@ export const CreateListingForm = ({ editId = null }) => {
         setEditPropertyIdState(a.property_id || null);
         /* Stocker les URLs des images existantes pour l'affichage en step 4 */
         if (Array.isArray(a.images) && a.images.length > 0) {
-          setExistingImageUrls(a.images.map(img =>
-            img.startsWith("http") ? img : `${API_URL}${img}`
-          ));
+          const urls = a.images.map(img => img.startsWith("http") ? img : `${API_URL}${img}`);
+          setExistingImageUrls(urls);
+          /* Positionner l'index de l'image principale parmi les existantes */
+          if (a.image_principale) {
+            const principaleUrl = a.image_principale.startsWith("http") ? a.image_principale : `${API_URL}${a.image_principale}`;
+            const idx = urls.findIndex(u => u === principaleUrl || u.endsWith(a.image_principale));
+            setMainExistingIdx(idx >= 0 ? idx : 0);
+          }
         }
         setLoadingEdit(false);
       })
@@ -807,12 +852,11 @@ export const CreateListingForm = ({ editId = null }) => {
     }
     setHierarchy(newHierarchy);
 
-    /* Geocode ? pan map (tous les niveaux) */
+    /* Mettre à jour l'adresse textuelle pour tous les niveaux */
     const govLabel = gouvernorats.find(g => g.value === newHierarchy.gouvernorat)?.label || "";
     const delLabel = delegations.find(d => d.id === newHierarchy.delegation)?.nom || "";
     const locLabel = localites.find(l => l.id === newHierarchy.localite)?.nom || "";
 
-    /* Adresse progressive : dès qu'un niveau est choisi */
     let builtAddress = "";
     if (locLabel && delLabel && govLabel) {
       builtAddress = [locLabel, delLabel, govLabel, "Tunisie"].join(", ");
@@ -821,13 +865,14 @@ export const CreateListingForm = ({ editId = null }) => {
     } else if (govLabel) {
       builtAddress = govLabel + ", Tunisie";
     }
-
-    /* Mettre à jour l'adresse immédiatement (avant même le geocode) */
     if (builtAddress) {
       setFormData(prev => ({ ...prev, address: builtAddress }));
     }
 
-    const searchLabel = locLabel || delLabel || govLabel;
+    /* Déplacer le point sur la carte SEULEMENT pour gouvernorat et délégation (pas localité) */
+    if (level === "localite") return;
+
+    const searchLabel = delLabel || govLabel;
     if (searchLabel) {
       fetch(
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchLabel + ", Tunisie")}&format=json&limit=1&countrycodes=tn`,
@@ -1012,6 +1057,20 @@ export const CreateListingForm = ({ editId = null }) => {
       if (formData.categorie === "vacances" && !formData.duree_type) {
         errors.duree_type = true;
       }
+      /* Capacité d'accueil ≥ 1 pour vacances */
+      if (formData.categorie === "vacances" && (!formData.capacite_accueil || formData.capacite_accueil < 1)) {
+        errors.capacite_accueil = true;
+      }
+      /* État du bien obligatoire sauf terrain */
+      if (formData.type_bien && formData.type_bien !== "terrain" && !formData.etat_bien) {
+        errors.etat_bien = true;
+      }
+      /* Pièces / chambres / SDB obligatoires pour les types qui affichent ces compteurs */
+      if (formData.type_bien && !["terrain","garage_parking","immeuble","depot_stockage"].includes(formData.type_bien)) {
+        if (!formData.nb_pieces    || formData.nb_pieces    < 1) errors.nb_pieces    = true;
+        if (!formData.nb_chambres  || formData.nb_chambres  < 1) errors.nb_chambres  = true;
+        if (!formData.nb_salles_bain || formData.nb_salles_bain < 1) errors.nb_salles_bain = true;
+      }
       /* Colocation : au moins 1 place disponible */
       if (["location","vacances"].includes(formData.categorie) && ["appartement","villa"].includes(formData.type_bien) && formData.colocation) {
         const rows = formData.chambres_coloc || [];
@@ -1059,13 +1118,22 @@ export const CreateListingForm = ({ editId = null }) => {
       if (!formData.titre.trim())                                errors.titre       = true;
       const sup = parseFloat(formData.superficie);
       if (!formData.superficie || isNaN(sup) || sup <= 0)        errors.superficie  = true;
-      const px = parseFloat(formData.prix);
-      if (!formData.prix || isNaN(px) || px <= 0)                errors.prix        = true;
+      /* Prix : si colocation active, utiliser le total des chambres */
+      const isColoc = ["location","vacances"].includes(formData.categorie) && formData.colocation;
+      const totalPrixColoc = isColoc
+        ? (formData.chambres_coloc||[]).reduce((s,c)=>s+((c.capacite||1)*(c.prix_par_place||0)),0)
+        : 0;
+      const prixEffectif = isColoc ? totalPrixColoc : parseFloat(formData.prix);
+      if (!prixEffectif || isNaN(prixEffectif) || prixEffectif <= 0)  errors.prix = true;
       if (!formData.description?.trim())                         errors.description = true;
       if (Object.keys(errors).length > 0) {
         setValidationErrors(errors);
         toast("Champs requis ? Veuillez compléter les champs en rouge.", "error");
         return;
+      }
+      /* Synchroniser formData.prix avec le total colocation pour la soumission finale */
+      if (isColoc && totalPrixColoc > 0) {
+        setFormData(prev => ({ ...prev, prix: String(totalPrixColoc) }));
       }
     }
 
@@ -1737,22 +1805,33 @@ export const CreateListingForm = ({ editId = null }) => {
         {/* -- Main area -- */}
         <main className="ca-main">
 
-          {/* Mobile progress bar (sidebar hidden on mobile) */}
-          <div className="ca-mobile-progress">
-            <div className="ca-mobile-progress__top">
-              <span className="ca-mobile-progress__label">
-                {STEPS[currentStep - 1]?.label}
-              </span>
-              <span className="ca-mobile-progress__steps">
-                Étape {currentStep} / {totalSteps}
-              </span>
-            </div>
-            <div className="ca-mobile-progress__bar">
+          {/* Mobile stepper (sidebar hidden on mobile) */}
+          <div className="ca-mob-stepper">
+            <div className="ca-mob-stepper__track">
+              <div className="ca-mob-stepper__line"/>
               <div
-                className="ca-mobile-progress__fill"
-                style={{ width: `${Math.round((currentStep / totalSteps) * 100)}%` }}
+                className="ca-mob-stepper__line-fill"
+                style={{ width: `${Math.round(((currentStep - 1) / (totalSteps - 1)) * 100)}%` }}
               />
+              {STEPS.map((s) => {
+                const done   = currentStep > s.id;
+                const active = currentStep === s.id;
+                const canClick = done || !!editId;
+                return (
+                  <button
+                    key={s.id}
+                    className={`ca-mob-step-dot${active?" ca-mob-step-dot--active":done?" ca-mob-step-dot--done":""}`}
+                    style={{ left: `${((s.id - 1) / (totalSteps - 1)) * 100}%` }}
+                    onClick={canClick ? () => setCurrentStep(s.id) : undefined}
+                    title={s.label}
+                    disabled={!canClick && !active}
+                  >
+                    {done ? <Check size={10} strokeWidth={3}/> : s.id}
+                  </button>
+                );
+              })}
             </div>
+            <div className="ca-mob-stepper__label">{STEPS[currentStep - 1]?.label}</div>
           </div>
 
           <form onSubmit={e => e.preventDefault()}>
@@ -2016,8 +2095,10 @@ export const CreateListingForm = ({ editId = null }) => {
                             { field:"nb_chambres",   label:"Chambre(s)" },
                             { field:"nb_salles_bain",label:"Salle(s) de bain" },
                           ].map(c => (
-                            <div key={c.field} className="ca-counter">
-                              <span className="ca-counter__label">{c.label}</span>
+                            <div key={c.field} className={`ca-counter${validationErrors[c.field] ? " ca-counter--err" : ""}`}>
+                              <span className="ca-counter__label" style={validationErrors[c.field] ? {color:"#ef4444"} : {}}>
+                                {c.label} <span style={{color:"#ef4444",fontWeight:700}}>*</span>
+                              </span>
                               <div className="ca-counter__ctrl">
                                 <button type="button" className="ca-counter__btn" onClick={() => decrementValue(c.field)}><Minus size={14}/></button>
                                 <span className="ca-counter__val">{formData[c.field]}</span>
@@ -2026,10 +2107,13 @@ export const CreateListingForm = ({ editId = null }) => {
                             </div>
                           ))}
                           {formData.categorie === "vacances" && (
-                            <div className="ca-counter">
-                              <span className="ca-counter__label">Capacité d'accueil <span style={{color:"#9ca3af",fontWeight:400,fontSize:"10px"}}>(pers.)</span></span>
+                            <div className={`ca-counter${validationErrors.capacite_accueil ? " ca-counter--err" : ""}`}>
+                              <span className="ca-counter__label" style={validationErrors.capacite_accueil ? {color:"#ef4444"} : {}}>
+                                Capacité d'accueil <span style={{color:"#ef4444",fontWeight:700}}>*</span>{" "}
+                                <span style={{color:"#9ca3af",fontWeight:400,fontSize:"10px"}}>(pers.)</span>
+                              </span>
                               <div className="ca-counter__ctrl">
-                                <button type="button" className="ca-counter__btn" onClick={() => setFormData(f => ({...f, capacite_accueil: Math.max(0, (f.capacite_accueil||0) - 1)}))}><Minus size={14}/></button>
+                                <button type="button" className="ca-counter__btn" onClick={() => setFormData(f => ({...f, capacite_accueil: Math.max(1, (f.capacite_accueil||1) - 1)}))}><Minus size={14}/></button>
                                 <span className="ca-counter__val">{formData.capacite_accueil || 0}</span>
                                 <button type="button" className="ca-counter__btn" onClick={() => setFormData(f => ({...f, capacite_accueil: Math.min(50, (f.capacite_accueil||0) + 1)}))}><Plus size={14}/></button>
                               </div>
@@ -2071,13 +2155,26 @@ export const CreateListingForm = ({ editId = null }) => {
                                 <div style={{fontSize:11,color:"#94a3b8"}}>Proposer des chambres à partager</div>
                               </div>
                             </div>
-                            <label style={{position:"relative",display:"inline-block",width:44,height:24,flexShrink:0,cursor:"pointer"}}>
-                              <input type="checkbox" checked={!!formData.colocation}
-                                onChange={e => handleInputChange("colocation", e.target.checked)}
-                                style={{opacity:0,width:0,height:0}}/>
-                              <span style={{position:"absolute",inset:0,background: formData.colocation ? "#6366f1" : "#e2e8f0",borderRadius:24,transition:".2s"}}/>
-                              <span style={{position:"absolute",width:18,height:18,background:"#fff",borderRadius:"50%",top:3,left: formData.colocation ? 23 : 3,transition:".2s",boxShadow:"0 1px 4px rgba(0,0,0,.15)"}}/>
-                            </label>
+                            <div style={{display:"flex",alignItems:"center",gap:10}}>
+                              {formData.colocation && (
+                                <select
+                                  value={formData.devise || "TND"}
+                                  onChange={e => handleInputChange("devise", e.target.value)}
+                                  style={{padding:"4px 8px",borderRadius:8,border:"1.5px solid #c7d2fe",background:"#fff",fontFamily:"inherit",fontSize:12,fontWeight:700,color:"#4338ca",cursor:"pointer",outline:"none"}}
+                                >
+                                  <option value="TND">TND</option>
+                                  <option value="EUR">EUR</option>
+                                  <option value="USD">USD</option>
+                                </select>
+                              )}
+                              <label style={{position:"relative",display:"inline-block",width:44,height:24,flexShrink:0,cursor:"pointer"}}>
+                                <input type="checkbox" checked={!!formData.colocation}
+                                  onChange={e => handleInputChange("colocation", e.target.checked)}
+                                  style={{opacity:0,width:0,height:0}}/>
+                                <span style={{position:"absolute",inset:0,background: formData.colocation ? "#6366f1" : "#e2e8f0",borderRadius:24,transition:".2s"}}/>
+                                <span style={{position:"absolute",width:18,height:18,background:"#fff",borderRadius:"50%",top:3,left: formData.colocation ? 23 : 3,transition:".2s",boxShadow:"0 1px 4px rgba(0,0,0,.15)"}}/>
+                              </label>
+                            </div>
                           </div>
 
                           {formData.colocation && (<>
@@ -2176,7 +2273,7 @@ export const CreateListingForm = ({ editId = null }) => {
                                           <th style={{padding:"7px 10px",fontWeight:700,color:"#4338ca",textAlign:"center"}}>Capacité personnes</th>
                                           <th style={{padding:"7px 10px",fontWeight:700,color:"#4338ca",textAlign:"center"}}>Places déjà occupées</th>
                                           <th style={{padding:"7px 10px",fontWeight:700,color:"#4338ca",textAlign:"center"}}>Disponibles</th>
-                                          <th style={{padding:"7px 10px",fontWeight:700,color:"#4338ca",textAlign:"center"}}>Prix/place (TND)</th>
+                                          <th style={{padding:"7px 10px",fontWeight:700,color:"#4338ca",textAlign:"center"}}>Prix/place ({formData.devise || "TND"})</th>
                                         </tr>
                                       </thead>
                                       <tbody>
@@ -2253,7 +2350,7 @@ export const CreateListingForm = ({ editId = null }) => {
                                               <td style={{padding:"7px 10px",textAlign:"center",fontWeight:700,color:"#4338ca",fontSize:12}}>{totalCap}</td>
                                               <td style={{padding:"7px 10px",textAlign:"center",fontWeight:700,color:"#4338ca",fontSize:12}}>{totalOcc}</td>
                                               <td style={{padding:"7px 10px",textAlign:"center",fontWeight:800,fontSize:13,color: totalDispo>0?"#059669":"#dc2626"}}>{totalDispo}</td>
-                                              <td style={{padding:"7px 10px",textAlign:"center",fontWeight:800,fontSize:12,color:"#4338ca"}}>{totalPrix.toLocaleString()} TND</td>
+                                              <td style={{padding:"7px 10px",textAlign:"center",fontWeight:800,fontSize:12,color:"#4338ca"}}>{totalPrix.toLocaleString()} {formData.devise || "TND"}</td>
                                             </tr>
                                           );
                                         })()}
@@ -2319,7 +2416,9 @@ export const CreateListingForm = ({ editId = null }) => {
                     <div className="ca-s1-lr__right">
 
                       <div className="ca-section-label">Sélectionnez le type <span className="ca-req">*</span></div>
-                      <div className={`ca-etat-row ca-val-group${validationErrors.type_bien?" ca-val-group--err":""}`} style={{flexWrap:"wrap"}}>
+
+                      {/* Desktop : boutons */}
+                      <div className={`ca-etat-row ca-type-btn-grid${validationErrors.type_bien?" ca-etat-row--err":""}`} style={{flexWrap:"wrap"}}>
                         {TYPE_CARDS.map(tc => {
                           const isOn = formData.type_bien === tc.value;
                           return (
@@ -2333,8 +2432,44 @@ export const CreateListingForm = ({ editId = null }) => {
                         })}
                       </div>
 
+                      {/* Mobile : dropdown personnalisé avec icônes */}
+                      <div className="ca-type-drop-mob" style={{position:"relative"}}>
+                        <button
+                          type="button"
+                          className={validationErrors.type_bien ? "ca-type-drop-mob__btn ca-type-drop-mob__btn--err" : "ca-type-drop-mob__btn"}
+                          onClick={() => setTypeDropOpen(v => !v)}
+                        >
+                          {(() => {
+                            const sel = TYPE_CARDS.find(t => t.value === formData.type_bien);
+                            return sel
+                              ? <><span className="ca-type-drop-mob__ico"><sel.Ico size={18}/></span><span>{sel.label}</span></>
+                              : <span style={{color:"#94a3b8"}}>— Sélectionner le type —</span>;
+                          })()}
+                          <span className="ca-type-drop-mob__arrow">{typeDropOpen ? "▲" : "▼"}</span>
+                        </button>
+                        {typeDropOpen && (
+                          <div className="ca-type-drop-mob__list">
+                            {TYPE_CARDS.map(tc => (
+                              <button
+                                key={tc.value}
+                                type="button"
+                                className={`ca-type-drop-mob__opt${formData.type_bien===tc.value?" ca-type-drop-mob__opt--on":""}`}
+                                onClick={() => {
+                                  handleInputChange("type_bien", tc.value);
+                                  setValidationErrors(v=>({...v,type_bien:false}));
+                                  setTypeDropOpen(false);
+                                }}
+                              >
+                                <span className="ca-type-drop-mob__ico"><tc.Ico size={16}/></span>
+                                {tc.label}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
                       <div className="ca-section-label" style={{marginTop:20}}>Type d'offre <span className="ca-req">*</span></div>
-                      <div className={`ca-pill-row ca-val-group${validationErrors.categorie?" ca-val-group--err":""}`}>
+                      <div className={`ca-pill-row${validationErrors.categorie?" ca-pill-row--err":""}`}>
                         {[{v:"vente",l:"Vente"},{v:"location",l:"Location"},{v:"vacances",l:"Vacances"}]
                           .filter(o => !(o.v==="vacances"&&(["terrain","local_commercial","immeuble","garage_parking","depot_stockage","bureau"].includes(formData.type_bien))))
                           .map(o => (
@@ -2378,8 +2513,10 @@ export const CreateListingForm = ({ editId = null }) => {
 
                       {/* État du bien — masqué pour terrain */}
                       {formData.type_bien !== "terrain" && (<>
-                        <div className="ca-section-label" style={{marginTop:20}}>État du bien</div>
-                        <div className="ca-etat-row" style={{flexWrap:"wrap"}}>
+                        <div className="ca-section-label" style={{marginTop:20, color: validationErrors.etat_bien ? "#ef4444" : undefined}}>
+                          État du bien <span style={{color:"#ef4444",fontWeight:700}}>*</span>
+                        </div>
+                        <div className={`ca-etat-row${validationErrors.etat_bien ? " ca-etat-row--err" : ""}`}>
                           {ETAT_CARDS
                             .filter(ec => {
                               if (ec.value==="cours_construction" && (formData.categorie==="location"||formData.categorie==="vacances")) return false;
@@ -2867,7 +3004,7 @@ export const CreateListingForm = ({ editId = null }) => {
                                       Utiliser le prix total colocation :
                                     </span>
                                     <span style={{fontSize:15, fontWeight:800, color:"#4338ca"}}>
-                                      {totalPrix > 0 ? totalPrix.toLocaleString() : "—"} TND
+                                      {totalPrix > 0 ? totalPrix.toLocaleString() : "—"} {formData.devise || "TND"}
                                     </span>
                                   </div>
                                   <p style={{fontSize:11.5, color:"#94a3b8", lineHeight:1.5, marginBottom:8, background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:8, padding:"7px 11px"}}>
@@ -2878,7 +3015,7 @@ export const CreateListingForm = ({ editId = null }) => {
                                       value={totalPrix > 0 ? totalPrix : ""}
                                       readOnly tabIndex={-1}
                                       placeholder="Calculé depuis l'étape 1"/>
-                                    <span style={{padding:"0 12px",fontWeight:700,color:"#64748b",fontSize:13}}>TND</span>
+                                    <span style={{padding:"0 12px",fontWeight:700,color:"#64748b",fontSize:13}}>{formData.devise || "TND"}</span>
                                   </div>
                                 </>
                               );
@@ -2905,8 +3042,9 @@ export const CreateListingForm = ({ editId = null }) => {
                       {(() => {
                         const prixNum = parseFloat(formData.prix);
                         const surfNum = parseFloat(formData.superficie);
-                        const prixM2  = (prixNum > 0 && surfNum > 0)
-                          ? Math.round(prixNum / surfNum).toLocaleString("fr-TN")
+                        const _rawM2  = (prixNum > 0 && surfNum > 0) ? prixNum / surfNum : null;
+                        const prixM2  = (_rawM2 && _rawM2 > 0)
+                          ? (Number.isInteger(_rawM2) ? _rawM2.toLocaleString("fr-TN") : _rawM2.toLocaleString("fr-TN", {minimumFractionDigits:1, maximumFractionDigits:1}))
                           : null;
                         const devise  = formData.devise || "TND";
                         return (
@@ -3295,9 +3433,26 @@ export const CreateListingForm = ({ editId = null }) => {
               {/* --- STEP 5 — Prévisualisation (design identique à AnnonceDetail) --- */}
               {currentStep === 5 && (() => {
                 /* -- Données calculées pour le preview -- */
-                const imgs = imgUrls;
-                const mainImg = imgs[formData.mainImageIndex] || imgs[0]
-                  || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=900&q=80";
+                /* Combiner images existantes + nouvelles ; l'image principale en tête */
+                const newImgs = imgUrls; // blob URLs des nouvelles photos
+                let imgs;
+                if (newImgs.length > 0) {
+                  /* Nouvelles images ajoutées : la principale est celle sélectionnée parmi les nouvelles */
+                  imgs = [
+                    newImgs[formData.mainImageIndex] || newImgs[0],
+                    ...newImgs.filter((_, i) => i !== (formData.mainImageIndex || 0)),
+                    ...existingImageUrls,
+                  ];
+                } else if (existingImageUrls.length > 0) {
+                  /* Pas de nouvelles images : utiliser les existantes, principale en premier */
+                  imgs = [
+                    existingImageUrls[mainExistingIdx] || existingImageUrls[0],
+                    ...existingImageUrls.filter((_, i) => i !== mainExistingIdx),
+                  ];
+                } else {
+                  imgs = [];
+                }
+                const mainImg = imgs[0] || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=900&q=80";
                 const govLabel = gouvernorats.find(g => g.value === hierarchy.gouvernorat)?.label || "";
                 const delLabel = delegations.find(d => String(d.id) === String(hierarchy.delegation))?.nom || "";
                 const locLabel = localites.find(l => String(l.id) === String(hierarchy.localite))?.nom || "";
@@ -3896,6 +4051,35 @@ export const CreateListingForm = ({ editId = null }) => {
             display: flex; align-items: center; gap: 8px;
           }
 
+          /* Type dropdown mobile */
+          .ca-type-drop-mob { display: none; }
+          .ca-type-btn-grid { display: flex; }
+          .ca-type-drop-mob__btn {
+            width: 100%; display: flex; align-items: center; gap: 10px;
+            padding: 11px 14px; border-radius: 10px;
+            border: 1.5px solid #e2e8f0; background: #f8fafc;
+            font-family: inherit; font-size: 14px; color: #0f172a;
+            cursor: pointer; text-align: left;
+          }
+          .ca-type-drop-mob__btn--err { border-color: #ef4444 !important; background: #fff5f5; }
+          .ca-type-drop-mob__arrow { margin-left: auto; font-size: 10px; color: #94a3b8; }
+          .ca-type-drop-mob__ico { display: flex; align-items: center; color: #6366f1; }
+          .ca-type-drop-mob__list {
+            position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+            background: #fff; border: 1.5px solid #e2e8f0; border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,.12); z-index: 200;
+            max-height: 260px; overflow-y: auto;
+          }
+          .ca-type-drop-mob__opt {
+            width: 100%; display: flex; align-items: center; gap: 10px;
+            padding: 10px 14px; border: none; background: none;
+            font-family: inherit; font-size: 13.5px; color: #374151;
+            cursor: pointer; text-align: left;
+          }
+          .ca-type-drop-mob__opt:hover { background: #f8fafc; }
+          .ca-type-drop-mob__opt--on { background: #eef2ff; color: #4f46e5; font-weight: 700; }
+          .ca-type-drop-mob__opt--on .ca-type-drop-mob__ico { color: #4f46e5; }
+
           /* Type grid */
           .ca-type-grid {
             display: grid;
@@ -3919,7 +4103,8 @@ export const CreateListingForm = ({ editId = null }) => {
           .ca-type-card__label { font-size: 12.5px; font-weight: 600; color: #374151; }
 
           /* Pills */
-          .ca-pill-row { display: flex; gap: 8px; }
+          .ca-pill-row { display: flex; gap: 8px; padding: 4px; border-radius: 12px; border: 1.5px solid transparent; transition: border-color .15s; }
+          .ca-pill-row--err { border-color: #ef4444 !important; background: #fff5f5; box-shadow: 0 0 0 3px rgba(239,68,68,.1); }
           .ca-pill {
             padding: 8px 22px; border-radius: 24px;
             border: 2px solid #e5e7eb; background: #f9fafb;
@@ -3931,7 +4116,8 @@ export const CreateListingForm = ({ editId = null }) => {
           .ca-pill--on { background: #6366f1; color: #fff; border-color: #6366f1; box-shadow: 0 2px 8px rgba(99,102,241,.35); }
 
           /* Etat cards */
-          .ca-etat-row { display: flex; gap: 8px; flex-wrap: wrap; }
+          .ca-etat-row { display: flex; gap: 8px; flex-wrap: wrap; padding: 4px; border-radius: 12px; border: 1.5px solid transparent; transition: border-color .15s; }
+          .ca-etat-row--err { border-color: #ef4444 !important; background: #fff5f5; box-shadow: 0 0 0 3px rgba(239,68,68,.1); }
           .ca-etat-card {
             display: flex; align-items: center; gap: 6px;
             padding: 9px 16px; border-radius: 10px;
@@ -4082,6 +4268,8 @@ export const CreateListingForm = ({ editId = null }) => {
           .ca-input--err  { border-color: #ef4444 !important; background: #fff5f5 !important; box-shadow: 0 0 0 3px rgba(239,68,68,.1); }
           .ca-select--err { border-color: #ef4444 !important; background: #fff5f5 !important; box-shadow: 0 0 0 3px rgba(239,68,68,.1); }
           .ca-val-group--err { outline: 2.5px solid #ef4444; outline-offset: 4px; border-radius: 10px; }
+          .ca-counter--err { border-color: #ef4444 !important; background: #fff5f5 !important; box-shadow: 0 0 0 3px rgba(239,68,68,.1); }
+          .ca-counter--err .ca-counter__label { color: #ef4444; }
           .ca-row-2 { display: flex; gap: 14px; flex-wrap: wrap; }
 
           /* Step 4 — split layout */
@@ -4483,27 +4671,48 @@ export const CreateListingForm = ({ editId = null }) => {
           }
           .ca-req-hint .ca-req { color: #ef4444; font-weight: 700; margin-right: 2px; }
 
-          /* Mobile progress bar */
-          .ca-mobile-progress {
+          /* Mobile stepper */
+          .ca-mob-stepper {
             display: none;
-            padding: 14px 16px 0;
+            padding: 18px 28px 8px;
           }
-          .ca-mobile-progress__top {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 8px;
+          .ca-mob-stepper__track {
+            position: relative; height: 32px; display: flex; align-items: center;
+            margin-bottom: 10px;
           }
-          .ca-mobile-progress__label {
-            font-size: 13px; font-weight: 700; color: #1e293b;
+          .ca-mob-stepper__line {
+            position: absolute; top: 50%; left: 0; right: 0;
+            height: 3px; background: #e2e8f0; transform: translateY(-50%);
+            border-radius: 999px;
           }
-          .ca-mobile-progress__steps {
-            font-size: 12px; color: #94a3b8; font-weight: 600;
+          .ca-mob-stepper__line-fill {
+            position: absolute; top: 50%; left: 0;
+            height: 3px; background: linear-gradient(90deg,#4f46e5,#818cf8);
+            transform: translateY(-50%); border-radius: 999px;
+            transition: width .35s ease;
           }
-          .ca-mobile-progress__bar {
-            height: 5px; background: #e5e7eb; border-radius: 999px; overflow: hidden;
+          .ca-mob-step-dot {
+            position: absolute; transform: translateX(-50%);
+            width: 26px; height: 26px; border-radius: 50%;
+            border: 2px solid #e2e8f0; background: #fff;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 11px; font-weight: 700; color: #94a3b8;
+            cursor: default; font-family: inherit; padding: 0;
+            transition: all .2s;
           }
-          .ca-mobile-progress__fill {
-            height: 100%; background: linear-gradient(90deg,#4f46e5,#818cf8);
-            border-radius: 999px; transition: width .35s ease;
+          .ca-mob-step-dot--done {
+            border-color: #4f46e5; background: #4f46e5; color: #fff; cursor: pointer;
+          }
+          .ca-mob-step-dot--active {
+            border-color: #4f46e5; background: #fff; color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(99,102,241,.18);
+          }
+          .ca-mob-step-dot--done:hover {
+            background: #3730a3; border-color: #3730a3;
+          }
+          .ca-mob-stepper__label {
+            font-size: 12px; font-weight: 700; color: #4f46e5;
+            text-align: center; letter-spacing: .01em;
           }
 
           /* Step 1 — two-column layout */
@@ -4529,14 +4738,23 @@ export const CreateListingForm = ({ editId = null }) => {
           @media (max-width: 900px) {
             .ca-sidebar { display: none; }
             .ca-main { padding: 0 0 100px; }
-            .ca-mobile-progress { display: block; }
+            .ca-mob-stepper { display: block; }
             .ca-main > form { padding: 12px 16px 0; }
             .ca-card { padding: 20px 18px; }
             .ca-step1-cols { grid-template-columns: 1fr; gap: 24px; }
+            .ca-type-drop-mob { display: block; }
+            .ca-type-btn-grid { display: none !important; }
           }
           @media (max-width: 860px) {
             .ca-loc-layout { grid-template-columns: 1fr; }
             .ca-loc-map { min-height: 320px; }
+            .ca-feat-big-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 6px !important; }
+            .ca-feat-big { aspect-ratio: 1 !important; padding: 6px !important; gap: 8px !important; min-height: 0 !important; justify-content: center !important; border-radius: 10px !important; }
+            .ca-feat-big__ico svg { width: 26px !important; height: 26px !important; }
+            .ca-feat-big__label { font-size: 10.5px !important; line-height: 1.2 !important; }
+            .ca-feat-big-wrap { gap: 4px !important; }
+            .ca-feats-section-title { font-size: 10px !important; margin-top: 12px !important; margin-bottom: 6px !important; padding-top: 10px !important; letter-spacing: .4px !important; }
+            .ca-feats-section-title:first-child { margin-top: 4px !important; }
           }
           @media (max-width: 600px) {
             .ca-cascade { flex-direction: column; }

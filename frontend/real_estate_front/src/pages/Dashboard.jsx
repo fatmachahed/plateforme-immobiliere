@@ -2,6 +2,7 @@
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import AlerteFiltersModal, { EMPTY_FORM } from "../components/AlerteFiltersModal";
+import PublierAnnonceBtn from "../components/PublierAnnonceBtn";
 import { useToast } from "../components/Toast";
 import API_URL, { fmtDevise } from "../config";
 import {
@@ -53,6 +54,9 @@ export default function Dashboard() {
   const [dateFilter,   setDateFilter]   = useState("");
   const [dateStart,    setDateStart]    = useState("");
   const [dateEnd,      setDateEnd]      = useState("");
+  const [prixMin,      setPrixMin]      = useState("");
+  const [prixMax,      setPrixMax]      = useState("");
+  const [gouvernoratFilter, setGouvernoratFilter] = useState("");
   /* ── Onglet actif ── */
   const [searchParams]              = useSearchParams();
   const [activeTab, setActiveTab]   = useState(
@@ -374,6 +378,7 @@ export default function Dashboard() {
   }
 
   const [refreshingId, setRefreshingId] = useState(null);
+  const [spotlightingId, setSpotlightingId] = useState(null);
   const [annonceStats, setAnnonceStats] = useState({}); // { [id]: {views_count, favoris_count, rating_avg, rating_count} }
 
   async function handleRefresh(id) {
@@ -393,6 +398,24 @@ export default function Dashboard() {
       toast("Erreur lors du rafraîchissement.", "error");
     } finally {
       setRefreshingId(null);
+    }
+  }
+
+  async function handleSpotlight(id) {
+    setSpotlightingId(id);
+    try {
+      const res = await fetch(`${API_URL}/annonces/${id}/spotlight`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error();
+      const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      setAnnonces(prev => prev.map(a => a.id === id ? { ...a, spotlight_active: true, spotlight_expires_at: expires } : a));
+      toast("Spotlight activé pour 7 jours !");
+    } catch {
+      toast("Erreur lors de l'activation du Spotlight.", "error");
+    } finally {
+      setSpotlightingId(null);
     }
   }
 
@@ -463,9 +486,14 @@ export default function Dashboard() {
         if (customStart && created < customStart) return false;
         if (customEnd   && created > customEnd)   return false;
       }
+      // Gouvernorat
+      if (gouvernoratFilter && a.gouvernorat !== gouvernoratFilter) return false;
+      // Prix
+      if (prixMin && Number(a.prix) < Number(prixMin)) return false;
+      if (prixMax && Number(a.prix) > Number(prixMax)) return false;
       return true;
     });
-  }, [annonces, search, typeFilter, statusFilter, dateFilter, dateStart, dateEnd]);
+  }, [annonces, search, typeFilter, statusFilter, dateFilter, dateStart, dateEnd, gouvernoratFilter, prixMin, prixMax]);
 
   return (
     <>
@@ -490,9 +518,9 @@ export default function Dashboard() {
             </div>
             <div style={{display:"flex",gap:10}}>
               {activeTab === "annonces" && (
-                <Link to="/creer_annonce" className="db-btn-primary">
+                <PublierAnnonceBtn className="db-btn-primary">
                   <Plus size={17}/> Nouvelle annonce
-                </Link>
+                </PublierAnnonceBtn>
               )}
             </div>
           </div>
@@ -929,67 +957,88 @@ export default function Dashboard() {
             ))}
           </div>
 
-          {/* Search bar */}
-          {!loading && annonces.length > 0 && (
-            <div className="db-toolbar">
-              <div className="db-search">
-                <Search size={15} className="db-search__ico"/>
-                <input
-                  className="db-search__input"
-                  type="text"
-                  placeholder="Rechercher par titre, type, ville, statut…"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                />
-                {search && (
-                  <button className="db-search__clear" onClick={() => setSearch("")} type="button">
-                    <X size={13}/>
-                  </button>
-                )}
+          {/* Search bar + filtres */}
+          {!loading && annonces.length > 0 && (() => {
+            const govs = [...new Set(annonces.map(a => a.gouvernorat).filter(Boolean))].sort();
+            const hasFilter = search || typeFilter || statusFilter || dateFilter || dateStart || dateEnd || gouvernoratFilter || prixMin || prixMax;
+            const inputSt = {border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 10px",fontSize:13,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"};
+            return (
+              <div style={{display:"flex",flexDirection:"column",gap:10,margin:"12px 0 4px"}}>
+                {/* Ligne 1 : recherche + type + statut */}
+                <div className="db-toolbar">
+                  <div className="db-search">
+                    <Search size={15} className="db-search__ico"/>
+                    <input
+                      className="db-search__input"
+                      type="text"
+                      placeholder="Rechercher par titre, type, ville…"
+                      value={search}
+                      onChange={e => setSearch(e.target.value)}
+                    />
+                    {search && (
+                      <button className="db-search__clear" onClick={() => setSearch("")} type="button">
+                        <X size={13}/>
+                      </button>
+                    )}
+                  </div>
+                  <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={inputSt}>
+                    <option value="">Tous types</option>
+                    {[
+                      ["appartement",       "Appartement"],
+                      ["villa_maison",      "Villa/Maison"],
+                      ["immeuble",          "Immeuble"],
+                      ["terrain",           "Terrain"],
+                      ["local_commercial",  "Local commercial"],
+                      ["bureau",            "Bureau"],
+                      ["ferme_agricole",    "Ferme agricole"],
+                      ["garage_parking",    "Garage / Parking"],
+                      ["depot_stockage",    "Dépôt de stockage"],
+                      ["immobiliers_divers","Immobiliers divers"],
+                    ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                  <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={inputSt}>
+                    <option value="">Tous statuts</option>
+                    <option value="En attente">En attente</option>
+                    <option value="Approuvée">Approuvée</option>
+                    <option value="Refusée">Refusée</option>
+                  </select>
+                </div>
+                {/* Ligne 2 : lieu + prix + date */}
+                <div style={{display:"flex",flexWrap:"wrap",alignItems:"center",gap:10}}>
+                  <select value={gouvernoratFilter} onChange={e => setGouvernoratFilter(e.target.value)} style={inputSt}>
+                    <option value="">Tous les lieux</option>
+                    {govs.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <input type="number" placeholder="Prix min" value={prixMin} onChange={e => setPrixMin(e.target.value)}
+                      style={{...inputSt, width:110}} title="Prix minimum"/>
+                    <span style={{color:"#94a3b8",fontSize:13}}>—</span>
+                    <input type="number" placeholder="Prix max" value={prixMax} onChange={e => setPrixMax(e.target.value)}
+                      style={{...inputSt, width:110}} title="Prix maximum"/>
+                  </div>
+                  <select value={dateFilter} onChange={e => { setDateFilter(e.target.value); setDateStart(""); setDateEnd(""); }} style={inputSt}>
+                    <option value="">Toutes dates</option>
+                    <option value="Aujourd'hui">Aujourd'hui</option>
+                    <option value="Cette semaine">Cette semaine</option>
+                    <option value="Ce mois">Ce mois</option>
+                  </select>
+                  <input type="date" value={dateStart} onChange={e => { setDateStart(e.target.value); setDateFilter(""); }}
+                    title="Date de début" style={inputSt}/>
+                  <input type="date" value={dateEnd} onChange={e => { setDateEnd(e.target.value); setDateFilter(""); }}
+                    title="Date de fin" style={inputSt}/>
+                  {hasFilter && (
+                    <button onClick={() => { setSearch(""); setTypeFilter(""); setStatusFilter(""); setDateFilter(""); setDateStart(""); setDateEnd(""); setGouvernoratFilter(""); setPrixMin(""); setPrixMax(""); }}
+                      style={{border:"none",background:"#fee2e2",color:"#dc2626",borderRadius:8,padding:"7px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                      ✕ Réinitialiser
+                    </button>
+                  )}
+                  <span className="db-toolbar__count" style={{marginLeft:"auto"}}>
+                    {filtered.length} annonce{filtered.length !== 1 ? "s" : ""}
+                  </span>
+                </div>
               </div>
-              <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
-                style={{border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 10px",fontSize:13,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}>
-                <option value="">Tous types</option>
-                {[
-                  ["appartement",       "Appartement"],
-                  ["villa_maison",      "Villa/Maison"],
-                  ["immeuble",          "Immeuble"],
-                  ["terrain",           "Terrain"],
-                  ["local_commercial",  "Local commercial"],
-                  ["bureau",            "Bureau"],
-                  ["ferme_agricole",    "Ferme agricole"],
-                  ["garage_parking",    "Garage / Parking"],
-                  ["depot_stockage",    "Dépôt de stockage"],
-                  ["immobiliers_divers","Immobiliers divers"],
-                ].map(([v, l]) => (
-                  <option key={v} value={v}>{l}</option>
-                ))}
-              </select>
-              <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-                style={{border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 10px",fontSize:13,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}>
-                <option value="">Tous statuts</option>
-                <option value="En attente">En attente</option>
-                <option value="Approuvée">Approuvée</option>
-                <option value="Refusée">Refusée</option>
-              </select>
-              <select value={dateFilter} onChange={e => { setDateFilter(e.target.value); setDateStart(""); setDateEnd(""); }}
-                style={{border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 10px",fontSize:13,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}>
-                <option value="">Toutes dates</option>
-                <option value="Aujourd'hui">Aujourd'hui</option>
-                <option value="Cette semaine">Cette semaine</option>
-                <option value="Ce mois">Ce mois</option>
-              </select>
-              <input type="date" value={dateStart} onChange={e => { setDateStart(e.target.value); setDateFilter(""); }}
-                title="Date de début"
-                style={{border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 10px",fontSize:13,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}/>
-              <input type="date" value={dateEnd} onChange={e => { setDateEnd(e.target.value); setDateFilter(""); }}
-                title="Date de fin"
-                style={{border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 10px",fontSize:13,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}/>
-              <span className="db-toolbar__count">
-                {filtered.length} annonce{filtered.length !== 1 ? "s" : ""}
-              </span>
-            </div>
-          )}
+            );
+          })()}
 
           {/* List */}
           {loading ? (
@@ -998,7 +1047,7 @@ export default function Dashboard() {
             <div className="db-empty">
               <Home size={48} strokeWidth={1.2}/>
               <p>Aucune annonce publiée pour l'instant.</p>
-              <Link to="/creer_annonce" className="db-btn-primary"><Plus size={16}/> Créer ma première annonce</Link>
+              <PublierAnnonceBtn className="db-btn-primary"><Plus size={16}/> Créer ma première annonce</PublierAnnonceBtn>
             </div>
           ) : filtered.length === 0 ? (
             <div className="db-empty">
@@ -1133,6 +1182,21 @@ export default function Dashboard() {
                             >
                               <RefreshCw size={11} style={{animation:refreshingId===a.id?"spin 1s linear infinite":"none"}}/> Refresh
                             </button>
+                            {a.spotlight_active ? (
+                              <span title={`Spotlight actif jusqu'au ${a.spotlight_expires_at ? new Date(a.spotlight_expires_at).toLocaleDateString("fr-FR") : "?"}`}
+                                style={{padding:"5px 9px",borderRadius:7,border:"1.5px solid #fb923c",background:"#fff7ed",color:"#ea580c",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",gap:4}}>
+                                ⭐ Spotlight
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => handleSpotlight(a.id)}
+                                disabled={spotlightingId === a.id}
+                                title="Activer le Spotlight (badge ⭐ sur la carte et les résultats, 7 jours)"
+                                style={{padding:"5px 9px",borderRadius:7,border:"1.5px solid #fdba74",background:"#fff7ed",color:"#c2410c",fontSize:11,fontWeight:700,cursor:spotlightingId===a.id?"not-allowed":"pointer",display:"flex",alignItems:"center",gap:4,opacity:spotlightingId===a.id?0.6:1,fontFamily:"inherit"}}
+                              >
+                                ⭐ Spotlight
+                              </button>
+                            )}
                             {/* Accompagnement switch compact */}
                             <div style={{display:"flex",flexDirection:"column",gap:3}}>
                               <label style={{display:"flex",alignItems:"center",gap:4,cursor:"pointer",fontSize:10.5,fontWeight:600,color:a.accompagnement?"#6366f1":"#94a3b8"}}>

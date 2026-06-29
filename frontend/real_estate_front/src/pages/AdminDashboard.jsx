@@ -2,7 +2,9 @@ import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import API_URL, { fmtDevise } from "../config";
 import Navbar from "../components/Navbar";
+import Logo from "../components/Logo";
 import { useToast } from "../components/Toast";
+import AnnonceDetailModal from "./AnnonceDetailModal";
 import {
   LayoutDashboard, FileText, Users, CheckCircle, XCircle, Clock,
   Eye, Trash2, RefreshCw, Home, BarChart3, X, Check, Building, Plus,
@@ -48,8 +50,28 @@ export default function AdminDashboard() {
   const [userSortAnnonces,setUserSortAnnonces]= useState(""); // "" | "asc" | "desc"
   const [filter,       setFilter]      = useState("en_attente");
   const [loading,      setLoading]     = useState(true);
+  /* filtres annonces */
+  const [aSearch,      setASearch]     = useState("");
+  const [aFiltreType,  setAFiltreType] = useState("");
+  const [aFiltreGov,   setAFiltreGov]  = useState("");
+  const [aPrixMin,     setAPrixMin]    = useState("");
+  const [aPrixMax,     setAPrixMax]    = useState("");
+  const [aDateFrom,    setADateFrom]   = useState("");
+  const [aDateTo,      setADateTo]     = useState("");
+  /* filtres accompagnements */
+  const [accomSearchTitre, setAccomSearchTitre] = useState("");
+  const [accomSearchUser,  setAccomSearchUser]  = useState("");
+  const [accomFilterType,  setAccomFilterType]  = useState("");
+  /* filtres mandats */
+  const [mandatSearchTitre, setMandatSearchTitre] = useState("");
+  const [mandatSearchUser,  setMandatSearchUser]  = useState("");
+  /* filtres conventions (convFilterName + convFilterType déjà existants) */
+
   const [modal,        setModal]       = useState(null);
   const [rejectMsg,    setRejectMsg]   = useState("");
+  const [rejectRaisons,       setRejectRaisons]       = useState([]);
+  const [rejectCausesCustom,  setRejectCausesCustom]  = useState([]); // [{id, text}]
+  const [previewAnnonce, setPreviewAnnonce] = useState(null);
 
   /* Agences state */
   const [agencies,      setAgencies]       = useState([]);
@@ -85,6 +107,13 @@ export default function AdminDashboard() {
   const [agencyNoteId,  setAgencyNoteId] = useState(null);
   const [agencyNoteText,setAgencyNoteText] = useState("");
 
+  /* Conventions */
+  const [conventions,      setConventions]      = useState([]);
+  const [convLoading,      setConvLoading]      = useState(false);
+  const [convFilterName,   setConvFilterName]   = useState("");
+  const [convFilterType,   setConvFilterType]   = useState(""); // "" | "agence" | "promoteur"
+  const [convDetail,       setConvDetail]       = useState(null); // convention sélectionnée pour le modal
+
   /* Stats / filter state */
   const [freqPeriod, setFreqPeriod] = useState("month");
   const [freqFrom,   setFreqFrom]   = useState("");
@@ -107,6 +136,7 @@ export default function AdminDashboard() {
     if (tab === "stats")    { if (allAnnonces.length === 0) loadAllAnnonces(); }
     if (tab === "agences")        { loadAgencies(); if (allAnnonces.length === 0) loadAllAnnonces(); }
     if (tab === "accompagnements"){ loadAllAnnonces(); if (users.length === 0) loadUsers(); if (agencies.length === 0) loadAgencies(); loadProfessionals(); }
+    if (tab === "conventions") loadConventions();
   }, [tab, filter]);
 
   async function authFetch(url, opts = {}) {
@@ -203,6 +233,27 @@ export default function AdminDashboard() {
     } catch {}
   }
 
+  async function loadConventions() {
+    setConvLoading(true);
+    try {
+      const res = await authFetch("/admin/conventions");
+      if (res.ok) setConventions(await res.json());
+    } catch {}
+    finally { setConvLoading(false); }
+  }
+
+  async function updateConventionStatus(id, status) {
+    try {
+      const res = await authFetch(`/admin/conventions/${id}/status`, {
+        method: "PATCH", body: JSON.stringify({ status }),
+      });
+      if (res.ok) {
+        setConventions(prev => prev.map(c => c.id === id ? { ...c, status } : c));
+        toast(`Statut mis à jour : ${status}`);
+      }
+    } catch {}
+  }
+
   async function createAgency() {
     if (!agencyForm.nom || !agencyForm.email || !agencyForm.username || !agencyForm.password) {
       toast("Remplissez les champs obligatoires.", "error"); return;
@@ -253,18 +304,23 @@ export default function AdminDashboard() {
     } catch { toast("Erreur.", "error"); }
   }
 
-  async function updateStatus(id, status, message = null) {
+  async function updateStatus(id, status, message = null, raisons = []) {
     try {
       const res = await authFetch(`/admin/annonces/${id}/status`, {
         method: "PUT",
-        body: JSON.stringify({ status, message }),
+        body: JSON.stringify({ status, message, raisons }),
       });
       if (!res.ok) throw new Error();
       setAnnonces(prev => prev.map(a => a.id === id ? { ...a, status } : a));
+      if (previewAnnonce?.id === id) setPreviewAnnonce(p => p ? { ...p, status } : p);
       toast(status === "approuvee" ? "Annonce approuvée !" : "Annonce refusée.");
-      setModal(null); setRejectMsg("");
+      setModal(null); setRejectMsg(""); setRejectRaisons([]); setRejectCausesCustom([]);
       loadStats();
     } catch { toast("Erreur lors de la mise à jour.", "error"); }
+  }
+
+  function openPreview(a) {
+    setPreviewAnnonce(a);
   }
 
   async function deleteAnnonce(id) {
@@ -387,12 +443,36 @@ export default function AdminDashboard() {
   const hasAnyFilter = zoneFilter.gouvernorat || zoneFilter.delegation || zoneFilter.localite || freqFrom || freqTo;
 
   const STAT_CARDS = stats ? [
-    { icon:<FileText size={22}/>,    label:"Total annonces", val:stats.total_annonces, cls:"" },
-    { icon:<CheckCircle size={22}/>, label:"Approuvées",     val:stats.approuvees,     cls:"adm-stat--green" },
-    { icon:<Clock size={22}/>,       label:"En attente",     val:stats.en_attente,     cls:"adm-stat--amber" },
-    { icon:<XCircle size={22}/>,     label:"Refusées",       val:stats.refusees,       cls:"adm-stat--red" },
-    { icon:<Users size={22}/>,       label:"Utilisateurs",   val:stats.total_users,    cls:"adm-stat--blue" },
+    { icon:<FileText size={22}/>,    label:"Total annonces", val:stats.total_annonces, cls:"",               onClick:()=>{ setTab("annonces"); setFilter(""); } },
+    { icon:<CheckCircle size={22}/>, label:"Approuvées",     val:stats.approuvees,     cls:"adm-stat--green",onClick:()=>{ setTab("annonces"); setFilter("approuvee"); } },
+    { icon:<Clock size={22}/>,       label:"En attente",     val:stats.en_attente,     cls:"adm-stat--amber",onClick:()=>{ setTab("annonces"); setFilter("en_attente"); } },
+    { icon:<XCircle size={22}/>,     label:"Refusées",       val:stats.refusees,       cls:"adm-stat--red",  onClick:()=>{ setTab("annonces"); setFilter("refusee"); } },
+    { icon:<Users size={22}/>,       label:"Utilisateurs",   val:stats.total_users,    cls:"adm-stat--blue", onClick:()=>{ setTab("users"); } },
   ] : [];
+
+  /* ─── Filtrage local des annonces ─── */
+  const filteredAnnonces = useMemo(() => {
+    return annonces.filter(a => {
+      if (aSearch) {
+        const q = aSearch.toLowerCase();
+        if (
+          !a.titre?.toLowerCase().includes(q) &&
+          !a.user_name?.toLowerCase().includes(q) &&
+          !a.user_email?.toLowerCase().includes(q)
+        ) return false;
+      }
+      if (aFiltreType && a.type_bien !== aFiltreType) return false;
+      if (aFiltreGov  && a.gouvernorat !== aFiltreGov) return false;
+      if (aPrixMin && Number(a.prix) < Number(aPrixMin)) return false;
+      if (aPrixMax && Number(a.prix) > Number(aPrixMax)) return false;
+      if (aDateFrom && new Date(a.date_creation) < new Date(aDateFrom)) return false;
+      if (aDateTo   && new Date(a.date_creation) > new Date(aDateTo + "T23:59:59")) return false;
+      return true;
+    });
+  }, [annonces, aSearch, aFiltreType, aFiltreGov, aPrixMin, aPrixMax, aDateFrom, aDateTo]);
+
+  const aTypes = useMemo(() => [...new Set(annonces.map(a => a.type_bien).filter(Boolean))].sort(), [annonces]);
+  const aGovs  = useMemo(() => [...new Set(annonces.map(a => a.gouvernorat).filter(Boolean))].sort(), [annonces]);
 
   return (
     <>
@@ -410,7 +490,8 @@ export default function AdminDashboard() {
             { id:"users",          icon:<Users size={16}/>,     label:"Utilisateurs" },
             { id:"agences",        icon:<Building size={16}/>,  label:"Agences" },
             { id:"accompagnements",icon:<Sparkles size={16}/>,  label:"Accompagnements" },
-            { id:"mandats",        icon:<Handshake size={16}/>, label:"Partage de mandat" },
+            { id:"mandats",        icon:<Handshake size={16}/>, label:"Partage des mandats" },
+            { id:"conventions",    icon:<FileText  size={16}/>, label:"Conventions" },
           ].map(item => (
             <button key={item.id}
               className={`adm-nav${tab === item.id ? " adm-nav--active" : ""}`}
@@ -436,6 +517,8 @@ export default function AdminDashboard() {
               {tab === "users"    && "Utilisateurs"}
               {tab === "agences"          && "Comptes Agences"}
               {tab === "accompagnements" && "Accompagnements"}
+              {tab === "mandats"         && "Partage des mandats"}
+              {tab === "conventions"     && "Demandes de conventions"}
             </h1>
             <button className="adm-refresh" onClick={loadAll}><RefreshCw size={15}/></button>
           </div>
@@ -444,7 +527,11 @@ export default function AdminDashboard() {
           {stats && (
             <div className="adm-stats">
               {STAT_CARDS.map(s => (
-                <div key={s.label} className={`adm-stat ${s.cls}`}>
+                <div key={s.label} className={`adm-stat ${s.cls}`}
+                  onClick={s.onClick}
+                  style={{cursor:"pointer",transition:"transform .15s,box-shadow .15s"}}
+                  onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 6px 20px rgba(0,0,0,.1)";}}
+                  onMouseLeave={e=>{e.currentTarget.style.transform="";e.currentTarget.style.boxShadow="";}}>
                   <span className="adm-stat__ico">{s.icon}</span>
                   <div>
                     <p className="adm-stat__val">{s.val}</p>
@@ -475,9 +562,51 @@ export default function AdminDashboard() {
                   </button>
                 ))}
               </div>
+
+              {/* ─── Filtres avancés ─── */}
+              <div style={{display:"flex",flexWrap:"wrap",gap:10,margin:"12px 0 4px",alignItems:"center"}}>
+                <input
+                  type="text" placeholder="🔍 Propriétaire / titre…"
+                  value={aSearch} onChange={e=>setASearch(e.target.value)}
+                  style={{border:"1.5px solid #e2e8f0",borderRadius:8,padding:"7px 12px",fontSize:13,fontFamily:"inherit",minWidth:200,outline:"none"}}
+                />
+                <select value={aFiltreType} onChange={e=>setAFiltreType(e.target.value)}
+                  style={{border:"1.5px solid #e2e8f0",borderRadius:8,padding:"7px 12px",fontSize:13,fontFamily:"inherit",background:"#fff",outline:"none"}}>
+                  <option value="">Tous les types</option>
+                  {aTypes.map(t=><option key={t} value={t}>{TypeBienFr(t)}</option>)}
+                </select>
+                <select value={aFiltreGov} onChange={e=>setAFiltreGov(e.target.value)}
+                  style={{border:"1.5px solid #e2e8f0",borderRadius:8,padding:"7px 12px",fontSize:13,fontFamily:"inherit",background:"#fff",outline:"none"}}>
+                  <option value="">Tous les lieux</option>
+                  {aGovs.map(g=><option key={g} value={g}>{g}</option>)}
+                </select>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <input type="number" placeholder="Prix min" value={aPrixMin} onChange={e=>setAPrixMin(e.target.value)}
+                    style={{border:"1.5px solid #e2e8f0",borderRadius:8,padding:"7px 10px",fontSize:13,fontFamily:"inherit",width:110,outline:"none"}}/>
+                  <span style={{color:"#94a3b8",fontSize:13}}>—</span>
+                  <input type="number" placeholder="Prix max" value={aPrixMax} onChange={e=>setAPrixMax(e.target.value)}
+                    style={{border:"1.5px solid #e2e8f0",borderRadius:8,padding:"7px 10px",fontSize:13,fontFamily:"inherit",width:110,outline:"none"}}/>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <input type="date" value={aDateFrom} onChange={e=>setADateFrom(e.target.value)}
+                    style={{border:"1.5px solid #e2e8f0",borderRadius:8,padding:"7px 10px",fontSize:13,fontFamily:"inherit",outline:"none"}}/>
+                  <span style={{color:"#94a3b8",fontSize:13}}>→</span>
+                  <input type="date" value={aDateTo} onChange={e=>setADateTo(e.target.value)}
+                    style={{border:"1.5px solid #e2e8f0",borderRadius:8,padding:"7px 10px",fontSize:13,fontFamily:"inherit",outline:"none"}}/>
+                </div>
+                {(aSearch||aFiltreType||aFiltreGov||aPrixMin||aPrixMax||aDateFrom||aDateTo) && (
+                  <button onClick={()=>{setASearch("");setAFiltreType("");setAFiltreGov("");setAPrixMin("");setAPrixMax("");setADateFrom("");setADateTo("");}}
+                    style={{border:"none",background:"#fee2e2",color:"#dc2626",borderRadius:8,padding:"7px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                    ✕ Réinitialiser
+                  </button>
+                )}
+                <span style={{marginLeft:"auto",fontSize:12.5,color:"#64748b",fontWeight:500}}>
+                  {filteredAnnonces.length} résultat{filteredAnnonces.length!==1?"s":""}
+                </span>
+              </div>
               {loading ? (
                 <div className="adm-empty"><div className="adm-spinner"/></div>
-              ) : annonces.length === 0 ? (
+              ) : filteredAnnonces.length === 0 ? (
                 <div className="adm-empty"><FileText size={40}/><p>Aucune annonce dans ce filtre.</p></div>
               ) : (
                 <div className="adm-table-wrap">
@@ -489,8 +618,8 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {annonces.map(a => (
-                        <tr key={a.id}>
+                      {filteredAnnonces.map(a => (
+                        <tr key={a.id} className="adm-table__row--clickable" onClick={() => openPreview(a)}>
                           <td>
                             <p className="adm-table__title">{a.titre}</p>
                             <span className="adm-table__id">#{a.id}</span>
@@ -511,25 +640,25 @@ export default function AdminDashboard() {
                           <td className="adm-table__date">
                             {new Date(a.date_creation).toLocaleDateString("fr-FR")}
                           </td>
-                          <td>
+                          <td onClick={e => e.stopPropagation()}>
                             <div className="adm-actions">
-                              <Link to={`/annonce/${a.id}`} className="adm-action adm-action--view" title="Voir">
+                              <button className="adm-action adm-action--view" title="Voir" onClick={e => { e.stopPropagation(); openPreview(a); }}>
                                 <Eye size={14}/>
-                              </Link>
+                              </button>
                               {a.status !== "approuvee" && (
                                 <button className="adm-action adm-action--ok" title="Approuver"
-                                  onClick={() => updateStatus(a.id, "approuvee")}>
+                                  onClick={e => { e.stopPropagation(); updateStatus(a.id, "approuvee"); }}>
                                   <Check size={14}/>
                                 </button>
                               )}
                               {a.status !== "refusee" && (
                                 <button className="adm-action adm-action--reject" title="Refuser"
-                                  onClick={() => setModal({ annonce:a, action:"reject" })}>
+                                  onClick={e => { e.stopPropagation(); setModal({ annonce:a, action:"reject" }); }}>
                                   <X size={14}/>
                                 </button>
                               )}
                               <button className="adm-action adm-action--del" title="Supprimer"
-                                onClick={() => deleteAnnonce(a.id)}>
+                                onClick={e => { e.stopPropagation(); deleteAnnonce(a.id); }}>
                                 <Trash2 size={14}/>
                               </button>
                             </div>
@@ -1157,6 +1286,29 @@ export default function AdminDashboard() {
                   <Check size={14}/> Enregistrer
                 </button>
               </div>
+              {allAnnonces.filter(a => a.accompagnement).length > 0 && (
+                <div style={{display:"flex",flexWrap:"wrap",gap:10,marginBottom:14,alignItems:"center"}}>
+                  <input value={accomSearchTitre} onChange={e=>setAccomSearchTitre(e.target.value)}
+                    placeholder="🔍 Titre de l'annonce…"
+                    style={{border:"1.5px solid #e2e8f0",borderRadius:8,padding:"7px 12px",fontSize:13,fontFamily:"inherit",outline:"none",minWidth:200}}/>
+                  <input value={accomSearchUser} onChange={e=>setAccomSearchUser(e.target.value)}
+                    placeholder="👤 Propriétaire…"
+                    style={{border:"1.5px solid #e2e8f0",borderRadius:8,padding:"7px 12px",fontSize:13,fontFamily:"inherit",outline:"none",minWidth:180}}/>
+                  <select value={accomFilterType} onChange={e=>setAccomFilterType(e.target.value)}
+                    style={{border:"1.5px solid #e2e8f0",borderRadius:8,padding:"7px 12px",fontSize:13,fontFamily:"inherit",background:"#fff",outline:"none"}}>
+                    <option value="">Tous types</option>
+                    {[...new Set(allAnnonces.filter(a=>a.accompagnement).map(a=>a.type_bien).filter(Boolean))].sort().map(t=>(
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                  {(accomSearchTitre||accomSearchUser||accomFilterType) && (
+                    <button onClick={()=>{setAccomSearchTitre("");setAccomSearchUser("");setAccomFilterType("");}}
+                      style={{border:"none",background:"#fee2e2",color:"#dc2626",borderRadius:8,padding:"7px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                      ✕ Réinitialiser
+                    </button>
+                  )}
+                </div>
+              )}
               {allAnnonces.filter(a => a.accompagnement).length === 0 ? (
                 <div style={{textAlign:"center",padding:"60px 20px",background:"#f8fafc",borderRadius:14,border:"1.5px dashed #e2e8f0"}}>
                   <Sparkles size={40} style={{color:"#d1d5db",marginBottom:12}}/>
@@ -1174,7 +1326,12 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {allAnnonces.filter(a => a.accompagnement).map(a => {
+                      {allAnnonces.filter(a => a.accompagnement).filter(a => {
+                        if (accomSearchTitre && !a.titre?.toLowerCase().includes(accomSearchTitre.toLowerCase())) return false;
+                        if (accomSearchUser  && !(a.user_name||"").toLowerCase().includes(accomSearchUser.toLowerCase())) return false;
+                        if (accomFilterType  && a.type_bien !== accomFilterType) return false;
+                        return true;
+                      }).map(a => {
                         const t = accomTracking[a.id] || {};
                         const u = users?.find(u => u.id === a.utilisateur_id);
                         /* Valeur affichée : tracking admin en priorité, sinon ce que l'utilisateur a choisi */
@@ -1267,13 +1424,18 @@ export default function AdminDashboard() {
           {tab === "mandats" && (
             <div style={{fontFamily:"'Inter',system-ui,sans-serif"}}>
               <div style={{marginBottom:20}}>
-                <h2 style={{fontSize:18,fontWeight:800,color:"#0f172a",margin:0}}>Partage de mandat</h2>
+                <h2 style={{fontSize:18,fontWeight:800,color:"#0f172a",margin:0}}>Suivi du partage des mandats</h2>
                 <p style={{fontSize:13,color:"#64748b",margin:"4px 0 0"}}>
-                  Mandats partagés entre deux agences suite à un accompagnement validé.
+                  Suivi du partage des mandats entre deux agences suite à un accompagnement validé.
                 </p>
               </div>
               {(() => {
                 const mandats = allAnnonces.filter(a => a.accompagnement && (accomTracking[a.id]||{}).contact);
+                const mandatsFiltres = mandats.filter(a => {
+                  if (mandatSearchTitre && !a.titre?.toLowerCase().includes(mandatSearchTitre.toLowerCase())) return false;
+                  if (mandatSearchUser  && !(a.user_name||"").toLowerCase().includes(mandatSearchUser.toLowerCase())) return false;
+                  return true;
+                });
                 if (mandats.length === 0) return (
                   <div style={{textAlign:"center",padding:"60px 20px",background:"#f8fafc",borderRadius:14,border:"1.5px dashed #e2e8f0"}}>
                     <Handshake size={40} style={{color:"#d1d5db",marginBottom:12}}/>
@@ -1282,17 +1444,35 @@ export default function AdminDashboard() {
                   </div>
                 );
                 return (
+                  <>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:10,marginBottom:14,alignItems:"center"}}>
+                    <input value={mandatSearchTitre} onChange={e=>setMandatSearchTitre(e.target.value)}
+                      placeholder="🔍 Titre de l'annonce…"
+                      style={{border:"1.5px solid #e2e8f0",borderRadius:8,padding:"7px 12px",fontSize:13,fontFamily:"inherit",outline:"none",minWidth:200}}/>
+                    <input value={mandatSearchUser} onChange={e=>setMandatSearchUser(e.target.value)}
+                      placeholder="👤 Propriétaire…"
+                      style={{border:"1.5px solid #e2e8f0",borderRadius:8,padding:"7px 12px",fontSize:13,fontFamily:"inherit",outline:"none",minWidth:180}}/>
+                    {(mandatSearchTitre||mandatSearchUser) && (
+                      <button onClick={()=>{setMandatSearchTitre("");setMandatSearchUser("");}}
+                        style={{border:"none",background:"#fee2e2",color:"#dc2626",borderRadius:8,padding:"7px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                        ✕ Réinitialiser
+                      </button>
+                    )}
+                    <span style={{marginLeft:"auto",fontSize:12.5,color:"#64748b",fontWeight:500}}>
+                      {mandatsFiltres.length} résultat{mandatsFiltres.length!==1?"s":""}
+                    </span>
+                  </div>
                   <div style={{overflowX:"auto"}}>
                     <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
                       <thead>
                         <tr style={{borderBottom:"2px solid #e5e7eb",background:"#f8fafc"}}>
-                          {["Annonce","Propriétaire","Agence A","Agence B","Commission (%)","Statut"].map(h => (
+                          {["Annonce","Propriétaire","Agence A","Agence B","Commission (%)","Statut"].map(h=>(
                             <th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:700,color:"#374151",fontSize:11.5,textTransform:"uppercase",letterSpacing:".05em",whiteSpace:"nowrap"}}>{h}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
-                        {mandats.map(a => {
+                        {mandatsFiltres.map(a => {
                           const t = accomTracking[a.id] || {};
                           const u = users?.find(u => u.id === a.utilisateur_id);
                           return (
@@ -1336,13 +1516,296 @@ export default function AdminDashboard() {
                       </tbody>
                     </table>
                   </div>
+                  </>
                 );
               })()}
             </div>
           )}
 
+          {/* ── Onglet Conventions ── */}
+          {tab === "conventions" && (()=>{
+            const CONV_STATUS = {
+              soumis:  { label:"Soumis",  color:"#f59e0b", bg:"#fef3c7" },
+              accepte: { label:"Accepté", color:"#16a34a", bg:"#dcfce7" },
+              refuse:  { label:"Refusé",  color:"#dc2626", bg:"#fee2e2" },
+            };
+            const filtered = conventions.filter(c => {
+              const nameMatch = !convFilterName || [c.user.username, c.user.email, c.user.nom, c.user.prenom, c.user.nom_entreprise].some(v => v && v.toLowerCase().includes(convFilterName.toLowerCase()));
+              const typeMatch = !convFilterType || c.type === convFilterType;
+              return nameMatch && typeMatch;
+            });
+            return (
+              <div style={{fontFamily:"'Inter',system-ui,sans-serif"}}>
+                <div style={{marginBottom:20,display:"flex",alignItems:"flex-end",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
+                  <div>
+                    <h2 style={{fontSize:18,fontWeight:800,color:"#0f172a",margin:0}}>Suivi des demandes de conventions</h2>
+                    <p style={{fontSize:13,color:"#64748b",margin:"4px 0 0"}}>Toutes les conventions agence et promoteur soumises sur la plateforme.</p>
+                  </div>
+                  <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+                    <div style={{position:"relative"}}>
+                      <Search size={14} style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"#94a3b8"}}/>
+                      <input value={convFilterName} onChange={e=>setConvFilterName(e.target.value)}
+                        placeholder="Rechercher par nom, email…"
+                        style={{paddingLeft:32,paddingRight:12,height:36,border:"1.5px solid #e2e8f0",borderRadius:9,fontSize:13,fontFamily:"inherit",outline:"none",minWidth:220}}/>
+                    </div>
+                    <select value={convFilterType} onChange={e=>setConvFilterType(e.target.value)}
+                      style={{height:36,border:"1.5px solid #e2e8f0",borderRadius:9,fontSize:13,fontFamily:"inherit",padding:"0 12px",background:"#fff",outline:"none"}}>
+                      <option value="">Tous les types</option>
+                      <option value="agence">Agence</option>
+                      <option value="promoteur">Promoteur</option>
+                    </select>
+                    <button onClick={loadConventions} style={{height:36,padding:"0 14px",border:"1.5px solid #e2e8f0",borderRadius:9,background:"#fff",color:"#64748b",cursor:"pointer",display:"flex",alignItems:"center",gap:6,fontSize:13}}><RefreshCw size={14}/>Actualiser</button>
+                  </div>
+                </div>
+                {convLoading
+                  ? <div style={{textAlign:"center",padding:"60px 20px",color:"#94a3b8"}}>Chargement…</div>
+                  : filtered.length === 0
+                    ? <div style={{textAlign:"center",padding:"60px 20px",background:"#f8fafc",borderRadius:14,border:"1.5px dashed #e2e8f0"}}>
+                        <FileText size={40} style={{color:"#d1d5db",marginBottom:12}}/>
+                        <p style={{fontWeight:700,color:"#374151",marginBottom:6,fontSize:15}}>Aucune convention trouvée</p>
+                        <p style={{fontSize:13,color:"#94a3b8"}}>Les demandes soumises par les agences et promoteurs apparaissent ici.</p>
+                      </div>
+                    : <div style={{overflowX:"auto"}}>
+                        <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+                          <thead>
+                            <tr style={{borderBottom:"2px solid #e5e7eb",background:"#f8fafc"}}>
+                              {["Type","Utilisateur","Entreprise","Responsable","Plan","Date soumission","Statut","Dossier"].map(h=>(
+                                <th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:700,color:"#374151",fontSize:11.5,textTransform:"uppercase",letterSpacing:".05em",whiteSpace:"nowrap"}}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filtered.map(c=>{
+                              const st = CONV_STATUS[c.status] || CONV_STATUS.soumis;
+                              const fd = c.form_data || {};
+                              return (
+                                <tr key={c.id} style={{borderBottom:"1px solid #f1f5f9"}}
+                                  onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"}
+                                  onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
+                                  <td style={{padding:"12px 14px",verticalAlign:"middle"}}>
+                                    <span style={{display:"inline-flex",alignItems:"center",gap:5,padding:"3px 10px",borderRadius:999,fontSize:11.5,fontWeight:700,
+                                      background:c.type==="agence"?"#eff6ff":"#faf5ff",color:c.type==="agence"?"#2563eb":"#7c3aed"}}>
+                                      {c.type==="agence"?"🏢 Agence":"🏗 Promoteur"}
+                                    </span>
+                                  </td>
+                                  <td style={{padding:"12px 14px",verticalAlign:"middle"}}>
+                                    <div style={{fontWeight:700,color:"#0f172a",fontSize:13}}>@{c.user.username}</div>
+                                    <div style={{fontSize:11.5,color:"#64748b"}}>{c.user.email}</div>
+                                  </td>
+                                  <td style={{padding:"12px 14px",verticalAlign:"middle",color:"#374151"}}>{c.user.nom_entreprise||fd.nom_entreprise||"—"}</td>
+                                  <td style={{padding:"12px 14px",verticalAlign:"middle",color:"#374151"}}>{fd.responsable||[c.user.prenom,c.user.nom].filter(Boolean).join(" ")||"—"}</td>
+                                  <td style={{padding:"12px 14px",verticalAlign:"middle"}}>
+                                    {fd.plan ? <span style={{padding:"2px 10px",borderRadius:999,fontSize:11.5,fontWeight:700,background:"#f1f5f9",color:"#475569"}}>{fd.plan}</span> : "—"}
+                                  </td>
+                                  <td style={{padding:"12px 14px",verticalAlign:"middle",color:"#64748b",whiteSpace:"nowrap"}}>
+                                    {c.submitted_at ? new Date(c.submitted_at).toLocaleDateString("fr-TN",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}) : "—"}
+                                  </td>
+                                  <td style={{padding:"12px 14px",verticalAlign:"middle"}}>
+                                    <span style={{display:"inline-block",padding:"3px 10px",borderRadius:999,fontSize:11.5,fontWeight:700,background:st.bg,color:st.color}}>{st.label}</span>
+                                  </td>
+                                  <td style={{padding:"12px 14px",verticalAlign:"middle"}}>
+                                    <button onClick={()=>setConvDetail(c)}
+                                      style={{padding:"5px 13px",borderRadius:8,border:"1.5px solid #e0e7ff",background:"#f5f3ff",color:"#6366f1",fontSize:12,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:5,whiteSpace:"nowrap"}}>
+                                      <Eye size={13}/>Voir le dossier
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                }
+              </div>
+            );
+          })()}
+
         </main>
       </div>
+
+      {/* ── Modal : détail dossier convention ── */}
+      {convDetail&&(()=>{
+        const c = convDetail;
+        const fd = c.form_data || {};
+        const docs = fd.docs || {};
+        const CONV_STATUS = {
+          soumis:  { label:"Soumis",  color:"#f59e0b", bg:"#fef3c7" },
+          accepte: { label:"Accepté", color:"#16a34a", bg:"#dcfce7" },
+          refuse:  { label:"Refusé",  color:"#dc2626", bg:"#fee2e2" },
+        };
+        const st = CONV_STATUS[c.status] || CONV_STATUS.soumis;
+        const BACKEND = "http://localhost:8000";
+
+        const DOC_LABELS = {
+          patente: "Patente commerciale",
+          rc:      "Registre de commerce",
+          cin:     "CIN du gérant",
+          logo:    "Logo",
+        };
+
+        const isAgence = c.type === "agence";
+        const FIELD_LABELS = isAgence ? {
+          nom_agence:           "Raison sociale",
+          responsable:          "Responsable / Gérant",
+          email:                "Email professionnel",
+          telephone:            "Téléphone",
+          matricule_fiscal:     "Matricule fiscal",
+          registre_commerce:    "N° Registre de commerce",
+          adresse:              "Adresse du siège",
+          gouvernorat:          "Gouvernorat",
+          delegation:           "Délégation",
+          conventionAccepted:   "Convention signée",
+          signedAt:             "Date de signature",
+          plan:                 "Plan choisi",
+        } : {
+          nom_entreprise:       "Raison sociale",
+          responsable:          "Responsable / Dirigeant",
+          email:                "Email professionnel",
+          telephone:            "Téléphone",
+          matricule_fiscal:     "Matricule fiscal",
+          registre_commerce:    "N° Registre de commerce",
+          adresse:              "Adresse du siège",
+          gouvernorat:          "Gouvernorat",
+          delegation:           "Délégation",
+          conventionAccepted:   "Convention signée",
+          signedAt:             "Date de signature",
+          plan:                 "Plan choisi",
+        };
+
+        return (
+          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={()=>setConvDetail(null)}>
+            <div style={{background:"#fff",borderRadius:18,width:"100%",maxWidth:700,maxHeight:"90vh",overflowY:"auto",boxShadow:"0 32px 80px rgba(0,0,0,.25)",fontFamily:"'Inter',system-ui,sans-serif"}} onClick={e=>e.stopPropagation()}>
+
+              {/* Header */}
+              <div style={{padding:"22px 28px",borderBottom:"1px solid #f1f5f9",display:"flex",alignItems:"center",justifyContent:"space-between",background:"#fafafa",borderRadius:"18px 18px 0 0"}}>
+                <div style={{display:"flex",alignItems:"center",gap:14}}>
+                  <div style={{width:44,height:44,borderRadius:12,background:c.type==="agence"?"#eff6ff":"#f5f3ff",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    <span style={{fontSize:22}}>{c.type==="agence"?"🏢":"🏗"}</span>
+                  </div>
+                  <div>
+                    <h2 style={{margin:0,fontSize:17,fontWeight:800,color:"#0f172a"}}>
+                      Dossier {c.type==="agence"?"Agence":"Promoteur"} — @{c.user.username}
+                    </h2>
+                    <p style={{margin:"3px 0 0",fontSize:12.5,color:"#64748b"}}>
+                      Soumis le {c.submitted_at ? new Date(c.submitted_at).toLocaleDateString("fr-TN",{day:"2-digit",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"}) : "—"}
+                    </p>
+                  </div>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <span style={{padding:"4px 14px",borderRadius:999,fontSize:12.5,fontWeight:700,background:st.bg,color:st.color}}>{st.label}</span>
+                  <button onClick={()=>setConvDetail(null)} style={{width:34,height:34,borderRadius:9,border:"none",background:"#f1f5f9",color:"#64748b",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}><X size={16}/></button>
+                </div>
+              </div>
+
+              <div style={{padding:"24px 28px",display:"flex",flexDirection:"column",gap:24}}>
+
+                {/* Infos utilisateur */}
+                <section>
+                  <p style={{fontSize:11,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:".07em",margin:"0 0 12px"}}>Compte utilisateur</p>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px 20px"}}>
+                    {[
+                      ["Nom d'utilisateur", `@${c.user.username}`],
+                      ["Email",             c.user.email||"—"],
+                      ["Nom",               c.user.nom||"—"],
+                      ["Prénom",            c.user.prenom||"—"],
+                      ["Entreprise",        c.user.nom_entreprise||"—"],
+                      ["Téléphone",         c.user.phone_number||"—"],
+                    ].map(([label,val])=>(
+                      <div key={label} style={{padding:"10px 14px",background:"#f8fafc",borderRadius:10,border:"1px solid #f1f5f9"}}>
+                        <div style={{fontSize:11,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:".05em",marginBottom:4}}>{label}</div>
+                        <div style={{fontSize:13.5,fontWeight:600,color:"#0f172a"}}>{val}</div>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+
+                {/* Champs du formulaire */}
+                <section>
+                  <p style={{fontSize:11,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:".07em",margin:"0 0 12px"}}>Informations du dossier</p>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px 20px"}}>
+                    {Object.entries(FIELD_LABELS).map(([key,label])=>{
+                      const raw = fd[key];
+                      let display = "—";
+                      let color = "#94a3b8";
+                      if(raw!==undefined && raw!==null && raw!=="") {
+                        if(key==="conventionAccepted") { display = raw ? "✓ Oui" : "✗ Non"; color = raw ? "#16a34a" : "#ef4444"; }
+                        else if(key==="signedAt") { try { display = new Date(raw).toLocaleString("fr-TN",{day:"2-digit",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"}); color="#0f172a"; } catch { display=raw; color="#0f172a"; } }
+                        else { display = String(raw); color="#0f172a"; }
+                      }
+                      return (
+                        <div key={key} style={{padding:"10px 14px",background:"#f8fafc",borderRadius:10,border:"1px solid #f1f5f9"}}>
+                          <div style={{fontSize:11,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:".05em",marginBottom:4}}>{label}</div>
+                          <div style={{fontSize:13.5,fontWeight:600,color}}>{display}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {Object.keys(FIELD_LABELS).every(k=>fd[k]===undefined||fd[k]===null||fd[k]==="") && (
+                    <p style={{fontSize:13,color:"#94a3b8",fontStyle:"italic"}}>Aucun champ de formulaire enregistré.</p>
+                  )}
+                </section>
+
+                {/* Pièces jointes */}
+                <section>
+                  <p style={{fontSize:11,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:".07em",margin:"0 0 12px"}}>Pièces jointes</p>
+                  {Object.keys(docs).length === 0
+                    ? <div style={{padding:"20px",background:"#fef9c3",borderRadius:10,border:"1px solid #fde68a",fontSize:13,color:"#92400e",fontWeight:600}}>
+                        ⚠ Aucune pièce jointe reçue — le dossier a peut-être été soumis avant l'activation de l'upload.
+                      </div>
+                    : <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                        {Object.entries(docs).map(([key,url])=>{
+                          const isPdf = url.endsWith(".pdf");
+                          const fullUrl = url.startsWith("http") ? url : `${BACKEND}${url}`;
+                          return (
+                            <a key={key} href={fullUrl} target="_blank" rel="noopener noreferrer"
+                              style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",background:"#f8fafc",borderRadius:10,border:"1.5px solid #e2e8f0",textDecoration:"none",transition:"border-color .15s"}}
+                              onMouseEnter={e=>e.currentTarget.style.borderColor="#6366f1"}
+                              onMouseLeave={e=>e.currentTarget.style.borderColor="#e2e8f0"}>
+                              <div style={{width:38,height:38,borderRadius:9,background:isPdf?"#fee2e2":"#e0e7ff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                                <span style={{fontSize:20}}>{isPdf?"📄":"🖼"}</span>
+                              </div>
+                              <div>
+                                <div style={{fontSize:12.5,fontWeight:700,color:"#0f172a"}}>{DOC_LABELS[key]||key}</div>
+                                <div style={{fontSize:11,color:"#6366f1",fontWeight:600,marginTop:2}}>{isPdf?"Ouvrir le PDF":"Voir l'image"} →</div>
+                              </div>
+                            </a>
+                          );
+                        })}
+                      </div>
+                  }
+                </section>
+
+                {/* Actions */}
+                <section style={{borderTop:"1px solid #f1f5f9",paddingTop:20,display:"flex",gap:10,justifyContent:"flex-end",flexWrap:"wrap"}}>
+                  {c.status!=="accepte"&&(
+                    <button onClick={()=>{updateConventionStatus(c.id,"accepte");setConvDetail(d=>({...d,status:"accepte"}));}}
+                      style={{padding:"9px 20px",borderRadius:10,border:"none",background:"#22c55e",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
+                      <CheckCircle size={14}/>Accepter le dossier
+                    </button>
+                  )}
+                  {c.status!=="refuse"&&(
+                    <button onClick={()=>{updateConventionStatus(c.id,"refuse");setConvDetail(d=>({...d,status:"refuse"}));}}
+                      style={{padding:"9px 20px",borderRadius:10,border:"none",background:"#ef4444",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
+                      <XCircle size={14}/>Refuser le dossier
+                    </button>
+                  )}
+                  {c.status!=="soumis"&&(
+                    <button onClick={()=>{updateConventionStatus(c.id,"soumis");setConvDetail(d=>({...d,status:"soumis"}));}}
+                      style={{padding:"9px 20px",borderRadius:10,border:"1.5px solid #e5e7eb",background:"#fff",color:"#475569",fontSize:13,fontWeight:600,cursor:"pointer"}}>
+                      Remettre en attente
+                    </button>
+                  )}
+                  <button onClick={()=>setConvDetail(null)}
+                    style={{padding:"9px 20px",borderRadius:10,border:"1.5px solid #e5e7eb",background:"#fff",color:"#475569",fontSize:13,fontWeight:600,cursor:"pointer"}}>
+                    Fermer
+                  </button>
+                </section>
+
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Agency View Modal ── */}
       {agencyViewId && agencyViewData && (
@@ -1539,35 +2002,142 @@ export default function AdminDashboard() {
       )}
 
       {/* ── Reject Modal ── */}
-      {modal?.action === "reject" && (
-        <div className="adm-modal-bg" onClick={() => setModal(null)}>
-          <div className="adm-modal" onClick={e => e.stopPropagation()}>
-            <div className="adm-modal__head">
-              <h2>Refuser cette annonce</h2>
-              <button onClick={() => setModal(null)} style={{background:"none",border:"none",cursor:"pointer",color:"#64748b"}}>
-                <X size={18}/>
-              </button>
-            </div>
-            <div className="adm-modal__body">
-              <p style={{marginBottom:12,color:"#64748b"}}>
-                Annonce : <strong>«{modal.annonce.titre}»</strong>
+      {modal?.action === "reject" && (() => {
+        const RAISONS_PRESET = [
+          "Mauvaise qualité des photos",
+          "Photos insuffisantes ou manquantes",
+          "Titre non descriptif ou incomplet",
+          "Prix incorrect ou manquant",
+          "Description insuffisante",
+          "Informations de localisation incorrectes",
+          "Annonce en doublon",
+          "Contenu inapproprié ou trompeur",
+        ];
+        const toggleRaison = (r) => setRejectRaisons(prev =>
+          prev.includes(r) ? prev.filter(x => x !== r) : [...prev, r]
+        );
+        const addCustomCause = () =>
+          setRejectCausesCustom(prev => [...prev, { id: Date.now(), text: "" }]);
+        const updateCustomCause = (id, text) =>
+          setRejectCausesCustom(prev => prev.map(c => c.id === id ? { ...c, text } : c));
+        const removeCustomCause = (id) =>
+          setRejectCausesCustom(prev => prev.filter(c => c.id !== id));
+        const closeModal = () => { setModal(null); setRejectRaisons([]); setRejectMsg(""); setRejectCausesCustom([]); };
+        const allRaisons = [
+          ...rejectRaisons,
+          ...rejectCausesCustom.map(c => c.text).filter(t => t.trim()),
+        ];
+        return (
+          <div className="adm-modal-bg" onClick={closeModal}>
+            <div style={{background:"#fff",borderRadius:20,padding:"28px 32px",maxWidth:520,width:"95%",boxShadow:"0 24px 64px rgba(0,0,0,.18)",maxHeight:"90vh",overflowY:"auto"}} onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <Logo variant="color" height={28} to={null}/>
+                  <div>
+                    <div style={{fontSize:16,fontWeight:800,color:"#0f172a"}}>Refuser cette annonce</div>
+                    <div style={{fontSize:12,color:"#94a3b8",marginTop:2}}>Indiquez la raison du refus au propriétaire</div>
+                  </div>
+                </div>
+                <button onClick={closeModal} style={{background:"#f1f5f9",border:"none",cursor:"pointer",borderRadius:10,width:34,height:34,display:"flex",alignItems:"center",justifyContent:"center",color:"#64748b"}}>
+                  <X size={18} strokeWidth={2.5}/>
+                </button>
+              </div>
+
+              <p style={{marginBottom:16,color:"#64748b",fontSize:13}}>
+                Annonce : <strong style={{color:"#0f172a"}}>«{modal.annonce.titre}»</strong>
               </p>
-              <label style={{fontSize:12,fontWeight:700,color:"#374151",display:"block",marginBottom:6}}>
-                Message pour le propriétaire (optionnel)
-              </label>
-              <textarea className="adm-modal__textarea" rows={4}
-                placeholder="Ex: Photos manquantes, titre incomplet, prix non renseigné…"
-                value={rejectMsg} onChange={e => setRejectMsg(e.target.value)}/>
-            </div>
-            <div className="adm-modal__foot">
-              <button className="adm-modal__cancel" onClick={() => setModal(null)}>Annuler</button>
-              <button className="adm-modal__reject-btn"
-                onClick={() => updateStatus(modal.annonce.id, "refusee", rejectMsg)}>
-                <X size={14}/> Confirmer le refus
+
+              {/* Causes fréquentes */}
+              <p style={{fontSize:12,fontWeight:700,color:"#374151",marginBottom:10}}>Causes fréquentes :</p>
+              <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:16}}>
+                {RAISONS_PRESET.map(r => (
+                  <label key={r} style={{
+                    display:"flex",alignItems:"center",gap:6,cursor:"pointer",
+                    padding:"6px 12px",borderRadius:20,fontSize:12,fontWeight:500,
+                    border:`1.5px solid ${rejectRaisons.includes(r) ? "#dc2626" : "#e2e8f0"}`,
+                    background: rejectRaisons.includes(r) ? "#fee2e2" : "#f8fafc",
+                    color: rejectRaisons.includes(r) ? "#dc2626" : "#374151",
+                    transition:"all .15s",userSelect:"none",
+                  }}>
+                    <input type="checkbox" checked={rejectRaisons.includes(r)}
+                      onChange={() => toggleRaison(r)}
+                      style={{accentColor:"#dc2626",width:13,height:13}}/>
+                    {r}
+                  </label>
+                ))}
+              </div>
+
+              {/* Causes personnalisées */}
+              {rejectCausesCustom.length > 0 && (
+                <div style={{marginBottom:12}}>
+                  <p style={{fontSize:12,fontWeight:700,color:"#374151",marginBottom:8}}>Causes personnalisées :</p>
+                  {rejectCausesCustom.map(c => (
+                    <div key={c.id} style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                      <input
+                        type="text"
+                        value={c.text}
+                        onChange={e => updateCustomCause(c.id, e.target.value)}
+                        placeholder="Saisir une cause…"
+                        style={{flex:1,padding:"8px 12px",borderRadius:8,border:"1.5px solid #e2e8f0",fontSize:13,outline:"none"}}
+                      />
+                      <button onClick={() => removeCustomCause(c.id)} style={{
+                        background:"#fee2e2",border:"none",cursor:"pointer",borderRadius:8,
+                        width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",color:"#dc2626",flexShrink:0,
+                      }}>
+                        <X size={14}/>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Bouton ajouter une cause */}
+              <button onClick={addCustomCause} style={{
+                display:"flex",alignItems:"center",gap:6,padding:"7px 14px",
+                borderRadius:8,border:"1.5px dashed #6366f1",background:"#f5f3ff",
+                color:"#6366f1",fontWeight:600,fontSize:13,cursor:"pointer",marginBottom:16,
+              }}>
+                <Plus size={14}/> Ajouter une cause
               </button>
+
+              {/* Message libre */}
+              <label style={{fontSize:12,fontWeight:700,color:"#374151",display:"block",marginBottom:6}}>
+                Message libre (optionnel)
+              </label>
+              <textarea className="adm-modal__textarea" rows={3}
+                placeholder="Précisez si nécessaire…"
+                value={rejectMsg} onChange={e => setRejectMsg(e.target.value)}/>
+
+              {/* Footer */}
+              <div style={{display:"flex",justifyContent:"flex-end",gap:10,marginTop:20}}>
+                <button onClick={closeModal} style={{
+                  padding:"10px 20px",borderRadius:10,border:"1.5px solid #e2e8f0",background:"#f8fafc",
+                  color:"#374151",fontWeight:600,cursor:"pointer",fontSize:14,
+                }}>Annuler</button>
+                <button onClick={() => updateStatus(modal.annonce.id, "refusee", rejectMsg, allRaisons)} style={{
+                  padding:"10px 20px",borderRadius:10,border:"none",background:"#dc2626",
+                  color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",gap:6,
+                }}>
+                  <X size={14}/> Confirmer le refus
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        );
+      })()}
+
+      {/* ── Preview Annonce Modal (using full AnnonceDetailModal) ── */}
+      {previewAnnonce && (
+        <AnnonceDetailModal
+          annonceId={previewAnnonce.id}
+          onClose={() => setPreviewAnnonce(null)}
+          adminActions={{
+            status:    previewAnnonce.status,
+            onApprove: () => updateStatus(previewAnnonce.id, "approuvee"),
+            onReject:  () => setModal({ annonce: previewAnnonce, action:"reject" }),
+          }}
+        />
       )}
 
       {/* ── Onglet Accompagnements (déplacé dans <main>) ── */}
@@ -2109,6 +2679,10 @@ export default function AdminDashboard() {
           padding:10px 14px; background:#fef9c3; border:1px solid #fde68a;
           border-radius:10px; font-size:12px; color:#92400e; font-weight:500; margin-top:4px;
         }
+
+        /* ── Table row clickable ── */
+        .adm-table__row--clickable { cursor:pointer; }
+        .adm-table__row--clickable:hover { background:#f0f4ff !important; }
 
         /* ── Responsive ── */
         @media (max-width:1400px) { .adm-kpi-row { grid-template-columns:repeat(3,1fr); } }

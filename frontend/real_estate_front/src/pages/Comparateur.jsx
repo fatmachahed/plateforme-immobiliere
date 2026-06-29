@@ -2,67 +2,86 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import API_URL from "../config";
 import Navbar from "../components/Navbar";
-import { X, ArrowLeft } from "lucide-react";
+import {
+  X, ArrowLeft, Check,
+  Fence, Sun, Flower2, Droplets, ParkingCircle, ArrowUpDown, Car, Package, Sofa,
+  Users, ShieldCheck, Heart, Waves, Mountain, TreePine,
+  Wind, Thermometer, Flame, Tv, DoorClosed, LockKeyhole, Fingerprint,
+  KeyRound, PhoneCall, Wifi, Monitor, Signal, UtensilsCrossed,
+  ScrollText,
+} from "lucide-react";
+
+const WashingMachineIco = ({ size = 16, strokeWidth = 1.5 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+       stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="2" width="20" height="20" rx="2"/>
+    <circle cx="12" cy="13" r="5"/>
+    <circle cx="12" cy="13" r="2.5"/>
+    <circle cx="8" cy="6.5" r="1" fill="currentColor" stroke="none"/>
+    <circle cx="11" cy="6.5" r="1" fill="currentColor" stroke="none"/>
+    <path d="M15 6h2"/>
+  </svg>
+);
 
 function getCompare() { try { return JSON.parse(localStorage.getItem("localizi_compare")||"[]"); } catch { return []; } }
 function setCompare(arr) { localStorage.setItem("localizi_compare", JSON.stringify(arr)); window.dispatchEvent(new Event("compare-updated")); }
 
 const ROWS = [
   // ── Identité ──
-  { key: "reference",          label: "Référence",               section: null },
-  { key: "prix",               label: "Prix",                    section: null },
-  { key: "categorie",          label: "Catégorie",               section: null },
-  { key: "type_bien",          label: "Type de bien",            section: null },
-  { key: "sous_type",          label: "Sous-type",               section: null },
-  { key: "etat_bien",          label: "État du bien",            section: null },
-  { key: "surface",            label: "Surface (m²)",            section: null },
-  { key: "pieces",             label: "Pièces",                  section: null },
-  { key: "chambres",           label: "Chambres",                section: null },
-  { key: "salles_bain",        label: "Salles de bain",          section: null },
-  { key: "etage",              label: "Étage",                   section: null },
-  { key: "hauteur_immeuble",   label: "Hauteur immeuble",        section: null },
-  { key: "nb_appartements",    label: "Nb appartements",         section: null },
-  { key: "orientation",        label: "Orientation",             section: null },
-  { key: "annee_construction", label: "Année de construction",   section: null },
-  { key: "gouvernorat",        label: "Gouvernorat",             section: null },
-  { key: "delegation",         label: "Délégation",              section: null },
-  { key: "adresse",            label: "Adresse",                 section: null },
-  { key: "titre_foncier",      label: "📜 Titre foncier",        section: null },
+  { key: "reference",          label: "Référence",               section: null,                    ico: null },
+  { key: "prix",               label: "Prix",                    section: null,                    ico: null },
+  { key: "categorie",          label: "Catégorie",               section: null,                    ico: null },
+  { key: "type_bien",          label: "Type de bien",            section: null,                    ico: null },
+  { key: "sous_type",          label: "Sous-type",               section: null,                    ico: null },
+  { key: "etat_bien",          label: "État du bien",            section: null,                    ico: null },
+  { key: "surface",            label: "Surface (m²)",            section: null,                    ico: null },
+  { key: "pieces",             label: "Pièces",                  section: null,                    ico: null },
+  { key: "chambres",           label: "Chambres",                section: null,                    ico: null },
+  { key: "salles_bain",        label: "Salles de bain",          section: null,                    ico: null },
+  { key: "etage",              label: "Étage",                   section: null,                    ico: null },
+  { key: "hauteur_immeuble",   label: "Hauteur immeuble",        section: null,                    ico: null },
+  { key: "nb_appartements",    label: "Nb appartements",         section: null,                    ico: null },
+  { key: "orientation",        label: "Orientation",             section: null,                    ico: null },
+  { key: "annee_construction", label: "Année de construction",   section: null,                    ico: null },
+  { key: "gouvernorat",        label: "Gouvernorat",             section: null,                    ico: null },
+  { key: "delegation",         label: "Délégation",              section: null,                    ico: null },
+  { key: "adresse",            label: "Adresse",                 section: null,                    ico: null },
+  { key: "titre_foncier",      label: "Titre foncier",           section: null,                    ico: ScrollText },
   // ── Extérieur & communs ──
-  { key: "sec_jardin",         label: "🌿 Jardin",               section: "Extérieur & communs" },
-  { key: "sec_terrasse",       label: "🏠 Terrasse",             section: "Extérieur & communs" },
-  { key: "sec_balcon",         label: "🌅 Balcon",               section: "Extérieur & communs" },
-  { key: "sec_parking",        label: "🚗 Parking",              section: "Extérieur & communs" },
-  { key: "sec_garage",         label: "🏎️ Garage",               section: "Extérieur & communs" },
-  { key: "sec_ascenseur",      label: "🛗 Ascenseur",            section: "Extérieur & communs" },
-  { key: "sec_piscine",        label: "🏊 Piscine",              section: "Extérieur & communs" },
-  { key: "sec_vue_mer",        label: "🌊 Vue mer",              section: "Extérieur & communs" },
-  { key: "sec_vue_montagne",   label: "⛰️ Vue sur montagne",         section: "Extérieur & communs" },
-  { key: "sec_vue_foret",      label: "🌲 Vue sur forêt",            section: "Extérieur & communs" },
-  { key: "sec_meuble",         label: "🛋️ Meublé",               section: "Extérieur & communs" },
-  { key: "sec_concierge",      label: "🛎️ Concierge",            section: "Extérieur & communs" },
-  { key: "sec_gardien",        label: "💂 Gardien",              section: "Extérieur & communs" },
-  { key: "sec_animaux",        label: "🐾 Animaux admis",        section: "Extérieur & communs" },
-  { key: "sec_cellier",        label: "📦 Cellier", section: "Extérieur & communs" },
+  { key: "sec_jardin",         label: "Jardin",                  section: "Extérieur & communs",   ico: Fence },
+  { key: "sec_terrasse",       label: "Terrasse",                section: "Extérieur & communs",   ico: Sun },
+  { key: "sec_balcon",         label: "Balcon",                  section: "Extérieur & communs",   ico: Flower2 },
+  { key: "sec_parking",        label: "Parking",                 section: "Extérieur & communs",   ico: ParkingCircle },
+  { key: "sec_garage",         label: "Garage",                  section: "Extérieur & communs",   ico: Car },
+  { key: "sec_ascenseur",      label: "Ascenseur",               section: "Extérieur & communs",   ico: ArrowUpDown },
+  { key: "sec_piscine",        label: "Piscine",                 section: "Extérieur & communs",   ico: Droplets },
+  { key: "sec_vue_mer",        label: "Vue mer",                 section: "Extérieur & communs",   ico: Waves },
+  { key: "sec_vue_montagne",   label: "Vue sur montagne",        section: "Extérieur & communs",   ico: Mountain },
+  { key: "sec_vue_foret",      label: "Vue sur forêt",           section: "Extérieur & communs",   ico: TreePine },
+  { key: "sec_meuble",         label: "Meublé",                  section: "Extérieur & communs",   ico: Sofa },
+  { key: "sec_concierge",      label: "Concierge",               section: "Extérieur & communs",   ico: Users },
+  { key: "sec_gardien",        label: "Gardien",                 section: "Extérieur & communs",   ico: ShieldCheck },
+  { key: "sec_animaux",        label: "Animaux admis",           section: "Extérieur & communs",   ico: Heart },
+  { key: "sec_cellier",        label: "Cellier",                 section: "Extérieur & communs",   ico: Package },
   // ── Intérieur ──
-  { key: "int_clim",           label: "❄️ Climatisation",        section: "Intérieur" },
-  { key: "int_chauffage",      label: "🔥 Chauffage central",    section: "Intérieur" },
-  { key: "int_cheminee",       label: "🪵 Cheminée",             section: "Intérieur" },
-  { key: "int_salon_americain",label: "🛋️ Salon américain",      section: "Intérieur" },
-  { key: "int_double_vitrage", label: "🪟 Double vitrage",       section: "Intérieur" },
-  { key: "int_porte_blindee",  label: "🔒 Porte blindée",        section: "Intérieur" },
-  { key: "int_securite",       label: "🔐 Sécurité",             section: "Intérieur" },
-  { key: "int_digicode",       label: "🔢 Digicode",             section: "Intérieur" },
-  { key: "int_interphone",     label: "📞 Interphone",           section: "Intérieur" },
-  { key: "int_fibre",          label: "📡 Fibre optique",        section: "Intérieur" },
-  { key: "int_internet",       label: "📶 Internet",             section: "Intérieur" },
-  { key: "int_tv",             label: "📺 TV",                   section: "Intérieur" },
-  { key: "int_onas",           label: "💧 Relié ONAS",           section: "Intérieur" },
+  { key: "int_clim",           label: "Climatisation",           section: "Intérieur",             ico: Wind },
+  { key: "int_chauffage",      label: "Chauffage central",       section: "Intérieur",             ico: Thermometer },
+  { key: "int_cheminee",       label: "Cheminée",                section: "Intérieur",             ico: Flame },
+  { key: "int_salon_americain",label: "Salon américain",         section: "Intérieur",             ico: Tv },
+  { key: "int_double_vitrage", label: "Double vitrage",          section: "Intérieur",             ico: DoorClosed },
+  { key: "int_porte_blindee",  label: "Porte blindée",           section: "Intérieur",             ico: LockKeyhole },
+  { key: "int_securite",       label: "Sécurité",                section: "Intérieur",             ico: Fingerprint },
+  { key: "int_digicode",       label: "Digicode",                section: "Intérieur",             ico: KeyRound },
+  { key: "int_interphone",     label: "Interphone",              section: "Intérieur",             ico: PhoneCall },
+  { key: "int_fibre",          label: "Fibre optique",           section: "Intérieur",             ico: Signal },
+  { key: "int_internet",       label: "Internet",                section: "Intérieur",             ico: Wifi },
+  { key: "int_tv",             label: "TV",                      section: "Intérieur",             ico: Monitor },
+  { key: "int_onas",           label: "Relié ONAS",              section: "Intérieur",             ico: Droplets },
   // ── Cuisine & équipements ──
-  { key: "cui_equipee",        label: "🍳 Cuisine équipée",      section: "Cuisine & équipements" },
-  { key: "cui_machine_laver",  label: "🫧 Machine à laver",      section: "Cuisine & équipements" },
-  { key: "cui_frigo",          label: "🧊 Réfrigérateur",        section: "Cuisine & équipements" },
-  { key: "cui_four",           label: "♨️ Four",                 section: "Cuisine & équipements" },
+  { key: "cui_equipee",        label: "Cuisine équipée",         section: "Cuisine & équipements", ico: UtensilsCrossed },
+  { key: "cui_machine_laver",  label: "Machine à laver",         section: "Cuisine & équipements", ico: WashingMachineIco },
+  { key: "cui_frigo",          label: "Réfrigérateur",           section: "Cuisine & équipements", ico: null },
+  { key: "cui_four",           label: "Four",                    section: "Cuisine & équipements", ico: null },
 ];
 
 export default function Comparateur() {
@@ -100,7 +119,53 @@ export default function Comparateur() {
     navigate(arr.length ? `/comparateur?ids=${arr.join(",")}` : "/comparateur");
   }
 
-  function bool(v) { return v ? "✅" : "❌"; }
+  function isBoolTrue(a, key) {
+    const cg = a.caractere_general || {};
+    const ci = a.caracteristique_interieure || {};
+    const feat = (k) => !!(a[k] || cg[k] || ci[k]);
+    const cu = a.cuisine_equipee_obj || a.cuisine_equipee || {};
+    switch (key) {
+      case "sec_jardin":         return feat("jardin");
+      case "sec_terrasse":       return feat("terrasse");
+      case "sec_balcon":         return feat("balcon");
+      case "sec_parking":        return feat("parking");
+      case "sec_garage":         return feat("garage");
+      case "sec_ascenseur":      return feat("ascenseur");
+      case "sec_piscine":        return feat("piscine");
+      case "sec_vue_mer":        return feat("vue_mer");
+      case "sec_vue_montagne":   return feat("vue_montagne");
+      case "sec_vue_foret":      return feat("vue_foret");
+      case "sec_meuble":         return feat("meuble");
+      case "sec_concierge":      return feat("concierge");
+      case "sec_gardien":        return feat("gardien");
+      case "sec_animaux":        return feat("animaux_admis");
+      case "sec_cellier":        return feat("cellier");
+      case "int_clim":           return feat("climatisation");
+      case "int_chauffage":      return feat("chauffage_centrale") || feat("chauffage_central");
+      case "int_cheminee":       return feat("cheminee");
+      case "int_salon_americain":return feat("salon_americain");
+      case "int_double_vitrage": return feat("double_vitrage");
+      case "int_porte_blindee":  return feat("porte_blindee");
+      case "int_securite":       return feat("securite");
+      case "int_digicode":       return feat("digicode");
+      case "int_interphone":     return feat("interphone");
+      case "int_fibre":          return feat("fibre_optique");
+      case "int_internet":       return feat("internet");
+      case "int_tv":             return feat("tv");
+      case "int_onas":           return feat("relie_onas");
+      case "cui_equipee":        return feat("cuisine_equipee");
+      case "cui_machine_laver":  return feat("machine_laver");
+      case "cui_frigo":          return !!(cu.refrigerateur || feat("refrigerateur"));
+      case "cui_four":           return !!(cu.four || feat("four"));
+      default: return false;
+    }
+  }
+
+  function bool(v) {
+    return v
+      ? <Check size={16} strokeWidth={2.5} style={{color:"#16a34a"}}/>
+      : <X size={16} strokeWidth={2.5} style={{color:"#94a3b8"}}/>;
+  }
 
   function val(a, key) {
     const prop = a.property || a.prop || a;
@@ -219,9 +284,9 @@ export default function Comparateur() {
                   let lastSection = null;
                   let rowIdx = 0;
                   for (const row of ROWS) {
-                    /* Filtrer : booléens → au moins un ✅ ; textuels → au moins une valeur */
+                    /* Filtrer : booléens → au moins un vrai ; textuels → au moins une valeur */
                     if (row.section) {
-                      const hasTrue = annonces.some(a => val(a, row.key) === "✅");
+                      const hasTrue = annonces.some(a => isBoolTrue(a, row.key));
                       if (!hasTrue) continue;
                     } else {
                       const hasVal = annonces.some(a => { const v = val(a, row.key); return v && v !== "—"; });
@@ -242,7 +307,12 @@ export default function Comparateur() {
                     }
                     rows.push(
                       <tr key={row.key} style={{background: rowIdx % 2 === 0 ? "#fff" : "#f8fafc"}}>
-                        <td style={{padding:"12px 16px", fontWeight:600, color:"#475569", fontSize:13, borderBottom:"1px solid #f1f5f9"}}>{row.label}</td>
+                        <td style={{padding:"12px 16px", fontWeight:600, color:"#475569", fontSize:13, borderBottom:"1px solid #f1f5f9"}}>
+                          <span style={{display:"inline-flex", alignItems:"center", gap:6}}>
+                            {row.ico && <row.ico size={15} strokeWidth={1.8} style={{color:"#64748b", flexShrink:0}}/>}
+                            {row.label}
+                          </span>
+                        </td>
                         {annonces.map(a => (
                           <td key={a.id} style={{padding:"12px 16px", color:"#0f172a", fontSize:13, borderBottom:"1px solid #f1f5f9", textAlign:"center"}}>
                             {val(a, row.key)}

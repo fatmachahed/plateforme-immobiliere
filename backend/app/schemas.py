@@ -22,6 +22,8 @@ class UserBase(BaseModel):
     matricule_fiscal:   Optional[str] = None
     registre_commerce:  Optional[str] = None
     secteur_partenaire: Optional[str] = None
+    metier_artisan:     Optional[str] = None
+    objectif:           Optional[str] = None
 
 class UserCreate(UserBase):
     password: str  # mot de passe en clair pour la création
@@ -328,6 +330,7 @@ class AnnoncePublic(BaseModel):
     categorie: str
     type_bien: str
     boost_level: int = 0
+    spotlight_active: bool = False
     views_count: int = 0
     date_creation: datetime
     latitude: Optional[float] = None
@@ -361,6 +364,10 @@ class AnnoncePublic(BaseModel):
     rating_count: Optional[int]   = 0
     # ── Toutes les photos ──
     images: List[str] = []
+    date_mise_a_jour: Optional[datetime] = None
+    etat_bien: Optional[str] = None
+    titre_foncier: Optional[bool] = None
+    prix_ancien: Optional[float] = None
 
     class Config:
         from_attributes = True

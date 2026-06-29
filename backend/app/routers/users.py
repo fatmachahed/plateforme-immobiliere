@@ -100,6 +100,10 @@ class UserUpdateBody(BaseModel):
     nom:                  Optional[str] = None
     prenom:               Optional[str] = None
     nom_entreprise:       Optional[str] = None
+    metier_artisan:       Optional[str] = None
+    profil_particulier:   Optional[str] = None
+    sexe:                 Optional[str] = None
+    objectif:             Optional[str] = None
 
 
 class CreateAgentBody(BaseModel):
@@ -174,7 +178,8 @@ class ResendVerifyBody(BaseModel):
     email: str
 
 @router.post("/resend-verify-email")
-def resend_verify_email(body: ResendVerifyBody, db: Session = Depends(get_db)):
+def resend_verify_email(body: ResendVerifyBody, request: Request, db: Session = Depends(get_db)):
+    _check_rate_limit(request.client.host if request.client else "unknown")
     user = crud.get_user_by_email(db, body.email)
     # Réponse générique pour ne pas révéler si l'email existe
     if not user or user.is_verified:
@@ -257,6 +262,53 @@ def update_me(
     update_data = {k: v for k, v in body.dict().items() if v is not None}
     updated = crud.update_user(db, current_user.id, update_data)
     return updated
+
+
+# ===============================
+# AGENCY REFERENCE
+# ===============================
+
+class AgencyReferenceBody(BaseModel):
+    reference: str
+
+@router.get("/agency/check-reference")
+def check_agency_reference(
+    ref: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    existing = db.query(models.Agency).filter(models.Agency.reference == ref).first()
+    if existing is None:
+        return {"available": True}
+    # available if it belongs to the current user's own agency
+    own = db.query(models.Agency).filter(models.Agency.user_id == current_user.id).first()
+    return {"available": own is not None and own.id == existing.id}
+
+
+@router.put("/agency/reference")
+def update_agency_reference(
+    body: AgencyReferenceBody,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    if current_user.role.value != "agence":
+        raise HTTPException(status_code=403, detail="Réservé aux comptes Agence")
+    agency = db.query(models.Agency).filter(models.Agency.user_id == current_user.id).first()
+    if not agency:
+        raise HTTPException(status_code=404, detail="Agence non trouvée")
+    # Check uniqueness (exclude own agency)
+    conflict = db.query(models.Agency).filter(
+        models.Agency.reference == body.reference,
+        models.Agency.id != agency.id
+    ).first()
+    if not re.fullmatch(r"[A-Za-zÀ-ÖØ-öø-ÿ]{2,}", body.reference):
+        raise HTTPException(status_code=422, detail="La référence doit contenir uniquement des lettres (minimum 2)")
+    if conflict:
+        raise HTTPException(status_code=400, detail="Cette référence est déjà utilisée par une autre agence")
+    agency.reference = body.reference
+    db.commit()
+    db.refresh(agency)
+    return {"reference": agency.reference}
 
 
 # ===============================
@@ -398,6 +450,43 @@ def create_agent(
     }
 
 
+class UpdateAgentBody(BaseModel):
+    email:  Optional[str] = None
+    nom:    Optional[str] = None
+    prenom: Optional[str] = None
+
+
+@router.patch("/me/agents/{agent_id}")
+def update_agent(
+    agent_id: int,
+    body: UpdateAgentBody,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Modifie les informations d'un agent de l'agence."""
+    if current_user.role.value not in ("agence",):
+        raise HTTPException(403, "Réservé aux comptes Agence")
+    agency = db.query(models.Agency).filter(models.Agency.user_id == current_user.id).first()
+    if not agency:
+        raise HTTPException(404, "Agence introuvable")
+    agent = db.query(models.User).filter(
+        models.User.id == agent_id,
+        models.User.agence_id == agency.id
+    ).first()
+    if not agent:
+        raise HTTPException(404, "Agent introuvable")
+    if body.email is not None:
+        existing = db.query(models.User).filter(models.User.email == body.email, models.User.id != agent_id).first()
+        if existing:
+            raise HTTPException(400, "Cet email est déjà utilisé.")
+        agent.email = body.email
+    if body.nom    is not None: agent.nom    = body.nom
+    if body.prenom is not None: agent.prenom = body.prenom
+    db.commit(); db.refresh(agent)
+    return {"id": agent.id, "username": agent.username, "email": agent.email,
+            "nom": agent.nom, "prenom": agent.prenom, "must_change_password": agent.must_change_password}
+
+
 @router.delete("/me/agents/{agent_id}")
 def delete_agent(
     agent_id: int,
@@ -417,6 +506,43 @@ def delete_agent(
     db.delete(agent)
     db.commit()
     return {"message": "Agent supprimé"}
+
+
+# ===============================
+# CONVENTION SOUMISSION
+# ===============================
+import json as _json
+
+class ConventionSubmitBody(BaseModel):
+    type:      str              # "agence" | "promoteur"
+    form_data: Optional[dict] = None
+
+@router.post("/me/convention")
+def submit_convention(
+    body: ConventionSubmitBody,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Crée ou met à jour la demande de convention de l'utilisateur."""
+    existing = db.query(models.ConventionSubmission).filter(
+        models.ConventionSubmission.user_id == current_user.id,
+        models.ConventionSubmission.type == body.type
+    ).first()
+    data_str = _json.dumps(body.form_data or {}, ensure_ascii=False)
+    if existing:
+        existing.status = "soumis"
+        existing.form_data = data_str
+        existing.submitted_at = datetime.utcnow()
+    else:
+        sub = models.ConventionSubmission(
+            user_id=current_user.id,
+            type=body.type,
+            status="soumis",
+            form_data=data_str,
+        )
+        db.add(sub)
+    db.commit()
+    return {"message": "Convention soumise"}
 
 
 # ===============================
@@ -515,7 +641,8 @@ async def upload_avatar(
 # FORGOT PASSWORD
 # ===============================
 @router.post("/forgot-password")
-def forgot_password(body: dict, db: Session = Depends(get_db)):
+def forgot_password(body: dict, request: Request, db: Session = Depends(get_db)):
+    _check_rate_limit(request.client.host if request.client else "unknown")
     email = body.get("email", "").strip().lower()
     user = db.query(models.User).filter(func.lower(models.User.email) == email).first()
     if not user:
@@ -784,6 +911,81 @@ def list_public_agencies(db: Session = Depends(get_db)):
     return result
 
 
+# ===============================
+# PROMOTEURS PUBLICS
+# ===============================
+@router.get("/promoteurs/public")
+def list_public_promoteurs(db: Session = Depends(get_db)):
+    """Retourne la liste des promoteurs immobiliers (role=promoteur) avec photo et localisation."""
+    from app.enums import RoleEnum
+    promoteurs = db.query(models.User).filter(
+        models.User.role == RoleEnum.promoteur
+    ).all()
+    result = []
+    for u in promoteurs:
+        result.append({
+            "id":              u.id,
+            "nom":             u.nom_entreprise or u.username,
+            "email":           u.email,
+            "telephone":       u.phone_number,
+            "profile_picture": u.profile_picture,
+            "gouvernorat":     u.gouvernorat,
+            "localite":        u.localite,
+        })
+    return result
+
+
+# ===============================
+# AGENTS PUBLICS
+# ===============================
+@router.get("/agents/public")
+def list_public_agents(db: Session = Depends(get_db)):
+    """Retourne la liste des agents immobiliers (role=agent) avec photo et localisation."""
+    from app.enums import RoleEnum
+    agents = db.query(models.User).filter(
+        models.User.role == RoleEnum.agent
+    ).all()
+    result = []
+    for u in agents:
+        result.append({
+            "id":              u.id,
+            "nom":             u.nom or u.username,
+            "email":           u.email,
+            "telephone":       u.phone_number,
+            "profile_picture": u.profile_picture,
+            "gouvernorat":     u.gouvernorat,
+            "localite":        u.localite,
+            "type":            "agent",
+        })
+    return result
+
+
+# ===============================
+# PARTENAIRES PUBLICS
+# ===============================
+@router.get("/partenaires/public")
+def list_public_partenaires(db: Session = Depends(get_db)):
+    """Retourne la liste des partenaires (artisans, banques, notaires…) avec photo et localisation."""
+    from app.enums import RoleEnum
+    partenaires = db.query(models.User).filter(
+        models.User.role == RoleEnum.partenaire
+    ).all()
+    result = []
+    for u in partenaires:
+        result.append({
+            "id":               u.id,
+            "nom":              u.nom_entreprise or u.nom or u.username,
+            "email":            u.email,
+            "telephone":        u.phone_number,
+            "profile_picture":  u.profile_picture,
+            "gouvernorat":      u.gouvernorat,
+            "localite":         u.localite,
+            "secteur":          u.secteur_partenaire,
+            "metier_artisan":   u.metier_artisan,
+        })
+    return result
+
+
 @router.get("/{user_id}/public-profile")
 def get_agent_public_profile(user_id: int, db: Session = Depends(get_db)):
     """Retourne le profil public d'un agent/agence avec ses annonces approuvées."""
@@ -833,9 +1035,11 @@ def get_agent_public_profile(user_id: int, db: Session = Depends(get_db)):
         "profile_picture": user.profile_picture,
         "gouvernorat":     user.gouvernorat,
         "localite":        user.localite,
-        "adresse":         getattr(user, "adresse", None),
-        "role":            role_val,
-        "annonces":        annonces_list,
-        "nb_annonces":     len(annonces_list),
+        "adresse":            getattr(user, "adresse", None),
+        "role":               role_val,
+        "secteur_partenaire": getattr(user, "secteur_partenaire", None),
+        "metier_artisan":     getattr(user, "metier_artisan", None),
+        "annonces":           annonces_list,
+        "nb_annonces":        len(annonces_list),
     }
 

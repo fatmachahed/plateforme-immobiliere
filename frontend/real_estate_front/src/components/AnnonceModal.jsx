@@ -131,6 +131,12 @@ export default function AnnonceModal({ annonceId, onClose }) {
                 style={{width:"100%", height:"100%", objectFit:"cover", display:"block"}}
                 onError={e => { e.currentTarget.src = "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=900&q=80"; }}
               />
+              {/* Filigrane */}
+              <div style={{position:"absolute",inset:0,zIndex:2,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}>
+                <span style={{fontSize:22,fontWeight:900,letterSpacing:"-0.5px",fontFamily:"Arial,sans-serif",color:"rgba(255,255,255,0.20)",textShadow:"0 1px 4px rgba(0,0,0,0.15)",userSelect:"none",transform:"rotate(-15deg)"}}>
+                  LOCAL<span style={{color:"rgba(99,102,241,0.28)"}}>IZI</span>.TN
+                </span>
+              </div>
               {/* Gradient bas */}
               <div style={{position:"absolute", bottom:0, left:0, right:0, height:80, background:"linear-gradient(transparent, rgba(0,0,0,.5))"}}/>
               {/* Badge catégorie — affiché uniquement pour location et vacances */}

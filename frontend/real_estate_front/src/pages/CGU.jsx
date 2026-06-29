@@ -122,8 +122,8 @@ export default function CGU() {
           fontSize:13, color:"#94a3b8",
         }}>
           Pour toute question relative aux présentes CGU, contactez-nous à{" "}
-          <a href="mailto:xpertiseimmo@gmail.com" style={{color:"#6366f1", fontWeight:600}}>
-            xpertiseimmo@gmail.com
+          <a href="mailto:localizi.tn@gmail.com" style={{color:"#6366f1", fontWeight:600}}>
+            localizi.tn@gmail.com
           </a>
         </div>
       </div>

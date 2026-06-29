@@ -96,39 +96,18 @@ export default function Partenaires() {
           ))}
         </div>
 
-        {/* Partenaires actuels */}
-        <div style={{ textAlign:"center", marginBottom:40 }}>
-          <h2 style={{ fontSize:26,fontWeight:800,color:"#0f172a",marginBottom:8 }}>Nos partenaires actuels</h2>
-          <p style={{ fontSize:15,color:"#64748b" }}>Des entreprises qui partagent nos valeurs d'excellence et de transparence.</p>
-        </div>
-        <div style={{ display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:20,marginBottom:72 }}>
-          {PARTNERS.map(p => (
-            <div key={p.name} style={{ background:"#fff",border:"1px solid #e2e8f0",borderRadius:16,padding:"28px 24px",boxShadow:"0 1px 6px rgba(0,0,0,.04)",transition:"box-shadow .15s,transform .15s" }}
-              onMouseEnter={e=>{e.currentTarget.style.boxShadow="0 8px 24px rgba(0,0,0,.1)";e.currentTarget.style.transform="translateY(-2px)"}}
-              onMouseLeave={e=>{e.currentTarget.style.boxShadow="0 1px 6px rgba(0,0,0,.04)";e.currentTarget.style.transform=""}}
-            >
-              <div style={{ width:64,height:64,borderRadius:14,background:p.color+"22",border:`2px solid ${p.color}33`,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:16,fontSize:20,fontWeight:900,color:p.color }}>
-                {p.initiale}
-              </div>
-              <span style={{ fontSize:11,fontWeight:700,color:p.color,background:p.color+"15",padding:"3px 10px",borderRadius:999,display:"inline-block",marginBottom:10 }}>{p.category}</span>
-              <h3 style={{ fontSize:16,fontWeight:800,color:"#0f172a",marginBottom:8 }}>{p.name}</h3>
-              <p style={{ fontSize:13.5,color:"#64748b",lineHeight:1.6,margin:0 }}>{p.desc}</p>
-            </div>
-          ))}
-        </div>
-
         {/* CTA */}
         <div style={{ background:"linear-gradient(135deg,#0f172a,#1e293b)",borderRadius:20,padding:"48px 40px",textAlign:"center",color:"#fff" }}>
-          <h2 style={{ fontSize:26,fontWeight:800,marginBottom:12 }}>Vous souhaitez rejoindre nos partenaires ?</h2>
+          <h2 style={{ fontSize:26,fontWeight:800,color:"#fff",marginBottom:12 }}>Vous souhaitez rejoindre nos partenaires ?</h2>
           <p style={{ fontSize:15,color:"rgba(255,255,255,.65)",maxWidth:480,margin:"0 auto 28px",lineHeight:1.7 }}>
             Contactez notre équipe pour discuter d'un partenariat adapté à votre activité.
           </p>
           <div style={{ display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap" }}>
-            <a href="mailto:partenariat@Localizi.tn" style={{ display:"inline-flex",alignItems:"center",gap:8,background:"#6366f1",color:"#fff",padding:"12px 24px",borderRadius:10,fontSize:14,fontWeight:700,textDecoration:"none" }}>
-              <Mail size={15}/> partenariat@Localizi.tn
+            <a href="mailto:localizi.tn@gmail.com" style={{ display:"inline-flex",alignItems:"center",gap:8,background:"#6366f1",color:"#fff",padding:"12px 24px",borderRadius:10,fontSize:14,fontWeight:700,textDecoration:"none" }}>
+              <Mail size={15}/> localizi.tn@gmail.com
             </a>
-            <a href="tel:+21671000000" style={{ display:"inline-flex",alignItems:"center",gap:8,background:"rgba(255,255,255,.1)",color:"#fff",padding:"12px 24px",borderRadius:10,fontSize:14,fontWeight:700,textDecoration:"none",border:"1px solid rgba(255,255,255,.15)" }}>
-              <Phone size={15}/> +216 71 000 000
+            <a href="https://wa.me/21623423000" target="_blank" rel="noopener noreferrer" style={{ display:"inline-flex",alignItems:"center",gap:8,background:"#25D366",color:"#fff",padding:"12px 24px",borderRadius:10,fontSize:14,fontWeight:700,textDecoration:"none" }}>
+              <Phone size={15}/> +216 23 423 000 <span style={{fontSize:11,fontWeight:700,background:"rgba(255,255,255,.25)",padding:"2px 7px",borderRadius:4}}>WhatsApp</span>
             </a>
           </div>
         </div>

@@ -9,9 +9,13 @@ import {
   Save, X, Building2, MapPin, FileText, Briefcase, Users,
   Eye, EyeOff, Edit2, Trash2, CheckCircle, Clock, XCircle, ArrowRight,
   Upload, Plus, Search, TrendingUp, Bell, Sparkles, Zap, Maximize, Bed, Bath,
-  Copy, RefreshCw
+  Copy, RefreshCw, Pencil
 } from "lucide-react";
 import { useToast } from "../components/Toast";
+import AnnonceDetailModal from "./AnnonceDetailModal";
+import AgenceOnboarding from "./AgenceOnboarding";
+import PromoteurOnboarding from "./PromoteurOnboarding";
+import PublierAnnonceBtn from "../components/PublierAnnonceBtn";
 
 /* ── helpers ── */
 const TYPE_FR = {
@@ -73,6 +77,9 @@ export default function Compte() {
   const [agentForm, setAgentForm] = useState({ username:"", email:"", nom:"", prenom:"", password:"" });
   const [agentFormErr, setAgentFormErr] = useState("");
   const [agentSaving,  setAgentSaving]  = useState(false);
+  const [agentViewMode,setAgentViewMode]= useState(false); // false=création, true=vue/édition
+  const [agentEditMode,setAgentEditMode]= useState(false); // true=édition active (dans le mode vue)
+  const [agentBeingEdited,setAgentBeingEdited]= useState(null); // id de l'agent en cours d'édition
   const [showAgentPwd, setShowAgentPwd] = useState(false);
   const [agentPwdCopied, setAgentPwdCopied] = useState(false);
 
@@ -84,6 +91,18 @@ export default function Compte() {
   };
 
   /* ──────── PROFIL ──────── */
+  // Sépare un numéro complet (ex "+21622300992") en {code:"+216", local:"22300992"}
+  function splitStoredPhone(full) {
+    if (!full) return { code: "+216", local: "" };
+    const codes = ["+216","+212","+213","+218","+966","+971","+974","+44","+33","+49","+32","+41","+90","+34","+39","+1"];
+    codes.sort((a,b) => b.length - a.length); // codes longs en premier pour éviter les faux positifs
+    for (const c of codes) {
+      if (full.startsWith(c)) return { code: c, local: full.slice(c.length) };
+    }
+    return { code: "+216", local: full };
+  }
+  const _storedPhoneSplit = splitStoredPhone(storedUser?.phone_number || "");
+
   const [editing,   setEditing]   = useState(false);
   const [editing2,  setEditing2]  = useState(false); // infos complémentaires (particulier)
   const [saving,  setSaving]  = useState(false);
@@ -95,14 +114,15 @@ export default function Compte() {
   const [profile, setProfile] = useState({
     username:           storedUser?.username           || "",
     email:              storedUser?.email              || "",
-    phone_number:       storedUser?.phone_number       || "",
-    phone_code:         storedUser?.phone_code         || "+216",
+    phone_number:       _storedPhoneSplit.local,
+    phone_code:         _storedPhoneSplit.code,
     profile_picture:    storedUser?.profile_picture    || "",
     nom:                storedUser?.nom                || "",
     prenom:             storedUser?.prenom             || "",
     nom_entreprise:     storedUser?.nom_entreprise     || "",
     profil_particulier: storedUser?.profil_particulier || "",
     sexe:               storedUser?.sexe               || "",
+    objectif:           storedUser?.objectif           || "",
   });
   const [avatarPreview, setAvatarPreview]     = useState(storedUser?.profile_picture || "");
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -121,9 +141,13 @@ export default function Compte() {
     gouvernorat_id:    "",
     delegation:        storedUser?.localite           || "",
     delegation_id:     "",
+    reference:         storedUser?.agency?.reference  || "",
+    metier_artisan:    storedUser?.metier_artisan     || "",
   });
   const [gouvernorats, setGouvernorats] = useState([]);
   const [delegations,  setDelegations]  = useState([]);
+  const [refStatus, setRefStatus] = useState("idle"); // idle | checking | available | taken
+  const refDebounceRef = useRef(null);
 
   /* ──────── ANNONCES (dashboard) ──────── */
   const [annonces, setAnnonces]         = useState([]);
@@ -132,12 +156,13 @@ export default function Compte() {
   const [annonceStats,  setAnnonceStats]  = useState({});
   const [refreshingId,  setRefreshingId]  = useState(null);
   const [delItem,    setDelItem]        = useState(null);
+  const [previewAnnonceId, setPreviewAnnonceId] = useState(null);
   const [soldConfirm, setSoldConfirm]   = useState(null); // { id, label:'vendu'|'loue', titre }
   const [remettreCarte, setRemettreCarte] = useState(null); // { id, titre, categorie }
   const [search,     setSearch]         = useState("");
   const [typeFilter, setTypeFilter]     = useState("");
   const _statutParam = searchParams.get("statut");
-  const _statusInit = _statutParam === "en_attente" ? "En attente" : "En cours";
+  const _statusInit = _statutParam === "en_attente" ? "En attente" : _statutParam === "approuvee" ? "En cours" : "";
   const [statusFilter, setStatusFilter] = useState(_statusInit);
   const [dateFilter, setDateFilter]     = useState("");
   const [dateStart,  setDateStart]      = useState("");
@@ -152,6 +177,7 @@ export default function Compte() {
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [contactsLoaded,  setContactsLoaded]  = useState(false);
   const [expandedMsg, setExpandedMsg]         = useState(null);
+  const [expandedAlertCrit, setExpandedAlertCrit] = useState({});
 
   /* ──────── ALERTES ──────── */
   const [savedSearches,     setSavedSearches]     = useState([]);
@@ -189,6 +215,39 @@ export default function Compte() {
     return () => window.removeEventListener("compare-show-popup", h);
   }, []);
 
+  /* ── Load full profile from API and sync localStorage + local states ── */
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${API_URL}/users/me`, { headers:{ Authorization:`Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        const merged = { ...JSON.parse(localStorage.getItem("user") || "{}"), ...data };
+        localStorage.setItem("user", JSON.stringify(merged));
+        setProfile(p => ({
+          ...p,
+          username:           data.username           || p.username,
+          email:              data.email              || p.email,
+          nom:                data.nom                ?? p.nom,
+          prenom:             data.prenom             ?? p.prenom,
+          nom_entreprise:     data.nom_entreprise     ?? p.nom_entreprise,
+          profil_particulier: data.profil_particulier ?? p.profil_particulier,
+          sexe:               data.sexe               ?? p.sexe,
+          objectif:           data.objectif           ?? p.objectif,
+        }));
+        setProFields(p => ({
+          ...p,
+          matricule_fiscal:  data.matricule_fiscal  ?? p.matricule_fiscal,
+          registre_commerce: data.registre_commerce ?? p.registre_commerce,
+          adresse:           data.adresse           ?? p.adresse,
+          gouvernorat:       data.gouvernorat        ?? p.gouvernorat,
+          delegation:        data.localite           ?? p.delegation,
+          metier_artisan:    data.metier_artisan     ?? p.metier_artisan,
+        }));
+      })
+      .catch(() => {});
+  }, [token]);
+
   /* ── Load pro ── */
   useEffect(() => {
     if (!isPro) return;
@@ -198,6 +257,14 @@ export default function Compte() {
   /* ── Load agences ── */
   useEffect(() => {
     fetch(`${API_URL}/users/agencies/public`).then(r=>r.ok?r.json():[]).then(d=>setAgencesList(Array.isArray(d)?d:[])).catch(()=>{});
+  }, []);
+
+  /* ── Eager load contacts count for badge ── */
+  useEffect(() => {
+    if (!token || contactsLoaded) return;
+    fetch(`${API_URL}/users/me/contact-requests`, { headers:{Authorization:`Bearer ${token}`} })
+      .then(r=>r.ok?r.json():[]).then(d=>{ setContactRequests(Array.isArray(d)?d:[]); setContactsLoaded(true); })
+      .catch(()=>setContactsLoaded(true));
   }, []);
 
   /* ── Load tab data on demand ── */
@@ -225,7 +292,7 @@ export default function Compte() {
       setLoadingContacts(true);
       fetch(`${API_URL}/users/me/contact-requests`, { headers:{Authorization:`Bearer ${token}`} })
         .then(r=>r.ok?r.json():[]).then(d=>{ setContactRequests(Array.isArray(d)?d:[]); setContactsLoaded(true); })
-        .catch(()=>setContactsLoaded(true)).finally(()=>setLoadingContacts(false));
+        .catch(()=>setContactsLoaded(true)).finally(()=>{ setLoadingContacts(false); });
     }
     if (tab === "alertes" && !alertesLoaded) {
       setLoadingAlertes(true);
@@ -239,7 +306,7 @@ export default function Compte() {
         .then(r=>r.ok?r.json():[]).then(d=>{ setFavoris(Array.isArray(d)?d:[]); setFavLoaded(true); })
         .catch(()=>setFavLoaded(true)).finally(()=>setFavLoading(false));
     }
-  }, [tab]);
+  }, [tab, alertesLoaded]);
 
   if (!storedUser || !token) {
     return <div style={{minHeight:"100vh"}}><Navbar/><div style={{textAlign:"center",padding:80}}><p style={{color:"#64748b",marginBottom:16}}>Vous n'êtes pas connecté.</p><Link to="/login" style={{color:"#4f46e5",fontWeight:700}}>Se connecter</Link></div></div>;
@@ -313,27 +380,85 @@ export default function Compte() {
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
-      const newPhone = profile.phone_number ? `${profile.phone_code||"+216"}${profile.phone_number}` : undefined;
+      // phone_number contient maintenant seulement la partie locale (ex: "22300992")
+      const localPart = (profile.phone_number || "").trim();
+      const newPhone  = localPart ? `${profile.phone_code||"+216"}${localPart}` : null;
       const currentPhone = storedUser?.phone_number || "";
       // Si le numéro a changé → déclencher OTP avant de sauvegarder
       if (newPhone && newPhone !== currentPhone) {
-        const otpRes = await fetch(`${API_URL}/users/me/request-phone-change`,{method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({new_phone:newPhone})});
-        if(!otpRes.ok) throw new Error();
+        const otpRes = await fetch(`${API_URL}/users/me/request-phone-change`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ new_phone: newPhone }),
+        });
+        if (!otpRes.ok) {
+          toast("Impossible d'envoyer le code de vérification. Vérifiez votre connexion.", "error");
+          setSaving(false);
+          return;
+        }
         setPhoneOtpModal(true); setPhoneOtpCode(""); setPhoneOtpErr(""); setSaving(false); return;
       }
-      const res = await fetch(`${API_URL}/users/me`,{method:"PUT",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({username:profile.username||undefined,phone_number:newPhone,nom:profile.nom||null,prenom:profile.prenom||null})});
+      const res = await fetch(`${API_URL}/users/me`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ username: profile.username||undefined, phone_number: newPhone||undefined, nom: profile.nom||null, prenom: profile.prenom||null }),
+      });
+      if (!res.ok) throw new Error();
+      const updated = await res.json();
+      localStorage.setItem("user", JSON.stringify({...storedUser,...updated}));
+      setEditing(false);
+      toast("Profil mis à jour !");
+    } catch { toast("Erreur lors de la sauvegarde.", "error"); } finally { setSaving(false); }
+  };
+
+  const handleSaveProfile2 = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`${API_URL}/users/me`,{method:"PUT",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({nom:profile.nom||null,prenom:profile.prenom||null,profil_particulier:profile.profil_particulier||null,sexe:profile.sexe||null,objectif:profile.objectif||null})});
       if(!res.ok) throw new Error();
-      const updated = await res.json(); localStorage.setItem("user",JSON.stringify({...storedUser,...updated})); setEditing(false); toast("Profil mis à jour !");
+      const updated = await res.json(); localStorage.setItem("user",JSON.stringify({...storedUser,...updated})); setEditing2(false); toast("Profil mis à jour !");
     } catch { toast("Erreur.","error"); } finally { setSaving(false); }
   };
 
+  const checkReference = (val) => {
+    if (!val.trim()) { setRefStatus("idle"); return; }
+    if (!/^[A-Za-zÀ-ÖØ-öø-ÿ]+$/.test(val) || val.length < 2) { setRefStatus("invalid"); return; }
+    setRefStatus("checking");
+    clearTimeout(refDebounceRef.current);
+    refDebounceRef.current = setTimeout(async () => {
+      try {
+        const r = await fetch(`${API_URL}/users/agency/check-reference?ref=${encodeURIComponent(val)}`, { headers: { Authorization: `Bearer ${token}` } });
+        if (!r.ok) { setRefStatus("idle"); return; }
+        const data = await r.json();
+        setRefStatus(data.available ? "available" : "taken");
+      } catch { setRefStatus("idle"); }
+    }, 500);
+  };
+
   const handleSavePro = async () => {
+    if (storedUser?.role === "agence" && (refStatus === "taken" || refStatus === "invalid")) {
+      toast("Référence invalide ou déjà utilisée.", "error"); return;
+    }
     setProSaving(true);
     try {
-      const res = await fetch(`${API_URL}/users/me`,{method:"PUT",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({matricule_fiscal:proFields.matricule_fiscal||null,registre_commerce:proFields.registre_commerce||null,adresse:proFields.adresse||null,gouvernorat:proFields.gouvernorat||null,localite:proFields.delegation||null})});
+      const res = await fetch(`${API_URL}/users/me`,{method:"PUT",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({matricule_fiscal:proFields.matricule_fiscal||null,registre_commerce:proFields.registre_commerce||null,adresse:proFields.adresse||null,gouvernorat:proFields.gouvernorat||null,localite:proFields.delegation||null,metier_artisan:proFields.metier_artisan||null})});
       if(!res.ok) throw new Error();
-      const updated = await res.json(); localStorage.setItem("user",JSON.stringify({...storedUser,...updated})); setProEditing(false); toast("Infos pro mises à jour !");
-    } catch { toast("Erreur.","error"); } finally { setProSaving(false); }
+      const updated = await res.json();
+      // Also save agency reference if agence role
+      if (storedUser?.role === "agence" && proFields.reference) {
+        const rr = await fetch(`${API_URL}/users/agency/reference`, { method:"PUT", headers:{ Authorization:`Bearer ${token}`, "Content-Type":"application/json" }, body: JSON.stringify({ reference: proFields.reference }) });
+        if (!rr.ok) {
+          const err = await rr.json().catch(()=>({}));
+          throw new Error(err.detail || "Erreur référence");
+        }
+        const refData = await rr.json();
+        const newUser = { ...storedUser, ...updated, agency: { ...(storedUser?.agency||{}), reference: refData.reference } };
+        localStorage.setItem("user", JSON.stringify(newUser));
+        setProEditing(false); toast("Infos pro mises à jour !");
+        return;
+      }
+      localStorage.setItem("user",JSON.stringify({...storedUser,...updated})); setProEditing(false); toast("Infos pro mises à jour !");
+    } catch(e) { toast(e.message||"Erreur.","error"); } finally { setProSaving(false); }
   };
 
   const handleProGovChange = (govId, govNom) => {
@@ -367,12 +492,12 @@ export default function Compte() {
     try {
       const res = await fetch(`${API_URL}/annonces/${id}/statut-publication`, {
         method:"PATCH", headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},
-        body: JSON.stringify({ statut: "approuvee" }),
+        body: JSON.stringify({ statut: "en_attente" }),
       });
       if (!res.ok) throw new Error();
-      setAnnonces(prev => prev.map(a => a.id===id ? {...a, status:"approuvee"} : a));
+      setAnnonces(prev => prev.map(a => a.id===id ? {...a, status:"en_attente"} : a));
       setRemettreCarte(null);
-      toast("Annonce remise en ligne sur la carte.");
+      toast("Annonce soumise — en attente de validation.");
     } catch { toast("Erreur.","error"); }
   };
 
@@ -403,13 +528,23 @@ export default function Compte() {
       if(c.prixMin) params.set("prix_min",c.prixMin); if(c.prixMax) params.set("prix_max",c.prixMax);
       params.set("limit","500");
       const res=await fetch(`${API_URL}/annonces/public?${params}`); if(!res.ok) return;
-      let filtered=await res.json();
+      let filtered=(await res.json()).filter(a=>a.latitude&&a.longitude); // comme la carte : uniquement avec GPS
+      // Le backend renvoie uniquement les annonces approuvées — filtres supplémentaires côté client :
       if(c.categories?.length>1) filtered=filtered.filter(a=>c.categories.includes(a.categorie));
       if(c.govNom&&!c.govId) filtered=filtered.filter(a=>(a.gouvernorat||"").toLowerCase()===c.govNom.toLowerCase());
       if(c.delNom) filtered=filtered.filter(a=>(a.delegation||"").toLowerCase()===c.delNom.toLowerCase());
       if(c.superficieMin) filtered=filtered.filter(a=>a.superficie>=Number(c.superficieMin));
       if(c.superficieMax) filtered=filtered.filter(a=>a.superficie<=Number(c.superficieMax));
       if(c.bedsMin) filtered=filtered.filter(a=>(a.nb_pieces||0)>=Number(c.bedsMin));
+      // Filtrer par équipements/features
+      if(c.features?.length>0){
+        const FEAT_KEY_TO_LABEL={"vue_mer":"Vue sur mer","vue_montagne":"Vue sur montagne","vue_foret":"Vue sur forêt","jardin":"Jardin","terrasse":"Terrasse","balcon":"Balcon","piscine":"Piscine","parking":"Parking","ascenseur":"Ascenseur","garage":"Garage","cellier":"Chambre rangement","meuble":"Meublé","concierge":"Concierge","gardien":"Gardien","animaux_admis":"Animaux admis","digicode":"Digicode","interphone":"Interphone","salon_americain":"Salon américain","fibre_optique":"Fibre optique","cheminee":"Cheminée","climatisation":"Climatisation","chauffage_central":"Chauffage central","internet":"Internet","tv":"TV"};
+        const requiredLabels=c.features.map(k=>FEAT_KEY_TO_LABEL[k]||k);
+        filtered=filtered.filter(a=>{
+          const aFeats=a.features||[];
+          return requiredLabels.every(lbl=>aFeats.includes(lbl));
+        });
+      }
       setAlerteMatchCounts(prev=>({...prev,[s.id]:filtered.length}));
     } catch {}
   }
@@ -473,6 +608,27 @@ export default function Compte() {
     finally { setDeletingAgent(null); }
   }
 
+  async function handleUpdateAgent(e) {
+    e.preventDefault();
+    setAgentFormErr("");
+    if (!agentForm.email.trim()) { setAgentFormErr("L'email est obligatoire."); return; }
+    setAgentSaving(true);
+    try {
+      const res = await fetch(`${API_URL}/users/me/agents/${agentBeingEdited}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: agentForm.email.trim(), nom: agentForm.nom.trim()||null, prenom: agentForm.prenom.trim()||null }),
+      });
+      if (!res.ok) { const err = await res.json().catch(()=>({})); setAgentFormErr(err.detail||"Erreur lors de la mise à jour."); return; }
+      const data = await res.json();
+      toast(`Agent @${data.username} mis à jour !`);
+      setAgents(prev => prev.map(a => a.id === data.id ? { ...a, ...data } : a));
+      setAgentEditMode(false);
+      setAgentViewMode(true);
+    } catch { setAgentFormErr("Erreur réseau."); }
+    finally { setAgentSaving(false); }
+  }
+
   async function handleCreateAgent(e) {
     e.preventDefault();
     setAgentFormErr("");
@@ -486,6 +642,12 @@ export default function Compte() {
       if (!res.ok) { const err = await res.json().catch(()=>({})); setAgentFormErr(err.detail||"Erreur lors de la création."); return; }
       const data = await res.json();
       toast(`Compte agent @${data.username} créé !`);
+      // Sauvegarde locale du mot de passe provisoire
+      try {
+        const stored = JSON.parse(localStorage.getItem("localizi_agent_pwds")||"{}");
+        stored[data.username] = agentForm.password;
+        localStorage.setItem("localizi_agent_pwds", JSON.stringify(stored));
+      } catch {}
       setAgents(prev => [...prev, data]);
       setShowAgentModal(false);
       setAgentForm({ username:"", email:"", nom:"", prenom:"", password:genAgentPwd() });
@@ -506,14 +668,38 @@ export default function Compte() {
   const initials = (profile.username || "?")[0].toUpperCase();
   const roleLabel = { particulier:"Particulier", agent:"Agent", agence:"Agence", promoteur:"Promoteur", partenaire:"Partenaire", admin:"Admin" };
   const unreadCount = contactRequests.filter(r=>!r.lu).length;
+  const alertesCount = savedSearches.length;
+
+  const [_onbVersion, _setOnbVersion] = useState(0);
+  const _refreshOnb = () => _setOnbVersion(v => v + 1);
+
+  const _onbKeyAgence = `localizi_onboarding_agence_${storedUser?.id||storedUser?.username||"anon"}`;
+  const _onbKeyProm   = `localizi_onboarding_promoteur_${storedUser?.id||storedUser?.username||"anon"}`;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const _onbAgence = (() => { try { return JSON.parse(localStorage.getItem(_onbKeyAgence)||"{}"); } catch { return {}; } })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const _onbProm   = (() => { try { return JSON.parse(localStorage.getItem(_onbKeyProm)||"{}"); } catch { return {}; } })();
+
+  function _onbInfo(data) {
+    const step = data.step ?? null;
+    const total = data.total || 5;
+    const status = data.status || null;
+    if (step === null) return null;
+    const pct = (status === "soumis" || status === "accepte" || status === "refuse") ? 100 : Math.round(((step + 1) / total) * 100);
+    const statusLabel = { soumis:"Soumis", accepte:"Accepté", refuse:"Refusé", en_cours:"En cours" }[status] || "En cours";
+    const statusColor = { soumis:"#f59e0b", accepte:"#22c55e", refuse:"#ef4444", en_cours:"#6366f1" }[status] || "#6366f1";
+    return { pct, statusLabel, statusColor };
+  }
 
   const NAV_ITEMS = [
     { key:"profil",    icon:<User size={19}/>,   label:"Mon profil" },
     { key:"annonces",  icon:<Home size={19}/>,   label:"Mes annonces" },
     { key:"contacts",  icon:<Bell size={19}/>,   label:"Demandes reçues", badge: contactsLoaded ? unreadCount : 0 },
-    { key:"alertes",   icon:<Bell size={19}/>,   label:"Mes alertes" },
+    { key:"alertes",   icon:<Bell size={19}/>,   label:"Mes alertes", badge: alertesLoaded ? alertesCount : 0 },
     { key:"favoris",   icon:<Heart size={19}/>,  label:"Mes favoris" },
     ...(storedUser?.role==="agence"?[{key:"equipe",icon:<Users size={19}/>,label:"Mon équipe"}]:[]),
+    ...(storedUser?.role==="agence"?[{key:"onboarding_agence",icon:<FileText size={19}/>,label:"Convention agence",onbInfo:_onbInfo(_onbAgence)}]:[]),
+    ...(storedUser?.role==="promoteur"?[{key:"onboarding_promoteur",icon:<FileText size={19}/>,label:"Convention promoteur",onbInfo:_onbInfo(_onbProm)}]:[]),
   ];
 
   return (
@@ -542,10 +728,10 @@ export default function Compte() {
         </div>
       </div>
 
-      <div style={{display:"grid",gridTemplateColumns:"290px 1fr",gap:24,maxWidth:"100%",margin:"0 auto",padding:"28px 24px",alignItems:"start"}}>
+      <div className="cpt-grid" style={{display:"grid",gridTemplateColumns:"290px 1fr",gap:24,maxWidth:"100%",margin:"0 auto",padding:"28px 24px",alignItems:"start"}}>
 
         {/* ══ SIDEBAR ══ */}
-        <aside style={{
+        <aside className="cpt-aside" style={{
           background:"#fff", borderRadius:18, border:"1px solid #e5e7eb",
           padding:"28px 16px 20px", position:"sticky", top:20,
           display:"flex", flexDirection:"column", gap:4,
@@ -561,12 +747,26 @@ export default function Compte() {
             {storedUser?.role && <span style={{display:"inline-block",marginTop:8,fontSize:11.5,fontWeight:700,background:"#eef2ff",color:"#4f46e5",padding:"3px 12px",borderRadius:999}}>{roleLabel[storedUser.role]||storedUser.role}</span>}
           </div>
 
-          {NAV_ITEMS.map(item =>
-            <Link key={item.key} to={`/compte?tab=${item.key}`} style={sideNavStyle(tab===item.key)} onClick={e=>{ e.preventDefault(); setTab(item.key); }}>
-              {item.icon}{item.label}
-              {item.badge>0&&<span style={{marginLeft:"auto",background:"#ef4444",color:"#fff",borderRadius:10,fontSize:11,fontWeight:800,padding:"2px 8px",minWidth:20,textAlign:"center"}}>{item.badge}</span>}
+          {NAV_ITEMS.map(item => (
+            <Link key={item.key} to={`/compte?tab=${item.key}`} style={{...sideNavStyle(tab===item.key),flexDirection:"column",alignItems:"stretch",gap:0,padding:"10px 14px"}} onClick={e=>{ e.preventDefault(); setTab(item.key); }}>
+              <div style={{display:"flex",alignItems:"center",gap:9}}>
+                {item.icon}
+                <span style={{flex:1}}>{item.label}</span>
+                {item.badge>0&&<span style={{marginLeft:"auto",background:"#ef4444",color:"#fff",borderRadius:10,fontSize:11,fontWeight:800,padding:"2px 8px",minWidth:20,textAlign:"center"}}>{item.badge}</span>}
+              </div>
+              {item.onbInfo && (
+                <div style={{marginTop:6,paddingLeft:28}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:3}}>
+                    <span style={{fontSize:10.5,fontWeight:700,color:item.onbInfo.statusColor}}>{item.onbInfo.statusLabel}</span>
+                    <span style={{fontSize:10.5,color:"#94a3b8",fontWeight:600}}>{item.onbInfo.pct}%</span>
+                  </div>
+                  <div style={{height:4,background:"#f1f5f9",borderRadius:4,overflow:"hidden"}}>
+                    <div style={{height:"100%",width:`${item.onbInfo.pct}%`,background:item.onbInfo.statusColor,borderRadius:4,transition:"width .4s"}}/>
+                  </div>
+                </div>
+              )}
             </Link>
-          )}
+          ))}
 
           <div style={{height:1,background:"#f1f5f9",margin:"10px 4px"}}/>
           <button onClick={handleLogout} style={{...sideNavStyle(false),color:"#dc2626"}}>
@@ -577,15 +777,54 @@ export default function Compte() {
         {/* ══ MAIN CONTENT ══ */}
         <main style={{minWidth:0}}>
 
+          {/* ═══ Bannière bienvenue première connexion ═══ */}
+          {searchParams.get("welcome") === "1" && (
+            <div style={{
+              background:"linear-gradient(135deg,#eef2ff 0%,#e0e7ff 100%)",
+              border:"1.5px solid #a5b4fc",
+              borderRadius:14,
+              padding:"18px 22px",
+              marginBottom:20,
+              display:"flex",
+              alignItems:"flex-start",
+              gap:16,
+            }}>
+              <div style={{
+                width:42,height:42,borderRadius:"50%",
+                background:"#6366f1",
+                display:"flex",alignItems:"center",justifyContent:"center",
+                flexShrink:0,fontSize:20,
+              }}>🎉</div>
+              <div style={{flex:1}}>
+                <p style={{margin:"0 0 4px",fontSize:15,fontWeight:700,color:"#3730a3"}}>
+                  Bienvenue sur Localizi ! Votre compte est actif.
+                </p>
+                <p style={{margin:"0 0 12px",fontSize:13,color:"#4338ca",lineHeight:1.6}}>
+                  Pour profiter pleinement de la plateforme, veuillez compléter les informations de votre profil : nom, prénom, téléphone et objectif principal. Ces informations permettent aux autres utilisateurs de vous identifier et d'améliorer votre expérience.
+                </p>
+                <button
+                  onClick={()=>setSearchParams({tab:"profil"},{replace:true})}
+                  style={{padding:"7px 18px",borderRadius:8,border:"none",background:"#6366f1",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+                  Compléter mon profil →
+                </button>
+              </div>
+              <button
+                onClick={()=>setSearchParams(p=>{p.delete("welcome");return p},{replace:true})}
+                style={{background:"none",border:"none",cursor:"pointer",color:"#6366f1",fontSize:18,lineHeight:1,flexShrink:0,padding:4}}>
+                ✕
+              </button>
+            </div>
+          )}
+
           {/* ═══════ PROFIL ═══════ */}
           {tab==="profil" && (
-            <div style={{display:"flex",gap:20,alignItems:"flex-start"}}>
+            <div className="cpt-profil-layout" style={{display:"flex",gap:20,alignItems:"flex-start"}}>
 
               {/* ── Colonne gauche 50% : infos + infos complémentaires ── */}
-              <div style={{flex:"0 0 calc(50% - 10px)",minWidth:0,display:"flex",flexDirection:"column",gap:16}}>
+              <div className="cpt-profil-left" style={{flex:"0 0 calc(50% - 10px)",minWidth:0,display:"flex",flexDirection:"column",gap:16}}>
 
                 {/* Section Mon profil */}
-                <div style={{...card,padding:"26px 28px 24px"}}>
+                <div className="cpt-profil-card" style={{...card,padding:"26px 28px 24px"}}>
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18}}>
                     <div>
                       <h2 style={cardTitle}>Mon profil</h2>
@@ -599,9 +838,16 @@ export default function Compte() {
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:13}}>
                     <F label="Nom d'utilisateur"><input style={inp(editing)} value={profile.username} readOnly={!editing} onChange={e=>setProfile(p=>({...p,username:e.target.value}))}/></F>
                     <F label="E-mail"><input style={inp(false)} value={profile.email} readOnly/></F>
-                    <F label="Téléphone" full>
-                      <div style={{display:"flex",gap:7}}>
-                        <select style={{...inp(editing),width:148,cursor:editing?"pointer":"default",fontSize:13}} value={profile.phone_code||"+216"} disabled={!editing} onChange={e=>setProfile(p=>({...p,phone_code:e.target.value}))}>
+                    <F label="Rôle">
+                      <input
+                        style={{...inp(false),background:"#f1f5f9",color:"#64748b",cursor:"not-allowed"}}
+                        value={({particulier:"Particulier",agent:"Agent",agence:"Agence",promoteur:"Promoteur",partenaire:"Partenaire",admin:"Administrateur"})[storedUser?.role] || storedUser?.role || "—"}
+                        readOnly
+                      />
+                    </F>
+                    <F label="Téléphone">
+                      <div style={{display:"flex",gap:5}}>
+                        <select style={{...inp(editing),width:80,cursor:editing?"pointer":"default",fontSize:12,flexShrink:0}} value={profile.phone_code||"+216"} disabled={!editing} onChange={e=>setProfile(p=>({...p,phone_code:e.target.value}))}>
                           {[
                             {code:"+216",flag:"🇹🇳",name:"Tunisie"},
                             {code:"+33", flag:"🇫🇷",name:"France"},
@@ -619,9 +865,9 @@ export default function Compte() {
                             {code:"+90", flag:"🇹🇷",name:"Turquie"},
                             {code:"+34", flag:"🇪🇸",name:"Espagne"},
                             {code:"+39", flag:"🇮🇹",name:"Italie"},
-                          ].map(({code,flag,name})=><option key={code} value={code}>{flag} {code} {name}</option>)}
+                          ].map(({code,flag,name})=><option key={code} value={code}>{flag} {code}</option>)}
                         </select>
-                        <input style={{...inp(editing),flex:1}} value={profile.phone_number||""} readOnly={!editing} placeholder="12 345 678" onChange={e=>setProfile(p=>({...p,phone_number:e.target.value}))}/>
+                        <input style={{...inp(editing),flex:1,minWidth:0}} value={profile.phone_number||""} readOnly={!editing} placeholder="12 345 678" onChange={e=>setProfile(p=>({...p,phone_number:e.target.value}))}/>
                       </div>
                     </F>
                   </div>
@@ -629,7 +875,7 @@ export default function Compte() {
                 </div>
 
                 {/* Section Informations complémentaires (selon rôle) */}
-                <div style={{...card,padding:"26px 28px 24px"}}>
+                <div className="cpt-profil-card" style={{...card,padding:"26px 28px 24px"}}>
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18}}>
                     <div>
                       <h2 style={cardTitle}>Informations complémentaires</h2>
@@ -655,7 +901,7 @@ export default function Compte() {
                     {storedUser?.role==="particulier"&&<>
                       <F label="Nom"><input style={inp(editing2)} value={profile.nom} readOnly={!editing2} placeholder={editing2?"Votre nom":"—"} onChange={e=>setProfile(p=>({...p,nom:e.target.value}))}/></F>
                       <F label="Prénom"><input style={inp(editing2)} value={profile.prenom} readOnly={!editing2} placeholder={editing2?"Votre prénom":"—"} onChange={e=>setProfile(p=>({...p,prenom:e.target.value}))}/></F>
-                      <F label="Votre profil" full>
+                      <F label="Votre profil">
                         {editing2
                           ? <select style={{...inp(true),cursor:"pointer"}} value={profile.profil_particulier||""} onChange={e=>setProfile(p=>({...p,profil_particulier:e.target.value}))}>
                               <option value="">— Sélectionner —</option>
@@ -669,17 +915,30 @@ export default function Compte() {
                           : <input style={inp(false)} value={profile.profil_particulier||""} readOnly placeholder="—"/>
                         }
                       </F>
-                      <F label="Sexe" full>
+                      <F label="Mon objectif principal">
                         {editing2
-                          ? <div style={{display:"flex",gap:8}}>
-                              {[{v:"homme",l:"Homme ♂"},{v:"femme",l:"Femme ♀"}].map(({v,l})=>(
+                          ? <select style={{...inp(true),cursor:"pointer"}} value={profile.objectif||""} onChange={e=>setProfile(p=>({...p,objectif:e.target.value}))}>
+                              <option value="">— Sélectionner —</option>
+                              <option value="autre">Peu importe / Autre</option>
+                              <option value="achete">J'achète</option>
+                              <option value="vend">Je vends</option>
+                              <option value="loue">Je loue</option>
+                              <option value="met_location">Je mets en location</option>
+                            </select>
+                          : <input style={inp(false)} value={({achete:"J'achète",vend:"Je vends",loue:"Je loue",met_location:"Je mets en location",autre:"Peu importe / Autre"})[profile.objectif]||""} readOnly placeholder="—"/>
+                        }
+                      </F>
+                      <F label="Sexe">
+                        {editing2
+                          ? <div style={{display:"flex",gap:6}}>
+                              {[{v:"homme",l:"♂ Homme"},{v:"femme",l:"♀ Femme"}].map(({v,l})=>(
                                 <button key={v} type="button" onClick={()=>setProfile(p=>({...p,sexe:v}))}
-                                  style={{flex:1,padding:"8px 4px",borderRadius:8,border:"1.5px solid",borderColor:profile.sexe===v?"#6366f1":"#e2e8f0",background:profile.sexe===v?"#eef2ff":"#f8fafc",color:profile.sexe===v?"#4f46e5":"#94a3b8",cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:12,transition:"all .15s"}}>
+                                  style={{padding:"7px 10px",borderRadius:8,border:"1.5px solid",borderColor:profile.sexe===v?"#6366f1":"#e2e8f0",background:profile.sexe===v?"#eef2ff":"#f8fafc",color:profile.sexe===v?"#4f46e5":"#94a3b8",cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:12,transition:"all .15s",whiteSpace:"nowrap"}}>
                                   {l}
                                 </button>
                               ))}
                             </div>
-                          : <input style={inp(false)} value={profile.sexe==="homme"?"Homme ♂":profile.sexe==="femme"?"Femme ♀":""} readOnly placeholder="—"/>
+                          : <input style={inp(false)} value={profile.sexe==="homme"?"♂ Homme":profile.sexe==="femme"?"♀ Femme":""} readOnly placeholder="—"/>
                         }
                       </F>
                     </>}
@@ -690,22 +949,83 @@ export default function Compte() {
                       <F label="Agence" full><input style={{...inp(false),background:"#f8fafc",color:"#64748b"}} value={profile.nom_entreprise||"—"} readOnly/></F>
                       <F label="Matricule fiscal"><input style={inp(proEditing)} value={proFields.matricule_fiscal} readOnly={!proEditing} placeholder={proEditing?"Ex : 1234567/A/M/000":"Non renseigné"} onChange={e=>setProFields(p=>({...p,matricule_fiscal:e.target.value}))}/></F>
                       <F label="Registre de commerce"><input style={inp(proEditing)} value={proFields.registre_commerce} readOnly={!proEditing} placeholder={proEditing?"Ex : B012345/2020":"Non renseigné"} onChange={e=>setProFields(p=>({...p,registre_commerce:e.target.value}))}/></F>
-                      <F label="Adresse" full><input style={inp(proEditing)} value={proFields.adresse} readOnly={!proEditing} placeholder={proEditing?"Ex : 12 rue de la Liberté, La Marsa":"Non renseignée"} onChange={e=>setProFields(p=>({...p,adresse:e.target.value}))}/></F>
                       <F label="Gouvernorat">{proEditing?<select style={{...inp(true),cursor:"pointer"}} value={proFields.gouvernorat_id} onChange={e=>{const o=e.target.options[e.target.selectedIndex];handleProGovChange(e.target.value,o.text==="— Choisir —"?"":o.text);}}><option value="">— Choisir —</option>{gouvernorats.map(g=><option key={g.id} value={g.id}>{g.nom}</option>)}</select>:<input style={inp(false)} value={proFields.gouvernorat||""} readOnly placeholder="Non renseigné"/>}</F>
                       <F label="Délégation">{proEditing&&delegations.length>0?<select style={{...inp(true),cursor:"pointer"}} value={proFields.delegation_id} onChange={e=>{const o=e.target.options[e.target.selectedIndex];setProFields(p=>({...p,delegation_id:e.target.value,delegation:o.text==="— Toutes —"?"":o.text}));}}><option value="">— Toutes —</option>{delegations.map(d=><option key={d.id} value={d.id}>{d.nom}</option>)}</select>:<input style={inp(proEditing&&delegations.length===0)} value={proFields.delegation||""} readOnly={!proEditing||delegations.length>0} placeholder={proEditing&&!proFields.gouvernorat_id?"Choisissez d'abord un gouvernorat":"Non renseignée"} onChange={e=>setProFields(p=>({...p,delegation:e.target.value}))}/>}</F>
+                      <F label="Adresse" full><input style={inp(proEditing)} value={proFields.adresse} readOnly={!proEditing} placeholder={proEditing?"Ex : 12 rue de la Liberté, La Marsa":"Non renseignée"} onChange={e=>setProFields(p=>({...p,adresse:e.target.value}))}/></F>
                     </>}
-                    {/* Promoteur / autre pro sans rôle agent */}
-                    {isPro&&!isAgent&&<>
+                    {/* ── Partenaire : secteur verrouillé + métier si artisan ── */}
+                    {storedUser?.role==="partenaire"&&<>
+                      <div style={{display:"contents"}}>
+                        <F label="Secteur d'activité" full={storedUser?.secteur_partenaire!=="artisans"}>
+                          <input
+                            style={{...inp(false),background:"#f1f5f9",color:"#64748b",cursor:"not-allowed"}}
+                            value={({banques:"Banque",assurances:"Assurance",notaires_avocats:"Notaire / Avocat",architectes:"Architecte",artisans:"Artisan / Professionnel du bâtiment"})[storedUser?.secteur_partenaire] || storedUser?.secteur_partenaire || "—"}
+                            readOnly
+                          />
+                        </F>
+                        {storedUser?.secteur_partenaire==="artisans"&&(
+                          <F label="Métier">
+                            {proEditing
+                              ?<select style={{...inp(true),cursor:"pointer"}} value={proFields.metier_artisan} onChange={e=>setProFields(p=>({...p,metier_artisan:e.target.value}))}>
+                                  <option value="">— Sélectionnez —</option>
+                                  {["Maçon / Gros œuvre","Plombier","Électricien","Peintre en bâtiment","Carreleur","Menuisier","Charpentier","Couvreur","Plâtrier","Serrurier / Métallier","Climaticien / Chauffagiste","Cuisiniste","Architecte d'intérieur","Géomètre / Topographe","Expert immobilier","Photographe immobilier","Déménageur","Autre"].map(m=>(
+                                    <option key={m} value={m}>{m}</option>
+                                  ))}
+                                </select>
+                              :<input style={inp(false)} value={proFields.metier_artisan||""} readOnly placeholder="Non renseigné"/>
+                            }
+                          </F>
+                        )}
+                      </div>
+                      <F label="Gouvernorat">{proEditing?<select style={{...inp(true),cursor:"pointer"}} value={proFields.gouvernorat_id} onChange={e=>{const o=e.target.options[e.target.selectedIndex];handleProGovChange(e.target.value,o.text==="— Choisir —"?"":o.text);}}><option value="">— Choisir —</option>{gouvernorats.map(g=><option key={g.id} value={g.id}>{g.nom}</option>)}</select>:<input style={inp(false)} value={proFields.gouvernorat||""} readOnly placeholder="Non renseigné"/>}</F>
+                      <F label="Délégation">{proEditing&&delegations.length>0?<select style={{...inp(true),cursor:"pointer"}} value={proFields.delegation_id} onChange={e=>{const o=e.target.options[e.target.selectedIndex];setProFields(p=>({...p,delegation_id:e.target.value,delegation:o.text==="— Toutes —"?"":o.text}));}}><option value="">— Toutes —</option>{delegations.map(d=><option key={d.id} value={d.id}>{d.nom}</option>)}</select>:<input style={inp(proEditing&&delegations.length===0)} value={proFields.delegation||""} readOnly={!proEditing||delegations.length>0} placeholder={proEditing&&!proFields.gouvernorat_id?"Choisissez d'abord un gouvernorat":"Non renseignée"} onChange={e=>setProFields(p=>({...p,delegation:e.target.value}))}/>}</F>
+                      <F label="Adresse" full><input style={inp(proEditing)} value={proFields.adresse} readOnly={!proEditing} placeholder={proEditing?"Ex : 12 rue de la Liberté":"Non renseignée"} onChange={e=>setProFields(p=>({...p,adresse:e.target.value}))}/></F>
+                    </>}
+
+                    {/* ── Promoteur / Agence (hors agent) ── */}
+                    {isPro&&!isAgent&&storedUser?.role!=="partenaire"&&<>
                       <F label="Matricule fiscal"><input style={inp(proEditing)} value={proFields.matricule_fiscal} readOnly={!proEditing} placeholder={proEditing?"Ex : 1234567/A/M/000":"Non renseigné"} onChange={e=>setProFields(p=>({...p,matricule_fiscal:e.target.value}))}/></F>
                       <F label="Registre de commerce"><input style={inp(proEditing)} value={proFields.registre_commerce} readOnly={!proEditing} placeholder={proEditing?"Ex : B012345/2020":"Non renseigné"} onChange={e=>setProFields(p=>({...p,registre_commerce:e.target.value}))}/></F>
-                      <F label="Adresse" full><input style={inp(proEditing)} value={proFields.adresse} readOnly={!proEditing} placeholder={proEditing?"Ex : 12 rue de la Liberté, La Marsa":"Non renseignée"} onChange={e=>setProFields(p=>({...p,adresse:e.target.value}))}/></F>
                       <F label="Gouvernorat">{proEditing?<select style={{...inp(true),cursor:"pointer"}} value={proFields.gouvernorat_id} onChange={e=>{const o=e.target.options[e.target.selectedIndex];handleProGovChange(e.target.value,o.text==="— Choisir —"?"":o.text);}}><option value="">— Choisir —</option>{gouvernorats.map(g=><option key={g.id} value={g.id}>{g.nom}</option>)}</select>:<input style={inp(false)} value={proFields.gouvernorat||""} readOnly placeholder="Non renseigné"/>}</F>
                       <F label="Délégation">{proEditing&&delegations.length>0?<select style={{...inp(true),cursor:"pointer"}} value={proFields.delegation_id} onChange={e=>{const o=e.target.options[e.target.selectedIndex];setProFields(p=>({...p,delegation_id:e.target.value,delegation:o.text==="— Toutes —"?"":o.text}));}}><option value="">— Toutes —</option>{delegations.map(d=><option key={d.id} value={d.id}>{d.nom}</option>)}</select>:<input style={inp(proEditing&&delegations.length===0)} value={proFields.delegation||""} readOnly={!proEditing||delegations.length>0} placeholder={proEditing&&!proFields.gouvernorat_id?"Choisissez d'abord un gouvernorat":"Non renseignée"} onChange={e=>setProFields(p=>({...p,delegation:e.target.value}))}/>}</F>
+                      {storedUser?.role==="agence"
+                        ? <>
+                            <F label="Adresse"><input style={inp(proEditing)} value={proFields.adresse} readOnly={!proEditing} placeholder={proEditing?"Ex : 12 rue de la Liberté, La Marsa":"Non renseignée"} onChange={e=>setProFields(p=>({...p,adresse:e.target.value}))}/></F>
+                            <F label="Référence agence">
+                              <div style={{position:"relative"}}>
+                                <input
+                                  style={{...inp(proEditing),paddingRight:proEditing?36:undefined}}
+                                  value={proFields.reference}
+                                  readOnly={!proEditing}
+                                  placeholder={proEditing?"Ex : LOCALIZI":"Non renseignée"}
+                                  onChange={e=>{
+                                    const cleaned = e.target.value.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ]/g,"");
+                                    setProFields(p=>({...p,reference:cleaned}));
+                                    if(proEditing) checkReference(cleaned);
+                                  }}
+                                />
+                                {proEditing&&proFields.reference&&(
+                                  <span style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",fontSize:16}}>
+                                    {refStatus==="checking"&&<span style={{color:"#94a3b8",fontSize:12}}>…</span>}
+                                    {refStatus==="available"&&<span style={{color:"#16a34a"}}>✓</span>}
+                                    {refStatus==="taken"&&<span style={{color:"#dc2626"}}>✗</span>}
+                                    {refStatus==="invalid"&&<span style={{color:"#dc2626"}}>✗</span>}
+                                  </span>
+                                )}
+                              </div>
+                              {proEditing&&<div style={{fontSize:11,color:"#94a3b8",marginTop:4}}>Au moins 2 caractères · lettres uniquement, pas de chiffres ni de caractères spéciaux.</div>}
+                              {proEditing&&refStatus==="taken"&&<div style={{fontSize:11,color:"#dc2626",marginTop:2}}>Référence déjà utilisée.</div>}
+                              {proEditing&&refStatus==="invalid"&&<div style={{fontSize:11,color:"#dc2626",marginTop:2}}>Minimum 2 lettres, lettres uniquement.</div>}
+                              {proEditing&&refStatus==="available"&&<div style={{fontSize:11,color:"#16a34a",marginTop:2}}>Référence disponible.</div>}
+                            </F>
+                          </>
+                        : <F label="Adresse" full><input style={inp(proEditing)} value={proFields.adresse} readOnly={!proEditing} placeholder={proEditing?"Ex : 12 rue de la Liberté, La Marsa":"Non renseignée"} onChange={e=>setProFields(p=>({...p,adresse:e.target.value}))}/></F>
+                      }
                     </>}
                   </div>
                   {/* Bouton Enregistrer propre à cette section */}
                   {storedUser?.role==="particulier"&&editing2&&(
-                    <button onClick={()=>{ handleSaveProfile(); setEditing2(false); }} disabled={saving} style={{...saveBtn,marginTop:16}}><Save size={14}/> {saving?"Sauvegarde…":"Enregistrer"}</button>
+                    <button onClick={handleSaveProfile2} disabled={saving} style={{...saveBtn,marginTop:16}}><Save size={14}/> {saving?"Sauvegarde…":"Enregistrer"}</button>
                   )}
                   {(isPro||isAgent)&&proEditing&&(
                     <button onClick={handleSavePro} disabled={proSaving} style={{...saveBtn,marginTop:16}}><Save size={14}/> {proSaving?"Sauvegarde…":"Enregistrer"}</button>
@@ -715,8 +1035,8 @@ export default function Compte() {
               </div>
 
               {/* ── Colonne droite 50% : photo de profil ── */}
-              <div style={{flex:"0 0 calc(50% - 10px)",minWidth:0}}>
-                <div style={{...card,padding:"26px 28px 24px",display:"flex",flexDirection:"column",alignItems:"center",gap:16}}>
+              <div className="cpt-profil-right" style={{flex:"0 0 calc(50% - 10px)",minWidth:0}}>
+                <div className="cpt-profil-card" style={{...card,padding:"26px 28px 24px",display:"flex",flexDirection:"column",alignItems:"center",gap:16}}>
                   <h2 style={{...cardTitle,alignSelf:"flex-start",display:"flex",alignItems:"center",gap:8}}><Camera size={16} style={{color:"#6366f1"}}/>Photo de profil</h2>
 
                   {/* Grande image quand renseignée */}
@@ -734,8 +1054,7 @@ export default function Compte() {
                     onClick={()=>fileInputRef.current?.click()}
                     style={{
                       width:"100%",
-                      height: avatarPreview ? 80 : undefined,
-                      aspectRatio: avatarPreview ? undefined : "4/3",
+                      height: avatarPreview ? 80 : 140,
                       borderRadius:14,
                       border:dragOver?"2px dashed #6366f1":"2px dashed #c7d2fe",
                       background:dragOver?"#eef2ff":"#f8faff",
@@ -782,13 +1101,17 @@ export default function Compte() {
                   <h1 className="db-header__title">Mes annonces</h1>
                   <p className="db-header__sub">Gérez toutes vos publications immobilières</p>
                 </div>
-                <Link to="/creer_annonce" className="db-btn-primary"><Plus size={17}/> Nouvelle annonce</Link>
+                <PublierAnnonceBtn className="db-btn-primary"><Plus size={17}/> Nouvelle annonce</PublierAnnonceBtn>
               </div>
 
               {/* Stats */}
               <div className="db-stats">
-                {[{icon:<Home size={20}/>,label:"Total",val:stats.total,cls:""},{icon:<CheckCircle size={20}/>,label:"Publiées",val:stats.publiees,cls:"db-stat--green"},{icon:<Clock size={20}/>,label:"En attente",val:stats.attente,cls:"db-stat--amber"},{icon:<TrendingUp size={20}/>,label:"Vues totales",val:stats.vues,cls:"db-stat--blue"}].map(s=>(
-                  <div key={s.label} className={`db-stat ${s.cls}`}><span className="db-stat__ico">{s.icon}</span><div><p className="db-stat__val">{s.val}</p><p className="db-stat__lbl">{s.label}</p></div></div>
+                {[{icon:<Home size={20}/>,label:"Total",val:stats.total,cls:"",filter:""},{icon:<CheckCircle size={20}/>,label:"Publiées",val:stats.publiees,cls:"db-stat--green",filter:"En cours"},{icon:<Clock size={20}/>,label:"En attente",val:stats.attente,cls:"db-stat--amber",filter:"En attente"},{icon:<TrendingUp size={20}/>,label:"Vues totales",val:stats.vues,cls:"db-stat--blue",filter:null}].map(s=>(
+                  <div key={s.label} className={`db-stat ${s.cls}`}
+                    onClick={s.filter!==null ? ()=>setStatusFilter(s.filter) : undefined}
+                    style={s.filter!==null ? {cursor:"pointer"} : undefined}>
+                    <span className="db-stat__ico">{s.icon}</span><div><p className="db-stat__val">{s.val}</p><p className="db-stat__lbl">{s.label}</p></div>
+                  </div>
                 ))}
               </div>
 
@@ -796,11 +1119,11 @@ export default function Compte() {
               {!annLoading && annonces.length>0 && (
                 <div className="db-toolbar">
                   <div className="db-search"><Search size={15} className="db-search__ico"/><input className="db-search__input" type="text" placeholder="Rechercher…" value={search} onChange={e=>setSearch(e.target.value)}/>{search&&<button className="db-search__clear" onClick={()=>setSearch("")}><X size={13}/></button>}</div>
-                  <select value={typeFilter} onChange={e=>setTypeFilter(e.target.value)} style={{flex:1,minWidth:0,border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 8px",fontSize:12.5,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}>
+                  <select className="db-toolbar__type" value={typeFilter} onChange={e=>setTypeFilter(e.target.value)} style={{flex:1,minWidth:0,border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 8px",fontSize:12.5,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}>
                     <option value="">Tous types</option>
                     {[["appartement","Appartement"],["villa_maison","Villa/Maison"],["immeuble","Immeuble"],["terrain","Terrain"],["local_commercial","Local commercial"],["bureau","Bureau"],["ferme_agricole","Ferme agricole"],["garage_parking","Garage / Parking"],["depot_stockage","Dépôt de stockage"],["immobiliers_divers","Immobiliers divers"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
                   </select>
-                  <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} style={{flex:1,minWidth:0,border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 8px",fontSize:12.5,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}>
+                  <select className="db-toolbar__status" value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} style={{flex:1,minWidth:0,border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 8px",fontSize:12.5,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}>
                     <option value="">Tous statuts</option>
                     <option value="En cours">Approuvée (en cours)</option>
                     <option value="En attente">En attente</option>
@@ -808,11 +1131,11 @@ export default function Compte() {
                     <option value="Vendu">Déjà vendu</option>
                     <option value="Loué">Déjà loué</option>
                   </select>
-                  <select value={dateFilter} onChange={e=>{setDateFilter(e.target.value);setDateStart("");setDateEnd("");}} style={{flex:1,minWidth:0,border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 8px",fontSize:12.5,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}>
+                  <select className="db-toolbar__date" value={dateFilter} onChange={e=>{setDateFilter(e.target.value);setDateStart("");setDateEnd("");}} style={{flex:1,minWidth:0,border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 8px",fontSize:12.5,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}>
                     <option value="">Toutes dates</option><option value="Aujourd'hui">Aujourd'hui</option><option value="Cette semaine">Cette semaine</option><option value="Ce mois">Ce mois</option>
                   </select>
-                  <input type="date" value={dateStart} onChange={e=>{setDateStart(e.target.value);setDateFilter("");}} style={{flex:1,minWidth:0,border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 8px",fontSize:12.5,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}/>
-                  <input type="date" value={dateEnd} onChange={e=>{setDateEnd(e.target.value);setDateFilter("");}} style={{flex:1,minWidth:0,border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 8px",fontSize:12.5,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}/>
+                  <input className="db-toolbar__dstart" type="date" value={dateStart} onChange={e=>{setDateStart(e.target.value);setDateFilter("");}} style={{flex:1,minWidth:0,border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 8px",fontSize:12.5,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}/>
+                  <input className="db-toolbar__dend" type="date" value={dateEnd} onChange={e=>{setDateEnd(e.target.value);setDateFilter("");}} style={{flex:1,minWidth:0,border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 8px",fontSize:12.5,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}/>
                   <span className="db-toolbar__count">{filtered.length} annonce{filtered.length!==1?"s":""}</span>
                 </div>
               )}
@@ -821,11 +1144,11 @@ export default function Compte() {
               {annLoading?(
                 <div className="db-empty"><div className="db-spinner"/><p>Chargement…</p></div>
               ):annonces.length===0?(
-                <div className="db-empty"><Home size={48} strokeWidth={1.2}/><p>Aucune annonce publiée.</p><Link to="/creer_annonce" className="db-btn-primary"><Plus size={16}/> Créer ma première annonce</Link></div>
+                <div className="db-empty"><Home size={48} strokeWidth={1.2}/><p>Aucune annonce publiée.</p><PublierAnnonceBtn className="db-btn-primary"><Plus size={16}/> Créer ma première annonce</PublierAnnonceBtn></div>
               ):filtered.length===0?(
                 <div className="db-empty"><Search size={40} strokeWidth={1.2}/><p>Aucun résultat pour « <strong>{search}</strong> »</p><button className="db-btn-secondary" onClick={()=>setSearch("")}>Effacer</button></div>
               ):(
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                <div className="cpt-ann-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
                   {filtered.map(a=>{
                     const badge=statusBadge(a.status); const prop=a.properties?.[0];
                     const rawImg=a.image_principale||prop?.image_principale||null;
@@ -833,7 +1156,7 @@ export default function Compte() {
                     return(
                       <div key={a.id} className="db-card" style={{flexWrap:"wrap",rowGap:10,padding:0,overflow:"hidden",opacity:a.status==="vendue"||a.status==="louee"?0.82:1}}>
                         {/* Image collée aux bords gauche/haut/bas */}
-                        <div style={{width:100,alignSelf:"stretch",flexShrink:0,background:"#e5e7eb",overflow:"hidden",borderRadius:0,position:"relative"}}>
+                        <div className="cpt-img-col" style={{width:120,alignSelf:"stretch",flexShrink:0,background:"#e5e7eb",overflow:"hidden",borderRadius:0,position:"relative"}}>
                           {imgSrc?<img src={imgSrc} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} loading="lazy"/>:<div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center"}}><Home size={26} style={{color:"#94a3b8"}}/></div>}
                           {(a.status==="vendue"||a.status==="louee")&&(
                             <div style={{position:"absolute",inset:0,background:"rgba(15,23,42,0.55)",display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -844,9 +1167,25 @@ export default function Compte() {
                           )}
                         </div>
                         {/* Contenu avec padding rétabli */}
-                        <div style={{flex:1,display:"flex",alignItems:"center",gap:18,padding:"16px 18px",flexWrap:"wrap",rowGap:10,minWidth:0}}>
+                        <div className="cpt-content-col" style={{flex:1,display:"flex",alignItems:"center",gap:18,padding:"16px 18px",flexWrap:"wrap",rowGap:10,minWidth:0}}>
                         <div className="db-card__left">
-                          <div className="db-card__type-badge">{typeBienLabel(a.type_bien)}</div>
+                          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                            <div className="db-card__type-badge">{typeBienLabel(a.type_bien)}</div>
+                            {/* Bouton vendu/loué — juste après le type */}
+                            {a.status==="approuvee"&&(
+                              <button className="cpt-ann-status-btn" onClick={()=>setSoldConfirm({id:a.id, label:a.categorie==="vente"?"vendu":"loue", titre:a.titre, categorie:a.categorie})}
+                                style={{padding:"4px 12px",borderRadius:6,border:"1.5px solid #fbbf24",background:"#fffbeb",color:"#92400e",fontSize:11.5,fontWeight:600,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap",marginBottom:5}}>
+                                {a.categorie==="vente"?"Déjà vendu ?":"Déjà loué ?"}
+                              </button>
+                            )}
+                            {/* Bouton remettre sur la carte */}
+                            {a.status==="louee"&&(a.categorie==="location"||a.categorie==="vacances")&&(
+                              <button className="cpt-ann-status-btn" onClick={()=>setRemettreCarte({id:a.id,titre:a.titre,categorie:a.categorie})}
+                                style={{padding:"3px 10px",borderRadius:6,border:"1.5px solid #6366f1",background:"#eef2ff",color:"#4338ca",fontSize:11.5,fontWeight:600,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
+                                Remettre sur la carte
+                              </button>
+                            )}
+                          </div>
                           <h3 className="db-card__title">{a.titre}</h3>
                           <div className="db-card__meta">
                             <span className={`db-badge ${badge.cls}`}>{badge.icon} {badge.label}</span>
@@ -860,7 +1199,7 @@ export default function Compte() {
                           <p className="db-card__date"><Clock size={11}/> {new Date(a.date_creation).toLocaleString("fr-FR",{dateStyle:"short",timeStyle:"short"})}</p>
                           {/* Stats vues + favoris */}
                           {(() => { const st = annonceStats[a.id] || {}; return (
-                            <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:12,marginTop:8}}>
+                            <div className="cpt-ann-stats" style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:12,marginTop:8}}>
                               <span style={{display:"flex",alignItems:"center",gap:4,fontSize:14,fontWeight:800,color:"#6366f1"}}>
                                 <Eye size={14}/> {st.views_count ?? a.views_count ?? 0}
                               </span>
@@ -870,18 +1209,8 @@ export default function Compte() {
                             </div>
                           ); })()}
                         </div>
-                        <div className="db-card__actions" style={{alignItems:"center"}}>
-                          <Link to={`/annonce/${a.id}`} className="db-action db-action--view" title="Voir"><Eye size={16}/></Link>
-                          <Link to={`/modifier_annonce/${a.id}`} className="db-action db-action--edit" title="Modifier"><Edit2 size={16}/></Link>
-                          <button
-                            onClick={() => handleRefresh(a.id)}
-                            disabled={refreshingId === a.id}
-                            className="db-action db-action--refresh"
-                            title="Refresh"
-                            style={{position:"relative"}}
-                          >
-                            <RefreshCw size={15} style={{animation: refreshingId===a.id ? "spin 1s linear infinite" : "none"}}/>
-                          </button>
+                        <div className="db-card__actions" style={{alignItems:"center",flexDirection:"column",gap:10}}>
+                          {/* Accompagnement */}
                           <div style={{display:"flex",flexDirection:"column",gap:5,width:180,flexShrink:0}}>
                             <div style={{display:"flex",alignItems:"center",gap:6}}>
                               <label style={{position:"relative",display:"inline-block",width:36,height:20,cursor:"pointer",flexShrink:0}}>
@@ -897,21 +1226,21 @@ export default function Compte() {
                               {agencesList.map(ag=><option key={ag.id} value={ag.id}>{ag.nom||ag.email}</option>)}
                             </select>
                           </div>
-                          {/* Bouton vendu/loué — visible seulement si annonce en cours ou en attente */}
-                          {(a.status==="approuvee"||a.status==="en_attente")&&(
-                            <button onClick={()=>setSoldConfirm({id:a.id, label:a.categorie==="vente"?"vendu":"loue", titre:a.titre, categorie:a.categorie})}
-                              style={{padding:"6px 12px",borderRadius:8,border:"1.5px solid #fbbf24",background:"#fffbeb",color:"#92400e",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
-                              {a.categorie==="vente"?"Déjà vendu ?":"Déjà loué ?"}
-                            </button>
-                          )}
-                          {/* Bouton remettre sur la carte — location/vacances déjà loué */}
-                          {a.status==="louee"&&(a.categorie==="location"||a.categorie==="vacances")&&(
-                            <button onClick={()=>setRemettreCarte({id:a.id,titre:a.titre,categorie:a.categorie})}
-                              style={{padding:"6px 12px",borderRadius:8,border:"1.5px solid #6366f1",background:"#eef2ff",color:"#4338ca",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>
-                              Remettre sur la carte
-                            </button>
-                          )}
-                          <button className="db-action db-action--del" style={{alignSelf:"center"}} title="Supprimer" onClick={()=>setDelItem(a)}><Trash2 size={16}/></button>
+                          {/* 4 boutons d'action alignés */}
+                          <div style={{display:"flex",alignItems:"center",gap:6}}>
+                            <button className="db-action db-action--view" title="Prévisualiser" onClick={()=>setPreviewAnnonceId(a.id)}><Eye size={16}/></button>
+                            <Link to={`/modifier_annonce/${a.id}`} className="db-action db-action--edit" title="Modifier"><Edit2 size={16}/></Link>
+                            {a.status==="approuvee"?(
+                              <button onClick={()=>handleRefresh(a.id)} disabled={refreshingId===a.id} className="db-action db-action--refresh" title="Refresh" style={{position:"relative"}}>
+                                <RefreshCw size={15} style={{animation:refreshingId===a.id?"spin 1s linear infinite":"none"}}/>
+                              </button>
+                            ):(
+                              <button className="db-action db-action--refresh" disabled style={{opacity:0.3,cursor:"not-allowed"}} title="Refresh (annonce non publiée)">
+                                <RefreshCw size={15}/>
+                              </button>
+                            )}
+                            <button className="db-action db-action--del" title="Supprimer" onClick={()=>setDelItem(a)}><Trash2 size={16}/></button>
+                          </div>
                         </div>
                         </div>{/* fin wrapper contenu */}
                       </div>
@@ -938,21 +1267,21 @@ export default function Compte() {
                   <p style={{fontSize:13,color:"#94a3b8"}}>Les personnes intéressées par vos annonces anonymes apparaîtront ici.</p>
                 </div>
               ):(
-                <div style={{overflowX:"auto",background:"#fff",borderRadius:14,border:"1px solid #e5e7eb"}}>
-                  <table style={{width:"100%",borderCollapse:"collapse",fontFamily:"'Inter',system-ui,sans-serif",fontSize:13}}>
+                <div className="cpt-contacts-wrap" style={{overflowX:"auto",background:"#fff",borderRadius:14,border:"1px solid #e5e7eb"}}>
+                  <table className="cpt-contacts-tbl" style={{width:"100%",borderCollapse:"collapse",fontFamily:"'Inter',system-ui,sans-serif",fontSize:13}}>
                     <thead><tr style={{borderBottom:"2px solid #e5e7eb",background:"#f8fafc"}}>
                       {["Contact","Annonce","Téléphone","Email","Message","Date","Statut"].map(h=><th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:700,color:"#374151",fontSize:11.5,textTransform:"uppercase",letterSpacing:".05em",whiteSpace:"nowrap"}}>{h}</th>)}
                     </tr></thead>
                     <tbody>
                       {contactRequests.map(req=>(
                         <tr key={req.id} style={{background:req.lu?"#fff":"#f0f9ff",borderBottom:"1px solid #f1f5f9",transition:"background .15s"}}>
-                          <td style={{padding:"12px 14px",verticalAlign:"middle"}}>
+                          <td data-label="Contact" style={{padding:"12px 14px",verticalAlign:"middle"}}>
                             <div style={{display:"flex",alignItems:"center",gap:8}}>
                               <div style={{width:32,height:32,borderRadius:"50%",background:"linear-gradient(135deg,#6366f1,#818cf8)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:800,color:"#fff",flexShrink:0}}>{req.nom[0]?.toUpperCase()}</div>
                               <span style={{fontWeight:600,color:"#0f172a"}}>{req.nom}</span>
                             </div>
                           </td>
-                          <td style={{padding:"12px 14px",verticalAlign:"middle",maxWidth:200}}>
+                          <td data-label="Annonce" style={{padding:"12px 14px",verticalAlign:"middle",maxWidth:200}}>
                             <Link to={`/annonce/${req.annonce_id}`} style={{display:"flex",alignItems:"center",gap:8,textDecoration:"none"}}>
                               <div style={{width:44,height:44,borderRadius:7,overflow:"hidden",background:"#e5e7eb",flexShrink:0,border:"1px solid #e5e7eb"}}>
                                 <img src={`${API_URL}/annonces/${req.annonce_id}/image-principale`} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.target.style.display="none";e.target.parentNode.style.display="flex";e.target.parentNode.style.alignItems="center";e.target.parentNode.style.justifyContent="center";e.target.parentNode.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>';}}/>
@@ -960,16 +1289,16 @@ export default function Compte() {
                               <span style={{color:"#6366f1",fontWeight:600,fontSize:12.5,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",lineHeight:1.35}}>{req.annonce_titre||`Annonce #${req.annonce_id}`}</span>
                             </Link>
                           </td>
-                          <td style={{padding:"12px 14px",verticalAlign:"middle",whiteSpace:"nowrap"}}>
+                          <td data-label="Téléphone" style={{padding:"12px 14px",verticalAlign:"middle",whiteSpace:"nowrap"}}>
                             {req.telephone?<div style={{display:"flex",gap:6}}><a href={`tel:${req.telephone.replace(/\s/g,"")}`} style={{color:"#15803d",fontWeight:600,textDecoration:"none"}}><Phone size={12}/> {req.telephone}</a><a href={`https://wa.me/${req.telephone.replace(/[\s+]/g,"").replace(/^00/,"")}?text=${encodeURIComponent(`Bonjour ${req.nom}, j'ai bien reçu votre demande.`)}`} target="_blank" rel="noopener noreferrer" style={{color:"#15803d",fontWeight:600,textDecoration:"none"}}>WhatsApp</a></div>:<span style={{color:"#cbd5e1"}}>—</span>}
                           </td>
-                          <td style={{padding:"12px 14px",verticalAlign:"middle"}}>{req.email?<a href={`mailto:${req.email}?subject=Réponse demande&body=Bonjour ${req.nom},`} style={{color:"#1d4ed8",fontWeight:600,textDecoration:"none"}}><Mail size={12}/> {req.email}</a>:<span style={{color:"#cbd5e1"}}>—</span>}</td>
-                          <td style={{padding:"12px 14px",verticalAlign:"top",minWidth:280,maxWidth:440,color:"#374151"}}>
+                          <td data-label="Email" style={{padding:"12px 14px",verticalAlign:"middle"}}>{req.email?<a href={`mailto:${req.email}?subject=Réponse demande&body=Bonjour ${req.nom},`} style={{color:"#1d4ed8",fontWeight:600,textDecoration:"none"}}><Mail size={12}/> {req.email}</a>:<span style={{color:"#cbd5e1"}}>—</span>}</td>
+                          <td data-label="Message" style={{padding:"12px 14px",verticalAlign:"top",minWidth:280,maxWidth:440,color:"#374151"}}>
                             <span style={{display:"block",lineHeight:1.6,fontSize:13,whiteSpace:expandedMsg!==req.id&&req.message?.length>120?"nowrap":"normal",overflow:expandedMsg!==req.id&&req.message?.length>120?"hidden":"visible",textOverflow:expandedMsg!==req.id&&req.message?.length>120?"ellipsis":"unset",cursor:req.message?.length>120?"pointer":"default"}} onClick={()=>req.message?.length>120&&setExpandedMsg(expandedMsg===req.id?null:req.id)}>{req.message||<span style={{color:"#cbd5e1"}}>—</span>}</span>
                             {req.message&&req.message.length>120&&<span style={{fontSize:10.5,color:"#6366f1",fontWeight:600,cursor:"pointer",marginTop:2,display:"block"}} onClick={()=>setExpandedMsg(expandedMsg===req.id?null:req.id)}>{expandedMsg===req.id?"▲ Réduire":"▼ Voir tout"}</span>}
                           </td>
-                          <td style={{padding:"12px 14px",verticalAlign:"middle",color:"#94a3b8",whiteSpace:"nowrap",fontSize:12}}>{new Date(req.created_at).toLocaleDateString("fr-TN",{day:"2-digit",month:"short",year:"numeric"})}</td>
-                          <td style={{padding:"12px 14px",verticalAlign:"middle"}}>
+                          <td data-label="Date" style={{padding:"12px 14px",verticalAlign:"middle",color:"#94a3b8",whiteSpace:"nowrap",fontSize:12}}>{new Date(req.created_at).toLocaleDateString("fr-TN",{day:"2-digit",month:"short",year:"numeric"})}</td>
+                          <td data-label="Statut" style={{padding:"12px 14px",verticalAlign:"middle"}}>
                             <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
                               {!req.lu?<button onClick={()=>markAsRead(req.id)} style={{padding:"4px 9px",borderRadius:6,border:"none",background:"#0ea5e9",color:"#fff",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>✓ Marquer lu</button>:<><span style={{fontSize:11,color:"#16a34a",fontWeight:600,padding:"4px 0"}}>✓ Lu</span><button onClick={()=>markAsUnread(req.id)} style={{padding:"3px 8px",borderRadius:6,border:"1px solid #e5e7eb",background:"#f8fafc",color:"#64748b",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>Non lu</button></>}
                             </div>
@@ -1004,8 +1333,8 @@ export default function Compte() {
                   <p style={{fontSize:13,color:"#94a3b8"}}>Cliquez sur "+ Créer une alerte" pour définir vos critères.</p>
                 </div>
               ):(
-                <div style={{overflowX:"auto",background:"#fff",borderRadius:14,border:"1px solid #e5e7eb"}}>
-                  <table style={{width:"100%",minWidth:900,borderCollapse:"collapse",fontFamily:"'Inter',system-ui,sans-serif",fontSize:13}}>
+                <div className="cpt-alerts-wrap" style={{overflowX:"auto",background:"#fff",borderRadius:14,border:"1px solid #e5e7eb"}}>
+                  <table className="cpt-alerts-tbl" style={{width:"100%",minWidth:900,borderCollapse:"collapse",fontFamily:"'Inter',system-ui,sans-serif",fontSize:13}}>
                     <thead><tr style={{borderBottom:"2px solid #e5e7eb",background:"#f8fafc"}}>
                       {["Nom","Critères","Annonces","Accompagnement","Alerte email","Actions"].map(h=><th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:700,color:"#374151",fontSize:11.5,textTransform:"uppercase",letterSpacing:".05em",whiteSpace:"nowrap"}}>{h}</th>)}
                     </tr></thead>
@@ -1013,15 +1342,24 @@ export default function Compte() {
                       {savedSearches.map(s=>{
                         const c=s.criteres||{};
                         const ETAT_FR={nouveau:"Neuf",bon_etat:"Bon état",a_renover:"À rénover",cours_construction:"En construction"};
-                        const FEAT_LABELS={vue_mer:"Vue sur mer",vue_montagne:"Vue sur montagne",vue_foret:"Vue sur forêt",jardin:"Jardin",terrasse:"Terrasse",balcon:"Balcon",piscine:"Piscine",parking:"Parking",ascenseur:"Ascenseur",garage:"Garage",cellier:"Ch. rangement",meuble:"Meublé",concierge:"Concierge",gardien:"Gardien",animaux_admis:"Animaux admis",cuisine_equipee:"Cuisine équipée",climatisation:"Clim.",chauffage_centrale:"Chauffage",cheminee:"Cheminée",double_vitrage:"Double vitrage",porte_blindee:"Porte blindée",securite:"Sécurité",internet:"Internet",tv:"TV",machine_laver:"Machine laver",digicode:"Digicode",interphone:"Interphone"};
-                        const tags=[c.categories?.length>0&&c.categories.map(v=>CAT_FR2[v]||v).join(" / "),c.type&&(TYPE_FR[c.type]||c.type.replace(/_/g," ")),c.locNom||c.delNom||c.govNom,c.prixMin&&`≥ ${Number(c.prixMin).toLocaleString("fr-TN")} DT`,c.prixMax&&`≤ ${Number(c.prixMax).toLocaleString("fr-TN")} DT`,c.superficieMin&&c.superficieMax?`${c.superficieMin}–${c.superficieMax} m²`:c.superficieMin?`≥ ${c.superficieMin} m²`:c.superficieMax?`≤ ${c.superficieMax} m²`:null,c.bedsMin&&`${c.bedsMin}+ pièces`,c.chambresMin&&`${c.chambresMin}+ ch.`,c.etat&&(ETAT_FR[c.etat]||c.etat.replace(/_/g," ")),...(c.features?.length>0?c.features.map(k=>FEAT_LABELS[k]||k):[])].filter(Boolean);
+                        const FEAT_LABELS={vue_mer:"Vue sur mer",vue_montagne:"Vue sur montagne",vue_foret:"Vue sur forêt",jardin:"Jardin",terrasse:"Terrasse",balcon:"Balcon",piscine:"Piscine",parking:"Parking",ascenseur:"Ascenseur",garage:"Garage",cellier:"Cellier",meuble:"Meublé",concierge:"Concierge",gardien:"Gardien",animaux_admis:"Animaux admis",cuisine_equipee:"Cuisine équipée",climatisation:"Clim.",chauffage_centrale:"Chauffage",cheminee:"Cheminée",double_vitrage:"Double vitrage",porte_blindee:"Porte blindée",securite:"Sécurité",internet:"Internet",tv:"TV",machine_laver:"Machine laver",digicode:"Digicode",interphone:"Interphone"};
+                        const tags=[c.categories?.length>0&&c.categories.map(v=>CAT_FR2[v]||v).join(" / "),c.type&&(TYPE_FR[c.type]||c.type.replace(/_/g," ")),c.govNom,c.delNom,c.locNom,c.prixMin&&`≥ ${Number(c.prixMin).toLocaleString("fr-TN")} DT`,c.prixMax&&`≤ ${Number(c.prixMax).toLocaleString("fr-TN")} DT`,c.superficieMin&&c.superficieMax?`${c.superficieMin}–${c.superficieMax} m²`:c.superficieMin?`≥ ${c.superficieMin} m²`:c.superficieMax?`≤ ${c.superficieMax} m²`:null,c.bedsMin&&`${c.bedsMin}+ pièces`,c.chambresMin&&`${c.chambresMin}+ ch.`,c.etat&&(ETAT_FR[c.etat]||c.etat.replace(/_/g," ")),...(c.features?.length>0?c.features.map(k=>FEAT_LABELS[k]||k):[])].filter(Boolean);
                         const count=alerteMatchCounts[s.id];
                         return(
                           <tr key={s.id} style={{borderBottom:"1px solid #f1f5f9",transition:"background .12s"}} onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"} onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
-                            <td style={{padding:"14px 14px",verticalAlign:"middle",minWidth:140}}><div style={{fontWeight:700,color:"#0f172a",fontSize:15}}>{s.nom||"Ma recherche"}</div><div style={{fontSize:12.5,color:"#94a3b8",marginTop:3}}>{new Date(s.created_at).toLocaleDateString("fr-TN",{day:"2-digit",month:"short",year:"numeric"})}</div></td>
-                            <td style={{padding:"14px 14px",verticalAlign:"middle",maxWidth:440}}><div style={{display:"flex",flexWrap:"wrap",gap:5}}>{tags.length>0?tags.map((t,i)=><span key={i} style={{background:"#eef2ff",color:"#4f46e5",fontSize:12.5,fontWeight:600,padding:"3px 10px",borderRadius:12}}>{t}</span>):<span style={{color:"#94a3b8",fontSize:13}}>Tous les biens</span>}</div></td>
-                            <td style={{padding:"14px 14px",verticalAlign:"middle",whiteSpace:"nowrap"}}><div style={{display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:20,fontWeight:800,color:count>0?"#6366f1":"#94a3b8"}}>{count!=null?count:"…"}</span><Link to={buildCarteUrl(c)} style={{display:"inline-flex",alignItems:"center",gap:5,padding:"5px 12px",borderRadius:8,background:"#eef2ff",color:"#4f46e5",fontSize:12,fontWeight:700,textDecoration:"none"}}><Search size={11}/> Consulter</Link></div></td>
-                            <td style={{padding:"14px 14px",verticalAlign:"middle",minWidth:200}}>
+                            <td data-label="Nom" style={{padding:"14px 14px",verticalAlign:"middle",minWidth:140}}><div style={{fontWeight:700,color:"#0f172a",fontSize:15}}>{s.nom||"Ma recherche"}</div><div style={{fontSize:12.5,color:"#94a3b8",marginTop:3}}>{new Date(s.created_at).toLocaleDateString("fr-TN",{day:"2-digit",month:"short",year:"numeric"})}</div></td>
+                            <td data-label="Critères" style={{padding:"14px 14px",verticalAlign:"middle",maxWidth:440}}>
+                              {tags.length>0?(
+                                <>
+                                  <div className={`cpt-alert-tags${expandedAlertCrit[s.id]?"":" cpt-alert-tags--clamp"}`} style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                                    {tags.map((t,i)=><span key={i} style={{background:"#eef2ff",color:"#4f46e5",fontSize:12.5,fontWeight:600,padding:"3px 10px",borderRadius:12}}>{t}</span>)}
+                                  </div>
+                                  {tags.length>3&&<button onClick={()=>setExpandedAlertCrit(p=>({...p,[s.id]:!p[s.id]}))} style={{fontSize:10.5,color:"#6366f1",fontWeight:600,cursor:"pointer",background:"none",border:"none",padding:"3px 0",fontFamily:"inherit",marginTop:3}}>{expandedAlertCrit[s.id]?"▲ Voir moins":"▼ Voir plus"}</button>}
+                                </>
+                              ):<span style={{color:"#94a3b8",fontSize:13}}>Tous les biens</span>}
+                            </td>
+                            <td data-label="Annonces" style={{padding:"14px 14px",verticalAlign:"middle",whiteSpace:"nowrap"}}><div style={{display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:20,fontWeight:800,color:count>0?"#6366f1":"#94a3b8"}}>{count!=null?count:"…"}</span><Link to={buildCarteUrl(c)} style={{display:"inline-flex",alignItems:"center",gap:5,padding:"5px 12px",borderRadius:8,background:"#eef2ff",color:"#4f46e5",fontSize:12,fontWeight:700,textDecoration:"none"}}><Search size={11}/> Consulter</Link></div></td>
+                            <td data-label="Accompagnement" style={{padding:"14px 14px",verticalAlign:"middle",minWidth:200}}>
                               <div style={{display:"flex",flexDirection:"column",gap:7}}>
                                 <div style={{display:"flex",alignItems:"center",gap:8}}>
                                   <label style={{position:"relative",display:"inline-block",width:40,height:22,cursor:"pointer",flexShrink:0}}><input type="checkbox" checked={!!alerteAccom[s.id]} onChange={()=>toggleAlerteAccom(s.id)} style={{opacity:0,width:0,height:0}}/><span style={{position:"absolute",inset:0,background:alerteAccom[s.id]?"#6366f1":"#e5e7eb",borderRadius:20,transition:".2s"}}/><span style={{position:"absolute",width:16,height:16,background:"#fff",borderRadius:"50%",top:3,left:alerteAccom[s.id]?21:3,transition:".2s"}}/></label>
@@ -1030,16 +1368,16 @@ export default function Compte() {
                                 {alerteAccom[s.id]&&<select value={alerteAgence[s.id]||""} onChange={e=>setAlerteAgenceVal(s.id,e.target.value)} onClick={e=>e.stopPropagation()} style={{fontSize:12,padding:"5px 8px",borderRadius:7,border:"1px solid #c7d2fe",background:"#f5f3ff",color:"#4338ca",fontFamily:"inherit",outline:"none",width:"100%"}}><option value="">— Choisir un agent —</option>{agencesList.map(ag=><option key={ag.id} value={ag.id}>{ag.nom||ag.email}</option>)}</select>}
                               </div>
                             </td>
-                            <td style={{padding:"14px 14px",verticalAlign:"middle"}}>
+                            <td data-label="Alerte email" style={{padding:"14px 14px",verticalAlign:"middle"}}>
                               <div style={{display:"flex",alignItems:"center",gap:8}}>
                                 <label style={{position:"relative",display:"inline-block",width:40,height:22,cursor:"pointer"}}><input type="checkbox" checked={!!s.email_alert} onChange={()=>toggleAlerteEmail(s.id)} style={{opacity:0,width:0,height:0}}/><span style={{position:"absolute",inset:0,background:s.email_alert?"#6366f1":"#e5e7eb",borderRadius:20,transition:".2s"}}/><span style={{position:"absolute",width:16,height:16,background:"#fff",borderRadius:"50%",top:3,left:s.email_alert?21:3,transition:".2s"}}/></label>
                                 <span style={{fontSize:13,color:s.email_alert?"#6366f1":"#94a3b8",fontWeight:600}}>{s.email_alert?"Activée":"Désactivée"}</span>
                               </div>
                             </td>
-                            <td style={{padding:"14px 14px",verticalAlign:"middle",whiteSpace:"nowrap"}}>
-                              <div style={{display:"flex",gap:8}}>
-                                <button onClick={()=>{setAlerteForm({...EMPTY_FORM,...(s.criteres||{}),nom:s.nom,email_alert:s.email_alert});setAlerteModal(s);}} style={{padding:"6px 12px",borderRadius:8,border:"1.5px solid #e2e8f0",background:"#fff",color:"#374151",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Modifier</button>
-                                <button onClick={()=>deleteAlert(s.id)} style={{padding:"6px 12px",borderRadius:8,border:"1.5px solid #fee2e2",background:"#fff",color:"#ef4444",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Supprimer</button>
+                            <td data-label="Actions" style={{padding:"14px 14px",verticalAlign:"middle",whiteSpace:"nowrap"}}>
+                              <div className="cpt-alert-actions" style={{display:"flex",gap:8}}>
+                                <button className="cpt-alert-btn-edit" onClick={()=>{setAlerteForm({...EMPTY_FORM,...(s.criteres||{}),nom:s.nom,email_alert:s.email_alert});setAlerteModal(s);}} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",borderRadius:8,border:"1.5px solid #e2e8f0",background:"#fff",color:"#374151",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}><Edit2 size={14}/><span className="cpt-alert-btn-label">Modifier</span></button>
+                                <button className="cpt-alert-btn-del" onClick={()=>deleteAlert(s.id)} style={{display:"flex",alignItems:"center",gap:5,padding:"6px 12px",borderRadius:8,border:"1.5px solid #fee2e2",background:"#fff",color:"#ef4444",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}><Trash2 size={14}/><span className="cpt-alert-btn-label">Supprimer</span></button>
                               </div>
                             </td>
                           </tr>
@@ -1122,7 +1460,7 @@ export default function Compte() {
                     <h2 style={{...cardTitle,display:"flex",alignItems:"center",gap:8}}><Users size={17} style={{color:"#6366f1"}}/>Agents de l'agence</h2>
                     <p style={{fontSize:12,color:"#94a3b8",marginTop:3}}>{agents.length} agent{agents.length!==1?"s":""} rattaché{agents.length!==1?"s":""}</p>
                   </div>
-                  <button onClick={()=>{ setAgentForm({username:"",email:"",nom:"",prenom:"",password:genAgentPwd()}); setAgentFormErr(""); setShowAgentModal(true); }} style={{display:"flex",alignItems:"center",gap:6,padding:"9px 18px",borderRadius:10,background:"#6366f1",color:"#fff",fontSize:13,fontWeight:700,border:"none",cursor:"pointer",fontFamily:"inherit"}}>
+                  <button onClick={()=>{ setAgentForm({username:"",email:"",nom:"",prenom:"",password:genAgentPwd()}); setAgentFormErr(""); setAgentViewMode(false); setShowAgentModal(true); }} style={{display:"flex",alignItems:"center",gap:6,padding:"9px 18px",borderRadius:10,background:"#6366f1",color:"#fff",fontSize:13,fontWeight:700,border:"none",cursor:"pointer",fontFamily:"inherit"}}>
                     <Plus size={15}/> Créer un compte agent
                   </button>
                 </div>
@@ -1170,11 +1508,31 @@ export default function Compte() {
                               }
                             </td>
                             <td style={{padding:"14px 16px",verticalAlign:"middle"}}>
-                              <button onClick={()=>handleDeleteAgent(a.id,a.username)} disabled={deletingAgent===a.id} style={{width:30,height:30,borderRadius:8,border:"1.5px solid #e5e7eb",background:"#f8fafc",color:"#94a3b8",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"all .15s"}}
-                                onMouseOver={e=>{e.currentTarget.style.background="#fee2e2";e.currentTarget.style.borderColor="#fca5a5";e.currentTarget.style.color="#ef4444";}}
-                                onMouseOut={e=>{e.currentTarget.style.background="#f8fafc";e.currentTarget.style.borderColor="#e5e7eb";e.currentTarget.style.color="#94a3b8";}}>
-                                {deletingAgent===a.id?<span style={{width:14,height:14,border:"2px solid transparent",borderTopColor:"#ef4444",borderRadius:"50%",display:"inline-block",animation:"cpt-spin .7s linear infinite"}}/>:<Trash2 size={14}/>}
-                              </button>
+                              <div style={{display:"flex",gap:6}}>
+                                <button onClick={()=>{
+                                  const storedPwds = (() => { try { return JSON.parse(localStorage.getItem("localizi_agent_pwds")||"{}"); } catch { return {}; } })();
+                                  setAgentForm({ username: a.username||"", email: a.email||"", nom: a.nom||"", prenom: a.prenom||"", password: storedPwds[a.username]||"" });
+                                  setAgentBeingEdited(a.id); setAgentEditMode(false); setAgentFormErr(""); setAgentViewMode(true); setShowAgentModal(true);
+                                }} style={{width:30,height:30,borderRadius:8,border:"1.5px solid #e5e7eb",background:"#f8fafc",color:"#94a3b8",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"all .15s"}}
+                                  onMouseOver={e=>{e.currentTarget.style.background="#e0e7ff";e.currentTarget.style.borderColor="#a5b4fc";e.currentTarget.style.color="#6366f1";}}
+                                  onMouseOut={e=>{e.currentTarget.style.background="#f8fafc";e.currentTarget.style.borderColor="#e5e7eb";e.currentTarget.style.color="#94a3b8";}}>
+                                  <Eye size={14}/>
+                                </button>
+                                <button onClick={()=>{
+                                  const storedPwds = (() => { try { return JSON.parse(localStorage.getItem("localizi_agent_pwds")||"{}"); } catch { return {}; } })();
+                                  setAgentForm({ username: a.username||"", email: a.email||"", nom: a.nom||"", prenom: a.prenom||"", password: storedPwds[a.username]||"" });
+                                  setAgentBeingEdited(a.id); setAgentEditMode(true); setAgentFormErr(""); setAgentViewMode(true); setShowAgentModal(true);
+                                }} style={{width:30,height:30,borderRadius:8,border:"1.5px solid #e5e7eb",background:"#f8fafc",color:"#94a3b8",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"all .15s"}}
+                                  onMouseOver={e=>{e.currentTarget.style.background="#fffbeb";e.currentTarget.style.borderColor="#fde68a";e.currentTarget.style.color="#f59e0b";}}
+                                  onMouseOut={e=>{e.currentTarget.style.background="#f8fafc";e.currentTarget.style.borderColor="#e5e7eb";e.currentTarget.style.color="#94a3b8";}}>
+                                  <Pencil size={14}/>
+                                </button>
+                                <button onClick={()=>handleDeleteAgent(a.id,a.username)} disabled={deletingAgent===a.id} style={{width:30,height:30,borderRadius:8,border:"1.5px solid #e5e7eb",background:"#f8fafc",color:"#94a3b8",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",transition:"all .15s"}}
+                                  onMouseOver={e=>{e.currentTarget.style.background="#fee2e2";e.currentTarget.style.borderColor="#fca5a5";e.currentTarget.style.color="#ef4444";}}
+                                  onMouseOut={e=>{e.currentTarget.style.background="#f8fafc";e.currentTarget.style.borderColor="#e5e7eb";e.currentTarget.style.color="#94a3b8";}}>
+                                  {deletingAgent===a.id?<span style={{width:14,height:14,border:"2px solid transparent",borderTopColor:"#ef4444",borderRadius:"50%",display:"inline-block",animation:"cpt-spin .7s linear infinite"}}/>:<Trash2 size={14}/>}
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -1185,66 +1543,15 @@ export default function Compte() {
               </div>
 
               {/* Modal création agent */}
-              {showAgentModal&&(
-                <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9000,padding:16}} onClick={e=>{if(e.target===e.currentTarget)setShowAgentModal(false);}}>
-                  <div style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:520,boxShadow:"0 24px 64px rgba(0,0,0,.22)",overflow:"hidden"}}>
-                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"20px 24px",borderBottom:"1px solid #f1f5f9"}}>
-                      <h3 style={{fontSize:16,fontWeight:800,color:"#0f172a",margin:0,display:"flex",alignItems:"center",gap:8}}><Plus size={16} style={{color:"#6366f1"}}/>Créer un compte agent</h3>
-                      <button onClick={()=>setShowAgentModal(false)} style={{width:32,height:32,borderRadius:8,border:"none",background:"#f1f5f9",color:"#64748b",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><X size={16}/></button>
-                    </div>
-                    <form onSubmit={handleCreateAgent}>
-                      <div style={{padding:"20px 24px",display:"flex",flexDirection:"column",gap:14}}>
-                        <div style={{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:9,padding:"10px 13px",fontSize:12,color:"#1e40af",display:"flex",alignItems:"flex-start",gap:8}}>
-                          <Building2 size={14} style={{flexShrink:0,marginTop:1}}/><span>Cet agent fera partie de <strong>{storedUser?.username}</strong>. Il pourra changer son mot de passe à sa première connexion.</span>
-                        </div>
-                        <p style={{fontSize:11,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:".06em",margin:"4px 0 -4px"}}>Identité (optionnel)</p>
-                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-                          <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                            <label style={{fontSize:11.5,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:".04em"}}>Prénom</label>
-                            <input value={agentForm.prenom} onChange={e=>setAgentForm(p=>({...p,prenom:e.target.value}))} placeholder="Prénom" style={{padding:"10px 13px",border:"1.5px solid #e2e8f0",borderRadius:9,fontSize:13.5,fontFamily:"inherit",color:"#0f172a",outline:"none"}}/>
-                          </div>
-                          <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                            <label style={{fontSize:11.5,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:".04em"}}>Nom</label>
-                            <input value={agentForm.nom} onChange={e=>setAgentForm(p=>({...p,nom:e.target.value}))} placeholder="Nom de famille" style={{padding:"10px 13px",border:"1.5px solid #e2e8f0",borderRadius:9,fontSize:13.5,fontFamily:"inherit",color:"#0f172a",outline:"none"}}/>
-                          </div>
-                        </div>
-                        <p style={{fontSize:11,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:".06em",margin:"4px 0 -4px"}}>Identifiants de connexion *</p>
-                        <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                          <label style={{fontSize:11.5,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:".04em"}}>Nom d'utilisateur</label>
-                          <input value={agentForm.username} onChange={e=>setAgentForm(p=>({...p,username:e.target.value}))} placeholder="ex : agent.dupont" required style={{padding:"10px 13px",border:"1.5px solid #e2e8f0",borderRadius:9,fontSize:13.5,fontFamily:"inherit",color:"#0f172a",outline:"none"}}/>
-                        </div>
-                        <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                          <label style={{fontSize:11.5,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:".04em"}}>Email</label>
-                          <input type="email" value={agentForm.email} onChange={e=>setAgentForm(p=>({...p,email:e.target.value}))} placeholder="agent@exemple.com" required style={{padding:"10px 13px",border:"1.5px solid #e2e8f0",borderRadius:9,fontSize:13.5,fontFamily:"inherit",color:"#0f172a",outline:"none"}}/>
-                        </div>
-                        <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                          <label style={{fontSize:11.5,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:".04em"}}>Agence (rattachement)</label>
-                          <input value={storedUser?.username||""} readOnly style={{padding:"10px 13px",border:"1.5px solid #e2e8f0",borderRadius:9,fontSize:13.5,fontFamily:"inherit",color:"#94a3b8",background:"#f8fafc",outline:"none"}}/>
-                        </div>
-                        <p style={{fontSize:11,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:".06em",margin:"4px 0 -4px"}}>Mot de passe provisoire</p>
-                        <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                          <label style={{fontSize:11.5,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:".04em"}}>Mot de passe à communiquer</label>
-                          <div style={{display:"flex",gap:8}}>
-                            <input type={showAgentPwd?"text":"password"} value={agentForm.password} onChange={e=>setAgentForm(p=>({...p,password:e.target.value}))} style={{flex:1,minWidth:0,padding:"10px 13px",border:"1.5px solid #e2e8f0",borderRadius:9,fontSize:13.5,fontFamily:"inherit",color:"#0f172a",outline:"none"}}/>
-                            <button type="button" onClick={()=>setShowAgentPwd(v=>!v)} style={{width:40,height:40,border:"1.5px solid #e2e8f0",borderRadius:9,background:"#f8fafc",color:"#64748b",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}>{showAgentPwd?<EyeOff size={15}/>:<Eye size={15}/>}</button>
-                            <button type="button" onClick={()=>{navigator.clipboard.writeText(agentForm.password).then(()=>{setAgentPwdCopied(true);setTimeout(()=>setAgentPwdCopied(false),1800);});}} style={{width:40,height:40,border:"1.5px solid #e2e8f0",borderRadius:9,background:"#f8fafc",color:"#64748b",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}>{agentPwdCopied?<CheckCircle size={15} style={{color:"#16a34a"}}/>:<Copy size={15}/>}</button>
-                            <button type="button" onClick={()=>setAgentForm(p=>({...p,password:genAgentPwd()}))} style={{width:40,height:40,border:"1.5px solid #e2e8f0",borderRadius:9,background:"#f8fafc",color:"#64748b",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}><RefreshCw size={15}/></button>
-                          </div>
-                          <p style={{fontSize:11,color:"#94a3b8",marginTop:2}}>L'agent devra changer ce mot de passe à sa première connexion.</p>
-                        </div>
-                        {agentFormErr&&<p style={{color:"#ef4444",fontSize:12.5,fontWeight:600,margin:0}}>{agentFormErr}</p>}
-                      </div>
-                      <div style={{padding:"16px 24px",borderTop:"1px solid #f1f5f9",display:"flex",gap:10,justifyContent:"flex-end"}}>
-                        <button type="button" onClick={()=>setShowAgentModal(false)} style={{padding:"9px 18px",borderRadius:10,border:"1.5px solid #e5e7eb",background:"#fff",color:"#475569",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Annuler</button>
-                        <button type="submit" disabled={agentSaving} style={{padding:"9px 22px",borderRadius:10,border:"none",background:"#6366f1",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:6}}>
-                          {agentSaving?<><span style={{width:13,height:13,border:"2px solid rgba(255,255,255,.3)",borderTopColor:"#fff",borderRadius:"50%",display:"inline-block",animation:"cpt-spin .7s linear infinite"}}/>Création…</>:<><Plus size={13}/>Créer l'agent</>}
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              )}
             </div>
+          )}
+
+          {tab==="onboarding_agence" && storedUser?.role==="agence" && (
+            <AgenceOnboarding embedded onProgressChange={_refreshOnb} />
+          )}
+
+          {tab==="onboarding_promoteur" && storedUser?.role==="promoteur" && (
+            <PromoteurOnboarding embedded onProgressChange={_refreshOnb} />
           )}
 
         </main>
@@ -1259,6 +1566,11 @@ export default function Compte() {
             <div className="db-modal__foot"><button className="db-modal__cancel" onClick={()=>setDelItem(null)}>Annuler</button><button className="db-modal__del" onClick={()=>handleDelete(delItem.id)}><Trash2 size={15}/> Supprimer</button></div>
           </div>
         </div>
+      )}
+
+      {/* ── Popup prévisualisation annonce ── */}
+      {previewAnnonceId && (
+        <AnnonceDetailModal annonceId={previewAnnonceId} onClose={() => setPreviewAnnonceId(null)} />
       )}
 
       {/* ── Popup : marquer vendu / loué ── */}
@@ -1295,6 +1607,101 @@ export default function Compte() {
         </div>
       )}
 
+      {/* ── Modal : créer / voir / modifier un agent ── */}
+      {showAgentModal&&(()=>{
+        const isReadOnly = agentViewMode && !agentEditMode;
+        const inputBg = isReadOnly ? "#f8fafc" : "#fff";
+        const inputStyle = {padding:"10px 13px",border:"1.5px solid #e2e8f0",borderRadius:9,fontSize:13.5,fontFamily:"inherit",color:"#0f172a",outline:"none",background:inputBg};
+        return (
+          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9000,padding:16}}>
+            <div style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:520,boxShadow:"0 24px 64px rgba(0,0,0,.22)",overflow:"hidden"}} onClick={e=>e.stopPropagation()}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"20px 24px",borderBottom:"1px solid #f1f5f9"}}>
+                <h3 style={{fontSize:16,fontWeight:800,color:"#0f172a",margin:0,display:"flex",alignItems:"center",gap:8}}>
+                  {agentViewMode
+                    ? (agentEditMode ? <><Pencil size={16} style={{color:"#f59e0b"}}/>Modifier l'agent</> : <><Eye size={16} style={{color:"#6366f1"}}/>Fiche agent</>)
+                    : <><Plus size={16} style={{color:"#6366f1"}}/>Créer un compte agent</>}
+                </h3>
+                <button onClick={()=>setShowAgentModal(false)} style={{width:32,height:32,borderRadius:8,border:"none",background:"#f1f5f9",color:"#64748b",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}><X size={16}/></button>
+              </div>
+              <form onSubmit={agentEditMode ? handleUpdateAgent : handleCreateAgent}>
+                <div style={{padding:"20px 24px",display:"flex",flexDirection:"column",gap:14}}>
+                  {/* Bannière contextuelle */}
+                  {!agentViewMode
+                    ? <div style={{background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:9,padding:"10px 13px",fontSize:12,color:"#1e40af",display:"flex",alignItems:"flex-start",gap:8}}>
+                        <Building2 size={14} style={{flexShrink:0,marginTop:1}}/><span>Cet agent fera partie de <strong>{storedUser?.username}</strong>. Il pourra changer son mot de passe à sa première connexion.</span>
+                      </div>
+                    : agentEditMode
+                      ? <div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:9,padding:"10px 13px",fontSize:12,color:"#92400e",display:"flex",alignItems:"flex-start",gap:8}}>
+                          <Pencil size={14} style={{flexShrink:0,marginTop:1}}/><span>Mode modification — mettez à jour les informations de <strong>@{agentForm.username}</strong>.</span>
+                        </div>
+                      : <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:9,padding:"10px 13px",fontSize:12,color:"#166534",display:"flex",alignItems:"flex-start",gap:8}}>
+                          <Eye size={14} style={{flexShrink:0,marginTop:1}}/><span>Mode visualisation — informations de l'agent <strong>@{agentForm.username}</strong>.</span>
+                        </div>
+                  }
+                  <p style={{fontSize:11,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:".06em",margin:"4px 0 -4px"}}>Identité (optionnel)</p>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                    <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                      <label style={{fontSize:11.5,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:".04em"}}>Prénom</label>
+                      <input value={agentForm.prenom} onChange={e=>setAgentForm(p=>({...p,prenom:e.target.value}))} readOnly={isReadOnly} placeholder="Prénom" style={inputStyle}/>
+                    </div>
+                    <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                      <label style={{fontSize:11.5,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:".04em"}}>Nom</label>
+                      <input value={agentForm.nom} onChange={e=>setAgentForm(p=>({...p,nom:e.target.value}))} readOnly={isReadOnly} placeholder="Nom de famille" style={inputStyle}/>
+                    </div>
+                  </div>
+                  <p style={{fontSize:11,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:".06em",margin:"4px 0 -4px"}}>Identifiants de connexion *</p>
+                  <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                    <label style={{fontSize:11.5,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:".04em"}}>Nom d'utilisateur</label>
+                    <input value={agentForm.username} readOnly placeholder="ex : agent.dupont" style={{...inputStyle,background:"#f8fafc",color:agentViewMode?"#64748b":"#0f172a"}}/>
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                    <label style={{fontSize:11.5,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:".04em"}}>Email</label>
+                    <input value={agentForm.email} onChange={e=>setAgentForm(p=>({...p,email:e.target.value}))} readOnly={isReadOnly} placeholder="agent@exemple.com" style={inputStyle}/>
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                    <label style={{fontSize:11.5,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:".04em"}}>Agence (rattachement)</label>
+                    <input value={storedUser?.username||""} readOnly style={{...inputStyle,background:"#f8fafc",color:"#94a3b8"}}/>
+                  </div>
+                  <p style={{fontSize:11,fontWeight:700,color:"#94a3b8",textTransform:"uppercase",letterSpacing:".06em",margin:"4px 0 -4px"}}>Mot de passe provisoire</p>
+                  <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                    <label style={{fontSize:11.5,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:".04em"}}>Mot de passe à communiquer</label>
+                    <div style={{display:"flex",gap:8}}>
+                      <input type={showAgentPwd?"text":"password"} value={agentForm.password}
+                        onChange={e=>!agentViewMode&&setAgentForm(p=>({...p,password:e.target.value}))} readOnly={agentViewMode}
+                        style={{flex:1,minWidth:0,...inputStyle,color:agentViewMode?"#6366f1":"#0f172a",fontWeight:agentViewMode?700:400,background:agentViewMode?"#f8fafc":"#fff"}}/>
+                      <button type="button" onClick={()=>setShowAgentPwd(v=>!v)} style={{width:40,height:40,border:"1.5px solid #e2e8f0",borderRadius:9,background:"#f8fafc",color:"#64748b",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}>{showAgentPwd?<EyeOff size={15}/>:<Eye size={15}/>}</button>
+                      <button type="button" onClick={()=>{navigator.clipboard.writeText(agentForm.password).then(()=>{setAgentPwdCopied(true);setTimeout(()=>setAgentPwdCopied(false),1800);});}} style={{width:40,height:40,border:"1.5px solid #e2e8f0",borderRadius:9,background:"#f8fafc",color:"#64748b",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}>{agentPwdCopied?<CheckCircle size={15} style={{color:"#16a34a"}}/>:<Copy size={15}/>}</button>
+                      {!agentViewMode&&<button type="button" onClick={()=>setAgentForm(p=>({...p,password:genAgentPwd()}))} style={{width:40,height:40,border:"1.5px solid #e2e8f0",borderRadius:9,background:"#f8fafc",color:"#64748b",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}><RefreshCw size={15}/></button>}
+                    </div>
+                    {agentViewMode && !agentForm.password && <p style={{fontSize:11,color:"#f59e0b",marginTop:2,fontWeight:600}}>⚠ Mot de passe non disponible — l'agent l'a peut-être déjà modifié.</p>}
+                    {!agentViewMode && <p style={{fontSize:11,color:"#94a3b8",marginTop:2}}>L'agent devra changer ce mot de passe à sa première connexion.</p>}
+                  </div>
+                  {agentFormErr&&<p style={{color:"#ef4444",fontSize:12.5,fontWeight:600,margin:0}}>{agentFormErr}</p>}
+                </div>
+                <div style={{padding:"16px 24px",borderTop:"1px solid #f1f5f9",display:"flex",gap:10,justifyContent:"flex-end"}}>
+                  {!agentViewMode && <>
+                    <button type="button" onClick={()=>setShowAgentModal(false)} style={{padding:"9px 18px",borderRadius:10,border:"1.5px solid #e5e7eb",background:"#fff",color:"#475569",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Annuler</button>
+                    <button type="submit" disabled={agentSaving} style={{padding:"9px 22px",borderRadius:10,border:"none",background:"#6366f1",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:6}}>
+                      {agentSaving?<><span style={{width:13,height:13,border:"2px solid rgba(255,255,255,.3)",borderTopColor:"#fff",borderRadius:"50%",display:"inline-block",animation:"cpt-spin .7s linear infinite"}}/>Création…</>:<><Plus size={13}/>Créer l'agent</>}
+                    </button>
+                  </>}
+                  {agentViewMode && !agentEditMode && <>
+                    <button type="button" onClick={()=>setShowAgentModal(false)} style={{padding:"9px 18px",borderRadius:10,border:"1.5px solid #e5e7eb",background:"#fff",color:"#475569",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Fermer</button>
+                    <button type="button" onClick={()=>{setAgentEditMode(true);setAgentFormErr("");}} style={{padding:"9px 22px",borderRadius:10,border:"none",background:"#f59e0b",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:6}}><Pencil size={13}/>Modifier</button>
+                  </>}
+                  {agentViewMode && agentEditMode && <>
+                    <button type="button" onClick={()=>{setAgentEditMode(false);setAgentFormErr("");}} style={{padding:"9px 18px",borderRadius:10,border:"1.5px solid #e5e7eb",background:"#fff",color:"#475569",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>Annuler</button>
+                    <button type="submit" disabled={agentSaving} style={{padding:"9px 22px",borderRadius:10,border:"none",background:"#6366f1",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:6}}>
+                      {agentSaving?<><span style={{width:13,height:13,border:"2px solid rgba(255,255,255,.3)",borderTopColor:"#fff",borderRadius:"50%",display:"inline-block",animation:"cpt-spin .7s linear infinite"}}/>Sauvegarde…</>:<><CheckCircle size={13}/>Sauvegarder</>}
+                    </button>
+                  </>}
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ── Popup : remettre sur la carte ── */}
       {remettreCarte&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={()=>setRemettreCarte(null)}>
@@ -1312,7 +1719,7 @@ export default function Compte() {
             </h3>
             <p style={{fontSize:14,color:"#64748b",textAlign:"center",marginBottom:28,lineHeight:1.6}}>
               <strong style={{color:"#0f172a"}}>"{remettreCarte.titre}"</strong><br/>
-              Souhaitez-vous modifier l'annonce avant de la republier, ou la remettre directement en ligne ?
+              Souhaitez-vous modifier l'annonce avant de la soumettre à nouveau, ou la soumettre directement pour approbation ?
             </p>
             <div style={{display:"flex",gap:10,justifyContent:"center"}}>
               <button onClick={()=>{setRemettreCarte(null); window.location.href=`/modifier_annonce/${remettreCarte.id}`;}}
@@ -1327,7 +1734,7 @@ export default function Compte() {
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <polygon points="3 11 22 2 13 21 11 13 3 11"/>
                 </svg>
-                Mettre sur la carte
+                Soumettre
               </button>
             </div>
           </div>
@@ -1405,6 +1812,343 @@ export default function Compte() {
 
         /* Favoris fav-card grid */
         .fav-grid-compte { display:grid; grid-template-columns:repeat(5,1fr); gap:18px; }
+
+        /* ── MOBILE ONLY (max-width 860px) ── */
+        @media (max-width: 860px) {
+          /* Cache la sidebar */
+          .cpt-aside { display: none !important; }
+          /* Grid → 1 colonne pleine */
+          .cpt-grid { grid-template-columns: 1fr !important; padding: 14px 12px 40px !important; gap: 16px !important; }
+
+          /* Mon profil : colonnes empilées verticalement */
+          .cpt-profil-layout { flex-direction: column !important; }
+          .cpt-profil-left, .cpt-profil-right { flex: none !important; width: 100% !important; }
+
+          /* Stats : 2 par ligne */
+          .db-stats { grid-template-columns: 1fr 1fr !important; gap: 10px !important; margin-bottom: 14px !important; }
+          .db-stat { padding: 12px 12px !important; }
+          .db-stat__val { font-size: 18px !important; }
+          .db-header__title { font-size: 17px !important; }
+
+          /* ── Toolbar filtres : grille 2 colonnes ── */
+          .db-toolbar {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 6px !important;
+            align-items: stretch !important;
+            margin-bottom: 14px !important;
+          }
+          /* Barre de recherche : pleine largeur */
+          .db-search { grid-column: 1 / -1 !important; flex: none !important; width: auto !important; }
+          /* Type + Status : chacun sur 1 colonne → même ligne */
+          .db-toolbar__type { grid-column: 1 !important; }
+          .db-toolbar__status { grid-column: 2 !important; }
+          /* Date filter : pleine largeur */
+          .db-toolbar__date { grid-column: 1 / -1 !important; }
+          /* Dates début + fin : même ligne */
+          .db-toolbar__dstart { grid-column: 1 !important; }
+          .db-toolbar__dend { grid-column: 2 !important; }
+          /* Compteur : pleine largeur */
+          .db-toolbar__count { grid-column: 1 / -1 !important; text-align: center !important; }
+          /* Styles communs des selects/inputs du toolbar */
+          .db-toolbar__type, .db-toolbar__status, .db-toolbar__date,
+          .db-toolbar__dstart, .db-toolbar__dend {
+            width: 100% !important; box-sizing: border-box !important; font-size: 12px !important;
+          }
+
+          /* ── Annonces : grille 4-quadrants ── */
+          .cpt-ann-grid { grid-template-columns: 1fr !important; }
+
+          /* Carte en grille 2 colonnes 40/60 (image+actions | contenu) */
+          .db-card {
+            display: grid !important;
+            grid-template-columns: 40% 60% !important;
+            grid-template-rows: auto auto !important;
+            align-items: start !important;
+            padding: 0 !important;
+          }
+
+          /* Image : haut-gauche, dimensions fixes peu importe le contenu */
+          .cpt-img-col {
+            grid-column: 1 !important;
+            grid-row: 1 !important;
+            width: 100% !important;
+            height: 110px !important;
+            min-height: 110px !important;
+            max-height: 110px !important;
+            align-self: start !important;
+            flex-shrink: 0 !important;
+            overflow: hidden !important;
+          }
+          .cpt-img-col img {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
+          }
+
+          /* Wrapper contenu → transparent (enfants participent au grid) */
+          .cpt-content-col {
+            display: contents !important;
+          }
+
+          /* Texte principal (badge + titre + meta) : haut-droite */
+          .db-card__left {
+            grid-column: 2 !important;
+            grid-row: 1 !important;
+            padding: 10px 10px 4px !important;
+            flex: unset !important;
+            min-width: 0 !important;
+          }
+
+          /* Prix / date / stats : bas-droite */
+          .db-card__center {
+            grid-column: 2 !important;
+            grid-row: 2 !important;
+            min-width: unset !important;
+            text-align: left !important;
+            padding: 0 10px 10px !important;
+          }
+
+          /* Actions (accompagnement + icones) : bas-gauche, fond blanc comme la vignette */
+          .db-card__actions {
+            grid-column: 1 !important;
+            grid-row: 2 !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 6px 4px !important;
+            background: #fff !important;
+            border-top: none !important;
+            gap: 5px !important;
+            flex-shrink: unset !important;
+          }
+
+          /* Section accompagnement : pleine largeur de la colonne gauche */
+          .db-card__actions > div:first-child { width: 100% !important; box-sizing: border-box !important; }
+          .db-card__actions > div:first-child span { font-size: 10px !important; }
+          .db-card__actions > div:first-child select { font-size: 10px !important; padding: 3px 4px !important; width: 100% !important; }
+
+          /* 4 icones : carrés fixes, petits, sur une seule ligne */
+          .db-card__actions > div:last-child {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            gap: 4px !important;
+            width: 100% !important;
+            justify-content: center !important;
+          }
+          .db-card__actions > div:last-child .db-action {
+            flex: 0 0 26px !important;
+            width: 26px !important;
+            height: 26px !important;
+            min-width: 26px !important;
+            max-width: 26px !important;
+            padding: 0 !important;
+            border-radius: 7px !important;
+          }
+          .db-card__actions > div:last-child .db-action svg {
+            width: 13px !important;
+            height: 13px !important;
+          }
+
+          /* Type badge + statut sur la même ligne */
+          .db-card__left > div:first-child { flex-wrap: nowrap !important; gap: 4px !important; align-items: center !important; }
+          .db-card__type-badge { font-size: 10px !important; padding: 2px 5px !important; white-space: nowrap !important; flex-shrink: 0 !important; }
+
+          /* Bouton déjà vendu/loué : padding gauche/droite réduit */
+          .cpt-ann-status-btn { padding: 3px 7px !important; font-size: 10.5px !important; white-space: nowrap !important; flex-shrink: 0 !important; }
+
+          /* Titre : 2 lignes max puis troncature propre */
+          .db-card__title {
+            white-space: normal !important;
+            max-width: none !important;
+            font-size: 12.5px !important;
+            line-height: 1.35 !important;
+            display: -webkit-box !important;
+            -webkit-line-clamp: 2 !important;
+            -webkit-box-orient: vertical !important;
+            overflow: hidden !important;
+            word-break: break-word !important;
+          }
+
+          /* Adresse : ligne séparée, 2 lignes max puis '...' propre */
+          .db-card__loc {
+            flex-basis: 100% !important;
+            white-space: normal !important;
+            display: -webkit-box !important;
+            -webkit-line-clamp: 2 !important;
+            -webkit-box-orient: vertical !important;
+            overflow: hidden !important;
+            word-break: break-word !important;
+            overflow-wrap: break-word !important;
+            font-size: 11px !important;
+            margin-top: 2px !important;
+          }
+
+          /* Prix légèrement agrandi */
+          .db-card__prix { font-size: 15.5px !important; font-weight: 800 !important; }
+
+          /* Date : alignée à gauche */
+          .db-card__date { justify-content: flex-start !important; font-size: 10.5px !important; }
+
+          /* Vues + favoris : sous la date, alignés à gauche */
+          .cpt-ann-stats {
+            justify-content: flex-start !important;
+            margin-top: 4px !important;
+            gap: 8px !important;
+          }
+          .cpt-ann-stats span { font-size: 12px !important; }
+
+          /* ── Favoris : 1 par ligne, carte horizontale ── */
+          .fav-grid-compte { grid-template-columns: 1fr !important; gap: 10px !important; }
+          .fav-card { display: flex !important; flex-direction: row !important; align-items: stretch !important; }
+          .fav-card__img { width: 110px !important; min-width: 110px !important; height: auto !important; flex-shrink: 0 !important; }
+          .fav-card__body { flex: 1 !important; padding: 10px 12px !important; min-width: 0 !important; }
+          .fav-card__title { font-size: 13px !important; white-space: normal !important; }
+          .fav-card__price { font-size: 14px !important; }
+          .fav-btn { padding: 5px 8px !important; font-size: 11px !important; }
+
+          /* Label "Location/Vacances" : petit, haut-gauche, image reste claire */
+          .fav-cat {
+            font-size: 9px !important;
+            padding: 2px 5px !important;
+            border-radius: 8px !important;
+            top: 6px !important;
+            left: 6px !important;
+            font-weight: 700 !important;
+            letter-spacing: .02em !important;
+          }
+
+          /* ── Mon profil : padding réduit, grille 1 colonne ── */
+          .cpt-profil-card { padding: 14px 12px !important; }
+          .cpt-profil-card h2 { margin-bottom: 12px !important; font-size: 14px !important; }
+          /* Bouton Modifier aligné en haut à droite du titre */
+          .cpt-profil-card > div:first-child { align-items: flex-start !important; margin-bottom: 12px !important; }
+
+          /* ── Mes annonces : décalage droite + padding bordure droite ── */
+          .db-card__left { padding-left: 6px !important; padding-right: 12px !important; }
+          .db-card__center { padding-left: 6px !important; padding-right: 12px !important; }
+          /* Le wrapper contenu a un léger padding-right pour éviter collage bordure */
+          .cpt-content-col { padding-right: 0 !important; }
+
+          /* ── Demandes reçues : tableau → cartes ── */
+          .cpt-contacts-wrap { overflow-x: visible !important; background: transparent !important; border: none !important; border-radius: 0 !important; }
+          .cpt-contacts-tbl,
+          .cpt-contacts-tbl tbody,
+          .cpt-contacts-tbl tr,
+          .cpt-contacts-tbl td { display: block !important; }
+          .cpt-contacts-tbl thead { display: none !important; }
+          .cpt-contacts-tbl tr {
+            background: #fff !important;
+            border-radius: 14px !important;
+            border: 1.5px solid #e2e8f0 !important;
+            margin-bottom: 14px !important;
+            padding: 14px 14px !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,.04) !important;
+          }
+          .cpt-contacts-tbl td {
+            padding: 6px 0 !important;
+            border: none !important;
+            font-size: 13px !important;
+            min-width: unset !important;
+            max-width: 100% !important;
+            white-space: normal !important;
+          }
+          .cpt-contacts-tbl td::before {
+            content: attr(data-label);
+            display: block;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            color: #94a3b8;
+            margin-bottom: 3px;
+          }
+
+          /* ── Mes alertes : tableau → cartes pleine largeur ── */
+          .cpt-alerts-wrap {
+            overflow-x: hidden !important;
+            background: transparent !important;
+            border: none !important;
+            border-radius: 0 !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+          }
+          .cpt-alerts-tbl {
+            display: block !important;
+            min-width: 0 !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+          }
+          .cpt-alerts-tbl tbody { display: block !important; width: 100% !important; }
+          .cpt-alerts-tbl thead { display: none !important; }
+          .cpt-alerts-tbl tr {
+            display: block !important;
+            position: relative !important;
+            background: #fff !important;
+            border-radius: 14px !important;
+            border: 1.5px solid #e2e8f0 !important;
+            margin-bottom: 14px !important;
+            padding: 46px 14px 14px !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,.04) !important;
+          }
+          .cpt-alerts-tbl td {
+            display: block !important;
+            padding: 5px 0 !important;
+            border: none !important;
+            font-size: 13px !important;
+            min-width: unset !important;
+            max-width: 100% !important;
+            white-space: normal !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+          }
+          .cpt-alerts-tbl td::before {
+            content: attr(data-label);
+            display: block;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            color: #94a3b8;
+            margin-bottom: 3px;
+          }
+          /* Accompagnement + Email alert : côte à côte */
+          .cpt-alerts-tbl td[data-label="Accompagnement"],
+          .cpt-alerts-tbl td[data-label="Alerte email"] {
+            display: inline-block !important;
+            width: 50% !important;
+            vertical-align: top !important;
+            box-sizing: border-box !important;
+          }
+          .cpt-alerts-tbl td[data-label="Alerte email"] {
+            padding-left: 8px !important;
+          }
+          /* Actions : positionnées en haut à droite de la carte */
+          .cpt-alerts-tbl td[data-label="Actions"] {
+            display: block !important;
+            position: absolute !important;
+            top: 10px !important;
+            right: 10px !important;
+            padding: 0 !important;
+            width: auto !important;
+          }
+          .cpt-alerts-tbl td[data-label="Actions"]::before { display: none !important; }
+          /* Boutons actions : icônes seulement sur mobile */
+          .cpt-alert-btn-label { display: none !important; }
+          .cpt-alert-btn-edit, .cpt-alert-btn-del {
+            width: 30px !important; height: 30px !important;
+            padding: 0 !important; justify-content: center !important;
+            border-radius: 8px !important;
+          }
+          /* Critères : 2 lignes par défaut, voir plus/moins */
+          .cpt-alert-tags--clamp {
+            max-height: 58px !important;
+            overflow: hidden !important;
+          }
+        }
         .fav-card { background:#fff; border:1px solid #e2e8f0; border-radius:12px; overflow:hidden; transition:box-shadow .2s,transform .2s; }
         .fav-card:hover { box-shadow:0 6px 20px rgba(0,0,0,.12); transform:translateY(-3px); }
         .fav-card__img { position:relative; height:190px; overflow:hidden; background:#e5e7eb; display:flex; align-items:center; justify-content:center; }

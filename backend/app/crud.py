@@ -22,6 +22,8 @@ def create_user(db: Session, user: schemas.UserCreate, verify_token: str = None)
         matricule_fiscal=getattr(user, "matricule_fiscal", None),
         registre_commerce=getattr(user, "registre_commerce", None),
         secteur_partenaire=getattr(user, "secteur_partenaire", None),
+        metier_artisan=getattr(user, "metier_artisan", None),
+        objectif=getattr(user, "objectif", None),
         is_verified=False,
         email_verify_token=verify_token,
     )
@@ -142,21 +144,28 @@ _GOV_CODES = {
     "Tataouine":"TT","Gafsa":"GF","Tozeur":"TZ","Kébili":"KB","Kebili":"KB",
 }
 
-def _generate_reference(db, gouvernorat_id: int) -> str:
-    """Génère une référence unique de type XX0001 basée sur le gouvernorat."""
-    gov = db.query(models.Gouvernorat).filter(models.Gouvernorat.id == gouvernorat_id).first()
-    prefix = "TN"
-    if gov:
-        prefix = _GOV_CODES.get(gov.nom, gov.nom[:2].upper())
-    # Compter les annonces existantes avec ce préfixe
+def _generate_reference(db, gouvernorat_id: int, utilisateur_id: int = None) -> str:
+    """Génère une référence unique basée sur la référence agence (si agence) ou le gouvernorat."""
+    prefix = None
+    # Priorité : référence de l'agence connectée
+    if utilisateur_id:
+        agency = db.query(models.Agency).filter(models.Agency.user_id == utilisateur_id).first()
+        if agency and agency.reference:
+            prefix = agency.reference.upper()
+    # Fallback : code gouvernorat
+    if not prefix:
+        gov = db.query(models.Gouvernorat).filter(models.Gouvernorat.id == gouvernorat_id).first()
+        prefix = "TN"
+        if gov:
+            prefix = _GOV_CODES.get(gov.nom, gov.nom[:2].upper())
+    # Numéro séquentiel unique pour ce préfixe
     count = db.query(models.Annonce).filter(
         models.Annonce.reference.like(f"{prefix}%")
     ).count()
-    ref = f"{prefix}{str(count + 1).zfill(4)}"
-    # S'assurer de l'unicité
+    ref = f"{prefix}{str(count + 1).zfill(2)}"
     while db.query(models.Annonce).filter(models.Annonce.reference == ref).first():
         count += 1
-        ref = f"{prefix}{str(count + 1).zfill(4)}"
+        ref = f"{prefix}{str(count + 1).zfill(2)}"
     return ref
 
 def create_annonce(
@@ -177,7 +186,7 @@ def create_annonce(
     # Générer la référence après flush (on a l'id et le gouvernorat_id)
     if not db_annonce.reference and db_annonce.gouvernorat_id:
         try:
-            db_annonce.reference = _generate_reference(db, db_annonce.gouvernorat_id)
+            db_annonce.reference = _generate_reference(db, db_annonce.gouvernorat_id, utilisateur_id)
         except Exception:
             db_annonce.reference = f"AN{str(db_annonce.id).zfill(6)}"
     cg_obj = models.CaractereGeneral(annonce_id=db_annonce.id)
@@ -226,6 +235,19 @@ def update_annonce(db: Session, annonce_id: int, update_data: dict):
             update_data["genre_coloc"] = ",".join(str(g) for g in genre_coloc_raw if g)
         else:
             update_data["genre_coloc"] = genre_coloc_raw
+    # Gestion prix barré : si le prix soumis est inférieur au prix actuel,
+    # sauvegarder l'actuel dans prix_ancien avant de l'écraser.
+    # Si le prix monte ou reste identique, effacer prix_ancien.
+    if "prix" in update_data and update_data["prix"] is not None:
+        try:
+            nouveau = float(update_data["prix"])
+            actuel = float(db_annonce.prix) if db_annonce.prix else None
+            if actuel is not None and nouveau < actuel:
+                db_annonce.prix_ancien = actuel   # on mémorise AVANT d'écraser
+            elif actuel is not None and nouveau >= actuel:
+                db_annonce.prix_ancien = None     # hausse → on retire le barré
+        except (TypeError, ValueError):
+            pass
     # Mise à jour champs principaux
     for key, value in update_data.items():
         if hasattr(db_annonce, key):

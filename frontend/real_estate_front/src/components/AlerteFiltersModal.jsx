@@ -120,20 +120,41 @@ export default function AlerteFiltersModal({ form, setForm, onClose, onSave, sav
 
   return ReactDOM.createPortal(
     <>
+      <style>{`
+        @media (max-width: 860px) {
+          .alm-outer { padding: 0 !important; align-items: flex-end !important; }
+          .alm-box { border-radius: 20px 20px 0 0 !important; max-height: 96vh !important; max-width: 100% !important; width: 100% !important; }
+          .alm-body { padding: 12px 14px !important; gap: 12px !important; }
+          .alm-header { padding: 14px 16px 12px !important; }
+          .alm-footer { padding: 12px 16px 16px !important; }
+          .alm-feat-outer { padding: 0 !important; align-items: flex-end !important; }
+          .alm-feat-box { border-radius: 20px 20px 0 0 !important; max-height: 96vh !important; max-width: 100% !important; width: 100% !important; }
+          .alm-feat-header { padding: 14px 16px 10px !important; }
+          .alm-feat-body { padding: 12px 14px !important; }
+          .alm-feat-footer { padding: 10px 16px 14px !important; }
+          .alm-feat-section { margin-bottom: 18px !important; }
+          .alm-feat-grid { grid-template-columns: repeat(auto-fill, minmax(68px, 1fr)) !important; gap: 6px !important; }
+          .alm-feat-btn { padding: 10px 4px 8px !important; min-height: 64px !important; gap: 4px !important; border-radius: 10px !important; }
+          .alm-feat-btn svg { width: 22px !important; height: 22px !important; }
+          .alm-feat-label { font-size: 9.5px !important; line-height: 1.25 !important; }
+          .alm-feat-check { width: 13px !important; height: 13px !important; top: 5px !important; right: 5px !important; }
+          .alm-feat-check svg { width: 8px !important; height: 8px !important; }
+        }
+      `}</style>
       {/* Overlay principal */}
-      <div style={{
+      <div className="alm-outer" style={{
         position:"fixed", inset:0, background:"rgba(0,0,0,.55)",
         zIndex:9000, display:"flex", alignItems:"center", justifyContent:"center", padding:16,
         fontFamily:"'Inter',system-ui,sans-serif",
       }} onClick={e=>{ if(e.target===e.currentTarget) onClose(); }}>
-        <div style={{
+        <div className="alm-box" style={{
           background:"#fff", borderRadius:20, width:"100%", maxWidth:620,
           maxHeight:"92vh", display:"flex", flexDirection:"column",
           boxShadow:"0 24px 80px rgba(0,0,0,.28)", overflow:"hidden",
         }} onClick={e=>e.stopPropagation()}>
 
           {/* ─── Header ─── */}
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"20px 24px 16px",borderBottom:"1px solid #f1f5f9",flexShrink:0}}>
+          <div className="alm-header" style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"20px 24px 16px",borderBottom:"1px solid #f1f5f9",flexShrink:0}}>
             <div>
               <h3 style={{fontSize:17,fontWeight:800,color:"#0f172a",margin:0}}>
                 {isEdit ? "Modifier l'alerte" : "Créer une alerte"}
@@ -146,7 +167,7 @@ export default function AlerteFiltersModal({ form, setForm, onClose, onSave, sav
           </div>
 
           {/* ─── Corps scrollable ─── */}
-          <div style={{flex:1,overflowY:"auto",padding:"20px 24px",display:"flex",flexDirection:"column",gap:18}}>
+          <div className="alm-body" style={{flex:1,overflowY:"auto",padding:"20px 24px",display:"flex",flexDirection:"column",gap:18}}>
 
             {/* Nom */}
             <div>
@@ -167,7 +188,7 @@ export default function AlerteFiltersModal({ form, setForm, onClose, onSave, sav
                   const on = (form.categories||[]).includes(v);
                   return (
                     <button key={v} type="button"
-                      onClick={() => set("categories", on ? (form.categories||[]).filter(c=>c!==v) : [...(form.categories||[]),v])}
+                      onClick={() => set("categories", on ? [] : [v])}
                       style={{...pillBtn, borderColor:on?"#6366f1":"#e2e8f0",background:on?"#eef2ff":"#f8fafc",color:on?"#4f46e5":"#64748b"}}>
                       {on ? <Check size={11}/> : <Ico size={11}/>} {l}
                     </button>
@@ -404,7 +425,7 @@ export default function AlerteFiltersModal({ form, setForm, onClose, onSave, sav
           </div>{/* /body */}
 
           {/* ─── Footer ─── */}
-          <div style={{display:"flex",gap:10,padding:"16px 24px 20px",borderTop:"1px solid #f1f5f9",flexShrink:0,background:"#fafafa"}}>
+          <div className="alm-footer" style={{display:"flex",gap:10,padding:"16px 24px 20px",borderTop:"1px solid #f1f5f9",flexShrink:0,background:"#fafafa"}}>
             <button onClick={onClose}
               style={{flex:1,padding:"11px",borderRadius:10,border:"1.5px solid #e2e8f0",background:"#fff",color:"#374151",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
               Annuler
@@ -419,10 +440,10 @@ export default function AlerteFiltersModal({ form, setForm, onClose, onSave, sav
 
       {/* ─── Modal Autres critères (caractéristiques avec icônes) ─── */}
       {showFeatModal && ReactDOM.createPortal(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.65)",zIndex:10000,display:"flex",alignItems:"center",justifyContent:"center",padding:16,fontFamily:"'Inter',system-ui,sans-serif"}}
+        <div className="alm-feat-outer" style={{position:"fixed",inset:0,background:"rgba(0,0,0,.65)",zIndex:10000,display:"flex",alignItems:"center",justifyContent:"center",padding:16,fontFamily:"'Inter',system-ui,sans-serif"}}
           onClick={e=>{if(e.target===e.currentTarget)setShowFeatModal(false);}}>
-          <div style={{background:"#fff",borderRadius:20,width:"100%",maxWidth:760,maxHeight:"88vh",overflow:"hidden",display:"flex",flexDirection:"column",boxShadow:"0 24px 80px rgba(0,0,0,.30)"}}>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"22px 28px 18px",borderBottom:"1px solid #f1f5f9",flexShrink:0}}>
+          <div className="alm-feat-box" style={{background:"#fff",borderRadius:20,width:"100%",maxWidth:760,maxHeight:"88vh",overflow:"hidden",display:"flex",flexDirection:"column",boxShadow:"0 24px 80px rgba(0,0,0,.30)"}}>
+            <div className="alm-feat-header" style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"22px 28px 18px",borderBottom:"1px solid #f1f5f9",flexShrink:0}}>
               <div>
                 <h3 style={{fontSize:19,fontWeight:800,color:"#0f172a",margin:0}}>Caractéristiques</h3>
                 <p style={{fontSize:13,color:"#64748b",margin:"4px 0 0"}}>Sélectionnez les équipements souhaités</p>
@@ -432,20 +453,17 @@ export default function AlerteFiltersModal({ form, setForm, onClose, onSave, sav
               </button>
             </div>
 
-            <div style={{flex:1,overflowY:"auto",padding:"20px 28px"}}>
+            <div className="alm-feat-body" style={{flex:1,overflowY:"auto",padding:"20px 28px"}}>
               {FEAT_SECTIONS.map(({section,items})=>(
-                <div key={section} style={{marginBottom:28}}>
-                  <div style={{
-                    fontSize:11,fontWeight:700,color:"#64748b",textTransform:"uppercase",
-                    letterSpacing:".6px",marginBottom:14,
-                  }}>
+                <div key={section} className="alm-feat-section" style={{marginBottom:28}}>
+                  <div style={{fontSize:11,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:".6px",marginBottom:14}}>
                     {section}
                   </div>
-                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(110px,1fr))",gap:10}}>
+                  <div className="alm-feat-grid" style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(110px,1fr))",gap:10}}>
                     {items.map(({k,l,Ico})=>{
                       const isOn = feats.includes(k);
                       return (
-                        <button key={k} type="button"
+                        <button key={k} type="button" className="alm-feat-btn"
                           onClick={()=>set("features",isOn?feats.filter(f=>f!==k):[...feats,k])}
                           style={{
                             position:"relative",
@@ -462,16 +480,9 @@ export default function AlerteFiltersModal({ form, setForm, onClose, onSave, sav
                         >
                           <Ico size={36} strokeWidth={1.4}
                             style={{color: isOn?"#4f46e5":"#94a3b8",transition:"color .15s"}}/>
-                          <span style={{
-                            fontSize:11.5,fontWeight:600,textAlign:"center",lineHeight:1.3,
-                            color:isOn?"#4f46e5":"#6b7280"
-                          }}>{l}</span>
+                          <span className="alm-feat-label" style={{fontSize:11.5,fontWeight:600,textAlign:"center",lineHeight:1.3,color:isOn?"#4f46e5":"#6b7280"}}>{l}</span>
                           {isOn && (
-                            <div style={{
-                              position:"absolute",top:7,right:7,
-                              width:16,height:16,borderRadius:"50%",
-                              background:"#4f46e5",display:"flex",alignItems:"center",justifyContent:"center"
-                            }}>
+                            <div className="alm-feat-check" style={{position:"absolute",top:7,right:7,width:16,height:16,borderRadius:"50%",background:"#4f46e5",display:"flex",alignItems:"center",justifyContent:"center"}}>
                               <Check size={10} color="#fff" strokeWidth={3}/>
                             </div>
                           )}
@@ -483,7 +494,7 @@ export default function AlerteFiltersModal({ form, setForm, onClose, onSave, sav
               ))}
             </div>
 
-            <div style={{display:"flex",gap:12,justifyContent:"space-between",alignItems:"center",padding:"16px 28px 20px",borderTop:"1px solid #f1f5f9",flexShrink:0,background:"#fafafa"}}>
+            <div className="alm-feat-footer" style={{display:"flex",gap:12,justifyContent:"space-between",alignItems:"center",padding:"16px 28px 20px",borderTop:"1px solid #f1f5f9",flexShrink:0,background:"#fafafa"}}>
               <span style={{fontSize:13,color:"#64748b"}}>
                 {nbFeats>0 ? `${nbFeats} critère${nbFeats>1?"s":""} sélectionné${nbFeats>1?"s":""}` : "Aucun critère sélectionné"}
               </span>

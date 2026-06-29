@@ -1,6 +1,7 @@
 ﻿import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import PublierAnnonceBtn from "../components/PublierAnnonceBtn";
 import Footer from "../components/Footer";
 import {
   Search, MapPin, Heart, Bell, PlusCircle, CheckCircle, Eye, MessageSquare,
@@ -269,9 +270,9 @@ export default function CommentCaMarche() {
             <Link to="/carte" style={{display:"inline-flex",alignItems:"center",gap:7,background:"#fff",color:"#4f46e5",fontWeight:700,fontSize:14,padding:"13px 26px",borderRadius:11,textDecoration:"none",boxShadow:"0 4px 14px rgba(0,0,0,.15)"}}>
               <Search size={15}/> Rechercher un bien
             </Link>
-            <Link to="/creer_annonce" style={{display:"inline-flex",alignItems:"center",gap:7,background:"rgba(255,255,255,.15)",color:"#fff",fontWeight:700,fontSize:14,padding:"13px 26px",borderRadius:11,textDecoration:"none",border:"1.5px solid rgba(255,255,255,.3)"}}>
+            <PublierAnnonceBtn style={{display:"inline-flex",alignItems:"center",gap:7,background:"rgba(255,255,255,.15)",color:"#fff",fontWeight:700,fontSize:14,padding:"13px 26px",borderRadius:11,textDecoration:"none",border:"1.5px solid rgba(255,255,255,.3)"}}>
               <PlusCircle size={15}/> Publier une annonce
-            </Link>
+            </PublierAnnonceBtn>
           </div>
         </div>
 

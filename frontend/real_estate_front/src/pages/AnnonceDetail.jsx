@@ -1,6 +1,13 @@
 ﻿import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom";
 import API_URL, { fmtDevise, fmtPriceApprox } from '../config';
+
+function fmtM2(prix, area) {
+  if (!area || area <= 0 || !prix || prix <= 0) return null;
+  const v = Math.ceil((Number(prix) / Number(area)) * 10) / 10;
+  if (v <= 0) return null;
+  return v.toLocaleString("fr-TN", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
 import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   ChevronLeft, ChevronRight, ArrowLeft, MapPin,
@@ -12,7 +19,7 @@ import {
   UtensilsCrossed, Wind, Thermometer, Flame, DoorClosed, LockKeyhole,
   Fingerprint, Wifi, Monitor, RefreshCw, KeyRound, PhoneCall,
   Layers, Star, Ruler, ChevronsUp, Compass,
-  MessageCircle, Info, Send, X
+  MessageCircle, Info, Send, X, Flag
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -85,6 +92,7 @@ function normalizeApi(a) {
     views_count: a.views_count || 0,
     type_bien_raw:       a.type_bien,
     gouvernorat_raw:     a.gouvernorat,
+    categorie_raw:       a.categorie,
     delegation_raw:      a.delegation,
     /* -- Champs sub-type -- */
     type_appartement:    a.type_appartement    || null,
@@ -113,12 +121,143 @@ function normalizeApi(a) {
   };
 }
 
+/* ─── Carousel (identique à CartePage / AgentProfile) ─── */
+const _arrowBtnStyle = (s) => ({
+  position:"absolute", top:"50%", transform:"translateY(-50%)", [s]:8,
+  width:27, height:27, borderRadius:"50%", background:"rgba(255,255,255,.45)",
+  backdropFilter:"blur(4px)", border:"none", cursor:"pointer",
+  display:"flex", alignItems:"center", justifyContent:"center",
+  boxShadow:"0 1px 4px rgba(0,0,0,.15)", color:"#fff", zIndex:4,
+});
+function NearbyCarousel({ images, h = 190 }) {
+  const [idx, setIdx]     = React.useState(0);
+  const [prev2, setPrev2] = React.useState(null);
+  const [dir, setDir]     = React.useState(1);
+  const [anim, setAnim]   = React.useState(false);
+  const go = (e, delta) => {
+    e.stopPropagation();
+    if (anim || images.length < 2) return;
+    const next = (idx + delta + images.length) % images.length;
+    setDir(delta); setPrev2(idx); setIdx(next); setAnim(true);
+    setTimeout(() => { setPrev2(null); setAnim(false); }, 420);
+  };
+  const goTo = (e, i) => {
+    e.stopPropagation();
+    if (anim || i === idx) return;
+    setDir(i > idx ? 1 : -1); setPrev2(idx); setIdx(i); setAnim(true);
+    setTimeout(() => { setPrev2(null); setAnim(false); }, 420);
+  };
+  return (
+    <div style={{ position:"relative", height:h, background:"#f3f4f6", overflow:"hidden", flexShrink:0, isolation:"isolate" }}>
+      {prev2 !== null && (
+        <img src={images[prev2]} alt="" style={{
+          position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover",
+          animation:`ncCarouselOut${dir > 0 ? "L" : "R"} .42s cubic-bezier(.4,0,.2,1) forwards`, zIndex:1,
+        }}/>
+      )}
+      <img key={idx} src={images[idx]} alt="" style={{
+        position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover",
+        animation: prev2 !== null ? `ncCarouselIn${dir > 0 ? "L" : "R"} .42s cubic-bezier(.4,0,.2,1) forwards` : "none",
+        zIndex:2,
+      }} loading="lazy"/>
+      <div style={{ position:"absolute", inset:0, zIndex:3, display:"flex", alignItems:"center", justifyContent:"center", pointerEvents:"none" }}>
+        <span style={{ fontSize:18, fontWeight:900, letterSpacing:"-0.5px", fontFamily:"Arial,sans-serif",
+          color:"rgba(255,255,255,0.22)", textShadow:"0 1px 3px rgba(0,0,0,0.18)", userSelect:"none", transform:"rotate(-15deg)" }}>
+          LOCAL<span style={{color:"rgba(99,102,241,0.30)"}}>IZI</span>.TN
+        </span>
+      </div>
+      {images.length > 1 && <>
+        <button onClick={e=>go(e,-1)} style={_arrowBtnStyle("left")}><ChevronLeft size={14}/></button>
+        <button onClick={e=>go(e,+1)} style={_arrowBtnStyle("right")}><ChevronRight size={14}/></button>
+        <div style={{ position:"absolute", bottom:7, left:"50%", transform:"translateX(-50%)", display:"flex", gap:4, zIndex:3 }}>
+          {images.map((_,i) => (
+            <span key={i} onClick={e=>goTo(e,i)} style={{
+              width:6, height:6, borderRadius:"50%", cursor:"pointer",
+              background: i===idx ? "#fff" : "rgba(255,255,255,.45)", transition:"background .2s",
+            }}/>
+          ))}
+        </div>
+      </>}
+    </div>
+  );
+}
+
+/* ─── NearbyCard — même style exact que PropCard de AgentProfile/CartePage ─── */
+function NearbyCard({ a, navigate }) {
+  const realId = String(a.id);
+  const img = a.image_principale
+    ? (a.image_principale.startsWith("http") ? a.image_principale : `${API_URL}${a.image_principale}`)
+    : "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400&q=75";
+  const images = [img];
+  const cat = a.categorie || "vente";
+  const joursEcoules = a.date_creation ? Math.floor((Date.now() - new Date(a.date_creation)) / 86_400_000) : null;
+  const ageLabel = joursEcoules === 0 ? "Aujourd'hui" : joursEcoules === 1 ? "il y a 1 j." : joursEcoules != null ? `il y a ${joursEcoules} j.` : null;
+
+  const [isFav, setIsFav] = React.useState(() => {
+    try { return JSON.parse(localStorage.getItem("localizi_favs")||"[]").some(id => String(id) === realId); } catch { return false; }
+  });
+  const toggleFav = async (e) => {
+    e.stopPropagation();
+    const token = localStorage.getItem("token");
+    if (!token) { navigate("/login"); return; }
+    const wasOn = isFav; setIsFav(!wasOn);
+    try {
+      const res = await fetch(`${API_URL}/users/me/favoris/${realId}`, {
+        method: wasOn ? "DELETE" : "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const favs = JSON.parse(localStorage.getItem("localizi_favs")||"[]");
+        const updated = !wasOn ? [...new Set([...favs, realId])] : favs.filter(id => String(id) !== realId);
+        localStorage.setItem("localizi_favs", JSON.stringify(updated));
+      } else { setIsFav(wasOn); }
+    } catch { setIsFav(wasOn); }
+  };
+
+  return (
+    <div className="pc" onClick={() => { navigate(`/annonce/${realId}`); window.scrollTo(0,0); }}>
+      <div style={{ position:"relative" }}>
+        <NearbyCarousel images={images} h={190}/>
+        <span className={`pc__cat-badge pc__cat-badge--${cat}`}>
+          {cat === "vente" ? "Vente" : cat === "location" ? "Location" : "Vacances"}
+        </span>
+        {ageLabel && (
+          <span style={{ position:"absolute", bottom:8, right:10, zIndex:10, background:"rgba(0,0,0,.52)", color:"#fff", fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:999 }}>
+            {ageLabel}
+          </span>
+        )}
+      </div>
+      <div className="pc__body">
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start" }}>
+          <div style={{ minWidth:0, flex:1 }}>
+            <p className="pc__price">
+              {Number(a.prix).toLocaleString("fr-TN")}
+              <span className="pc__devise"> {fmtDevise(a.devise)}{cat === "location" ? " /mois" : ""}</span>
+            </p>
+            <p className="pc__title">{a.titre}</p>
+          </div>
+          <button className={`pc__fav${isFav ? " pc__fav--on" : ""}`} onClick={toggleFav} title={isFav ? "Retirer des favoris" : "Ajouter aux favoris"}>
+            <Heart size={14} fill={isFav ? "#ef4444" : "none"}/>
+          </button>
+        </div>
+        <p className="pc__loc"><MapPin size={10}/> {[a.delegation, a.gouvernorat].filter(Boolean).join(" · ")}</p>
+        <div className="pc__specs">
+          {a.nb_pieces   != null && <span><Building2 size={11}/> {a.nb_pieces} p.</span>}
+          {a.nb_chambres != null && <span><Bed size={11}/> {a.nb_chambres} ch.</span>}
+          {a.superficie  != null && <span><Maximize size={11}/> {a.superficie} m²</span>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AnnonceDetail() {
   const { id }   = useParams();
   const navigate = useNavigate();
   const toast    = useToast();
 
   const [prop,      setProp]      = useState(null);
+  const [rawData,   setRawData]   = useState(null);
   const [showContactModal, setShowContactModal] = useState(false);
   const [contactForm,  setContactForm]  = useState({ nom:"", email:"", telephone:"", message:"" });
   const [contactSent,  setContactSent]  = useState(false);
@@ -156,6 +295,7 @@ export default function AnnonceDetail() {
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         if (data) {
+          setRawData(data);
           setProp(normalizeApi(data));
           // Track "Consulté"
           try {
@@ -195,20 +335,23 @@ export default function AnnonceDetail() {
     return () => window.removeEventListener("keydown", handler);
   }, [lightboxIdx, prop]);
 
-  /* Fetch nearby annonces by proximity */
+  /* Fetch nearby annonces — même type_bien + même gouvernorat */
   useEffect(() => {
     if (!prop) return;
     setNearby([]);
-    fetch(`${API_URL}/annonces/public?limit=100`)
+    fetch(`${API_URL}/annonces/public?limit=200`)
       .then(r => r.json())
       .then(data => {
         const annonces = Array.isArray(data) ? data : [];
-        const withDist = annonces
-          .filter(a => String(a.id) !== String(id) && a.latitude && a.longitude)
-          .map(a => ({ ...a, _dist: haversine(prop.lat, prop.lng, a.latitude, a.longitude) }))
-          .sort((a, b) => a._dist - b._dist)
+        const filtered = annonces
+          .filter(a =>
+            String(a.id) !== String(id) &&
+            a.type_bien   === prop.type_bien_raw &&
+            a.gouvernorat === prop.gouvernorat_raw &&
+            a.categorie   === prop.categorie_raw
+          )
           .slice(0, 6);
-        setNearby(withDist);
+        setNearby(filtered);
       })
       .catch(() => {});
   }, [prop, id]);
@@ -502,43 +645,71 @@ export default function AnnonceDetail() {
         </div>
       </div>
 
-      <div className="ad-body">
-        {/* Left column */}
-        <div className="ad-left">
-          {/* Gallery */}
-          <div className="ad-gallery">
-            <div className="ad-gallery__main" style={{cursor:"zoom-in"}} onClick={() => setLightboxIdx(imgIdx)}>
-              <img key={imgIdx} src={images[imgIdx]} alt={prop.titre} className="ad-gallery__img" />
-              {wasViewed && (
-                <span style={{
-                  position:"absolute", top:12, left:12, zIndex:5,
-                  background:"rgba(15,23,42,0.72)", backdropFilter:"blur(6px)",
-                  color:"#fff", fontSize:11, fontWeight:800,
-                  padding:"4px 10px", borderRadius:20,
-                  display:"flex", alignItems:"center", gap:5,
-                  letterSpacing:".08em", textTransform:"uppercase",
-                }}>
-                  <Eye size={12}/> Consulté
-                </span>
-              )}
-              {images.length > 1 && (
-                <>
-                  <button className="ad-gallery__btn ad-gallery__btn--l" onClick={prevImg}><ChevronLeft size={18}/></button>
-                  <button className="ad-gallery__btn ad-gallery__btn--r" onClick={nextImg}><ChevronRight size={18}/></button>
-                  <span className="ad-gallery__counter">{imgIdx+1} / {images.length}</span>
-                </>
-              )}
-            </div>
+      {/* ── Galerie fixe 60/40 — 3 cadres invariants ── */}
+      <div style={{width:"100%",height:500,minHeight:500,maxHeight:500,flexShrink:0,overflow:"hidden",background:"#0f172a",display:"grid",gridTemplateColumns:"60% 40%",gap:3}}>
+
+        {/* ── Cadre principal (gauche) ── */}
+        <div style={{position:"relative",width:"100%",height:"100%",overflow:"hidden"}}>
+          <img src={images[imgIdx]} alt={prop.titre}
+            style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",display:"block"}} />
+          {/* Badge consulté */}
+          {wasViewed && (
+            <span style={{position:"absolute",top:14,left:14,zIndex:5,background:"rgba(15,23,42,.75)",backdropFilter:"blur(6px)",color:"#fff",fontSize:11,fontWeight:800,padding:"4px 11px",borderRadius:20,display:"flex",alignItems:"center",gap:5,letterSpacing:".08em",textTransform:"uppercase",pointerEvents:"none"}}>
+              <Eye size={12}/> Consulté
+            </span>
+          )}
+          {/* Flèche gauche — discrète */}
+          <button
+            style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",zIndex:6,width:34,height:34,borderRadius:"50%",background:"rgba(255,255,255,.55)",backdropFilter:"blur(4px)",border:"1px solid rgba(255,255,255,.4)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"background .15s"}}
+            onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,.85)"}
+            onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,.55)"}
+            onClick={e=>{e.stopPropagation();prevImg();}}>
+            <ChevronLeft size={17} color="#fff" strokeWidth={2.5}/>
+          </button>
+          {/* Flèche droite — discrète */}
+          <button
+            style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",zIndex:6,width:34,height:34,borderRadius:"50%",background:"rgba(255,255,255,.55)",backdropFilter:"blur(4px)",border:"1px solid rgba(255,255,255,.4)",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"background .15s"}}
+            onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,.85)"}
+            onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,.55)"}
+            onClick={e=>{e.stopPropagation();nextImg();}}>
+            <ChevronRight size={17} color="#fff" strokeWidth={2.5}/>
+          </button>
+          {/* Compteur — bas droite */}
+          <span style={{position:"absolute",bottom:12,right:12,zIndex:6,background:"rgba(15,23,42,.58)",backdropFilter:"blur(4px)",color:"#fff",fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:20,pointerEvents:"none"}}>
+            {imgIdx+1} / {images.length}
+          </span>
+          {/* Zone cliquable pour le lightbox */}
+          <div style={{position:"absolute",inset:0,zIndex:4,cursor:"zoom-in"}} onClick={() => setLightboxIdx(imgIdx)}/>
+        </div>
+
+        {/* ── Colonne droite : 2 cadres empilés (40%) ── */}
+        <div style={{display:"grid",gridTemplateRows:"50% 50%",gap:3,height:"100%"}}>
+          {/* Cadre haut */}
+          <div style={{position:"relative",width:"100%",height:"100%",overflow:"hidden",cursor:"zoom-in"}}
+            onClick={() => setLightboxIdx((imgIdx+1) % images.length)}>
+            <img src={images[(imgIdx+1) % images.length]} alt=""
+              style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+          </div>
+          {/* Cadre bas — avec bouton "voir toutes les photos" */}
+          <div style={{position:"relative",width:"100%",height:"100%",overflow:"hidden",cursor:"zoom-in"}}
+            onClick={() => setLightboxIdx((imgIdx+2) % images.length)}>
+            <img src={images[(imgIdx+2) % images.length]} alt=""
+              style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
             {images.length > 1 && (
-              <div className="ad-gallery__thumbs">
-                {images.map((src,i) => (
-                  <img key={i} src={src} alt="" loading="lazy"
-                    className={`ad-gallery__thumb${i===imgIdx?" ad-gallery__thumb--on":""}`}
-                    onClick={() => setImgIdx(i)} />
-                ))}
+              <div style={{position:"absolute",inset:0,background:"rgba(15,23,42,.42)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:3}}>
+                <span style={{background:"rgba(255,255,255,.18)",backdropFilter:"blur(6px)",border:"1.5px solid rgba(255,255,255,.5)",color:"#fff",fontSize:13,fontWeight:700,padding:"8px 18px",borderRadius:99,letterSpacing:".02em",display:"flex",alignItems:"center",gap:7,whiteSpace:"nowrap"}}>
+                  <Eye size={14}/> Voir {images.length} photo{images.length>1?"s":""}
+                </span>
               </div>
             )}
           </div>
+        </div>
+
+      </div>
+
+      <div className="ad-body">
+        {/* Left column */}
+        <div className="ad-left">
 
           {/* Prix grand sous les photos */}
           <div style={{
@@ -554,7 +725,7 @@ export default function AnnonceDetail() {
             {prop.area > 0 && (
               <div style={{display:"flex",flexDirection:"column",gap:2}}>
                 <span style={{fontSize:18,fontWeight:700,color:"#475569"}}>
-                  {Math.round(Number(prop.prix) / prop.area).toLocaleString("fr-TN")} <span style={{fontSize:14,color:"#94a3b8"}}>{fmtDevise(prop.devise)}/m²</span>
+                  {fmtM2(prop.prix, prop.area)} <span style={{fontSize:14,color:"#94a3b8"}}>{fmtDevise(prop.devise)}/m²</span>
                 </span>
                 <span style={{fontSize:11,color:"#94a3b8",fontWeight:500}}>Prix au m²</span>
               </div>
@@ -689,7 +860,7 @@ export default function AnnonceDetail() {
               </button>
             </div>
             {(() => {
-              const DESC_LIMIT = 300;
+              const DESC_LIMIT = 420;
               const descText = translated || prop.description;
               const longDesc = descText.length > DESC_LIMIT;
               return (
@@ -1082,63 +1253,18 @@ export default function AnnonceDetail() {
             </div>
           </div>
 
-          <div className="ad-map-mini">
-            <MiniMap lat={prop.lat} lng={prop.lng} />
-          </div>
         </div>
       </div>
 
-      {/* -- Signaler annonce — pleine largeur -- */}
+      {/* -- Position / Emplacement du bien — pleine largeur -- */}
       <div style={{maxWidth:1200,margin:"0 auto 32px",padding:"0 24px"}}>
         <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:16,overflow:"hidden"}}>
-          {/* Titre section */}
-          <div style={{padding:"18px 28px 14px",borderBottom:"1px solid #e5e7eb"}}>
-            <span style={{fontSize:14,fontWeight:800,color:"#0f172a",letterSpacing:"-.01em"}}>Signaler cette annonce</span>
+          <div style={{padding:"18px 28px 14px",borderBottom:"1px solid #e5e7eb",display:"flex",alignItems:"center",gap:10}}>
+            <MapPin size={16} strokeWidth={2} style={{color:"#6366f1"}}/>
+            <span style={{fontSize:15,fontWeight:800,color:"#0f172a"}}>Position / Emplacement du bien</span>
           </div>
-          {/* Contenu */}
-          <div style={{padding:"18px 28px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:14}}>
-            <div style={{display:"flex",flexDirection:"column",gap:10}}>
-              <p style={{margin:0,fontSize:13,color:"#374151",lineHeight:1.6}}>
-                Vous pensez que cette annonce est frauduleuse, trompeuse ou ne respecte pas nos conditions d'utilisation ?<br/>
-                Signalez-la et notre équipe l'examinera dans les plus brefs délais.
-              </p>
-              <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
-                {prop.id && (
-                  <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    <span style={{fontSize:12,color:"#6b7280",fontWeight:600}}>Identifiant :</span>
-                    <span style={{fontWeight:700,color:"#111827",fontFamily:"monospace",fontSize:12,background:"#f3f4f6",padding:"2px 8px",borderRadius:6}}>#{prop.id}</span>
-                  </div>
-                )}
-                {prop.reference && (
-                  <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    <span style={{fontSize:12,color:"#6b7280",fontWeight:600}}>Référence :</span>
-                    <span style={{fontWeight:700,color:"#111827",fontFamily:"monospace",fontSize:12,background:"#f3f4f6",padding:"2px 8px",borderRadius:6}}>{prop.reference}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-            <button
-              onClick={() => {
-                const storedUser = (() => { try { return JSON.parse(localStorage.getItem("user")); } catch { return null; } })();
-                navigate("/signaler-probleme", { state: {
-                  lienAnnonce: window.location.href,
-                  reference: prop.reference || null,
-                  type: "Annonce frauduleuse ou trompeuse",
-                  nom:   storedUser?.username || storedUser?.nom || "",
-                  email: storedUser?.email    || "",
-                }});
-              }}
-              style={{
-                display:"flex", alignItems:"center", gap:8, flexShrink:0,
-                background:"#ef4444", color:"#fff", border:"none", cursor:"pointer",
-                padding:"11px 24px", borderRadius:10, fontSize:13.5, fontWeight:700,
-                fontFamily:"inherit", transition:"background .15s", whiteSpace:"nowrap",
-              }}
-              onMouseEnter={e=>e.currentTarget.style.background="#dc2626"}
-              onMouseLeave={e=>e.currentTarget.style.background="#ef4444"}
-            >
-              🚩 Signaler l'annonce
-            </button>
+          <div style={{height:440}}>
+            <BigMap lat={prop.lat} lng={prop.lng} />
           </div>
         </div>
       </div>
@@ -1159,11 +1285,9 @@ export default function AnnonceDetail() {
         return (
           <div style={{maxWidth:1200,margin:"0 auto 32px",padding:"0 24px"}}>
             <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:16,overflow:"hidden"}}>
-              {/* Titre section */}
               <div style={{padding:"18px 28px 14px",borderBottom:"1px solid #e5e7eb"}}>
-                <span style={{fontSize:14,fontWeight:800,color:"#0f172a",letterSpacing:"-.01em"}}>Rapport qualité / prix</span>
+                <span style={{fontSize:15,fontWeight:800,color:"#0f172a",letterSpacing:"-.01em"}}>Rapport qualité / prix</span>
               </div>
-              {/* Contenu */}
               <div style={{padding:"24px 28px"}}>
                 <div style={{display:"flex",gap:8,marginBottom:20}}>
                   {[1,2,3,4,5].map(i => (
@@ -1189,7 +1313,7 @@ export default function AnnonceDetail() {
       <div style={{maxWidth:1200,margin:"0 auto 32px",padding:"0 24px"}}>
         <div style={{background:"linear-gradient(135deg,#f8faff,#eef2ff)",borderRadius:16,padding:"32px 40px",border:"1.5px solid #e0e7ff"}}>
           <div style={{textAlign:"center",marginBottom:20}}>
-            <div style={{fontSize:16,fontWeight:800,color:"#0f172a",marginBottom:4}}>
+            <div style={{fontSize:18,fontWeight:800,color:"#0f172a",marginBottom:6}}>
               À quel point êtes-vous satisfait de cette annonce ?
             </div>
             <div style={{fontSize:13,color:"#94a3b8"}}>Votre avis nous aide à améliorer l'expérience</div>
@@ -1249,6 +1373,39 @@ export default function AnnonceDetail() {
         </div>
       </div>
 
+      {/* -- Signaler annonce — pleine largeur -- */}
+      <div style={{maxWidth:1200,margin:"0 auto 32px",padding:"0 24px"}}>
+        <div style={{background:"#fff",border:"1px solid #fecaca",borderRadius:16,overflow:"hidden"}}>
+          <div style={{padding:"18px 28px 14px",borderBottom:"1px solid #fecaca",display:"flex",alignItems:"center",gap:10}}>
+            <Flag size={15} color="#ef4444"/>
+            <span style={{fontSize:15,fontWeight:800,color:"#dc2626",letterSpacing:"-.01em"}}>Signaler cette annonce</span>
+          </div>
+          <div style={{padding:"18px 28px",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:14}}>
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              <p style={{margin:0,fontSize:13,color:"#374151",lineHeight:1.6}}>
+                Vous pensez que cette annonce est frauduleuse, trompeuse ou ne respecte pas nos conditions d'utilisation ?<br/>
+                Signalez-la et notre équipe l'examinera dans les plus brefs délais.
+              </p>
+              <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
+                {prop.id && <div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:12,color:"#6b7280",fontWeight:600}}>Identifiant :</span><span style={{fontWeight:700,color:"#111827",fontFamily:"monospace",fontSize:12,background:"#f3f4f6",padding:"2px 8px",borderRadius:6}}>#{prop.id}</span></div>}
+                {prop.reference && <div style={{display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:12,color:"#6b7280",fontWeight:600}}>Référence :</span><span style={{fontWeight:700,color:"#111827",fontFamily:"monospace",fontSize:12,background:"#f3f4f6",padding:"2px 8px",borderRadius:6}}>{prop.reference}</span></div>}
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                const storedUser = (() => { try { return JSON.parse(localStorage.getItem("user")); } catch { return null; } })();
+                navigate("/signaler-probleme", { state: { lienAnnonce: window.location.href, reference: prop.reference||null, type:"Annonce frauduleuse ou trompeuse", nom: storedUser?.username||storedUser?.nom||"", email: storedUser?.email||"" }});
+              }}
+              style={{display:"flex",alignItems:"center",gap:8,flexShrink:0,background:"#ef4444",color:"#fff",border:"none",cursor:"pointer",padding:"11px 24px",borderRadius:10,fontSize:13.5,fontWeight:700,fontFamily:"inherit",transition:"background .15s",whiteSpace:"nowrap"}}
+              onMouseEnter={e=>e.currentTarget.style.background="#dc2626"}
+              onMouseLeave={e=>e.currentTarget.style.background="#ef4444"}
+            >
+              <Flag size={15} color="#fff"/> Signaler l'annonce
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* -- Nearby recommendations -- */}
       {nearby.length > 0 && (
         <div className="ad-nearby">
@@ -1257,42 +1414,7 @@ export default function AnnonceDetail() {
             <h2 className="ad-nearby__title">{t("ad_nearby")}</h2>
           </div>
           <div className="ad-nearby__scroll">
-            {nearby.map(a => {
-              const img = a.image_principale
-                ? (a.image_principale.startsWith("http") ? a.image_principale : `${API_URL}${a.image_principale}`)
-                : "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400&q=75";
-              const CAT_COLOR = { vente:"#166534", location:"#1e40af", vacances:"#854d0e" };
-              const CAT_BG    = { vente:"#dcfce7", location:"#dbeafe", vacances:"#fef9c3" };
-              const cat = a.categorie || "vente";
-              return (
-                <div key={a.id} className="ad-ncard" onClick={() => { navigate(`/annonce/${a.id}`); window.scrollTo(0,0); }}>
-                  <div className="ad-ncard__img-wrap">
-                    <img src={img} alt={a.titre} className="ad-ncard__img" loading="lazy"/>
-                    {(cat === "location" || cat === "vacances") && (
-                      <span className="ad-ncard__cat" style={{ background: CAT_BG[cat], color: CAT_COLOR[cat] }}>
-                        {cat === "location" ? "Location" : "Vacances"}
-                      </span>
-                    )}
-                  </div>
-                  <div className="ad-ncard__body">
-                    <p className="ad-ncard__price">
-                      {Number(a.prix).toLocaleString("fr-TN")}
-                      <span> {fmtDevise(a.devise)}</span>
-                    </p>
-                    {a.prix && (() => {
-                      const apx = fmtPriceApprox(a.prix, a.devise);
-                      return apx ? <p style={{fontSize:10.5,color:"#94a3b8",margin:"-2px 0 3px",lineHeight:1.3}}>{apx}</p> : null;
-                    })()}
-                    <p className="ad-ncard__titre">{a.titre}</p>
-                    <p className="ad-ncard__dist">
-                      <MapPin size={10}/>
-                      {a._dist < 1 ? `${Math.round(a._dist * 1000)} m` : `${a._dist.toFixed(1)} km`}
-                      {a.delegation ? ` · ${a.delegation}` : ""}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
+            {nearby.map(a => <NearbyCard key={a.id} a={a} navigate={navigate}/>)}
           </div>
         </div>
       )}
@@ -1340,6 +1462,104 @@ export default function AnnonceDetail() {
         );
       })()}
 
+      {/* ── Fiche complète (toutes les données brutes) ── */}
+      {rawData && (
+        <div style={{maxWidth:1200,margin:"0 auto 40px",padding:"0 24px"}}>
+          <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:16,overflow:"hidden"}}>
+            <div style={{padding:"18px 28px 14px",borderBottom:"1px solid #e5e7eb",display:"flex",alignItems:"center",gap:10}}>
+              <span style={{fontSize:14,fontWeight:800,color:"#0f172a"}}>Fiche complète — toutes les données</span>
+              <span style={{fontSize:11,color:"#94a3b8",fontWeight:500}}>ID #{rawData.id} · Réf. {rawData.reference||"—"}</span>
+            </div>
+            <div style={{padding:"24px 28px",display:"flex",flexDirection:"column",gap:24}}>
+              {[
+                { titre:"Identité", champs:[
+                  ["ID",rawData.id],["Référence",rawData.reference],["Statut",rawData.status],
+                  ["Boost",rawData.boost_level],["Vues",rawData.views_count],
+                  ["Date création",rawData.date_creation],["Date mise à jour",rawData.date_mise_a_jour],
+                  ["Boost expire",rawData.boost_expires_at],
+                ]},
+                { titre:"Type & Catégorie", champs:[
+                  ["Catégorie",rawData.categorie],["Type bien",rawData.type_bien],
+                  ["Type appartement",rawData.type_appartement],["Type villa",rawData.type_villa],
+                  ["Type terrain",rawData.type_terrain],["Type bureau",rawData.type_bureau],
+                  ["Type option villa",rawData.type_option_villa],["Standing",rawData.standing],
+                  ["Etat bien",rawData.etat_bien],["Titre foncier",rawData.titre_foncier],
+                ]},
+                { titre:"Dimensions & Prix", champs:[
+                  ["Titre",rawData.titre],["Prix",rawData.prix],["Devise",rawData.devise],
+                  ["Superficie",rawData.superficie],["Etage",rawData.etage],
+                  ["Nb pièces",rawData.nb_pieces],["Nb chambres",rawData.nb_chambres],
+                  ["Nb sdb",rawData.nb_salles_bain],["Année construction",rawData.annee_construction],
+                ]},
+                { titre:"Localisation", champs:[
+                  ["Gouvernorat",rawData.gouvernorat],["Gouvernorat ID",rawData.gouvernorat_id],
+                  ["Délégation",rawData.delegation],["Délégation ID",rawData.delegation_id],
+                  ["Localité",rawData.localite],["Localité ID",rawData.localite_id],
+                  ["Adresse",rawData.address],["Latitude",rawData.latitude],["Longitude",rawData.longitude],
+                  ["Property ID",rawData.property_id],
+                ]},
+                { titre:"Options", champs:[
+                  ["Exclusivité",rawData.exclusivite],["Anonyme",rawData.anonyme],
+                  ["Accompagnement",rawData.accompagnement],["Open space",rawData.open_space],
+                  ["Modélisation 3D",rawData.modelisation_3d],["Terrain viabilisé",rawData.terrain_viabilise],
+                  ["Vocation terrain",rawData.vocation_terrain],["Hauteur immeuble",rawData.hauteur_immeuble],
+                  ["Nb appartements",rawData.nb_appartements],["Orientation immeuble",rawData.orientation_immeuble],
+                  ["Emplacement garage",rawData.emplacement_garage],["Téléphone",rawData.telephone],
+                ]},
+                { titre:"Vacances / Location", champs:[
+                  ["Durée type",rawData.duree_type],["Durée valeur",rawData.duree_valeur],
+                  ["Capacité accueil",rawData.capacite_accueil],
+                ]},
+                { titre:"Colocation", champs:[
+                  ["Colocation",rawData.colocation],["Places totales",rawData.places_totales],
+                  ["Places occupées",rawData.places_occupees],["Profil coloc",rawData.profil_coloc],
+                  ["Genre coloc",(rawData.genre_coloc||[]).join(", ")||null],
+                ]},
+                { titre:"Notes", champs:[
+                  ["Note moyenne",rawData.rating_avg],["Nb évaluations",rawData.rating_count],
+                ]},
+              ].map(({ titre, champs }) => (
+                <div key={titre}>
+                  <div style={{fontSize:12,fontWeight:700,color:"#6366f1",textTransform:"uppercase",letterSpacing:".06em",marginBottom:10}}>{titre}</div>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:"6px 16px"}}>
+                    {champs.map(([label, val]) => (
+                      <div key={label} style={{display:"flex",gap:6,fontSize:13,padding:"4px 0",borderBottom:"1px solid #f1f5f9"}}>
+                        <span style={{color:"#94a3b8",fontWeight:600,minWidth:140,flexShrink:0}}>{label}</span>
+                        <span style={{color: val===null||val===undefined||val===""?"#cbd5e1":"#0f172a", fontStyle: val===null||val===undefined||val===""?"italic":"normal", fontWeight:500}}>
+                          {val===null||val===undefined||val===""?"null":String(val)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              {/* Tables liées */}
+              {[
+                ["Caractère général", rawData.caractere_general],
+                ["Caractéristiques intérieures", rawData.caracteristique_interieure],
+                ["Cuisine équipée", rawData.cuisine_equipee],
+                ["Options étage", rawData.etage_options],
+              ].map(([titre, obj]) => (
+                <div key={titre}>
+                  <div style={{fontSize:12,fontWeight:700,color:"#6366f1",textTransform:"uppercase",letterSpacing:".06em",marginBottom:10}}>{titre}</div>
+                  {obj ? (
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:"6px 16px"}}>
+                      {Object.entries(obj).map(([k,v]) => (
+                        <div key={k} style={{display:"flex",gap:6,fontSize:13,padding:"4px 0",borderBottom:"1px solid #f1f5f9"}}>
+                          <span style={{color:"#94a3b8",fontWeight:600,minWidth:160,flexShrink:0}}>{k}</span>
+                          <span style={{color:v?"#16a34a":"#64748b",fontWeight:700}}>{v?"✓ Oui":"✗ Non"}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : <span style={{fontSize:13,color:"#cbd5e1",fontStyle:"italic"}}>null</span>}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       <Footer />
 
       {/* Lightbox */}
@@ -1383,7 +1603,7 @@ export default function AnnonceDetail() {
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
-        .ad-root { min-height:100vh; background:#f9fafb; font-family:'Poppins',system-ui,sans-serif; font-size:11.5px; }
+        .ad-root { min-height:100vh; background:#f9fafb; font-family:'Poppins',system-ui,sans-serif; font-size:11.5px; display:flex; flex-direction:column; }
         .ad-loading { display:flex; flex-direction:column; align-items:center; justify-content:center; height:60vh; gap:16px; color:#94a3b8; font-size:15px; }
         @keyframes spin { to { transform:rotate(360deg); } }
         .ad-spin { animation: spin 1s linear infinite; }
@@ -1431,12 +1651,12 @@ export default function AnnonceDetail() {
         .ad-features { display:flex; flex-wrap:wrap; gap:8px; }
         .ad-feature { display:flex; align-items:center; gap:6px; padding:6px 12px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:6px; font-size:13px; color:#374151; }
         .ad-feature svg { color:#6366f1; }
-        .ad-card { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:20px; margin-bottom:16px; }
-        .ad-card__cat { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; margin-bottom:10px; color:#fff; }
+        .ad-card { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:24px; margin-bottom:16px; }
+        .ad-card__cat { display:inline-block; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; margin-bottom:12px; color:#fff; }
         .ad-card__cat--achat    { background:#166534; }
         .ad-card__cat--location { background:#1e40af; }
         .ad-card__cat--vacances { background:#854d0e; }
-        .ad-card__titre { font-size:18px; font-weight:800; color:#111; line-height:1.3; margin-bottom:6px; }
+        .ad-card__titre { font-size:22px; font-weight:800; color:#111; line-height:1.3; margin-bottom:8px; }
         /* --- Bloc adresse hiérarchique --- */
         .ad-addr { margin-bottom: 14px; display: flex; flex-direction: column; gap: 6px; }
         .ad-addr__street {
@@ -1459,15 +1679,15 @@ export default function AnnonceDetail() {
         .ad-addr__sep { font-size: 13px; color: #d1d5db; font-weight: 400; }
         .ad-card__price { font-size:28px; font-weight:900; color:#111; margin-bottom:16px; }
         .ad-card__price span { font-size:14px; font-weight:400; color:#9ca3af; }
-        .ad-specs { display:flex; gap:0; margin-bottom:16px; }
-        .ad-spec { flex:1; text-align:center; padding:12px 8px; border:1px solid #e5e7eb; border-radius:8px; margin-right:6px; }
+        .ad-specs { display:flex; gap:0; margin-bottom:20px; }
+        .ad-spec { flex:1; text-align:center; padding:16px 10px; border:1px solid #e5e7eb; border-radius:10px; margin-right:8px; }
         .ad-spec:last-child { margin-right:0; }
-        .ad-spec svg { color:#9ca3af; margin:0 auto 4px; }
-        .ad-spec__val { font-size:18px; font-weight:800; color:#111; }
-        .ad-spec__lbl { font-size:11px; color:#9ca3af; margin-top:1px; }
-        .ad-meta { display:flex; flex-direction:column; gap:7px; margin-bottom:16px; }
-        .ad-meta__item { display:flex; align-items:center; gap:7px; font-size:13px; color:#4b5563; }
-        .ad-meta__item svg { color:#9ca3af; }
+        .ad-spec svg { color:#6366f1; margin:0 auto 6px; }
+        .ad-spec__val { font-size:22px; font-weight:800; color:#111; }
+        .ad-spec__lbl { font-size:12.5px; color:#9ca3af; margin-top:2px; font-weight:500; }
+        .ad-meta { display:flex; flex-direction:column; gap:10px; margin-bottom:20px; }
+        .ad-meta__item { display:flex; align-items:center; gap:9px; font-size:14px; color:#374151; }
+        .ad-meta__item svg { color:#6366f1; flex-shrink:0; }
         .ad-meta__item span { font-weight:600; color:#6b7280; }
         .ad-divider { height:1px; background:#f3f4f6; margin:16px 0; }
         /* -- Bloc contact Phase 1 -- */
@@ -1476,8 +1696,8 @@ export default function AnnonceDetail() {
           overflow: hidden; background: #fff;
         }
         .ad-contact-box__header {
-          display: flex; align-items: center; gap: 12px;
-          padding: 14px 16px; background: #f8fafc;
+          display: flex; align-items: center; gap: 14px;
+          padding: 18px 18px; background: #f8fafc;
           border-bottom: 1px solid #e5e7eb;
         }
         .ad-contact-box__avatar {
@@ -1486,17 +1706,17 @@ export default function AnnonceDetail() {
           color: #fff; font-size: 18px; font-weight: 800;
           display: flex; align-items: center; justify-content: center;
         }
-        .ad-contact-box__name { font-size: 14px; font-weight: 700; color: #0f172a; }
-        .ad-contact-box__role { font-size: 11.5px; color: #94a3b8; margin-top: 2px; }
+        .ad-contact-box__name { font-size: 16px; font-weight: 700; color: #0f172a; }
+        .ad-contact-box__role { font-size: 13px; color: #94a3b8; margin-top: 3px; }
 
         /* Buttons */
         .ad-contact-box__btns {
-          display: flex; flex-direction: column; gap: 8px; padding: 14px 16px;
+          display: flex; flex-direction: column; gap: 10px; padding: 18px 18px;
         }
         .ad-cbtn {
-          display: flex; align-items: center; justify-content: center; gap: 8px;
-          width: 100%; padding: 11px 14px; border-radius: 9px;
-          font-size: 13.5px; font-weight: 700; font-family: inherit;
+          display: flex; align-items: center; justify-content: center; gap: 9px;
+          width: 100%; padding: 14px 16px; border-radius: 11px;
+          font-size: 15px; font-weight: 700; font-family: inherit;
           cursor: pointer; transition: all .15s; text-decoration: none;
           border: none; text-align: center;
         }
@@ -1520,8 +1740,8 @@ export default function AnnonceDetail() {
         /* Views row (owner only) */
         .ad-views-row {
           display: flex; align-items: center; gap: 6px;
-          font-size: 12.5px; color: #64748b; font-weight: 600;
-          padding: 6px 16px 0;
+          font-size: 13.5px; color: #64748b; font-weight: 600;
+          padding: 10px 18px 0;
         }
 
         /* Locked state */
@@ -1561,7 +1781,7 @@ export default function AnnonceDetail() {
           border: 1.5px solid #c7d2fe;
         }
         .ad-cbtn--register:hover { background: #eef2ff; }
-        .ad-map-mini { border-radius:10px; overflow:hidden; border:1px solid #e5e7eb; height:200px; }
+        .ad-map-mini { display:none; }
         .ad-not-found { text-align:center; padding:80px 24px; color:#6b7280; font-size:15px; display:flex; flex-direction:column; align-items:center; gap:16px; }
         @keyframes fadeIn { from{opacity:0} to{opacity:1} }
         @media (max-width:900px) {
@@ -1604,28 +1824,28 @@ export default function AnnonceDetail() {
           grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
           gap:16px;
         }
-        .ad-ncard {
-          background:#fff; border:1.5px solid #e2e8f0; border-radius:12px;
-          overflow:hidden; cursor:pointer;
-          transition:box-shadow .18s, border-color .18s, transform .12s;
-        }
-        .ad-ncard:hover {
-          box-shadow:0 8px 24px rgba(0,0,0,.1); border-color:#a5b4fc;
-          transform:translateY(-2px);
-        }
-        .ad-ncard__img-wrap { position:relative; height:160px; overflow:hidden; }
-        .ad-ncard__img { width:100%; height:100%; object-fit:cover; transition:transform .25s; }
-        .ad-ncard:hover .ad-ncard__img { transform:scale(1.04); }
-        .ad-ncard__cat {
-          position:absolute; top:8px; right:8px;
-          padding:3px 9px; border-radius:20px; font-size:10px; font-weight:700;
-        }
-        .ad-ncard__body { padding:12px; }
-        .ad-ncard__price { font-size:17px; font-weight:800; color:#0f172a; margin-bottom:3px; }
-        .ad-ncard__price span { font-size:11px; font-weight:400; color:#94a3b8; }
-        .ad-ncard__titre { font-size:13px; color:#334155; margin-bottom:6px; line-height:1.35; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
-        .ad-ncard__dist { display:flex; align-items:center; gap:3px; font-size:11.5px; color:#94a3b8; }
-        .ad-ncard__dist svg { color:#6366f1; }
+        /* ── Carousel animations ── */
+        @keyframes ncCarouselInL  { from{transform:translateX(100%)} to{transform:translateX(0)} }
+        @keyframes ncCarouselOutL { from{transform:translateX(0)} to{transform:translateX(-100%)} }
+        @keyframes ncCarouselInR  { from{transform:translateX(-100%)} to{transform:translateX(0)} }
+        @keyframes ncCarouselOutR { from{transform:translateX(0)} to{transform:translateX(100%)} }
+        /* ── PropCard classes — identiques à CartePage ── */
+        .pc { background:#fff; border:1.5px solid #e2e8f0; border-radius:12px; overflow:hidden; cursor:pointer; transition:box-shadow .18s,border-color .18s,transform .12s; }
+        .pc:hover { box-shadow:0 6px 20px rgba(0,0,0,.12); border-color:#94a3b8; transform:translateY(-1px); }
+        .pc__cat-badge { position:absolute; top:8px; right:8px; z-index:10; padding:3px 9px; border-radius:20px; font-size:10px; font-weight:700; }
+        .pc__cat-badge--vente    { background:#166534; color:#fff; }
+        .pc__cat-badge--location { background:#1e40af; color:#fff; }
+        .pc__cat-badge--vacances { background:#854d0e; color:#fff; }
+        .pc__body  { padding:12px 14px 13px; }
+        .pc__price { font-size:22px; font-weight:900; color:#0a0a0a; margin-bottom:2px; }
+        .pc__devise{ font-size:13px; font-weight:500; color:#475569; margin-left:2px; }
+        .pc__title { font-size:15px; color:#0a0a0a; font-weight:700; margin-bottom:5px; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+        .pc__loc  { display:flex; align-items:center; gap:3px; font-size:12px; color:#374151; font-weight:500; margin-bottom:9px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+        .pc__specs{ display:flex; gap:10px; flex-wrap:wrap; padding-top:8px; border-top:1px solid #f1f5f9; }
+        .pc__specs span { display:flex; align-items:center; gap:3px; font-size:13px; color:#1e293b; font-weight:500; }
+        .pc__fav { width:28px; height:28px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; color:#cbd5e1; background:#f1f5f9; border:none; cursor:pointer; transition:all .15s; }
+        .pc__fav:hover { color:#ef4444; background:#fee2e2; }
+        .pc__fav--on { color:#ef4444 !important; background:#fee2e2 !important; }
 
         @media (max-width:900px) {
           .ad-nearby { padding:0 16px; }
@@ -1633,7 +1853,6 @@ export default function AnnonceDetail() {
         }
         @media (max-width:600px) {
           .ad-nearby__scroll { grid-template-columns: 1fr 1fr; }
-          .ad-ncard__img-wrap { height:130px; }
         }
         @media (max-width:420px) {
           .ad-nearby__scroll { grid-template-columns: 1fr; }
@@ -1735,23 +1954,214 @@ export default function AnnonceDetail() {
   );
 }
 
-function MiniMap({ lat, lng }) {
-  const ref    = React.useRef(null);
-  const mapRef = React.useRef(null);
+/* ── BigMap POI helpers ── */
+const PIN_SVG_HTML = `<svg xmlns="http://www.w3.org/2000/svg" width="36" height="48" viewBox="0 0 36 48"><path d="M18 0C8.059 0 0 8.059 0 18c0 11.25 16.2 28.35 16.931 29.147a1.5 1.5 0 0 0 2.138 0C19.8 46.35 36 29.25 36 18 36 8.059 27.941 0 18 0z" fill="#6366f1"/><circle cx="18" cy="18" r="8" fill="white"/></svg>`;
+
+const BM_SCHOOL_SVG  = '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>';
+const BM_MOSQUE_SVG  = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+const BM_FACULTY_SVG = '<path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>';
+const BM_SURFACE_SVG = '<circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>';
+
+const BM_SCHOOLS = [
+  { id:"sc1",  nom:"Lycée Pilote de Tunis",        lat:36.821, lng:10.159 },
+  { id:"sc2",  nom:"Collège Ibn Khaldoun",          lat:36.833, lng:10.171 },
+  { id:"sc3",  nom:"École El Menzah VI",            lat:36.846, lng:10.206 },
+  { id:"sc4",  nom:"Lycée Technique Ariana",        lat:36.866, lng:10.197 },
+  { id:"sc5",  nom:"Collège La Soukra",             lat:36.882, lng:10.213 },
+  { id:"sc6",  nom:"Lycée Habib Bourguiba Sousse",  lat:35.830, lng:10.638 },
+  { id:"sc7",  nom:"École Primaire Port Kantaoui",  lat:35.892, lng:10.612 },
+  { id:"sc8",  nom:"Lycée Farhat Hached Sfax",      lat:34.744, lng:10.762 },
+  { id:"sc9",  nom:"Collège Ibn Sina Sfax",         lat:34.737, lng:10.756 },
+  { id:"sc10", nom:"École Tahar Haddad Hammamet",   lat:36.403, lng:10.617 },
+  { id:"sc11", nom:"Lycée Pilote Nabeul",           lat:36.458, lng:10.732 },
+  { id:"sc12", nom:"École Erriadh Monastir",        lat:35.785, lng:10.815 },
+  { id:"sc13", nom:"Collège Djerba Midoun",         lat:33.825, lng:10.885 },
+  { id:"sc14", nom:"Lycée Teboulba Ben Arous",      lat:36.720, lng:10.240 },
+];
+const BM_MOSQUES = [
+  { id:"mo1",  nom:"Mosquée Zitouna",               lat:36.798, lng:10.174 },
+  { id:"mo2",  nom:"Mosquée El Fath Lac",           lat:36.840, lng:10.234 },
+  { id:"mo3",  nom:"Mosquée Ennasr",                lat:36.858, lng:10.193 },
+  { id:"mo4",  nom:"Mosquée Raoued",                lat:36.890, lng:10.177 },
+  { id:"mo5",  nom:"Mosquée Boujemaa Sousse",       lat:35.826, lng:10.636 },
+  { id:"mo6",  nom:"Mosquée Sidi Bouali Sousse",    lat:35.818, lng:10.644 },
+  { id:"mo7",  nom:"Mosquée Trois Portes Sfax",     lat:34.739, lng:10.759 },
+  { id:"mo8",  nom:"Mosquée Sidi Lakhmi Sfax",      lat:34.746, lng:10.767 },
+  { id:"mo9",  nom:"Mosquée El Kebir Hammamet",     lat:36.397, lng:10.621 },
+  { id:"mo10", nom:"Mosquée Nabeul Ville",          lat:36.452, lng:10.739 },
+  { id:"mo11", nom:"Mosquée Monastir Médina",       lat:35.776, lng:10.827 },
+  { id:"mo12", nom:"Mosquée Erriadh Djerba",        lat:33.833, lng:10.862 },
+  { id:"mo13", nom:"Mosquée Ben Arous",             lat:36.753, lng:10.229 },
+  { id:"mo14", nom:"Mosquée Kairouan Okba",         lat:35.681, lng:10.098 },
+];
+const BM_FACULTIES = [
+  { id:"fac1",  nom:"Université Tunis El Manar",        lat:36.838, lng:10.168 },
+  { id:"fac2",  nom:"Faculté des Sciences de Tunis",    lat:36.835, lng:10.172 },
+  { id:"fac3",  nom:"INSAT Tunis",                      lat:36.855, lng:10.197 },
+  { id:"fac4",  nom:"Université Carthage",              lat:36.870, lng:10.184 },
+  { id:"fac5",  nom:"ISSAT Sousse",                     lat:35.822, lng:10.631 },
+  { id:"fac6",  nom:"Faculté de Médecine Sousse",       lat:35.840, lng:10.647 },
+  { id:"fac7",  nom:"Université de Sfax",               lat:34.749, lng:10.758 },
+  { id:"fac8",  nom:"FSEG Sfax",                        lat:34.740, lng:10.752 },
+  { id:"fac9",  nom:"IPEIM Monastir",                   lat:35.778, lng:10.826 },
+  { id:"fac10", nom:"Université Manouba",               lat:36.828, lng:10.093 },
+  { id:"fac11", nom:"ISG Tunis",                        lat:36.812, lng:10.147 },
+  { id:"fac12", nom:"Faculté Droit Sc. Politiques",     lat:36.795, lng:10.181 },
+];
+const BM_SURFACES = [
+  { id:"gs1",  nom:"Carrefour Lac Tunis",               lat:36.841, lng:10.237 },
+  { id:"gs2",  nom:"Géant Casino Ennasr",               lat:36.859, lng:10.192 },
+  { id:"gs3",  nom:"Monoprix Menzah",                   lat:36.848, lng:10.207 },
+  { id:"gs4",  nom:"Carrefour Market Ariana",           lat:36.866, lng:10.199 },
+  { id:"gs5",  nom:"Azur Sousse",                       lat:35.834, lng:10.641 },
+  { id:"gs6",  nom:"Carrefour Market Sfax",             lat:34.741, lng:10.763 },
+  { id:"gs7",  nom:"Géant Hammamet",                    lat:36.405, lng:10.624 },
+  { id:"gs8",  nom:"Monoprix Centre-ville Tunis",       lat:36.803, lng:10.180 },
+  { id:"gs9",  nom:"Carrefour Ben Arous",               lat:36.741, lng:10.226 },
+  { id:"gs10", nom:"MG Monastir",                       lat:35.781, lng:10.831 },
+];
+
+function bmPoiIcon(L, color, svgPath) {
+  return L.divIcon({
+    className:"",
+    html:`<div style="width:28px;height:28px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${svgPath}</svg></div>`,
+    iconSize:[28,28], iconAnchor:[14,14],
+  });
+}
+
+function BmPoiSvg({ path }) {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+      dangerouslySetInnerHTML={{ __html: path }}
+    />
+  );
+}
+
+function BigMap({ lat, lng }) {
+  const ref        = React.useRef(null);
+  const mapRef     = React.useRef(null);
+  const leafletRef = React.useRef(null);
+  const poiRef     = React.useRef({ schools:[], mosques:[], faculties:[], surfaces:[] });
+
+  const [showSchools,   setShowSchools]   = React.useState(false);
+  const [showMosques,   setShowMosques]   = React.useState(false);
+  const [showFaculties, setShowFaculties] = React.useState(false);
+  const [showSurfaces,  setShowSurfaces]  = React.useState(false);
+  const [livePOIs, setLivePOIs] = React.useState({ schools:[], mosques:[], faculties:[], surfaces:[], loading:false, fetched:false });
+
+  /* Fetch POIs from Overpass around the annonce */
+  const fetchPOIs = React.useCallback(async () => {
+    if (!lat || !lng) return;
+    setLivePOIs(p => ({ ...p, loading:true }));
+    const R = 0.12; // ~13 km radius in degrees
+    const bbox = `${lat-R},${lng-R},${lat+R},${lng+R}`;
+    const query =
+      `[out:json][timeout:18];\n(\n` +
+      `  node["amenity"="school"](${bbox});\n` +
+      `  way["amenity"="school"](${bbox});\n` +
+      `  node["amenity"="place_of_worship"]["religion"="muslim"](${bbox});\n` +
+      `  way["amenity"="place_of_worship"]["religion"="muslim"](${bbox});\n` +
+      `  node["amenity"="university"](${bbox});\n` +
+      `  way["amenity"="university"](${bbox});\n` +
+      `  node["amenity"="college"](${bbox});\n` +
+      `  way["amenity"="college"](${bbox});\n` +
+      `  node["shop"~"supermarket|mall|department_store"](${bbox});\n` +
+      `  way["shop"~"supermarket|mall|department_store"](${bbox});\n` +
+      `);\nout center;`;
+    try {
+      const res = await fetch("https://overpass-api.de/api/interpreter", { method:"POST", body:query });
+      const data = await res.json();
+      const els = data.elements || [];
+      const pt = e => ({ lat: e.type==="way"?e.center?.lat:e.lat, lng: e.type==="way"?e.center?.lon:e.lon });
+      setLivePOIs({
+        loading: false, fetched: true,
+        schools:   els.filter(e=>e.tags?.amenity==="school").map(e=>({id:`sc_${e.id}`,nom:e.tags?.name||"École",...pt(e)})).filter(e=>e.lat&&e.lng),
+        mosques:   els.filter(e=>e.tags?.amenity==="place_of_worship"&&e.tags?.religion==="muslim").map(e=>({id:`mo_${e.id}`,nom:e.tags?.name||"Mosquée",...pt(e)})).filter(e=>e.lat&&e.lng),
+        faculties: els.filter(e=>e.tags?.amenity==="university"||e.tags?.amenity==="college").map(e=>({id:`fac_${e.id}`,nom:e.tags?.name||"Faculté",...pt(e)})).filter(e=>e.lat&&e.lng),
+        surfaces:  els.filter(e=>e.tags?.shop&&/supermarket|mall|department_store/.test(e.tags.shop)).map(e=>({id:`gs_${e.id}`,nom:e.tags?.name||"Grande surface",...pt(e)})).filter(e=>e.lat&&e.lng),
+      });
+    } catch {
+      setLivePOIs(p => ({ ...p, loading:false, fetched:true }));
+    }
+  }, [lat, lng]);
+
+  /* Init map + fetch POIs */
   React.useEffect(() => {
     if (!ref.current || mapRef.current) return;
     let live = true;
     (async () => {
       const L = (await import("leaflet")).default;
       if (!live || !ref.current) return;
-      const map = L.map(ref.current, { zoomControl:false, dragging:false, scrollWheelZoom:false }).setView([lat,lng],14);
-      mapRef.current = map;
+      const map = L.map(ref.current, { zoomControl:true, dragging:true, scrollWheelZoom:false }).setView([lat,lng],15);
+      mapRef.current  = map;
+      leafletRef.current = L;
       L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{attribution:"© OpenStreetMap © CARTO",maxZoom:19}).addTo(map);
-      const icon = L.divIcon({ className:"", html:`<div style="width:14px;height:14px;background:#6366f1;border:2.5px solid #fff;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,.3)"></div>`, iconSize:[14,14], iconAnchor:[7,7] });
+      const icon = L.divIcon({ className:"", html:PIN_SVG_HTML, iconSize:[36,48], iconAnchor:[18,48] });
       L.marker([lat,lng],{icon}).addTo(map);
       setTimeout(()=>map.invalidateSize(),80);
+      fetchPOIs(); // charge les POIs au démarrage
     })();
     return () => { live=false; if(mapRef.current){mapRef.current.remove();mapRef.current=null;} };
-  }, [lat,lng]);
-  return <div ref={ref} style={{width:"100%",height:"100%"}} />;
+  }, [lat, lng, fetchPOIs]);
+
+  /* Apply/remove POI markers */
+  function applyPOI(key, show, data, label, color, svgPath) {
+    const L = leafletRef.current; const map = mapRef.current;
+    if (!L || !map) return;
+    poiRef.current[key].forEach(m => { try { m.remove(); } catch {} });
+    poiRef.current[key] = [];
+    if (!show) return;
+    const icon = bmPoiIcon(L, color, svgPath);
+    data.forEach(s => {
+      try {
+        const m = L.marker([s.lat, s.lng], {icon}).addTo(map).bindPopup(`<b>${label}</b><br>${s.nom||""}`);
+        poiRef.current[key].push(m);
+      } catch {}
+    });
+  }
+
+  React.useEffect(() => { applyPOI("schools",   showSchools,   livePOIs.schools,   "École",          "#2563eb", BM_SCHOOL_SVG);  }, [showSchools,   livePOIs.schools]);
+  React.useEffect(() => { applyPOI("mosques",   showMosques,   livePOIs.mosques,   "Mosquée",        "#16a34a", BM_MOSQUE_SVG);  }, [showMosques,   livePOIs.mosques]);
+  React.useEffect(() => { applyPOI("faculties", showFaculties, livePOIs.faculties, "Faculté",        "#7c3aed", BM_FACULTY_SVG); }, [showFaculties, livePOIs.faculties]);
+  React.useEffect(() => { applyPOI("surfaces",  showSurfaces,  livePOIs.surfaces,  "Grande surface", "#ea580c", BM_SURFACE_SVG); }, [showSurfaces,  livePOIs.surfaces]);
+
+  const btnStyle = (active, color) => ({
+    display:"flex", alignItems:"center", gap:5,
+    padding:"6px 12px", borderRadius:20, border:"none", cursor:"pointer",
+    fontFamily:"inherit", fontSize:12, fontWeight:700, transition:"all .15s",
+    background: active ? color : "#f1f5f9",
+    color: active ? "#fff" : "#64748b",
+    boxShadow: active ? `0 2px 8px ${color}55` : "none",
+    opacity: livePOIs.loading ? 0.6 : 1,
+  });
+
+  return (
+    <div style={{display:"flex", flexDirection:"column", height:"100%"}}>
+      {/* Toolbar */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8,padding:"10px 16px",borderBottom:"1px solid #f1f5f9",background:"#fafafa"}}>
+        <div style={{display:"flex", gap:6, flexWrap:"wrap", alignItems:"center"}}>
+          {livePOIs.loading && <span style={{fontSize:11,color:"#94a3b8",fontWeight:600}}>Chargement…</span>}
+          <button style={btnStyle(showSchools,   "#2563eb")} onClick={()=>setShowSchools(v=>!v)} disabled={livePOIs.loading}>
+            <BmPoiSvg path={BM_SCHOOL_SVG}/> Écoles {livePOIs.fetched?`(${livePOIs.schools.length})`:""}
+          </button>
+          <button style={btnStyle(showMosques,   "#16a34a")} onClick={()=>setShowMosques(v=>!v)} disabled={livePOIs.loading}>
+            <BmPoiSvg path={BM_MOSQUE_SVG}/> Mosquées {livePOIs.fetched?`(${livePOIs.mosques.length})`:""}
+          </button>
+          <button style={btnStyle(showFaculties, "#7c3aed")} onClick={()=>setShowFaculties(v=>!v)} disabled={livePOIs.loading}>
+            <BmPoiSvg path={BM_FACULTY_SVG}/> Facultés {livePOIs.fetched?`(${livePOIs.faculties.length})`:""}
+          </button>
+          <button style={btnStyle(showSurfaces,  "#ea580c")} onClick={()=>setShowSurfaces(v=>!v)} disabled={livePOIs.loading}>
+            <BmPoiSvg path={BM_SURFACE_SVG}/> Grandes surfaces {livePOIs.fetched?`(${livePOIs.surfaces.length})`:""}
+          </button>
+        </div>
+        <a href={`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`}
+          target="_blank" rel="noopener noreferrer"
+          style={{display:"inline-flex",alignItems:"center",gap:7,padding:"8px 18px",borderRadius:20,textDecoration:"none",background:"#6366f1",color:"#fff",fontSize:13,fontWeight:700,boxShadow:"0 2px 8px rgba(99,102,241,.3)",whiteSpace:"nowrap"}}>
+          <Navigation size={14} strokeWidth={2.5}/> M'y rendre
+        </a>
+      </div>
+      <div ref={ref} style={{flex:1, minHeight:0}} />
+    </div>
+  );
 }

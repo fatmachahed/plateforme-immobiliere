@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from app import schemas, crud, database
 from app import models
 
@@ -89,9 +89,10 @@ def search_annonces_public(
     if prix_max is not None:
         query = query.filter(models.Annonce.prix <= prix_max)
 
-    # Boost d'abord, puis date décroissante
+    # Boost d'abord, puis date de refresh/modification décroissante
     annonces = query.order_by(
         desc(models.Annonce.boost_level),
+        desc(models.Annonce.date_mise_a_jour),
         desc(models.Annonce.date_creation)
     ).offset(skip).limit(limit).all()
 
@@ -150,7 +151,7 @@ def search_annonces_public(
             id=a.id, titre=a.titre, prix=float(a.prix), devise=a.devise.value if hasattr(a.devise, 'value') else a.devise,
             superficie=a.superficie, categorie=a.categorie.value if hasattr(a.categorie, 'value') else a.categorie,
             type_bien=a.type_bien.value if hasattr(a.type_bien, 'value') else a.type_bien,
-            boost_level=a.boost_level or 0, views_count=a.views_count or 0,
+            boost_level=a.boost_level or 0, spotlight_active=a.spotlight_active or False, views_count=a.views_count or 0,
             date_creation=a.date_creation, latitude=lat, longitude=lng,
             image_principale=img, gouvernorat=gov, delegation=dele,
             localite=loc, address=addr,
@@ -172,7 +173,54 @@ def search_annonces_public(
             rating_avg=a.rating_avg,
             rating_count=a.rating_count or 0,
             images=all_images,
+            date_mise_a_jour=a.date_mise_a_jour,
+            etat_bien=a.etat_bien.value if a.etat_bien and hasattr(a.etat_bien, "value") else (str(a.etat_bien) if a.etat_bien else None),
+            titre_foncier=bool(a.titre_foncier) if a.titre_foncier is not None else None,
+            prix_ancien=float(a.prix_ancien) if a.prix_ancien else None,
         ))
+    return result
+
+
+@router.get("/at-point")
+def get_annonces_at_point(
+    lat: float,
+    lng: float,
+    exclude_id: Optional[int] = None,
+    db: Session = Depends(get_db)
+):
+    """Retourne toutes les annonces approuvées au même point GPS (±0.0001°, ~11m)."""
+    from sqlalchemy import func
+    annonces = (
+        db.query(models.Annonce)
+        .join(models.Property, models.Property.annonce_id == models.Annonce.id)
+        .filter(
+            models.Annonce.status == "approuvee",
+            models.Property.latitude  == lat,
+            models.Property.longitude == lng,
+        )
+        .order_by(models.Annonce.boost_level.desc(), models.Annonce.date_creation.desc())
+        .all()
+    )
+    result = []
+    for a in annonces:
+        if exclude_id and a.id == exclude_id:
+            continue
+        prop = a.property
+        img  = prop.image_principale if prop else None
+        gov  = a.gouvernorat.nom if a.gouvernorat else None
+        result.append({
+            "id":        a.id,
+            "titre":     a.titre,
+            "prix":      float(a.prix),
+            "devise":    a.devise.value if hasattr(a.devise, "value") else str(a.devise),
+            "type_bien": a.type_bien.value if hasattr(a.type_bien, "value") else str(a.type_bien),
+            "categorie": a.categorie.value if hasattr(a.categorie, "value") else str(a.categorie),
+            "superficie": a.superficie,
+            "nb_pieces":  a.nb_pieces,
+            "image_principale": img,
+            "gouvernorat": gov,
+            "date_creation": a.date_creation.isoformat(),
+        })
     return result
 
 
@@ -226,10 +274,7 @@ def read_annonces(
     current_user: models.User = Depends(get_current_user)
 ):
     """Retourne les annonces avec image_principale incluse directement."""
-    if current_user.role == "admin":
-        annonces = crud.get_annonces(db, skip=skip, limit=limit)
-    else:
-        annonces = crud.get_annonces_by_user(db, user_id=current_user.id, skip=skip, limit=limit)
+    annonces = crud.get_annonces_by_user(db, user_id=current_user.id, skip=skip, limit=limit)
 
     result = []
     for a in annonces:
@@ -381,6 +426,26 @@ def get_annonce_detail(annonce_id: int, db: Session = Depends(get_db)):
         "reference":            a.reference,
         "anonyme":              a.anonyme or False,
         "accompagnement":       a.accompagnement or False,
+        "standing":             a.standing.value if a.standing and hasattr(a.standing,"value") else (str(a.standing) if a.standing else None),
+        "open_space":           a.open_space or False,
+        "modelisation_3d":      a.modelisation_3d or False,
+        "type_bureau":          a.type_bureau,
+        "vocation_terrain":     a.vocation_terrain,
+        "duree_type":           a.duree_type,
+        "duree_valeur":         a.duree_valeur,
+        "capacite_accueil":     a.capacite_accueil,
+        "terrain_viabilise":    a.terrain_viabilise or False,
+        "date_mise_a_jour":     a.date_mise_a_jour.isoformat() if a.date_mise_a_jour else None,
+        "rating_avg":           a.rating_avg,
+        "rating_count":         a.rating_count or 0,
+        "boost_expires_at":     a.boost_expires_at.isoformat() if a.boost_expires_at else None,
+        "spotlight_active":     a.spotlight_active or False,
+        "spotlight_expires_at": a.spotlight_expires_at.isoformat() if a.spotlight_expires_at else None,
+        "prix_ancien":          float(a.prix_ancien) if a.prix_ancien else None,
+        "caractere_general": {k: getattr(a.caractere_general, k, False) for k in ["jardin","terrasse","balcon","parking","garage","ascenseur","vue_mer","vue_montagne","vue_foret","piscine","concierge","cellier","meuble","facade_exterieure","digicode","interphone","gardien","travaux_prevoir","relie_onas","animaux_admis"]} if a.caractere_general else None,
+        "caracteristique_interieure": {k: getattr(a.caracteristique_interieure, k, False) for k in ["salon_americain","antenne_parabolique","fibre_optique","cheminee","climatisation","chauffage_central","securite","vitrage_aluminium","double_vitrage","porte_blink","internet","tv"]} if a.caracteristique_interieure else None,
+        "cuisine_equipee": {k: getattr(a.cuisine_equipee, k, False) for k in ["cuisine_equipee","refrigerateur","four","machine_laver","microondes"]} if a.cuisine_equipee else None,
+        "etage_options": {k: getattr(a.etage_options, k, False) for k in ["premier_etage","dernier_etage","rez_de_chaussee","plain_pied"]} if a.etage_options else None,
         "colocation":           a.colocation or False,
         "places_totales":       a.places_totales,
         "places_occupees":      a.places_occupees,
@@ -434,7 +499,79 @@ def update_annonce(
     if annonce.utilisateur_id != current_user.id and current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Action interdite")
 
-    return crud.update_annonce(db, annonce_id, update_data.dict(exclude_unset=True))
+    data = update_data.dict(exclude_unset=True)
+
+    # Détecter baisse de prix → envoyer emails aux abonnés
+    if "prix" in data and annonce.prix and float(data["prix"]) < float(annonce.prix):
+        ancien_prix = float(annonce.prix)
+        nouveau_prix = float(data["prix"])
+        devise = annonce.devise or "TND"
+        titre  = annonce.titre or "Annonce"
+        pct    = round((1 - nouveau_prix / ancien_prix) * 100)
+        alerts = db.query(models.PrixAlert).filter(models.PrixAlert.annonce_id == annonce_id).all()
+        if alerts:
+            from app.email_utils import send_email
+            for alert in alerts:
+                html = f"""
+                <div style="font-family:sans-serif;max-width:580px;margin:auto">
+                  <h2 style="color:#6366f1">Baisse de prix — {titre}</h2>
+                  <p>Le bien que vous surveillez vient de baisser de <strong style="color:#ef4444">{pct}%</strong> !</p>
+                  <table style="border-collapse:collapse;margin:16px 0">
+                    <tr><td style="padding:6px 12px;color:#64748b">Ancien prix</td><td style="padding:6px 12px;text-decoration:line-through;color:#94a3b8">{int(ancien_prix):,} {devise}</td></tr>
+                    <tr><td style="padding:6px 12px;color:#64748b">Nouveau prix</td><td style="padding:6px 12px;font-weight:700;font-size:18px;color:#0f172a">{int(nouveau_prix):,} {devise}</td></tr>
+                  </table>
+                  <a href="http://localhost:5173/annonce/{annonce_id}" style="display:inline-block;padding:12px 28px;background:#6366f1;color:#fff;border-radius:8px;text-decoration:none;font-weight:700">Voir l'annonce</a>
+                  <p style="margin-top:24px;font-size:12px;color:#94a3b8">Pour ne plus recevoir ces alertes, contactez-nous.</p>
+                </div>
+                """
+                send_email(alert.email, f"Baisse de prix : {titre} (-{pct}%)", html)
+
+    # Si le propriétaire modifie une annonce refusée → repasse en attente
+    current_status = annonce.status.value if hasattr(annonce.status, "value") else annonce.status
+    if current_user.role != "admin" and current_status == "refusee":
+        data["status"] = "en_attente"
+        annonce.refus_raisons = None
+        annonce.refus_message = None
+        db.flush()
+
+    return crud.update_annonce(db, annonce_id, data)
+
+
+# ===============================
+# ALERTE BAISSE DE PRIX
+# ===============================
+@router.post("/{annonce_id}/prix-alert")
+def subscribe_prix_alert(
+    annonce_id: int,
+    body: dict,
+    db: Session = Depends(get_db)
+):
+    email = (body.get("email") or "").strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=422, detail="Email invalide")
+    annonce = db.query(models.Annonce).filter(models.Annonce.id == annonce_id).first()
+    if not annonce:
+        raise HTTPException(status_code=404, detail="Annonce non trouvée")
+    existing = db.query(models.PrixAlert).filter(
+        models.PrixAlert.annonce_id == annonce_id,
+        models.PrixAlert.email == email
+    ).first()
+    if existing:
+        return {"ok": True, "message": "Vous êtes déjà abonné à cette alerte."}
+    alert = models.PrixAlert(annonce_id=annonce_id, email=email)
+    db.add(alert)
+    db.commit()
+    # Email de confirmation
+    from app.email_utils import send_email
+    titre = annonce.titre or "Annonce"
+    send_email(email, f"Alerte prix activée — {titre}", f"""
+    <div style="font-family:sans-serif;max-width:580px;margin:auto">
+      <h2 style="color:#6366f1">Alerte activée</h2>
+      <p>Vous recevrez un email dès que le prix de <strong>{titre}</strong> baisse.</p>
+      <a href="http://localhost:5173/annonce/{annonce_id}" style="display:inline-block;padding:12px 28px;background:#6366f1;color:#fff;border-radius:8px;text-decoration:none;font-weight:700">Voir l'annonce</a>
+    </div>
+    """)
+    return {"ok": True, "message": "Alerte activée. Vous recevrez un email en cas de baisse de prix."}
 
 
 # ===============================
@@ -501,6 +638,25 @@ def set_statut_publication(
 
 
 # ===============================
+# SPOTLIGHT — badge "À ne pas manquer" (7 jours)
+# ===============================
+@router.patch("/{annonce_id}/spotlight")
+def spotlight_annonce(
+    annonce_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    annonce = db.query(models.Annonce).filter(models.Annonce.id == annonce_id).first()
+    if not annonce:
+        raise HTTPException(status_code=404, detail="Annonce non trouvée")
+    if annonce.utilisateur_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Action interdite")
+    annonce.spotlight_active = True
+    annonce.spotlight_expires_at = datetime.utcnow() + timedelta(days=7)
+    db.commit()
+    return {"id": annonce_id, "spotlight_active": True, "spotlight_expires_at": annonce.spotlight_expires_at}
+
+
 # REFRESH — remonte l'annonce en tête de liste
 # ===============================
 @router.patch("/{annonce_id}/refresh")

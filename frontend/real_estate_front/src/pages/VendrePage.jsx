@@ -58,7 +58,22 @@ export default function VendrePage() {
         </section>
 
         {/* Cards */}
-        <section style={{
+        <style>{`
+          /* Desktop : icon séparée du titre avec espacement */
+          .vp-card-head { display: flex; flex-direction: column; gap: 18px; }
+          .vp-card h2 { font-size: 22px; font-weight: 800; color: #0f172a; margin: 0 0 8px; }
+          @media (max-width:860px) {
+            .vp-cards { padding: 0 14px 60px !important; margin-top: 32px !important; gap: 16px !important; }
+            .vp-card { padding: 22px 18px !important; }
+            .vp-card-head { flex-direction: row !important; align-items: center !important; gap: 12px !important; }
+            .vp-card-ico { width: 44px !important; height: 44px !important; border-radius: 12px !important; flex-shrink: 0 !important; }
+            .vp-card-ico svg { width: 22px !important; height: 22px !important; }
+            .vp-card h2 { font-size: 15px !important; margin: 0 !important; line-height: 1.3 !important; }
+            .vp-card li { font-size: 12px !important; }
+            .vp-card-body p { font-size: 13px !important; }
+          }
+        `}</style>
+        <section className="vp-cards" style={{
           display: "flex", flexWrap: "wrap", gap: 28,
           justifyContent: "center", alignItems: "stretch",
           padding: "0 24px 80px", maxWidth: 900, margin: "60px auto 0"
@@ -66,6 +81,7 @@ export default function VendrePage() {
 
           {/* Option 1 — Trouver un agent */}
           <div
+            className="vp-card"
             onClick={() => navigate("/trouver-un-agent")}
             style={{
               flex: "1 1 360px", maxWidth: 420,
@@ -87,17 +103,19 @@ export default function VendrePage() {
               e.currentTarget.style.transform = "translateY(0)";
             }}
           >
-            <div style={{
-              width: 60, height: 60, borderRadius: 16,
-              background: "#eef2ff", display: "flex", alignItems: "center", justifyContent: "center"
-            }}>
-              <Users size={28} color="#6366f1" />
-            </div>
-
-            <div style={{ minHeight: 130 }}>
+            <div className="vp-card-head">
+              <div className="vp-card-ico" style={{
+                width: 60, height: 60, borderRadius: 16,
+                background: "#eef2ff", display: "flex", alignItems: "center", justifyContent: "center"
+              }}>
+                <Users size={28} color="#6366f1" />
+              </div>
               <h2 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a", margin: "0 0 8px" }}>
                 Trouver un agent<br />près de chez vous
               </h2>
+            </div>
+
+            <div className="vp-card-body">
               <p style={{ fontSize: 15, color: "#64748b", lineHeight: 1.55, margin: 0 }}>
                 Confiez la vente à un professionnel de l'immobilier. Il s'occupe des visites, des négociations et des démarches administratives.
               </p>
@@ -135,6 +153,7 @@ export default function VendrePage() {
 
           {/* Option 2 — Vendre soi-même */}
           <div
+            className="vp-card"
             onClick={() => setShowWarn(true)}
             style={{
               flex: "1 1 360px", maxWidth: 420,
@@ -156,17 +175,19 @@ export default function VendrePage() {
               e.currentTarget.style.transform = "translateY(0)";
             }}
           >
-            <div style={{
-              width: 60, height: 60, borderRadius: 16,
-              background: "#d1fae5", display: "flex", alignItems: "center", justifyContent: "center"
-            }}>
-              <Home size={28} color="#10b981" />
-            </div>
-
-            <div style={{ minHeight: 130 }}>
+            <div className="vp-card-head">
+              <div className="vp-card-ico" style={{
+                width: 60, height: 60, borderRadius: 16,
+                background: "#d1fae5", display: "flex", alignItems: "center", justifyContent: "center"
+              }}>
+                <Home size={28} color="#10b981" />
+              </div>
               <h2 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a", margin: "0 0 8px" }}>
                 Vendre soi-même<br />sur Localizi.tn
               </h2>
+            </div>
+
+            <div className="vp-card-body">
               <p style={{ fontSize: 15, color: "#64748b", lineHeight: 1.55, margin: 0 }}>
                 Publiez votre annonce directement sur Localizi.tn et gérez les contacts d'acheteurs potentiels en toute autonomie jusqu'à la vente effective de votre bien.
               </p>
@@ -214,65 +235,60 @@ export default function VendrePage() {
           display:"flex", alignItems:"center", justifyContent:"center", padding:20,
         }} onClick={() => setShowWarn(false)}>
           <div style={{
-            background:"#fff", borderRadius:20, padding:"28px 32px 0",
-            maxWidth:580, width:"100%", maxHeight:"90vh",
-            display:"flex", flexDirection:"column",
+            background:"#fff", borderRadius:16, padding:"18px 16px",
+            maxWidth:400, width:"100%",
             boxShadow:"0 24px 64px rgba(0,0,0,.18)",
+            position:"relative",
           }} onClick={e => e.stopPropagation()}>
 
-            {/* Header — style comparateur */}
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:28,flexShrink:0}}>
-              <div style={{display:"flex",alignItems:"center",gap:10}}>
-                <Logo variant="color" height={28} to={null}/>
-                <div>
-                  <div style={{fontSize:16,fontWeight:800,color:"#0f172a"}}>Publier une annonce</div>
-                  <div style={{fontSize:12,color:"#94a3b8",marginTop:2}}>Informations importantes avant de continuer</div>
-                </div>
+            {/* Header compact centré */}
+            <div style={{textAlign:"center", marginBottom:12, position:"relative"}}>
+              <div style={{display:"flex", justifyContent:"center", marginBottom:5}}>
+                <Logo variant="color" height={20} to={null}/>
               </div>
+              <div style={{fontSize:13, fontWeight:800, color:"#0f172a"}}>Publier une annonce</div>
+              <div style={{fontSize:10.5, color:"#94a3b8", marginTop:2}}>Informations importantes</div>
               <button onClick={() => setShowWarn(false)} style={{
-                background:"#f1f5f9", border:"none", cursor:"pointer", borderRadius:10,
-                width:34, height:34, display:"flex", alignItems:"center", justifyContent:"center",
-                color:"#64748b", flexShrink:0,
+                position:"absolute", top:0, right:0,
+                background:"#f1f5f9", border:"none", cursor:"pointer", borderRadius:8,
+                width:26, height:26, display:"flex", alignItems:"center", justifyContent:"center",
+                color:"#64748b",
               }}>
-                <X size={18} strokeWidth={2.5}/>
+                <X size={13} strokeWidth={2.5}/>
               </button>
             </div>
 
-            {/* Corps */}
-            <div style={{flex:1, overflowY:"auto", paddingBottom:32}}>
-              {/* Icône monochrome centrée */}
-              <div style={{display:"flex",justifyContent:"center",marginBottom:22}}>
-                <div style={{width:72,height:72,borderRadius:"50%",background:"#f1f5f9",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                  <AlertTriangle size={36} color="#475569" strokeWidth={1.8}/>
-                </div>
+            {/* Icône */}
+            <div style={{display:"flex", justifyContent:"center", marginBottom:10}}>
+              <div style={{width:42,height:42,borderRadius:"50%",background:"#f1f5f9",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <AlertTriangle size={21} color="#475569" strokeWidth={1.8}/>
               </div>
+            </div>
 
-              <h2 style={{fontSize:24,fontWeight:900,color:"#0f172a",margin:"0 0 14px",textAlign:"center",lineHeight:1.2}}>
-                Avant de publier
-              </h2>
-              <p style={{fontSize:15,color:"#374151",lineHeight:1.75,margin:"0 0 28px",textAlign:"center"}}>
-                En publiant votre annonce sur Localizi.tn, la carte affichera la <strong>position exacte</strong> du bien immobilier.
-                Assurez-vous d'être le propriétaire ou le mandataire exclusif du bien.
-                Vous pouvez déplacer la position sur la carte si nécessaire.
-              </p>
+            <h2 style={{fontSize:15,fontWeight:900,color:"#0f172a",margin:"0 0 8px",textAlign:"center",lineHeight:1.2}}>
+              Avant de publier
+            </h2>
+            <p style={{fontSize:11.5,color:"#374151",lineHeight:1.6,margin:"0 0 16px",textAlign:"center"}}>
+              En publiant votre annonce sur Localizi.tn, la carte affichera la <strong>position exacte</strong> du bien immobilier.
+              Assurez-vous d'être le propriétaire ou le mandataire exclusif du bien.
+              Vous pouvez déplacer la position sur la carte si nécessaire.
+            </p>
 
-              <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
-                <button onClick={() => setShowWarn(false)} style={{
-                  padding:"13px 28px", borderRadius:12, border:"1.5px solid #e2e8f0",
-                  background:"#fff", fontSize:15, fontWeight:600, color:"#374151",
-                  cursor:"pointer", minWidth:130,
-                }}>
-                  Annuler
-                </button>
-                <button onClick={() => { setShowWarn(false); navigate("/creer_annonce"); }} style={{
-                  padding:"13px 36px", borderRadius:12, border:"none",
-                  background:"#0f172a", color:"#fff",
-                  fontSize:16, fontWeight:800, cursor:"pointer", minWidth:150,
-                  letterSpacing:".01em",
-                }}>
-                  Je publie
-                </button>
-              </div>
+            <div style={{display:"flex", gap:8, paddingBottom:6}}>
+              <button onClick={() => setShowWarn(false)} style={{
+                flex:1, padding:"10px 8px", borderRadius:10,
+                border:"1.5px solid #e2e8f0", background:"#fff",
+                fontSize:13, fontWeight:600, color:"#374151", cursor:"pointer", fontFamily:"inherit",
+              }}>
+                Annuler
+              </button>
+              <button onClick={() => { setShowWarn(false); navigate("/creer_annonce"); }} style={{
+                flex:1, padding:"10px 8px", borderRadius:10,
+                border:"none", background:"#0f172a", color:"#fff",
+                fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit",
+              }}>
+                Je publie
+              </button>
             </div>
           </div>
         </div>

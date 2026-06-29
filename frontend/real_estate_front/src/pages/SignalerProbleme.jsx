@@ -109,7 +109,18 @@ export default function SignalerProbleme() {
         </p>
       </div>
 
-      <div style={{maxWidth:640, margin:"0 auto", padding:"40px 20px 80px"}}>
+      <style>{`
+        @media (max-width:860px) {
+          .sp-outer { padding:24px 12px 40px !important; }
+          .sp-card { padding:18px 14px !important; }
+          .sp-card input, .sp-card select, .sp-card textarea { font-size:12.5px !important; padding:9px 10px !important; }
+          .sp-card input::placeholder, .sp-card textarea::placeholder { font-size:12px !important; }
+          .sp-nom-email { grid-template-columns:1fr 1fr !important; gap:8px !important; }
+          .sp-nom-email input { min-width:0 !important; box-sizing:border-box !important; width:100% !important; }
+          .sp-submit { font-size:13px !important; padding:11px !important; }
+        }
+      `}</style>
+      <div className="sp-outer" style={{maxWidth:640, margin:"0 auto", padding:"40px 20px 80px"}}>
         {done ? (
           <div style={{background:"#fff",borderRadius:16,border:"1px solid #bbf7d0",padding:"48px 32px",textAlign:"center",boxShadow:"0 2px 12px rgba(0,0,0,.05)"}}>
             <div style={{width:60,height:60,borderRadius:"50%",background:"#dcfce7",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 20px"}}>
@@ -121,7 +132,7 @@ export default function SignalerProbleme() {
             </p>
           </div>
         ) : (
-          <div style={{background:"#fff",borderRadius:16,border:"1px solid #e2e8f0",padding:"32px",boxShadow:"0 2px 12px rgba(0,0,0,.05)"}}>
+          <div className="sp-card" style={{background:"#fff",borderRadius:16,border:"1px solid #e2e8f0",padding:"32px",boxShadow:"0 2px 12px rgba(0,0,0,.05)"}}>
             {error && (
               <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:10,padding:"11px 14px",fontSize:13,color:"#b91c1c",marginBottom:20,fontWeight:500}}>
                 {error}
@@ -190,15 +201,15 @@ export default function SignalerProbleme() {
               {/* Infos contact (optionnel) */}
               <div style={{borderTop:"1px solid #f1f5f9",paddingTop:18}}>
                 <p style={{fontSize:12.5,color:"#94a3b8",margin:"0 0 14px",fontWeight:500}}>Vos coordonnées (optionnel — pour que nous puissions vous répondre)</p>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                <div className="sp-nom-email" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
                   <input type="text" value={nom} onChange={e=>setNom(e.target.value)} placeholder="Votre nom"
-                    style={{padding:"10px 14px",borderRadius:10,border:"1.5px solid #e2e8f0",fontFamily:"inherit",fontSize:13.5,outline:"none",background:"#f8fafc"}}/>
+                    style={{padding:"10px 14px",borderRadius:10,border:"1.5px solid #e2e8f0",fontFamily:"inherit",fontSize:13.5,outline:"none",background:"#f8fafc",boxSizing:"border-box"}}/>
                   <input type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="Votre email"
-                    style={{padding:"10px 14px",borderRadius:10,border:"1.5px solid #e2e8f0",fontFamily:"inherit",fontSize:13.5,outline:"none",background:"#f8fafc"}}/>
+                    style={{padding:"10px 14px",borderRadius:10,border:"1.5px solid #e2e8f0",fontFamily:"inherit",fontSize:13.5,outline:"none",background:"#f8fafc",boxSizing:"border-box"}}/>
                 </div>
               </div>
 
-              <button type="submit" disabled={loading||!type||!description.trim()}
+              <button type="submit" disabled={loading||!type||!description.trim()} className="sp-submit"
                 style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,padding:"13px",borderRadius:11,border:"none",background:"#ef4444",color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:"inherit",opacity:(loading||!type||!description.trim())?0.5:1,transition:"opacity .15s"}}>
                 <Send size={16}/>
                 {loading ? "Envoi…" : "Envoyer le signalement"}

@@ -1,6 +1,6 @@
-﻿import { useState } from "react";
+﻿import { useState, useEffect } from "react";
 import API_URL from '../config';
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff, UserPlus, Home, Building2, ShoppingCart, Tag, Key, DoorOpen, ChevronRight, ChevronLeft } from "lucide-react";
 import { useToast } from "../components/Toast";
 import Logo from "../components/Logo";
@@ -16,8 +16,10 @@ export default function Register() {
   const [role,              setRole]              = useState("particulier");
   const [sousRole,          setSousRole]          = useState("");
   const [secteurPartenaire, setSecteurPartenaire] = useState("");
+  const [metierArtisan,     setMetierArtisan]     = useState("");
   const [particulierIntent, setParticulierIntent] = useState("achete");
   const [particulierProfil, setParticulierProfil] = useState("");
+  const [showGooglePopup,   setShowGooglePopup]   = useState(false);
   const [sexe,              setSexe]              = useState("");
   const [showPwd,           setShowPwd]           = useState(false);
   const [showConfirm,       setShowConfirm]       = useState(false);
@@ -27,6 +29,16 @@ export default function Register() {
   const [resendLoading,     setResendLoading]     = useState(false);
   const [resendDone,        setResendDone]        = useState(false);
   const toast = useToast();
+  const [searchParams] = useSearchParams();
+
+  /* Pré-remplissage selon URL params (?type=promoteur | agence | partenaire | professionnel) */
+  useEffect(() => {
+    const type = searchParams.get("type");
+    if (type === "promoteur")    { setRole("professionnel"); setSousRole("promoteur"); }
+    else if (type === "agence")  { setRole("professionnel"); setSousRole("agence"); }
+    else if (type === "partenaire") { setRole("professionnel"); setSousRole("partenaire"); }
+    else if (type === "professionnel") { setRole("professionnel"); }
+  }, []);
 
   const handleResend = async () => {
     setResendLoading(true); setResendDone(false);
@@ -53,7 +65,8 @@ export default function Register() {
       const data = await res.json();
       localStorage.setItem("token", data.access_token);
       if (data.user) localStorage.setItem("user", JSON.stringify(data.user));
-      toast("Compte créé et connecté via Google ! Bienvenue."); window.location.href="/";
+      toast("Compte créé et connecté via Google ! Bienvenue.");
+      window.location.href = data.is_new ? "/compte?welcome=1" : "/";
     } catch { setError("Serveur inaccessible."); } finally { setLoading(false); }
   };
 
@@ -82,6 +95,8 @@ export default function Register() {
           username, email, password,
           role: role==="professionnel" ? sousRole : role,
           secteur_partenaire: sousRole==="partenaire" ? secteurPartenaire : null,
+          metier_artisan: (sousRole==="partenaire" && secteurPartenaire==="artisans") ? metierArtisan || null : null,
+          objectif: role==="particulier" ? particulierIntent : null,
         }),
       });
       if (!res.ok) {
@@ -90,13 +105,50 @@ export default function Register() {
         setError(Array.isArray(detail) ? detail.map(d=>d.msg).join(" ") : (detail||"Erreur lors de l'inscription."));
         return;
       }
-      // Compte créé → afficher l'écran "vérifiez votre email" (ne plus auto-login)
-      setStep("email-sent");
+      // Compte créé → onboarding pour les pros, sinon écran "vérifiez votre email"
+      const finalRole = role === "professionnel" ? sousRole : role;
+      if (finalRole === "agence") {
+        window.location.href = "/espace-agence/onboarding";
+      } else if (finalRole === "promoteur") {
+        window.location.href = "/espace-promoteur/onboarding";
+      } else {
+        localStorage.setItem("first_login", "1");
+        setStep("email-sent");
+      }
     } catch { setError("Serveur inaccessible."); } finally { setLoading(false); }
   };
 
   return (
     <div className="sp-page">
+      {/* Popup info Google : particuliers uniquement */}
+      {showGooglePopup && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 16px"}}
+             onClick={()=>setShowGooglePopup(false)}>
+          <div style={{background:"#fff",borderRadius:16,padding:"28px 24px",maxWidth:400,width:"100%",boxShadow:"0 8px 40px rgba(0,0,0,.18)"}}
+               onClick={e=>e.stopPropagation()}>
+            <div style={{fontSize:36,textAlign:"center",marginBottom:12}}>ℹ️</div>
+            <h3 style={{margin:"0 0 10px",fontSize:17,fontWeight:700,color:"#0f172a",textAlign:"center"}}>
+              Inscription Google — Particuliers uniquement
+            </h3>
+            <p style={{margin:"0 0 20px",fontSize:13.5,color:"#475569",textAlign:"center",lineHeight:1.6}}>
+              L'inscription via Google est réservée aux <strong>particuliers</strong>.<br/>
+              Si vous êtes un professionnel (agent, agence, promoteur, partenaire), veuillez utiliser le <strong>formulaire d'inscription classique</strong> pour renseigner votre rôle et secteur d'activité.
+            </p>
+            <div style={{display:"flex",gap:10,flexDirection:"column"}}>
+              <button type="button"
+                onClick={()=>{ setShowGooglePopup(false); loginWithGoogle(); }}
+                style={{width:"100%",padding:"11px",borderRadius:10,border:"none",background:"#6366f1",color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>
+                Je suis particulier — Continuer avec Google
+              </button>
+              <button type="button"
+                onClick={()=>setShowGooglePopup(false)}
+                style={{width:"100%",padding:"11px",borderRadius:10,border:"1.5px solid #e2e8f0",background:"#f8fafc",color:"#475569",fontWeight:600,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>
+                Utiliser le formulaire
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Left */}
       <div className="sp-left">
         <img src={heroImg} alt="" className="sp-left__bg" />
@@ -187,7 +239,7 @@ export default function Register() {
           {step===1 && (
             <form onSubmit={handleNext} className="sp-form">
               {/* Google en haut */}
-              <button type="button" onClick={()=>loginWithGoogle()} disabled={loading} className="sp-google-btn">
+              <button type="button" onClick={()=>setShowGooglePopup(true)} disabled={loading} className="sp-google-btn">
                 <svg width="18" height="18" viewBox="0 0 48 48">
                   <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
                   <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
@@ -254,7 +306,7 @@ export default function Register() {
                     {sousRole==="partenaire"&&(
                       <div style={{marginTop:12}}>
                         <label className="sp-label" style={{marginBottom:6,display:"block"}}>Secteur d'activité <span style={{color:"#ef4444"}}>*</span></label>
-                        <select value={secteurPartenaire} onChange={e=>setSecteurPartenaire(e.target.value)} disabled={loading} style={{width:"100%",padding:"11px 14px",borderRadius:10,border:`1.5px solid ${secteurPartenaire?"#6366f1":"#e2e8f0"}`,fontFamily:"inherit",fontSize:14,outline:"none",background:"#f8fafc",color:"#0f172a",boxSizing:"border-box"}}>
+                        <select value={secteurPartenaire} onChange={e=>{setSecteurPartenaire(e.target.value);setMetierArtisan("");}} disabled={loading} style={{width:"100%",padding:"11px 14px",borderRadius:10,border:`1.5px solid ${secteurPartenaire?"#6366f1":"#e2e8f0"}`,fontFamily:"inherit",fontSize:14,outline:"none",background:"#f8fafc",color:"#0f172a",boxSizing:"border-box"}}>
                           <option value="">— Sélectionnez votre secteur —</option>
                           <option value="banques">Banques</option>
                           <option value="assurances">Assurances</option>
@@ -262,6 +314,32 @@ export default function Register() {
                           <option value="architectes">Architectes</option>
                           <option value="artisans">Artisans / Professionnels du bâtiment</option>
                         </select>
+                        {secteurPartenaire==="artisans"&&(
+                          <div style={{marginTop:10}}>
+                            <label className="sp-label" style={{marginBottom:6,display:"block"}}>Métier <span style={{color:"#ef4444"}}>*</span></label>
+                            <select value={metierArtisan} onChange={e=>setMetierArtisan(e.target.value)} disabled={loading} style={{width:"100%",padding:"11px 14px",borderRadius:10,border:`1.5px solid ${metierArtisan?"#6366f1":"#e2e8f0"}`,fontFamily:"inherit",fontSize:14,outline:"none",background:"#f8fafc",color:"#0f172a",boxSizing:"border-box"}}>
+                              <option value="">— Sélectionnez votre métier —</option>
+                              <option value="Maçon / Gros œuvre">Maçon / Gros œuvre</option>
+                              <option value="Plombier">Plombier</option>
+                              <option value="Électricien">Électricien</option>
+                              <option value="Peintre en bâtiment">Peintre en bâtiment</option>
+                              <option value="Carreleur">Carreleur</option>
+                              <option value="Menuisier">Menuisier</option>
+                              <option value="Charpentier">Charpentier</option>
+                              <option value="Couvreur">Couvreur</option>
+                              <option value="Plâtrier">Plâtrier</option>
+                              <option value="Serrurier / Métallier">Serrurier / Métallier</option>
+                              <option value="Climaticien / Chauffagiste">Climaticien / Chauffagiste</option>
+                              <option value="Cuisiniste">Cuisiniste</option>
+                              <option value="Architecte d'intérieur">Architecte d'intérieur</option>
+                              <option value="Géomètre / Topographe">Géomètre / Topographe</option>
+                              <option value="Expert immobilier">Expert immobilier</option>
+                              <option value="Photographe immobilier">Photographe immobilier</option>
+                              <option value="Déménageur">Déménageur</option>
+                              <option value="Autre">Autre</option>
+                            </select>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
