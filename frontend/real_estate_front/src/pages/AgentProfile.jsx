@@ -288,8 +288,7 @@ export default function AgentProfile() {
 
       {/* ── HERO BANNER ── */}
       <div style={{ position:"relative", height:300, overflow:"hidden" }}>
-        <img src="/localizi_ia1.jpeg" alt="bannière"
-          style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"center 35%" }}/>
+        <div style={{ width:"100%", height:"100%", background:"linear-gradient(135deg,#0f172a 0%,#1e3a5f 60%,#0f172a 100%)" }}/>
         <div style={{ position:"absolute", inset:0, background:"linear-gradient(to bottom,rgba(10,15,30,.35) 0%,rgba(10,15,30,.72) 100%)" }}/>
         <div style={{ position:"absolute", top:24, left:28, zIndex:10 }}>
           <Link to={backHref} style={{
