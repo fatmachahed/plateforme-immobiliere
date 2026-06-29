@@ -45,6 +45,7 @@ services:
       dockerfile: ../../Dockerfile.frontend
       args:
         VITE_API_URL: /api
+        VITE_GOOGLE_CLIENT_ID: 1017979033253-ptnudc5nrr1ra5j666rhjskpija51vvp.apps.googleusercontent.com
     restart: always
 
   # ── Reverse proxy Nginx (Cloudflare gère le SSL) ──────────────
