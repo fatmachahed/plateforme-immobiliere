@@ -38,6 +38,8 @@ class User(Base):
     is_verified        = Column(Boolean, default=False, nullable=True)
     email_verify_token = Column(String, nullable=True)
     profil_user        = Column(String, nullable=True)   # etudiant | parent | couple
+    profil_particulier = Column(String, nullable=True)   # etudiant | parent | couple | investisseur | ...
+    sexe               = Column(String, nullable=True)   # homme | femme | non_precise
     objectif           = Column(String, nullable=True)   # achete | vend | loue | met_location
     last_login         = Column(DateTime, nullable=True)
     created_at         = Column(DateTime, default=datetime.utcnow, nullable=True)

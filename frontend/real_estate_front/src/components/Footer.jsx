@@ -111,11 +111,15 @@ export default function Footer() {
         <div className="lz-footer__bottom">
           <p style={{color:"#fff"}}>© {new Date().getFullYear()} Localizi.tn. Tous droits réservés.</p>
           <div className="lz-footer__bottom-links">
-            <Link to="/politique-confidentialite">Politique de confidentialité</Link>
-            <Link to="/cgu">CGU</Link>
-            <Link to="/faq">FAQ</Link>
-            <Link to="/mentions-legales">Mentions légales</Link>
-            <Link to="/cookies">Cookies</Link>
+            {[
+              ["/politique-confidentialite","Politique de confidentialité"],
+              ["/cgu","CGU"],
+              ["/faq","FAQ"],
+              ["/mentions-legales","Mentions légales"],
+              ["/cookies","Cookies"],
+            ].map(([to,label])=>(
+              <Link key={to} to={to} onClick={()=>window.scrollTo({top:0,behavior:"instant"})}>{label}</Link>
+            ))}
           </div>
         </div>
       </div>

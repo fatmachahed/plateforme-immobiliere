@@ -106,7 +106,8 @@ export default function Compte() {
   const [editing,   setEditing]   = useState(false);
   const [editing2,  setEditing2]  = useState(false); // infos complémentaires (particulier)
   const [saving,  setSaving]  = useState(false);
-  const [phoneOtpModal, setPhoneOtpModal] = useState(false);
+  const [phoneOtpModal, _setPhoneOtpModal] = useState(() => sessionStorage.getItem("phone_otp_pending") === "1");
+  const setPhoneOtpModal = (v) => { _setPhoneOtpModal(v); if (v) sessionStorage.setItem("phone_otp_pending","1"); else sessionStorage.removeItem("phone_otp_pending"); };
   const [phoneOtpCode,  setPhoneOtpCode]  = useState("");
   const [phoneOtpErr,   setPhoneOtpErr]   = useState("");
   const [phoneOtpLoading, setPhoneOtpLoading] = useState(false);
@@ -658,10 +659,29 @@ export default function Compte() {
   function buildCarteUrl(criteres) {
     const c=criteres||{}; const p=new URLSearchParams();
     if(c.categories?.length>0) p.set("categories",c.categories.join(","));
-    if(c.type) p.set("type",c.type); if(c.govNom) p.set("gouvernorat",c.govNom); if(c.govId) p.set("govId",c.govId);
-    if(c.delNom) p.set("delegation",c.delNom); if(c.prixMin) p.set("prixMin",c.prixMin); if(c.prixMax) p.set("prixMax",c.prixMax);
-    if(c.superficieMin) p.set("sMin",c.superficieMin); if(c.superficieMax) p.set("sMax",c.superficieMax);
-    if(c.bedsMin) p.set("beds",c.bedsMin); if(c.features?.length>0) p.set("feat",c.features.join(","));
+    if(c.type)          p.set("type",       c.type);
+    if(c.govNom)        p.set("gouvernorat",c.govNom);
+    if(c.govId)         p.set("govId",      c.govId);
+    if(c.delNom)        p.set("delegation", c.delNom);
+    if(c.delId)         p.set("delId",      c.delId);
+    if(c.locNom)        p.set("localite",   c.locNom);
+    if(c.locId)         p.set("locId",      c.locId);
+    if(c.prixMin)       p.set("prixMin",    c.prixMin);
+    if(c.prixMax)       p.set("prixMax",    c.prixMax);
+    if(c.superficieMin) p.set("sMin",       c.superficieMin);
+    if(c.superficieMax) p.set("sMax",       c.superficieMax);
+    if(c.bedsMin)       p.set("beds",       c.bedsMin);
+    if(c.piecesMin)     p.set("pMin",       c.piecesMin);
+    if(c.chambresMin)   p.set("cMin",       c.chambresMin);
+    if(c.etat)          p.set("etat",       c.etat);
+    if(c.titre_foncier) p.set("tf",         c.titre_foncier);
+    if(c.type_terrain)  p.set("tterrain",   c.type_terrain);
+    if(c.standing)      p.set("standing",   c.standing);
+    if(c.anciennete)    p.set("anciennete", c.anciennete);
+    if(c.etage_min)     p.set("etage_min",  c.etage_min);
+    if(c.type_appartement) p.set("type_appt", c.type_appartement);
+    if(c.colocation)    p.set("colocation", "1");
+    if(c.features?.length>0) p.set("feat", c.features.join(","));
     return `/carte?${p.toString()}`;
   }
 

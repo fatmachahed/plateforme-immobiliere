@@ -24,6 +24,8 @@ class UserBase(BaseModel):
     secteur_partenaire: Optional[str] = None
     metier_artisan:     Optional[str] = None
     objectif:           Optional[str] = None
+    profil_particulier: Optional[str] = None
+    sexe:               Optional[str] = None
 
 class UserCreate(UserBase):
     password: str  # mot de passe en clair pour la création
