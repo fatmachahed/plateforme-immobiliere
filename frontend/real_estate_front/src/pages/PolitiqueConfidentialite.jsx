@@ -181,11 +181,6 @@ export default function PolitiqueConfidentialite() {
                 <div className="pc-intro-card__val">Zéro vente</div>
                 <div className="pc-intro-card__label">Données jamais vendues</div>
               </div>
-              <div className="pc-intro-card pc-intro-card--rose">
-                <Database size={28} className="pc-intro-card__ico"/>
-                <div className="pc-intro-card__val">Local</div>
-                <div className="pc-intro-card__label">Stockage en Tunisie</div>
-              </div>
             </div>
           </div>
         </section>

@@ -22,7 +22,7 @@ const FAQS = [
       },
       {
         q: "Qui peut utiliser Localizi.tn ?",
-        a: "Tout le monde ! Les particuliers qui souhaitent vendre ou louer leur bien, les agents et agences immobilières qui gèrent un portefeuille d'annonces, et les promoteurs immobiliers qui souhaitent présenter leurs projets neufs. La plateforme couvre les 24 gouvernorats de la Tunisie."
+        a: "Tout le monde ! Les particuliers qui souhaitent vendre, acheter ou louer leur bien, les agents et agences immobilières qui gèrent un portefeuille d'annonces, les promoteurs immobiliers qui souhaitent présenter leurs projets neufs et les prestataires qui travaillent dans le secteur de l'immobilier. La plateforme couvre les 24 gouvernorats de la Tunisie."
       },
     ],
   },

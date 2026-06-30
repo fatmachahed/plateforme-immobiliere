@@ -15,7 +15,7 @@ En accédant à la Plateforme, l'utilisateur accepte sans réserve les présente
 • La publication et la consultation d'annonces immobilières (vente, location, vacances) en Tunisie.
 • La mise en relation entre propriétaires, agents immobiliers et acheteurs/locataires.
 • La recherche géolocalisée via une carte interactive.
-• Le référencement de professionnels de l'immobilier (agences, promoteurs, agents).`,
+• Le référencement de professionnels de l'immobilier (agents, agences, promoteurs, prestataires).`,
   },
   {
     title: "3. Inscription et compte utilisateur",
@@ -39,14 +39,14 @@ En accédant à la Plateforme, l'utilisateur accepte sans réserve les présente
   },
   {
     title: "5. Responsabilités",
-    content: `5.1. Localizi.tn agit en qualité d'intermédiaire technique et n'est pas partie aux transactions entre utilisateurs.
+    content: `5.1. Localizi.tn agit en qualité d'intermédiaire technique et n'est pas responsable des transactions entre utilisateurs.
 5.2. Localizi.tn ne garantit pas l'exactitude des informations publiées par les utilisateurs.
 5.3. L'utilisateur est seul responsable du contenu de ses annonces et des conséquences de leur publication.
 5.4. Localizi.tn met en œuvre les moyens raisonnables pour assurer la disponibilité de la Plateforme, mais ne peut garantir un accès ininterrompu.`,
   },
   {
     title: "6. Propriété intellectuelle",
-    content: `6.1. L'ensemble des éléments de la Plateforme (logo, textes, interface, code) est protégé par le droit de la propriété intellectuelle et appartient à Localizi.tn ou à ses partenaires.
+    content: `6.1. L'ensemble des éléments de la Plateforme (logo, textes, interface, code) est protégé par le droit de la propriété intellectuelle et appartient à CID.
 6.2. Toute reproduction, représentation ou exploitation non autorisée est strictement interdite.
 6.3. En publiant du contenu sur la Plateforme, l'utilisateur accorde à Localizi.tn une licence non exclusive et gratuite pour l'afficher et le diffuser.`,
   },
@@ -122,8 +122,8 @@ export default function CGU() {
           fontSize:13, color:"#94a3b8",
         }}>
           Pour toute question relative aux présentes CGU, contactez-nous à{" "}
-          <a href="mailto:localizi.tn@gmail.com" style={{color:"#6366f1", fontWeight:600}}>
-            localizi.tn@gmail.com
+          <a href="mailto:contact@localizi.tn" style={{color:"#6366f1", fontWeight:600}}>
+            contact@localizi.tn
           </a>
         </div>
       </div>
