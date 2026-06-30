@@ -2411,7 +2411,7 @@ function ComparePopup({ onClose }) {
 
 /* --- Hover card avec carousel (pin simple au clic) --- */
 function HoverCard({ pin, sharedHoverTimer, onOpen, onLeave }) {
-  const images = (pin.images && pin.images.length > 0) ? pin.images : ["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=75"];
+  const images = (pin.images && pin.images.length > 0) ? pin.images : [];
   const [idx,     setIdx]    = useState(0);
   const [prevIdx, setPrevIdx]= useState(null);
   const [dir,     setDir]    = useState(1);
@@ -2488,18 +2488,24 @@ function HoverCard({ pin, sharedHoverTimer, onOpen, onLeave }) {
       onMouseLeave={() => onLeave()}
     >
       {/* Carousel image */}
-      <div style={{position:"relative", height:160, overflow:"hidden", isolation:"isolate"}}>
-        {prevIdx !== null && (
-          <img src={images[prevIdx]} alt="" style={{
-            position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",
-            animation:`carouselOut${dir>0?"L":"R"} .38s cubic-bezier(.4,0,.2,1) forwards`, zIndex:1,
-          }}/>
+      <div style={{position:"relative", height:160, overflow:"hidden", isolation:"isolate", background:"#f1f5f9"}}>
+        {images.length === 0 ? (
+          <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100%",fontSize:48,color:"#cbd5e1"}}>🏠</div>
+        ) : (
+          <>
+            {prevIdx !== null && (
+              <img src={images[prevIdx]} alt="" style={{
+                position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",
+                animation:`carouselOut${dir>0?"L":"R"} .38s cubic-bezier(.4,0,.2,1) forwards`, zIndex:1,
+              }}/>
+            )}
+            <img key={idx} src={images[idx]} alt="" style={{
+              position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",
+              animation: prevIdx !== null ? `carouselIn${dir>0?"L":"R"} .38s cubic-bezier(.4,0,.2,1) forwards` : "none",
+              zIndex:2,
+            }} onError={e=>{ e.currentTarget.style.display="none"; }}/>
+          </>
         )}
-        <img key={idx} src={images[idx]} alt="" style={{
-          position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",
-          animation: prevIdx !== null ? `carouselIn${dir>0?"L":"R"} .38s cubic-bezier(.4,0,.2,1) forwards` : "none",
-          zIndex:2,
-        }} onError={e=>{ e.currentTarget.src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=75"; }}/>
         {/* Cœur favoris */}
         <button
           onClick={toggleFav}
@@ -3220,7 +3226,7 @@ export default function CartePage() {
         style={{
           position:"sticky",top:64,zIndex:200,background:"#fff",
           boxShadow:"0 2px 8px rgba(0,0,0,.06)",
-          ...(mobileFilterH != null ? { maxHeight: mobileFilterH, overflowY:"auto" } : {}),
+          ...(mobileFilterH != null ? { maxHeight: mobileFilterH, overflowY:"auto", flexShrink:0 } : { flexShrink:0 }),
         }}
       >
       <FilterPanel
@@ -4432,20 +4438,35 @@ export default function CartePage() {
         }
 
         @media (max-width: 860px) {
-          /* Colle la barre filtre sous la navbar mobile (54px) sans espace */
-          .cp-sticky-bar { top: 54px !important; }
+          /* Sur mobile : sticky-bar devient relative + overflow-y:auto */
+          .cp-sticky-bar {
+            position: relative !important;
+            top: 0 !important;
+            flex-shrink: 0;
+            overflow-y: auto;
+          }
           .cp-drag-handle {
             display: flex;
             justify-content: center;
             align-items: center;
             height: 28px;
-            background: #fff;
-            border-top: 1px solid #e2e8f0;
-            border-bottom: 1px solid #e2e8f0;
+            min-height: 28px;
+            background: #f8fafc;
+            border-top: 2px solid #e2e8f0;
+            border-bottom: 2px solid #e2e8f0;
             cursor: ns-resize;
             touch-action: none;
             flex-shrink: 0;
             z-index: 199;
+          }
+          .cp-drag-handle__bar { background: #94a3b8; width: 48px; height: 5px; border-radius: 3px; }
+          /* cp-root sur mobile : colonne flex qui couvre tout l'écran */
+          .cp-root--carte {
+            height: 100dvh !important;
+            overflow: hidden !important;
+            display: flex;
+            flex-direction: column;
+            padding-top: 54px; /* hauteur navbar mobile fixe */
           }
           .cp-layout   { flex-direction: column; flex: 1; min-height: 0; }
           .cp-map      { flex: 1; min-height: 0; height: 100%; }

@@ -1363,7 +1363,29 @@ export default function Compte() {
                         const c=s.criteres||{};
                         const ETAT_FR={nouveau:"Neuf",bon_etat:"Bon état",a_renover:"À rénover",cours_construction:"En construction"};
                         const FEAT_LABELS={vue_mer:"Vue sur mer",vue_montagne:"Vue sur montagne",vue_foret:"Vue sur forêt",jardin:"Jardin",terrasse:"Terrasse",balcon:"Balcon",piscine:"Piscine",parking:"Parking",ascenseur:"Ascenseur",garage:"Garage",cellier:"Cellier",meuble:"Meublé",concierge:"Concierge",gardien:"Gardien",animaux_admis:"Animaux admis",cuisine_equipee:"Cuisine équipée",climatisation:"Clim.",chauffage_centrale:"Chauffage",cheminee:"Cheminée",double_vitrage:"Double vitrage",porte_blindee:"Porte blindée",securite:"Sécurité",internet:"Internet",tv:"TV",machine_laver:"Machine laver",digicode:"Digicode",interphone:"Interphone"};
-                        const tags=[c.categories?.length>0&&c.categories.map(v=>CAT_FR2[v]||v).join(" / "),c.type&&(TYPE_FR[c.type]||c.type.replace(/_/g," ")),c.govNom,c.delNom,c.locNom,c.prixMin&&`≥ ${Number(c.prixMin).toLocaleString("fr-TN")} DT`,c.prixMax&&`≤ ${Number(c.prixMax).toLocaleString("fr-TN")} DT`,c.superficieMin&&c.superficieMax?`${c.superficieMin}–${c.superficieMax} m²`:c.superficieMin?`≥ ${c.superficieMin} m²`:c.superficieMax?`≤ ${c.superficieMax} m²`:null,c.bedsMin&&`${c.bedsMin}+ pièces`,c.chambresMin&&`${c.chambresMin}+ ch.`,c.etat&&(ETAT_FR[c.etat]||c.etat.replace(/_/g," ")),...(c.features?.length>0?c.features.map(k=>FEAT_LABELS[k]||k):[])].filter(Boolean);
+                        const TYPE_APPT_FR={studio:"Studio",s0:"S0","s+1":"S+1","s+2":"S+2","s+3":"S+3","s+4":"S+4",duplex:"Duplex",penthouse:"Penthouse"};
+                        const TYPE_TERRAIN_FR={agricole:"Terrain agricole",constructible:"Terrain constructible",mixte:"Terrain mixte",industriel:"Terrain industriel"};
+                        const STANDING_FR={economique:"Économique",moyen_standing:"Moyen standing",haut_standing:"Haut standing"};
+                        const tags=[
+                          c.categories?.length>0&&c.categories.map(v=>CAT_FR2[v]||v).join(" / "),
+                          c.type&&(TYPE_FR[c.type]||c.type.replace(/_/g," ")),
+                          c.govNom,c.delNom,c.locNom,
+                          c.prixMin&&`≥ ${Number(c.prixMin).toLocaleString("fr-TN")} DT`,
+                          c.prixMax&&`≤ ${Number(c.prixMax).toLocaleString("fr-TN")} DT`,
+                          c.superficieMin&&c.superficieMax?`${c.superficieMin}–${c.superficieMax} m²`:c.superficieMin?`≥ ${c.superficieMin} m²`:c.superficieMax?`≤ ${c.superficieMax} m²`:null,
+                          c.bedsMin&&`${c.bedsMin}+ pièces`,
+                          c.piecesMin&&`${c.piecesMin}+ pièces`,
+                          c.chambresMin&&`${c.chambresMin}+ ch.`,
+                          c.etat&&(ETAT_FR[c.etat]||c.etat.replace(/_/g," ")),
+                          c.type_appartement&&(TYPE_APPT_FR[c.type_appartement]||c.type_appartement),
+                          c.type_terrain&&(TYPE_TERRAIN_FR[c.type_terrain]||c.type_terrain),
+                          c.standing&&(STANDING_FR[c.standing]||c.standing),
+                          c.titre_foncier&&"Titre foncier",
+                          c.colocation&&"Colocation",
+                          c.etage_min&&(c.etage_min==="0"?"RDC":`Étage ≥ ${c.etage_min}`),
+                          c.anciennete&&({1:"Aujourd'hui",7:"7 derniers jours",30:"30 derniers jours",60:"60 derniers jours",90:"3 derniers mois",180:"6 derniers mois"}[c.anciennete]||`${c.anciennete} jours`),
+                          ...(c.features?.length>0?c.features.map(k=>FEAT_LABELS[k]||k):[])
+                        ].filter(Boolean);
                         const count=alerteMatchCounts[s.id];
                         return(
                           <tr key={s.id} style={{borderBottom:"1px solid #f1f5f9",transition:"background .12s"}} onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"} onMouseLeave={e=>e.currentTarget.style.background="#fff"}>

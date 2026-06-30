@@ -1343,9 +1343,9 @@ export const CreateListingForm = ({ editId = null }) => {
         /* Update property location + image_principale si changée parmi les existantes */
         if (editPropertyIdState) {
           const propPayload = {
-            address:   formData.address   || "",
-            latitude:  parseFloat(formData.latitude)  || 0,
-            longitude: parseFloat(formData.longitude) || 0,
+            address:   mapLocation.address || formData.address || "",
+            latitude:  mapLocation.lat || parseFloat(formData.latitude) || 36.8065,
+            longitude: mapLocation.lng || parseFloat(formData.longitude) || 10.1815,
           };
           /* Si aucune nouvelle image ajoutée, l'image principale est celle sélectionnée parmi les existantes */
           if (formData.allImages.length === 0 && existingImageUrls.length > 0) {

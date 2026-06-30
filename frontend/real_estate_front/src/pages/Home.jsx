@@ -1,4 +1,5 @@
-﻿import React, { useState, useEffect, useRef } from "react";
+﻿import React, { useState, useEffect, useRef, useCallback } from "react";
+import useLocalisation from "../hooks/useLocalisation";
 import heroImg from "../assets/hero-localizi.png";
 import statsIllustration from "../assets/localizi-stats-img.png";
 import API_URL, { fmtDevise } from "../config";
@@ -447,6 +448,7 @@ export default function HomePage() {
   const statsRef = useRef(null);
   const [query, setQuery] = useState("");
   const [selectedGov, setSelectedGov] = useState("");
+  const { gouvernorats: apiGouvernorats } = useLocalisation({ gouvernorat:"", delegation:"", localite:"" });
   const [recentAnnonces, setRecentAnnonces] = useState([]);
   const [modalId, setModalId] = useState(null);
 
@@ -609,8 +611,8 @@ export default function HomePage() {
                 className="hp-search__gov-select"
               >
                 <option value="">Tous les gouvernorats</option>
-                {["Ariana","Béja","Ben Arous","Bizerte","Gabès","Gafsa","Jendouba","Kairouan","Kasserine","Kébili","La Manouba","Le Kef","Mahdia","Médenine","Monastir","Nabeul","Sfax","Sidi Bouzid","Siliana","Sousse","Tataouine","Tozeur","Tunis","Zaghouan"].map(g => (
-                  <option key={g} value={g}>{g}</option>
+                {apiGouvernorats.map(g => (
+                  <option key={g.value} value={g.label}>{g.label}</option>
                 ))}
               </select>
               <button type="submit" className="hp-search__btn">
