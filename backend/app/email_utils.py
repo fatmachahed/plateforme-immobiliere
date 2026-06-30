@@ -72,7 +72,7 @@ def _send_via_brevo_api(to_email: str, subject: str, html_body: str,
                         attachment: tuple = None) -> bool:
     """Envoie via l'API HTTP Brevo (port 443, jamais bloqué)."""
     payload = {
-        "sender": {"name": "Localizi.tn", "email": SMTP_FROM or "localizi.tn@gmail.com"},
+        "sender": {"name": "Localizi.tn", "email": SMTP_FROM or "noreply@localizi.tn"},
         "to": [{"email": to_email}],
         "subject": subject,
         "htmlContent": html_body,
