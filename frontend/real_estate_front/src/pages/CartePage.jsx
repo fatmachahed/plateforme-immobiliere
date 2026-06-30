@@ -4466,7 +4466,6 @@ export default function CartePage() {
             overflow: hidden !important;
             display: flex;
             flex-direction: column;
-            padding-top: 54px; /* hauteur navbar mobile fixe */
           }
           .cp-layout   { flex-direction: column; flex: 1; min-height: 0; }
           .cp-map      { flex: 1; min-height: 0; height: 100%; }
