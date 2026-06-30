@@ -163,17 +163,22 @@ export default function CommentCaMarche() {
           Localizi.tn simplifie l'immobilier tunisien. Voici comment acheter, louer ou vendre en quelques étapes claires.
         </p>
 
-        {/* Aperçu rapide */}
+        {/* Aperçu rapide — cliquable pour naviguer vers les sections */}
         <div style={{display:"flex",justifyContent:"center",gap:32,marginTop:36,flexWrap:"wrap"}}>
           {[
-            {n:"5 étapes",l:"Pour trouver un bien",c:"#6366f1"},
-            {n:"5 étapes",l:"Pour publier une annonce",c:"#10b981"},
-            {n:"< 2 min",l:"Pour s'inscrire",c:"#f59e0b"},
+            {n:"5 étapes",l:"Pour trouver un bien",c:"#6366f1",anchor:"section-acheteurs"},
+            {n:"5 étapes",l:"Pour publier une annonce",c:"#10b981",anchor:"section-vendeurs"},
+            {n:"< 2 min",l:"Pour s'inscrire",c:"#f59e0b",anchor:"section-vendeurs"},
           ].map((item,i) => (
-            <div key={i} style={{textAlign:"center"}}>
+            <button key={i} onClick={() => {
+              const el = document.getElementById(item.anchor);
+              if (el) { const y = el.getBoundingClientRect().top + window.scrollY - 72; window.scrollTo({top:y,behavior:"smooth"}); }
+            }} style={{textAlign:"center",background:"none",border:"none",cursor:"pointer",padding:"8px 12px",borderRadius:12,transition:"background .15s"}}
+            onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,.08)"}
+            onMouseLeave={e=>e.currentTarget.style.background="none"}>
               <div style={{fontSize:22,fontWeight:900,color:item.c}}>{item.n}</div>
               <div style={{fontSize:12.5,color:"rgba(255,255,255,.5)",marginTop:2}}>{item.l}</div>
-            </div>
+            </button>
           ))}
         </div>
       </div>
@@ -181,7 +186,7 @@ export default function CommentCaMarche() {
       <div style={{maxWidth:900, margin:"0 auto", padding:"52px 20px 80px"}}>
 
         {/* ─── ACHETEURS ─── */}
-        <div style={{marginBottom:56}}>
+        <div id="section-acheteurs" style={{marginBottom:56}}>
           <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:28}}>
             <div style={{width:42,height:42,borderRadius:12,background:"#eef2ff",display:"flex",alignItems:"center",justifyContent:"center"}}>
               <Search size={20} color="#6366f1"/>
@@ -204,7 +209,7 @@ export default function CommentCaMarche() {
         </div>
 
         {/* ─── VENDEURS ─── */}
-        <div style={{marginBottom:56}}>
+        <div id="section-vendeurs" style={{marginBottom:56}}>
           <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:28}}>
             <div style={{width:42,height:42,borderRadius:12,background:"#f0fdf4",display:"flex",alignItems:"center",justifyContent:"center"}}>
               <PlusCircle size={20} color="#10b981"/>

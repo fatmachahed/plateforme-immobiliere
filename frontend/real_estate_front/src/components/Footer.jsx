@@ -52,11 +52,11 @@ export default function Footer() {
           <div>
             <p className="lz-footer__heading">Explorer</p>
             <ul className="lz-footer__links">
-              <li><Link to="/carte?categorie=vente">Acheter</Link></li>
-              <li><Link to="/carte?categorie=location">Louer</Link></li>
-              <li><Link to="/carte?categorie=vacances">Vacances</Link></li>
-              <li><Link to="/vendre">Vendre</Link></li>
-              <li><Link to="/carte">Carte interactive</Link></li>
+              <li><Link to="/carte?categorie=vente" onClick={()=>window.scrollTo({top:0,behavior:"instant"})}>Acheter</Link></li>
+              <li><Link to="/carte?categorie=location" onClick={()=>window.scrollTo({top:0,behavior:"instant"})}>Louer</Link></li>
+              <li><Link to="/carte?categorie=vacances" onClick={()=>window.scrollTo({top:0,behavior:"instant"})}>Vacances</Link></li>
+              <li><Link to="/vendre" onClick={()=>window.scrollTo({top:0,behavior:"instant"})}>Vendre</Link></li>
+              <li><Link to="/carte" onClick={()=>window.scrollTo({top:0,behavior:"instant"})}>Carte interactive</Link></li>
             </ul>
           </div>
 
@@ -65,10 +65,10 @@ export default function Footer() {
             <p className="lz-footer__heading">Services</p>
             <ul className="lz-footer__links">
               <li><PublierAnnonceBtn as="a" style={{cursor:"pointer",background:"none",border:"none",padding:0,color:"inherit",fontSize:"inherit",fontFamily:"inherit",textDecoration:"none"}}>Publier une annonce</PublierAnnonceBtn></li>
-              <li><Link to="/dashboard">Mon tableau de bord</Link></li>
-              <li><Link to="/trouver-un-agent">Trouver un agent</Link></li>
-              <li><Link to="/trouver-un-promoteur">Trouver un promoteur</Link></li>
-              <li><Link to="/trouver-un-prestataire">Trouver un prestataire</Link></li>
+              <li><Link to="/dashboard" onClick={()=>window.scrollTo({top:0,behavior:"instant"})}>Mon tableau de bord</Link></li>
+              <li><Link to="/trouver-un-agent" onClick={()=>window.scrollTo({top:0,behavior:"instant"})}>Trouver un agent</Link></li>
+              <li><Link to="/trouver-un-promoteur" onClick={()=>window.scrollTo({top:0,behavior:"instant"})}>Trouver un promoteur</Link></li>
+              <li><Link to="/trouver-un-prestataire" onClick={()=>window.scrollTo({top:0,behavior:"instant"})}>Trouver un prestataire</Link></li>
             </ul>
           </div>
 
@@ -90,8 +90,8 @@ export default function Footer() {
               </li>
             </ul>
             <ul className="lz-footer__links" style={{marginTop:0}}>
-              <li><Link to="/contact">Nous contacter</Link></li>
-              <li><Link to="/partenaires">Partenariats</Link></li>
+              <li><Link to="/contact" onClick={()=>window.scrollTo({top:0,behavior:"instant"})}>Nous contacter</Link></li>
+              <li><Link to="/partenaires" onClick={()=>window.scrollTo({top:0,behavior:"instant"})}>Partenariats</Link></li>
             </ul>
           </div>
 
@@ -99,11 +99,11 @@ export default function Footer() {
           <div>
             <p className="lz-footer__heading">Autres</p>
             <ul className="lz-footer__links">
-              <li><Link to="/dashboard?tab=alertes">🔔 Mes alertes</Link></li>
-              <li><Link to="/signaler-probleme">Signaler un problème</Link></li>
-              <li><Link to="/comment-ca-marche">Comment ça marche ?</Link></li>
-              <li><Link to="/qui-sommes-nous">Qui sommes-nous ?</Link></li>
-              <li><Link to="/faq/geolocalisation-immobilier">Pourquoi géolocaliser ?</Link></li>
+              <li><Link to="/dashboard?tab=alertes" onClick={()=>window.scrollTo({top:0,behavior:"instant"})}>🔔 Mes alertes</Link></li>
+              <li><Link to="/signaler-probleme" onClick={()=>window.scrollTo({top:0,behavior:"instant"})}>Signaler un problème</Link></li>
+              <li><Link to="/comment-ca-marche" onClick={()=>window.scrollTo({top:0,behavior:"instant"})}>Comment ça marche ?</Link></li>
+              <li><Link to="/qui-sommes-nous" onClick={()=>window.scrollTo({top:0,behavior:"instant"})}>Qui sommes-nous ?</Link></li>
+              <li><Link to="/faq/geolocalisation-immobilier" onClick={()=>window.scrollTo({top:0,behavior:"instant"})}>Pourquoi géolocaliser ?</Link></li>
             </ul>
           </div>
         </div>

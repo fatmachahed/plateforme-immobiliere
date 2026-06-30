@@ -4756,11 +4756,11 @@ export const CreateListingForm = ({ editId = null }) => {
           @media (max-width: 860px) {
             .ca-loc-layout { grid-template-columns: 1fr; }
             .ca-loc-map { min-height: 320px; }
-            .ca-feat-big-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 6px !important; }
+            .ca-feat-big-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 6px !important; align-items: start !important; }
             .ca-feat-big { aspect-ratio: 1 !important; padding: 6px !important; gap: 8px !important; min-height: 0 !important; justify-content: center !important; border-radius: 10px !important; }
             .ca-feat-big__ico svg { width: 26px !important; height: 26px !important; }
             .ca-feat-big__label { font-size: 10.5px !important; line-height: 1.2 !important; }
-            .ca-feat-big-wrap { gap: 4px !important; }
+            .ca-feat-big-wrap { gap: 4px !important; align-self: start !important; }
             .ca-feats-section-title { font-size: 10px !important; margin-top: 12px !important; margin-bottom: 6px !important; padding-top: 10px !important; letter-spacing: .4px !important; }
             .ca-feats-section-title:first-child { margin-top: 4px !important; }
           }
