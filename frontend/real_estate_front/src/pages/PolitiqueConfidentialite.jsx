@@ -48,10 +48,6 @@ const SECTIONS = [
         text: "Toutes les communications entre votre navigateur et nos serveurs sont chiffrées via le protocole HTTPS/TLS. Les mots de passe sont hashés avec bcrypt — nous ne stockons jamais votre mot de passe en clair.",
       },
       {
-        subtitle: "Hébergement",
-        text: "Vos données sont hébergées sur des serveurs sécurisés localisés en Tunisie. Nous n'effectuons pas de transfert de données personnelles vers des pays tiers sans garanties appropriées.",
-      },
-      {
         subtitle: "Durée de conservation",
         text: "Vos données sont conservées tant que votre compte est actif. En cas de suppression de compte, vos données personnelles sont effacées dans un délai de 30 jours, à l'exception des données légalement requises.",
       },

@@ -33,8 +33,9 @@ function FlowSchema({ steps, color }) {
                 {step.icon}
               </div>
               <span style={{
-                fontSize:10,fontWeight:900,color:color,
-                background:`${color}15`,padding:"1px 7px",borderRadius:20,
+                fontSize:20,fontWeight:900,color:color,
+                background:`${color}15`,padding:"2px 9px",borderRadius:20,
+                minWidth:32,textAlign:"center",display:"inline-block",
               }}>
                 {i + 1}
               </span>
@@ -160,7 +161,7 @@ export default function CommentCaMarche() {
           Comment ça marche ?
         </h1>
         <p style={{fontSize:15, color:"rgba(255,255,255,.6)", maxWidth:560, margin:"0 auto"}}>
-          Localizi.tn simplifie l'immobilier tunisien. Voici comment acheter, louer ou vendre en quelques étapes claires.
+          Localizi.tn simplifie l'immobilier tunisien. Voici ci-après comment acheter, louer ou vendre en quelques étapes claires.
         </p>
 
         {/* Aperçu rapide — cliquable pour naviguer vers les sections */}
@@ -168,7 +169,7 @@ export default function CommentCaMarche() {
           {[
             {n:"5 étapes",l:"Pour trouver un bien",c:"#6366f1",anchor:"section-acheteurs"},
             {n:"5 étapes",l:"Pour publier une annonce",c:"#10b981",anchor:"section-vendeurs"},
-            {n:"< 2 min",l:"Pour s'inscrire",c:"#f59e0b",anchor:"section-vendeurs"},
+            {n:"< 2 min",l:"Pour s'inscrire",c:"#f59e0b",anchor:"section-inscription"},
           ].map((item,i) => (
             <button key={i} onClick={() => {
               const el = document.getElementById(item.anchor);
@@ -220,6 +221,65 @@ export default function CommentCaMarche() {
             </div>
           </div>
           <FlowSchema steps={STEPS_VENDEUR} color="#10b981"/>
+        </div>
+
+        {/* ─── INSCRIPTION RAPIDE ─── */}
+        <div id="section-inscription" style={{marginBottom:56}}>
+          <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:32}}>
+            <div style={{flex:1,height:1,background:"#e2e8f0"}}/>
+            <div style={{padding:"8px 20px",borderRadius:999,background:"#fff",border:"1.5px solid #e2e8f0",fontSize:12.5,fontWeight:700,color:"#94a3b8",display:"flex",alignItems:"center",gap:8}}>
+              <Clock size={13}/> Inscription express
+            </div>
+            <div style={{flex:1,height:1,background:"#e2e8f0"}}/>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:28}}>
+            <div style={{width:42,height:42,borderRadius:12,background:"#fffbeb",display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <UserPlus size={20} color="#f59e0b"/>
+            </div>
+            <div>
+              <p style={{fontSize:11.5,fontWeight:800,color:"#f59e0b",textTransform:"uppercase",letterSpacing:".1em",margin:0}}>S'inscrire gratuitement</p>
+              <h2 style={{fontSize:22,fontWeight:900,color:"#0f172a",margin:0}}>Créez votre compte en moins de 2 minutes</h2>
+            </div>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            {[
+              {
+                n:1, title:"Choisissez votre profil",
+                desc:"Sélectionnez « Particulier » (achat, location, vente) ou « Professionnel » (agence, promoteur, prestataire).",
+              },
+              {
+                n:2, title:"Renseignez vos informations",
+                desc:"Nom d'utilisateur, adresse e-mail et mot de passe. Vous pouvez aussi vous inscrire directement avec votre compte Google en un seul clic.",
+              },
+              {
+                n:3, title:"Confirmez votre e-mail",
+                desc:"Un e-mail de confirmation vous est envoyé instantanément. Cliquez sur le lien pour activer votre compte.",
+              },
+              {
+                n:4, title:"Votre compte est prêt !",
+                desc:"Accédez à votre tableau de bord : publiez des annonces, contactez des vendeurs, sauvegardez des favoris et activez vos alertes.",
+              },
+            ].map(step => (
+              <div key={step.n} style={{display:"flex",alignItems:"flex-start",gap:16,background:"#fff",borderRadius:14,border:"1.5px solid #f59e0b22",padding:"18px 22px",boxShadow:"0 2px 12px rgba(0,0,0,.05)"}}>
+                <div style={{flexShrink:0,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+                  <div style={{width:44,height:44,borderRadius:12,background:"linear-gradient(135deg,#f59e0b,#f59e0bcc)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",boxShadow:"0 4px 12px #f59e0b44"}}>
+                    <UserPlus size={22}/>
+                  </div>
+                  <span style={{fontSize:20,fontWeight:900,color:"#f59e0b",background:"#f59e0b15",padding:"2px 9px",borderRadius:20,minWidth:32,textAlign:"center",display:"inline-block"}}>{step.n}</span>
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <h3 style={{fontSize:15,fontWeight:800,color:"#0f172a",margin:"0 0 5px",lineHeight:1.3}}>{step.title}</h3>
+                  <p style={{fontSize:13.5,color:"#64748b",margin:0,lineHeight:1.7}}>{step.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{marginTop:20,padding:"14px 20px",background:"linear-gradient(135deg,#fffbeb,#fef3c7)",borderRadius:12,border:"1px solid #fde68a",display:"flex",alignItems:"center",gap:12}}>
+            <Shield size={18} color="#f59e0b" style={{flexShrink:0}}/>
+            <p style={{margin:0,fontSize:13.5,color:"#92400e",fontWeight:500,lineHeight:1.6}}>
+              L'inscription est <strong>100% gratuite</strong> et ne prend que quelques secondes. Aucune carte bancaire requise.
+            </p>
+          </div>
         </div>
 
         {/* ─── FAQ ─── */}

@@ -50,7 +50,7 @@ export default function Contact() {
     {
       icon: <MapPin size={18} strokeWidth={1.5}/>,
       label: "Adresse",
-      value: "La Marsa, Tunis",
+      value: "Zaghouan, Tunisie",
       sub: "Siège social"
     },
     {
