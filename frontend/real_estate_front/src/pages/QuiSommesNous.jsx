@@ -30,6 +30,7 @@ const FREE_PROFILES = [
   { label: "Agents immobiliers",         desc: "Diffusez vos annonces et développez votre clientèle gratuitement." },
   { label: "Agences immobilières",       desc: "Gérez votre portefeuille de biens sans coût de publication." },
   { label: "Promoteurs immobiliers",     desc: "Présentez vos projets neufs à des milliers d'acheteurs, sans débourser un dinar." },
+  { label: "Partenaires",               desc: "Prestataires, artisans et professionnels du secteur : rejoignez notre réseau et boostez votre visibilité." },
 ];
 
 const STATS = [

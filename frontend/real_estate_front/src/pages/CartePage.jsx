@@ -1606,7 +1606,7 @@ function FilterPanel({ filters, onChange, onSaveSearch, showSchools, showMosques
               type="button"
             >
               <Layers size={13}/>
-              <span>Points d'intérêt</span>
+              <span>Lieux</span>
               {activeLayers>0 && <span className="fp__layers-badge">{activeLayers}</span>}
               <ChevronDown size={11} style={{ transform:layersOpen?"rotate(180deg)":"none", transition:"transform .2s" }}/>
             </button>
@@ -1676,7 +1676,7 @@ function FilterPanel({ filters, onChange, onSaveSearch, showSchools, showMosques
         <div className="fp__poi-group">
           {!local.govNom && (
             <div style={{fontSize:11,color:"#94a3b8",fontStyle:"italic",padding:"4px 2px"}}>
-              Sélectionnez un gouvernorat pour activer les points d'intérêt
+              Sélectionnez un gouvernorat pour activer les lieux
             </div>
           )}
           <button disabled={!local.govNom} className={`fp__poi-btn fp__poi-btn--school${showSchools?" fp__poi-btn--on":""}`} onClick={onToggleSchools} title={!local.govNom?"Sélectionnez un gouvernorat d'abord":""}>
@@ -4114,6 +4114,7 @@ export default function CartePage() {
           background: #fff; border: 1px solid #e5e7eb; border-radius: 12px;
           box-shadow: 0 12px 32px rgba(0,0,0,.18); padding: 8px;
           display: flex; flex-direction: column; gap: 2px;
+          max-height: 60vh; overflow-y: auto;
         }
         .cp-filtersum__title {
           font-size: 10.5px; font-weight: 700; color: #9ca3af; text-transform: uppercase;

@@ -835,7 +835,7 @@ export default function Compte() {
                       :<button onClick={()=>setEditing(false)} style={btnSec}><X size={13}/> Annuler</button>
                     }
                   </div>
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:13}}>
+                  <div className="cpt-profil-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:13}}>
                     <F label="Nom d'utilisateur"><input style={inp(editing)} value={profile.username} readOnly={!editing} onChange={e=>setProfile(p=>({...p,username:e.target.value}))}/></F>
                     <F label="E-mail"><input style={inp(false)} value={profile.email} readOnly/></F>
                     <F label="Rôle">
@@ -1823,6 +1823,8 @@ export default function Compte() {
           /* Mon profil : colonnes empilées verticalement */
           .cpt-profil-layout { flex-direction: column !important; }
           .cpt-profil-left, .cpt-profil-right { flex: none !important; width: 100% !important; }
+          /* Grille profil (Nom, Email, Rôle, Téléphone) : 1 colonne sur mobile */
+          .cpt-profil-card .cpt-profil-grid { grid-template-columns: 1fr !important; }
 
           /* Stats : 2 par ligne */
           .db-stats { grid-template-columns: 1fr 1fr !important; gap: 10px !important; margin-bottom: 14px !important; }

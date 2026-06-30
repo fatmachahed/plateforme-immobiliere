@@ -1498,7 +1498,7 @@ function BigMap({lat,lng}){
         {/* Mobile: bouton dropdown compact + M'y rendre côte à côte */}
         <div className="bm-poi-mobile" style={{display:"none",position:"relative",alignItems:"center",gap:6,flex:1}}>
           <button onClick={()=>setShowPoiMenu(v=>!v)} style={{display:"flex",alignItems:"center",gap:4,padding:"5px 10px",borderRadius:20,border:"1px solid #e2e8f0",background:"#fff",cursor:"pointer",fontFamily:"inherit",fontSize:11,fontWeight:700,color:"#374151"}}>
-            Points d'intérêt {showPoiMenu?"▲":"▼"}
+            Lieux {showPoiMenu?"▲":"▼"}
           </button>
           <a href={navLink} target="_blank" rel="noopener noreferrer" style={{display:"inline-flex",alignItems:"center",gap:4,padding:"5px 10px",borderRadius:20,textDecoration:"none",background:"#6366f1",color:"#fff",fontSize:11,fontWeight:700,whiteSpace:"nowrap",marginLeft:"auto"}}>
             <Navigation size={11} strokeWidth={2.5}/> M'y rendre

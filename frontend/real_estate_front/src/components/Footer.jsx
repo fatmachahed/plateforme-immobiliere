@@ -211,6 +211,7 @@ export default function Footer() {
         @media (max-width: 600px) {
           .lz-footer__grid { grid-template-columns: 1fr; gap: 28px; }
           .lz-footer__bottom { flex-direction: column; align-items: flex-start; }
+          .lz-footer__bottom-links { flex-direction: column; gap: 8px; }
         }
       `}</style>
     </footer>
