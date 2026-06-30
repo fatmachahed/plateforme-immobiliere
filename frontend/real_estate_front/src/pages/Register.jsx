@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect } from "react";
 import API_URL from '../config';
 import { Link, useSearchParams } from "react-router-dom";
-import { Eye, EyeOff, UserPlus, Home, Building2, ShoppingCart, Tag, Key, DoorOpen, ChevronRight, ChevronLeft, X } from "lucide-react";
+import { Eye, EyeOff, UserPlus, Home, Building2, ShoppingCart, Tag, Key, DoorOpen, ChevronRight, ChevronLeft, X, Menu } from "lucide-react";
 import { useToast } from "../components/Toast";
 import Logo from "../components/Logo";
 import Navbar from "../components/Navbar";
@@ -150,8 +150,16 @@ export default function Register() {
           </div>
         </div>
       )}
-      {/* Navbar réelle — visible uniquement sur mobile */}
-      <div className="sp-navbar-wrap"><Navbar /></div>
+      {/* Barre mobile : logo + hamburger — visible sur mobile uniquement */}
+      <div className="sp-logo-mobile">
+        <Link to="/"><Logo height={28} /></Link>
+        <button className="sp-mob-burger" onClick={() => window.dispatchEvent(new CustomEvent('localizi:openMobileMenu'))}>
+          <Menu size={22}/>
+        </button>
+      </div>
+
+      {/* Navbar cachée — sert uniquement à rendre le drawer mobile */}
+      <div className="sp-hidden-nav"><Navbar /></div>
 
       <div className="sp-panels">
       {/* Left */}
@@ -482,14 +490,26 @@ export default function Register() {
         .sp-role-icon { display: flex; align-items: center; justify-content: center; line-height: 1; color: inherit; }
         .sp-role-label { font-size: 13px; font-weight: 700; color: inherit; }
         .sp-role-desc { font-size: 11px; color: inherit; opacity: .7; font-weight: 500; line-height: 1.3; }
-        .sp-navbar-wrap { display: none; }
+        .sp-logo-mobile { display: none; }
+        .sp-hidden-nav .lz-nav { display: none !important; }
+        .sp-hidden-nav .lz-mob-drawer { top: 0 !important; }
         .sp-panels { display: flex; flex: 1; min-height: 0; }
         @media (max-width: 900px) {
-          .sp-navbar-wrap { display: block; }
+          .sp-logo-mobile {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 16px; height: 54px; flex-shrink: 0;
+            background: #fff; border-bottom: 1px solid #f1f5f9;
+          }
+          .sp-mob-burger {
+            background: none; border: none; cursor: pointer;
+            color: #0f172a; display: flex; padding: 6px; border-radius: 8px;
+            transition: background .15s;
+          }
+          .sp-mob-burger:hover { background: #f1f5f9; }
           .sp-panels { flex-direction: column; flex: 1; }
           .sp-left { display: none; }
           .sp-center-icon { display: none; }
-          .sp-right { width: 100%; padding: 20px 24px; flex: 1; }
+          .sp-right { width: 100%; padding: 24px 20px; flex: 1; }
           .sp-right::before { display: none; }
         }
         @media (max-width: 480px) { .sp-right { padding: 16px 20px; } .sp-form-wrap { max-width: 100%; } }

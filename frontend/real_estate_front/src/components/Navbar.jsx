@@ -66,6 +66,13 @@ export default function Navbar() {
     }
   }, [mobileOpen]); // eslint-disable-line
 
+  /* Permet aux pages Login/Register d'ouvrir ce drawer via événement global */
+  useEffect(() => {
+    const openMenu = () => setMobileOpen(true);
+    window.addEventListener('localizi:openMobileMenu', openMenu);
+    return () => window.removeEventListener('localizi:openMobileMenu', openMenu);
+  }, []);
+
   const closeMenu = () => {
     setMenuClosing(true);
     setTimeout(() => { setMobileOpen(false); setMenuClosing(false); }, 240);

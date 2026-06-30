@@ -4439,6 +4439,11 @@ export default function CartePage() {
         }
 
         @media (max-width: 860px) {
+          /* Supprimer le gap visuel entre Navbar et la barre de filtres */
+          .cp-root--carte .lz-nav {
+            border-bottom-color: transparent !important;
+            box-shadow: none !important;
+          }
           /* Sur mobile : sticky-bar devient relative + overflow-y:auto */
           .cp-sticky-bar {
             position: relative !important;
@@ -4460,7 +4465,7 @@ export default function CartePage() {
             flex-shrink: 0;
             z-index: 199;
           }
-          .cp-drag-handle__bar { background: #94a3b8; width: 48px; height: 5px; border-radius: 3px; }
+          .cp-drag-handle__bar { background: #94a3b8; width: 40px; height: 3px; border-radius: 2px; }
           /* cp-root sur mobile : colonne flex qui couvre tout l'écran */
           .cp-root--carte {
             height: 100dvh !important;
