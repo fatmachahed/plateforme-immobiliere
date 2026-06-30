@@ -13,34 +13,30 @@ export default function MentionsLegales() {
         {[
           {
             title: "1. Éditeur du site",
-            content: `Le site Localizi.tn est édité par la société Localizi.tn SARL, société à responsabilité limitée au capital de 10 000 TND, immatriculée au Registre du Commerce de Tunis sous le numéro RC TN 2026/XXXXX.\n\nSiège social : La Marsa, Tunis, Tunisie\nEmail : contact@Localizi.tn\nTéléphone : +216 71 000 000`,
+            content: `Le site Localizi.tn est édité par la société CID SARL, société à responsabilité limitée au capital de 60 000 TND, immatriculée au Registre du Commerce de Tunis sous le numéro RC B2471432010.\n\nSiège social : Zaghouan, Tunisie\nEmail : myconsultingid@gmail.com\nTéléphone : +216 23 423 000`,
           },
           {
             title: "2. Directeur de la publication",
-            content: "Le directeur de la publication est le gérant de la société Localizi.tn SARL.",
+            content: "Le directeur de la publication est le gérant de la société CID SARL.",
           },
           {
-            title: "3. Hébergement",
-            content: "Le site est hébergé par :\nVercel Inc.\n340 Pine Street, Suite 800\nSan Francisco, CA 94104, États-Unis\nSite : https://vercel.com",
+            title: "3. Propriété intellectuelle",
+            content: "L'ensemble des contenus présents sur le site Localizi.tn (textes, images, graphismes, logo, icônes, sons, logiciels) sont la propriété exclusive de CID SARL ou de ses partenaires, et sont protégés par les lois tunisiennes et internationales relatives à la propriété intellectuelle.\n\nToute reproduction, représentation, modification, publication ou adaptation de tout ou partie des éléments du site, quel que soit le moyen ou le procédé utilisé, est interdite sans autorisation écrite préalable.",
           },
           {
-            title: "4. Propriété intellectuelle",
-            content: "L'ensemble des contenus présents sur le site Localizi.tn (textes, images, graphismes, logo, icônes, sons, logiciels) sont la propriété exclusive de Localizi.tn SARL ou de ses partenaires, et sont protégés par les lois tunisiennes et internationales relatives à la propriété intellectuelle.\n\nToute reproduction, représentation, modification, publication ou adaptation de tout ou partie des éléments du site, quel que soit le moyen ou le procédé utilisé, est interdite sans autorisation écrite préalable.",
-          },
-          {
-            title: "5. Responsabilité",
+            title: "4. Responsabilité",
             content: "Localizi.tn s'efforce de fournir sur le site des informations aussi précises que possible. Toutefois, elle ne pourra être tenue responsable des omissions, des inexactitudes et des carences dans la mise à jour, qu'elles soient de son fait ou du fait des tiers partenaires qui lui fournissent ces informations.",
           },
           {
-            title: "6. Données personnelles",
+            title: "5. Données personnelles",
             content: "Les informations recueillies font l'objet d'un traitement informatique destiné à la gestion des comptes utilisateurs et à l'amélioration de nos services. Conformément à la loi tunisienne n° 2004-63 du 27 juillet 2004 portant sur la protection des données à caractère personnel, vous disposez d'un droit d'accès, de rectification et de suppression de vos données.\n\nPour exercer ce droit, contactez-nous à : privacy@Localizi.tn",
           },
           {
-            title: "7. Cookies",
+            title: "6. Cookies",
             content: "Le site utilise des cookies pour améliorer l'expérience utilisateur. En continuant à naviguer sur ce site, vous acceptez l'utilisation de cookies conformément à notre politique de cookies.",
           },
           {
-            title: "8. Droit applicable",
+            title: "7. Droit applicable",
             content: "Tout litige en relation avec l'utilisation du site Localizi.tn est soumis au droit tunisien. En dehors des cas où la loi ne le permet pas, il est fait attribution exclusive de juridiction aux tribunaux compétents de Tunis.",
           },
         ].map(({ title, content }) => (
