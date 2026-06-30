@@ -19,7 +19,7 @@ export default function Contact() {
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
 
-  const DEST = "localizi.tn@gmail.com";
+  const DEST = "contact@localizi.tn";
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -56,7 +56,7 @@ export default function Contact() {
     {
       icon: <Mail size={18} strokeWidth={1.5}/>,
       label: "E-mail",
-      value: "localizi.tn@gmail.com",
+      value: "contact@localizi.tn",
       sub: "Réponse sous 24 h"
     },
     {
