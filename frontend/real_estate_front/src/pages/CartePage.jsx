@@ -2780,6 +2780,25 @@ export default function CartePage() {
   const [mobileFilterH,    setMobileFilterH]    = useState(null); // null = auto
   const dragState = useRef({ dragging: false, startY: 0, startH: 0 });
   const stickyBarRef = useRef(null);
+
+  /* Drag handle — document-level listeners so the finger can move anywhere */
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!dragState.current.dragging) return;
+      e.preventDefault();
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const dy = clientY - dragState.current.startY;
+      const newH = Math.max(52, Math.min(window.innerHeight * 0.78, dragState.current.startH + dy));
+      setMobileFilterH(newH);
+    };
+    const onEnd = () => { dragState.current.dragging = false; };
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend',  onEnd);
+    return () => {
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend',  onEnd);
+    };
+  }, []);
   const PAGE_SIZE = 30;
   const [livePOIs,         setLivePOIs]         = useState({ schools: [], mosques: [], faculties: [], grandSurfaces: [], hospitals: [], loading: false, fetched: false });
   const [hoveredPin,       setHoveredPin]       = useState(null);
@@ -3201,7 +3220,7 @@ export default function CartePage() {
         style={{
           position:"sticky",top:64,zIndex:200,background:"#fff",
           boxShadow:"0 2px 8px rgba(0,0,0,.06)",
-          ...(mobileFilterH != null ? { height: mobileFilterH, overflow:"hidden" } : {}),
+          ...(mobileFilterH != null ? { maxHeight: mobileFilterH, overflowY:"auto" } : {}),
         }}
       >
       <FilterPanel
@@ -3312,25 +3331,20 @@ export default function CartePage() {
             : <><LayoutList size={14}/> Vue liste</>}
         </button>
       </div>
-      {/* Mobile drag handle */}
+      </div>{/* end sticky wrapper */}
+
+      {/* Mobile drag handle — outside sticky bar so it's never clipped */}
       <div
         className="cp-drag-handle"
         onTouchStart={e => {
           if (window.innerWidth > 860) return;
+          e.preventDefault();
           const h = stickyBarRef.current ? stickyBarRef.current.getBoundingClientRect().height : 200;
           dragState.current = { dragging: true, startY: e.touches[0].clientY, startH: h };
         }}
-        onTouchMove={e => {
-          if (!dragState.current.dragging) return;
-          const dy = e.touches[0].clientY - dragState.current.startY;
-          const newH = Math.max(60, Math.min(window.innerHeight * 0.75, dragState.current.startH + dy));
-          setMobileFilterH(newH);
-        }}
-        onTouchEnd={() => { dragState.current.dragging = false; }}
       >
         <span className="cp-drag-handle__bar"/>
       </div>
-      </div>{/* end sticky wrapper */}
 
       {/* Layout carte + liste / mode liste seule
           Les deux blocs sont TOUJOURS mont�s – on alterne uniquement display:none
@@ -4411,12 +4425,6 @@ export default function CartePage() {
         /* Drag handle mobile — caché sur desktop */
         .cp-drag-handle {
           display: none;
-          justify-content: center; align-items: center;
-          height: 20px; cursor: ns-resize;
-          background: #fff;
-          border-top: 1px solid #f1f5f9;
-          touch-action: none;
-          flex-shrink: 0;
         }
         .cp-drag-handle__bar {
           width: 36px; height: 4px; border-radius: 2px;
@@ -4426,7 +4434,19 @@ export default function CartePage() {
         @media (max-width: 860px) {
           /* Colle la barre filtre sous la navbar mobile (54px) sans espace */
           .cp-sticky-bar { top: 54px !important; }
-          .cp-drag-handle { display: flex; }
+          .cp-drag-handle {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 28px;
+            background: #fff;
+            border-top: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+            cursor: ns-resize;
+            touch-action: none;
+            flex-shrink: 0;
+            z-index: 199;
+          }
           .cp-layout   { flex-direction: column; flex: 1; min-height: 0; }
           .cp-map      { flex: 1; min-height: 0; height: 100%; }
           .cp-list     { display: none !important; }

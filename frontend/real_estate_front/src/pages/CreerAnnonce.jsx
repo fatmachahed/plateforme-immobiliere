@@ -1414,18 +1414,26 @@ export const CreateListingForm = ({ editId = null }) => {
       }
 
       /* -- 3. Créer la propriété (localisation + image principale) -- */
+      // Use mapLocation state directly — it's always initialized with valid Tunis defaults
+      const finalLat = mapLocation.lat || 36.8065;
+      const finalLng = mapLocation.lng || 10.1815;
       const propRes = await handleRes(await fetch(`${API_URL}/properties/`, {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           annonce_id:        annonce.id,
-          address:           formData.address    || "",
-          latitude:          parseFloat(formData.latitude)  || 0,
-          longitude:         parseFloat(formData.longitude) || 0,
+          address:           mapLocation.address || formData.address || "Tunis, Tunisie",
+          latitude:          finalLat,
+          longitude:         finalLng,
           image_principale:  imageUrl,
         }),
       }));
-      const propData = await propRes.json();
+      if (!propRes.ok) {
+        const propErr = await propRes.json().catch(()=>({}));
+        console.error("[CreerAnnonce] Property creation failed:", propErr);
+        toast("Annonce créée, mais la localisation n'a pas pu être enregistrée. Modifiez l'annonce pour corriger.", "warning");
+      }
+      const propData = propRes.ok ? await propRes.json().catch(()=>({})) : {};
 
       /* -- 3b. Ajouter les images supplémentaires -- */
       for (const extraUrl of uploadedExtraUrls) {
