@@ -268,8 +268,9 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
   /* Fetch annonce */
   useEffect(() => {
     setLoading(true); setImgIdx(0); setProp(null); setRawData(null);
+    console.log("[Modal] fetching id=", id, "url=", `${API_URL}/annonces/${id}/detail`);
     fetch(`${API_URL}/annonces/${id}/detail`)
-      .then(r => r.ok ? r.json() : null)
+      .then(r => { console.log("[Modal] response status=", r.status, "ok=", r.ok); return r.ok ? r.json() : null; })
       .then(data => {
         if (data) {
           setRawData(data); setProp(normalizeApi(data));
