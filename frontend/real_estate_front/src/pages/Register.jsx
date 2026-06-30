@@ -296,7 +296,7 @@ export default function Register() {
                   <div style={{marginTop:10}}>
                     <label className="sp-label" style={{marginBottom:6,display:"block"}}>Type de professionnel <span style={{color:"#ef4444"}}>*</span></label>
                     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-                      {[{value:"agent",label:"Agent",sub:"1 personne"},{value:"agence",label:"Agence",sub:"2+ personnes"},{value:"promoteur",label:"Promoteur",sub:null},{value:"partenaire",label:"Partenaire",sub:null}].map(({value,label,sub})=>(
+                      {[{value:"agent",label:"Agent",sub:"1 personne"},{value:"agence",label:"Agence",sub:"2+ personnes"},{value:"promoteur",label:"Promoteur",sub:null},{value:"partenaire",label:"Partenaire / Prestataire",sub:null}].map(({value,label,sub})=>(
                         <button key={value} type="button" onClick={()=>setSousRole(value)} disabled={loading}
                           style={{padding:"10px 8px",borderRadius:10,border:"1.5px solid",borderColor:sousRole===value?"#6366f1":"#e2e8f0",background:sousRole===value?"#eef2ff":"#f8fafc",color:sousRole===value?"#4f46e5":"#94a3b8",cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:13,transition:"all .15s",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
                           <span>{label}</span>{sub&&<span style={{fontSize:10,fontWeight:500,opacity:.7}}>{sub}</span>}
