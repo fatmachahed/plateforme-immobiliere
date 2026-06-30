@@ -1,6 +1,8 @@
 import os
 import smtplib
 import json
+import base64
+import urllib.request
 from pathlib import Path
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -13,6 +15,7 @@ SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
 SMTP_USER = os.environ.get("SMTP_USER", "")
 SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
 SMTP_FROM = os.environ.get("SMTP_FROM", SMTP_USER)
+BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "")
 
 # Logo Localizi — chargé une seule fois en mémoire pour les emails CID
 _LOGO_PATH = Path(__file__).parent.parent.parent / "frontend" / "real_estate_front" / "src" / "assets" / "logo_localizi.png"
@@ -65,21 +68,48 @@ SOCIAL_FOOTER_HTML = """
 """
 
 
-def send_email(to_email: str, subject: str, html_body: str,
-               attachment: tuple = None) -> bool:
-    """Envoie un email HTML avec le logo Localizi en pièce jointe inline (CID)."""
-    if not SMTP_HOST or not SMTP_USER or not to_email:
+def _send_via_brevo_api(to_email: str, subject: str, html_body: str,
+                        attachment: tuple = None) -> bool:
+    """Envoie via l'API HTTP Brevo (port 443, jamais bloqué)."""
+    payload = {
+        "sender": {"name": "Localizi.tn", "email": SMTP_FROM or "localizi.tn@gmail.com"},
+        "to": [{"email": to_email}],
+        "subject": subject,
+        "htmlContent": html_body,
+    }
+    if attachment:
+        img_bytes, mime_type, filename = attachment
+        payload["attachment"] = [{
+            "content": base64.b64encode(img_bytes).decode(),
+            "name": filename,
+        }]
+    body = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        "https://api.brevo.com/v3/smtp/email",
+        data=body,
+        headers={
+            "api-key": BREVO_API_KEY,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            return resp.status in (200, 201)
+    except Exception as e:
+        print(f"[send_email] Brevo API erreur : {e}")
         return False
 
-    # Structure : multipart/related pour logo CID + multipart/mixed pour pièces jointes
+
+def _send_via_smtp(to_email: str, subject: str, html_body: str,
+                   attachment: tuple = None) -> bool:
+    """Fallback SMTP classique."""
     msg = MIMEMultipart("related")
     msg["Subject"] = subject
     msg["From"] = f"Localizi.tn <{SMTP_FROM}>"
     msg["To"] = to_email
-
-    # Partie HTML
     msg.attach(MIMEText(html_body, "html", "utf-8"))
-
     if attachment:
         img_bytes, mime_type, filename = attachment
         main_type, sub_type = mime_type.split("/", 1) if "/" in mime_type else ("application", "octet-stream")
@@ -88,7 +118,6 @@ def send_email(to_email: str, subject: str, html_body: str,
         encoders.encode_base64(part)
         part.add_header("Content-Disposition", "attachment", filename=filename)
         msg.attach(part)
-
     try:
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
             server.starttls()
@@ -96,8 +125,21 @@ def send_email(to_email: str, subject: str, html_body: str,
             server.sendmail(SMTP_FROM, [to_email], msg.as_string())
         return True
     except Exception as e:
-        print(f"[send_email] Erreur : {e}")
+        print(f"[send_email] SMTP erreur : {e}")
         return False
+
+
+def send_email(to_email: str, subject: str, html_body: str,
+               attachment: tuple = None) -> bool:
+    """Envoie un email HTML. Utilise l'API Brevo si BREVO_API_KEY est définie, sinon SMTP."""
+    if not to_email:
+        return False
+    if BREVO_API_KEY:
+        return _send_via_brevo_api(to_email, subject, html_body, attachment)
+    if SMTP_HOST and SMTP_USER:
+        return _send_via_smtp(to_email, subject, html_body, attachment)
+    print("[send_email] Aucune configuration email disponible.")
+    return False
 
 
 def annonce_matches_criteria(annonce, criteres: dict) -> bool:
