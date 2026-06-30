@@ -2247,8 +2247,8 @@ function transformApiAnnonce(a) {
     description:   a.description   || "",
     date_creation:    a.date_creation    || null,
     date_mise_a_jour: a.date_mise_a_jour || null,
-    lat:           a.latitude,
-    lng:           a.longitude,
+    lat:           (a.latitude  && a.latitude  !== 0) ? a.latitude  : null,
+    lng:           (a.longitude && a.longitude !== 0) ? a.longitude : null,
     images:        (a.images || []).length > 0
       ? (a.images || []).map(img => img.startsWith("http") ? img : `${API_URL}${img}`)
       : a.image_principale
@@ -2776,6 +2776,10 @@ export default function CartePage() {
   const [sortPrice,        setSortPrice]        = useState(null); // null | "asc" | "desc"
   const [listPage,         setListPage]         = useState(1);
   const [listLoading,      setListLoading]      = useState(false);
+  /* Mobile draggable filter panel */
+  const [mobileFilterH,    setMobileFilterH]    = useState(null); // null = auto
+  const dragState = useRef({ dragging: false, startY: 0, startH: 0 });
+  const stickyBarRef = useRef(null);
   const PAGE_SIZE = 30;
   const [livePOIs,         setLivePOIs]         = useState({ schools: [], mosques: [], faculties: [], grandSurfaces: [], hospitals: [], loading: false, fetched: false });
   const [hoveredPin,       setHoveredPin]       = useState(null);
@@ -2961,7 +2965,8 @@ export default function CartePage() {
       .then(r => r.json())
       .then(data => {
         const transformed = (Array.isArray(data) ? data : []).map(transformApiAnnonce);
-        setApiProps(transformed.filter(a => a.lat && a.lng));
+        // Keep ALL approved annonces in the list; pins without valid coords are hidden from map markers only
+        setApiProps(transformed);
       })
       .catch(() => {})
       .finally(() => setListLoading(false));
@@ -3190,7 +3195,15 @@ export default function CartePage() {
     <div className={`cp-root${listMode ? "" : " cp-root--carte"}`}>
       <Navbar />
 
-      <div className="cp-sticky-bar" style={{position:"sticky",top:64,zIndex:200,background:"#fff",boxShadow:"0 2px 8px rgba(0,0,0,.06)"}}>
+      <div
+        ref={stickyBarRef}
+        className="cp-sticky-bar"
+        style={{
+          position:"sticky",top:64,zIndex:200,background:"#fff",
+          boxShadow:"0 2px 8px rgba(0,0,0,.06)",
+          ...(mobileFilterH != null ? { height: mobileFilterH, overflow:"hidden" } : {}),
+        }}
+      >
       <FilterPanel
         filters={filters} onChange={applyFilters}
         onSaveSearch={() => {
@@ -3298,6 +3311,24 @@ export default function CartePage() {
             ? <><MapIcon size={14}/> Vue carte</>
             : <><LayoutList size={14}/> Vue liste</>}
         </button>
+      </div>
+      {/* Mobile drag handle */}
+      <div
+        className="cp-drag-handle"
+        onTouchStart={e => {
+          if (window.innerWidth > 860) return;
+          const h = stickyBarRef.current ? stickyBarRef.current.getBoundingClientRect().height : 200;
+          dragState.current = { dragging: true, startY: e.touches[0].clientY, startH: h };
+        }}
+        onTouchMove={e => {
+          if (!dragState.current.dragging) return;
+          const dy = e.touches[0].clientY - dragState.current.startY;
+          const newH = Math.max(60, Math.min(window.innerHeight * 0.75, dragState.current.startH + dy));
+          setMobileFilterH(newH);
+        }}
+        onTouchEnd={() => { dragState.current.dragging = false; }}
+      >
+        <span className="cp-drag-handle__bar"/>
       </div>
       </div>{/* end sticky wrapper */}
 
@@ -4377,9 +4408,25 @@ export default function CartePage() {
            RESPONSIVE
         -------------------------------------- */
 
+        /* Drag handle mobile — caché sur desktop */
+        .cp-drag-handle {
+          display: none;
+          justify-content: center; align-items: center;
+          height: 20px; cursor: ns-resize;
+          background: #fff;
+          border-top: 1px solid #f1f5f9;
+          touch-action: none;
+          flex-shrink: 0;
+        }
+        .cp-drag-handle__bar {
+          width: 36px; height: 4px; border-radius: 2px;
+          background: #cbd5e1; display: block;
+        }
+
         @media (max-width: 860px) {
           /* Colle la barre filtre sous la navbar mobile (54px) sans espace */
           .cp-sticky-bar { top: 54px !important; }
+          .cp-drag-handle { display: flex; }
           .cp-layout   { flex-direction: column; flex: 1; min-height: 0; }
           .cp-map      { flex: 1; min-height: 0; height: 100%; }
           .cp-list     { display: none !important; }
