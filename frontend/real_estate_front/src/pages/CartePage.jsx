@@ -3254,7 +3254,22 @@ export default function CartePage() {
         liveHospitalCount={visHospitalCount}
       />
 
-      {/* Barre compteur + résumé filtres */}
+      </div>{/* end sticky wrapper */}
+
+      {/* Mobile drag handle — toujours visible, AU-DESSUS de la barre cp-bar */}
+      <div
+        className="cp-drag-handle"
+        onTouchStart={e => {
+          if (window.innerWidth > 860) return;
+          e.preventDefault();
+          const h = stickyBarRef.current ? stickyBarRef.current.getBoundingClientRect().height : 200;
+          dragState.current = { dragging: true, startY: e.touches[0].clientY, startH: h };
+        }}
+      >
+        <span className="cp-drag-handle__bar"/>
+      </div>
+
+      {/* Barre compteur + résumé filtres — sous le drag handle sur mobile */}
       <div className="cp-bar">
         <span className="cp-bar__count">
           <strong>{visibleResults.length}</strong> annonce{visibleResults.length!==1?"s":""} trouvée{visibleResults.length!==1?"s":""}
@@ -3336,20 +3351,6 @@ export default function CartePage() {
             ? <><MapIcon size={14}/> Vue carte</>
             : <><LayoutList size={14}/> Vue liste</>}
         </button>
-      </div>
-      </div>{/* end sticky wrapper */}
-
-      {/* Mobile drag handle — outside sticky bar so it's never clipped */}
-      <div
-        className="cp-drag-handle"
-        onTouchStart={e => {
-          if (window.innerWidth > 860) return;
-          e.preventDefault();
-          const h = stickyBarRef.current ? stickyBarRef.current.getBoundingClientRect().height : 200;
-          dragState.current = { dragging: true, startY: e.touches[0].clientY, startH: h };
-        }}
-      >
-        <span className="cp-drag-handle__bar"/>
       </div>
 
       {/* Layout carte + liste / mode liste seule
@@ -4467,6 +4468,8 @@ export default function CartePage() {
             display: flex;
             flex-direction: column;
           }
+          /* cp-bar sous le drag handle sur mobile — flex-shrink:0 pour ne jamais disparaître */
+          .cp-bar { flex-shrink: 0; }
           .cp-layout   { flex-direction: column; flex: 1; min-height: 0; }
           .cp-map      { flex: 1; min-height: 0; height: 100%; }
           .cp-list     { display: none !important; }

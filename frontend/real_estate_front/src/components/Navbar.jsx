@@ -361,7 +361,13 @@ export default function Navbar() {
             {user ? (
               <>
                 <button className="lz-mob-row lz-mob-row--profile" onClick={() => setMobAccOpen(v => !v)}>
-                  <span className="lz-mob-row__left"><User size={17}/> {user.username}</span>
+                  <span className="lz-mob-row__left">
+                    {user?.profile_picture
+                      ? <img src={user.profile_picture} alt="profil" style={{width:22,height:22,borderRadius:"50%",objectFit:"cover",flexShrink:0}}/>
+                      : <User size={17}/>
+                    }
+                    {" "}{user.username}
+                  </span>
                   <ChevronDown size={15} style={{ transform: mobAccOpen ? "rotate(180deg)" : "none", transition: "transform .2s" }}/>
                 </button>
                 {mobAccOpen && (

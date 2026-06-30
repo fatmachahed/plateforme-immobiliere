@@ -1,9 +1,10 @@
 ﻿import { useState } from "react";
 import API_URL from '../config';
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
-import { Eye, EyeOff, Home, Menu, X } from "lucide-react";
+import { Eye, EyeOff, Home } from "lucide-react";
 import { useToast } from "../components/Toast";
 import Logo from "../components/Logo";
+import Navbar from "../components/Navbar";
 import { useGoogleLogin } from "@react-oauth/google";
 import heroUrl from "../assets/hero-localizi.png";
 
@@ -13,7 +14,6 @@ export default function Login() {
   const [showPwd,     setShowPwd]     = useState(false);
   const [error,       setError]       = useState("");
   const [loading,     setLoading]     = useState(false);
-  const [mobMenu,     setMobMenu]     = useState(false);
   const [rememberMe,  setRememberMe]  = useState(true);
 
   const navigate = useNavigate();
@@ -98,6 +98,10 @@ export default function Login() {
 
   return (
     <div className="sp-page">
+      {/* Navbar réelle — visible uniquement sur mobile, cachée sur desktop */}
+      <div className="sp-navbar-wrap"><Navbar /></div>
+
+      <div className="sp-panels">
       {/* Left panel — hero image */}
       <div className="sp-left">
         <img src={heroUrl} alt="" className="sp-left__bg" />
@@ -124,23 +128,6 @@ export default function Login() {
       {/* Right panel — form */}
       <div className="sp-right">
         <div className="sp-form-wrap">
-          <div className="sp-logo-mobile">
-            <Logo variant="color" height={40} to="/" />
-            <button className="sp-mob-burger" onClick={()=>setMobMenu(o=>!o)} aria-label="Menu">
-              {mobMenu ? <X size={22}/> : <Menu size={22}/>}
-            </button>
-            {mobMenu && (
-              <div className="sp-mob-drawer">
-                <Link to="/" onClick={()=>setMobMenu(false)}>Accueil</Link>
-                <Link to="/carte" onClick={()=>setMobMenu(false)}>Explorer la carte</Link>
-                <Link to="/register" onClick={()=>setMobMenu(false)}>Créer un compte</Link>
-                <Link to="/comment-ca-marche" onClick={()=>setMobMenu(false)}>Comment ça marche</Link>
-                <Link to="/qui-sommes-nous" onClick={()=>setMobMenu(false)}>Qui sommes-nous</Link>
-                <Link to="/faq" onClick={()=>setMobMenu(false)}>FAQ</Link>
-              </div>
-            )}
-          </div>
-
           {/* Breadcrumb */}
           <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:20,fontSize:12.5,color:"#94a3b8"}}>
             <Link to="/" style={{display:"flex",alignItems:"center",gap:4,color:"#6366f1",textDecoration:"none",fontWeight:600}}>
@@ -246,9 +233,13 @@ export default function Login() {
           </p>
         </div>
       </div>
+      </div>{/* end sp-panels */}
 
       <style>{`
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        .sp-navbar-wrap { display: none; }
+        .sp-panels { display: flex; flex: 1; min-height: 0; }
+        .sp-page { flex-direction: column; }
         .sp-page {
           min-height: 100vh; display: flex; position: relative;
           font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
@@ -326,11 +317,6 @@ export default function Login() {
           background: linear-gradient(90deg, #6366f1, #818cf8);
         }
         .sp-form-wrap { width: 100%; max-width: 400px; }
-        .sp-logo-mobile { display: none; justify-content: space-between; align-items: center; margin-bottom: 28px; position: relative; }
-        .sp-mob-burger { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: none; background: #f1f5f9; border-radius: 8px; cursor: pointer; color: #374151; }
-        .sp-mob-drawer { position: absolute; top: 52px; right: 0; left: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.12); z-index: 999; display: flex; flex-direction: column; padding: 8px; gap: 2px; }
-        .sp-mob-drawer a { display: block; padding: 10px 14px; border-radius: 8px; color: #374151; text-decoration: none; font-weight: 600; font-size: 14px; }
-        .sp-mob-drawer a:hover { background: #f1f5f9; color: #6366f1; }
 
         .sp-title {
           font-size: 27px; font-weight: 800; color: #0f172a;
@@ -401,10 +387,12 @@ export default function Login() {
         .sp-link:hover { text-decoration: underline; }
 
         @media (max-width: 900px) {
+          .sp-navbar-wrap { display: block; }
+          .sp-panels { flex-direction: column; flex: 1; }
           .sp-left { display: none; }
           .sp-center-icon { display: none; }
-          .sp-right { width: 100%; padding: 40px 24px; }
-          .sp-logo-mobile { display: flex; }
+          .sp-right { width: 100%; padding: 20px 24px; flex: 1; }
+          .sp-right::before { display: none; }
         }
         @media (max-width: 480px) {
           .sp-right { padding: 32px 20px; }

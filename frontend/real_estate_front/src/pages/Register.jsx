@@ -1,14 +1,14 @@
 ﻿import { useState, useEffect } from "react";
 import API_URL from '../config';
 import { Link, useSearchParams } from "react-router-dom";
-import { Eye, EyeOff, UserPlus, Home, Building2, ShoppingCart, Tag, Key, DoorOpen, ChevronRight, ChevronLeft, Menu, X } from "lucide-react";
+import { Eye, EyeOff, UserPlus, Home, Building2, ShoppingCart, Tag, Key, DoorOpen, ChevronRight, ChevronLeft, X } from "lucide-react";
 import { useToast } from "../components/Toast";
 import Logo from "../components/Logo";
+import Navbar from "../components/Navbar";
 import { useGoogleLogin } from "@react-oauth/google";
 import heroImg from "../assets/hero-localizi.png";
 
 export default function Register() {
-  const [mobMenu, setMobMenu] = useState(false);
   const [step, setStep] = useState(1);
   const [username,          setUsername]          = useState("");
   const [email,             setEmail]             = useState("");
@@ -150,6 +150,10 @@ export default function Register() {
           </div>
         </div>
       )}
+      {/* Navbar réelle — visible uniquement sur mobile */}
+      <div className="sp-navbar-wrap"><Navbar /></div>
+
+      <div className="sp-panels">
       {/* Left */}
       <div className="sp-left">
         <img src={heroImg} alt="" className="sp-left__bg" />
@@ -175,22 +179,6 @@ export default function Register() {
       {/* Right */}
       <div className="sp-right">
         <div className="sp-form-wrap">
-          <div className="sp-logo-mobile">
-            <Logo variant="color" height={40} to="/" />
-            <button className="sp-mob-burger" onClick={()=>setMobMenu(o=>!o)} aria-label="Menu">
-              {mobMenu ? <X size={22}/> : <Menu size={22}/>}
-            </button>
-            {mobMenu && (
-              <div className="sp-mob-drawer">
-                <Link to="/" onClick={()=>setMobMenu(false)}>Accueil</Link>
-                <Link to="/carte" onClick={()=>setMobMenu(false)}>Explorer la carte</Link>
-                <Link to="/login" onClick={()=>setMobMenu(false)}>Se connecter</Link>
-                <Link to="/comment-ca-marche" onClick={()=>setMobMenu(false)}>Comment ça marche</Link>
-                <Link to="/qui-sommes-nous" onClick={()=>setMobMenu(false)}>Qui sommes-nous</Link>
-                <Link to="/faq" onClick={()=>setMobMenu(false)}>FAQ</Link>
-              </div>
-            )}
-          </div>
 
           {/* ─── Écran email envoyé ─── */}
           {step==="email-sent" && (
@@ -437,6 +425,7 @@ export default function Register() {
           </>}
         </div>
       </div>
+      </div>{/* end sp-panels */}
 
       <style>{`
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -457,11 +446,6 @@ export default function Register() {
         .sp-right { flex: 1; background: #fff; overflow-y: auto; display: flex; align-items: center; justify-content: center; padding: 52px 48px; position: relative; }
         .sp-right::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #6366f1, #818cf8); }
         .sp-form-wrap { width: 100%; max-width: 400px; }
-        .sp-logo-mobile { display: none; justify-content: space-between; align-items: center; margin-bottom: 28px; position: relative; }
-        .sp-mob-burger { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border: none; background: #f1f5f9; border-radius: 8px; cursor: pointer; color: #374151; }
-        .sp-mob-drawer { position: absolute; top: 52px; right: 0; left: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,.12); z-index: 999; display: flex; flex-direction: column; padding: 8px; gap: 2px; }
-        .sp-mob-drawer a { display: block; padding: 10px 14px; border-radius: 8px; color: #374151; text-decoration: none; font-weight: 600; font-size: 14px; }
-        .sp-mob-drawer a:hover { background: #f1f5f9; color: #6366f1; }
         .sp-title { font-size: 27px; font-weight: 800; color: #0f172a; letter-spacing: -.02em; }
         .sp-sub   { font-size: 14px; color: #94a3b8; margin-top: 5px; margin-bottom: 22px; }
         .sp-notice { border-radius: 10px; padding: 11px 14px; font-size: 13px; margin-bottom: 18px; line-height: 1.5; font-weight: 500; }
@@ -498,8 +482,17 @@ export default function Register() {
         .sp-role-icon { display: flex; align-items: center; justify-content: center; line-height: 1; color: inherit; }
         .sp-role-label { font-size: 13px; font-weight: 700; color: inherit; }
         .sp-role-desc { font-size: 11px; color: inherit; opacity: .7; font-weight: 500; line-height: 1.3; }
-        @media (max-width: 900px) { .sp-left { display: none; } .sp-center-icon { display: none; } .sp-right { width: 100%; padding: 40px 24px; } .sp-logo-mobile { display: flex; } }
-        @media (max-width: 480px) { .sp-right { padding: 32px 20px; } .sp-form-wrap { max-width: 100%; } }
+        .sp-navbar-wrap { display: none; }
+        .sp-panels { display: flex; flex: 1; min-height: 0; }
+        @media (max-width: 900px) {
+          .sp-navbar-wrap { display: block; }
+          .sp-panels { flex-direction: column; flex: 1; }
+          .sp-left { display: none; }
+          .sp-center-icon { display: none; }
+          .sp-right { width: 100%; padding: 20px 24px; flex: 1; }
+          .sp-right::before { display: none; }
+        }
+        @media (max-width: 480px) { .sp-right { padding: 16px 20px; } .sp-form-wrap { max-width: 100%; } }
       `}</style>
     </div>
   );
