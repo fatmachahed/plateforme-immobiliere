@@ -625,9 +625,9 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
 
         </div>
 
-        <div className="ad-body" style={{display:"grid"}}>
+        <div className="ad-body" style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 360px",gap:"24px",maxWidth:1200,margin:"24px auto",padding:"0 24px 48px",boxSizing:"border-box",width:"100%"}}>
           {/* Left column */}
-          <div className="ad-left" style={{minWidth:0,overflow:"visible"}}>
+          <div className="ad-left" style={{minWidth:0,width:"100%",display:"block"}}>
 
             {/* Prix */}
             <div style={{display:"flex",alignItems:"baseline",gap:20,flexWrap:"wrap",padding:"18px 0 16px",borderBottom:"1.5px solid #f1f5f9",marginBottom:20}}>
@@ -787,7 +787,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
           </div>
 
           {/* Right column */}
-          <div className="ad-right">
+          <div className="ad-right" style={{width:360,minWidth:260,display:"block"}}>
             <div className="ad-card">
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6,flexWrap:"wrap",gap:6}}>
                 <span className={`ad-card__cat ad-card__cat--${prop.categorie?.toLowerCase()}`}>{prop.categorie}</span>
