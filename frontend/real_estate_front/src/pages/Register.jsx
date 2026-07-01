@@ -437,7 +437,7 @@ export default function Register() {
 
       <style>{`
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        .sp-page { min-height: 100vh; display: flex; position: relative; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+        .sp-page { min-height: 100vh; display: flex; flex-direction: column; position: relative; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
         .sp-left { width: 50%; position: relative; overflow: hidden; display: flex; align-items: center; flex-shrink: 0; }
         .sp-left__bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
         .sp-left__overlay { position: absolute; inset: 0; background: linear-gradient(160deg, rgba(6,8,24,.78) 0%, rgba(15,23,42,.92) 100%); }
