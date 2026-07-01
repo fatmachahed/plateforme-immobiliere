@@ -625,9 +625,9 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
 
         </div>
 
-        <div className="ad-body">
+        <div className="ad-body" style={{display:"grid"}}>
           {/* Left column */}
-          <div className="ad-left">
+          <div className="ad-left" style={{minWidth:0,overflow:"visible"}}>
 
             {/* Prix */}
             <div style={{display:"flex",alignItems:"baseline",gap:20,flexWrap:"wrap",padding:"18px 0 16px",borderBottom:"1.5px solid #f1f5f9",marginBottom:20}}>
@@ -1142,8 +1142,6 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
         style={{background:"#f9fafb",width:"100%",maxWidth:1200,maxHeight:"calc(100vh - 32px)",overflowY:"auto",borderRadius:16,boxShadow:"0 32px 80px rgba(0,0,0,.35)",fontFamily:"'Poppins',system-ui,sans-serif",fontSize:"11.5px"}}
         onClick={e=>e.stopPropagation()}
       >
-        {modalContent}
-
         <style>{`
           @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
           @keyframes spin { to { transform:rotate(360deg); } }
@@ -1378,6 +1376,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
             .ad-spec { margin-right:0 !important; flex:unset !important; width:auto !important; aspect-ratio:1 !important; }
           }
         `}</style>
+        {modalContent}
       </div>
     </div>,
     document.body

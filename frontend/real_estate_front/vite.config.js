@@ -77,7 +77,9 @@ export default defineConfig({
       },
       workbox: {
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB
-        // Mise en cache des assets statiques (hors grosses images hero)
+        cleanupOutdatedCaches: true,
+        skipWaiting: true,
+        clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,ico,svg,woff2}', 'icons/*.png'],
         // Stratégie réseau : API toujours en live, assets en cache
         runtimeCaching: [
