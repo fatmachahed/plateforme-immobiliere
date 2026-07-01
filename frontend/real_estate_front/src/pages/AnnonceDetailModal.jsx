@@ -625,7 +625,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
 
         </div>
 
-        <div className="ad-body" style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) 360px",gap:"24px",maxWidth:1200,margin:"24px auto",padding:"0 24px 48px",boxSizing:"border-box",width:"100%"}}>
+        <div className="ad-body" style={{display:"grid",gap:"24px",maxWidth:1200,margin:"24px auto",padding:"0 24px 48px",boxSizing:"border-box",width:"100%"}}>
           {/* Left column */}
           <div className="ad-left" style={{minWidth:0,width:"100%",display:"block"}}>
 
