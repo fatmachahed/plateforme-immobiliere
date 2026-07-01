@@ -16,7 +16,7 @@ import Navbar from "../components/Navbar";
 import Logo from "../components/Logo";
 import useLocalisation from "../hooks/useLocalisation";
 import { getDelegations } from "../api/localisation.api";
-import AnnonceModal from "../components/AnnonceModal";
+import AnnonceDetailModal from "./AnnonceDetailModal";
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
@@ -3701,7 +3701,7 @@ export default function CartePage() {
         </div>
 
       {/* -- Modal annonce -- */}
-      {modalId && <AnnonceModal annonceId={modalId} onClose={() => setModalId(null)} />}
+      {modalId && <AnnonceDetailModal annonceId={modalId} onClose={() => setModalId(null)} />}
 
       {/* -- Popup : minimum 3 critères -- */}
       {showMinFiltersModal && ReactDOM.createPortal(
