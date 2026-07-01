@@ -504,14 +504,14 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
               </>
             )}
             {isOwner && (
-              <Link to={`/modifier_annonce/${prop.id}`} className="ad-action" style={{textDecoration:"none"}}>
+              <Link to={`/modifier_annonce/${prop.id}`} className="det-action" style={{textDecoration:"none"}}>
                 <Edit size={15}/> Modifier
               </Link>
             )}
-            <button className={`ad-action${isFavori?" ad-action--liked":""}`} onClick={handleToggleFavori} disabled={favLoading}>
-              <Heart size={15} fill={isFavori?"currentColor":"none"}/><span className="ad-action-txt"> {isFavori?"Sauvegardé":"Sauvegarder"}</span>
+            <button className={`det-action${isFavori?" det-action--liked":""}`} onClick={handleToggleFavori} disabled={favLoading}>
+              <Heart size={15} fill={isFavori?"currentColor":"none"}/><span className="det-action-txt"> {isFavori?"Sauvegardé":"Sauvegarder"}</span>
             </button>
-            <button className={`ad-action${isInCompare?" ad-action--liked":""}`} onClick={()=>{
+            <button className={`det-action${isInCompare?" det-action--liked":""}`} onClick={()=>{
               const cur=(() => { try { return JSON.parse(localStorage.getItem("localizi_compare")||"[]"); } catch { return []; } })();
               const meta=(() => { try { return JSON.parse(localStorage.getItem("localizi_compare_meta")||"[]"); } catch { return []; } })();
               const rid=String(prop.id);
@@ -536,13 +536,13 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
               setCompareItems(updatedMeta);
               if(updatedMeta.length>=2)setComparePopup(true);
             }}>
-              <BarChart2 size={15}/><span className="ad-action-txt"> {isInCompare?"Dans le comparateur":"Comparer"}</span>
+              <BarChart2 size={15}/><span className="det-action-txt"> {isInCompare?"Dans le comparateur":"Comparer"}</span>
             </button>
-            <button className="ad-action" onClick={()=>{
+            <button className="det-action" onClick={()=>{
               const url=`${window.location.origin}/annonce/${prop.id}`;
               try { if(navigator.clipboard){navigator.clipboard.writeText(url).then(()=>toast("Lien copié !")).catch(()=>{const el=document.createElement("textarea");el.value=url;el.style.cssText="position:fixed;opacity:0";document.body.appendChild(el);el.select();document.execCommand("copy");document.body.removeChild(el);toast("Lien copié !");});}else{const el=document.createElement("textarea");el.value=url;el.style.cssText="position:fixed;opacity:0";document.body.appendChild(el);el.select();document.execCommand("copy");document.body.removeChild(el);toast("Lien copié !");} }catch{toast("Lien : "+url);}
             }}>
-              <Share2 size={15}/><span className="ad-action-txt"> Partager</span>
+              <Share2 size={15}/><span className="det-action-txt"> Partager</span>
             </button>
           </div>
         </div>
@@ -625,9 +625,9 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
 
         </div>
 
-        <div className="ad-body" style={{display:"grid",gap:"24px",maxWidth:1200,margin:"24px auto",padding:"0 24px 48px",boxSizing:"border-box",width:"100%"}}>
+        <div className="det-body" style={{display:"grid",gap:"24px",maxWidth:1200,margin:"24px auto",padding:"0 24px 48px",boxSizing:"border-box",width:"100%"}}>
           {/* Left column */}
-          <div className="ad-left" style={{minWidth:0,width:"100%",display:"block"}}>
+          <div className="det-left" style={{minWidth:0,width:"100%",display:"block"}}>
 
             {/* Prix */}
             <div style={{display:"flex",alignItems:"baseline",gap:20,flexWrap:"wrap",padding:"18px 0 16px",borderBottom:"1.5px solid #f1f5f9",marginBottom:20}}>
@@ -766,9 +766,9 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
             )}
 
             {/* Description */}
-            <div className="ad-section">
-              <div className="ad-section__header">
-                <h2 className="ad-section__title">{t("ad_description")}</h2>
+            <div className="det-section">
+              <div className="det-section__header">
+                <h2 className="det-section__title">{t("ad_description")}</h2>
                 <button className="ad-translate-btn" onClick={handleTranslate} disabled={translating}>
                   {translating?<Loader size={13} style={{animation:"spin 1s linear infinite"}}/>:<Languages size={13}/>}
                   {translated?t("ad_original"):t("ad_translate")}
@@ -782,12 +782,12 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
             {prop.features?.length>0&&(()=>{
               const FEAT_ICONS={"Vue sur mer":Waves,"Vue sur montagne":Mountain,"Vue sur forêt":TreePine,"Jardin":Fence,"Terrasse":Sun,"Balcon":Flower2,"Piscine":Droplets,"Parking":ParkingCircle,"Ascenseur":ArrowUpDown,"Garage":Car,"Cellier":Package,"Meublé":Sofa,"Concierge":Users,"Gardien":ShieldCheck,"Animaux admis":Heart,"Cuisine équipée":UtensilsCrossed,"Climatisation":Wind,"Chauffage central":Thermometer,"Cheminée":Flame,"Double vitrage":DoorClosed,"Porte blindée":LockKeyhole,"Sécurité":Fingerprint,"Internet":Wifi,"TV":Monitor,"Machine à laver":RefreshCw,"Digicode":KeyRound,"Interphone":PhoneCall,"Relié ONAS":Droplets,"Salon américain":Monitor,"Fibre optique":Wifi};
               const FEAT_LIMIT=9;const longFeats=prop.features.length>FEAT_LIMIT;const shownFeats=featsExpanded||!longFeats?prop.features:prop.features.slice(0,FEAT_LIMIT);
-              return(<div className="ad-section" style={{marginTop:32}}><h2 className="ad-section__title">Caractéristiques du bien</h2><div className="adm-feats-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"12px"}}>{shownFeats.map(f=>{const Ico=FEAT_ICONS[f]||CheckCircle;return(<div key={f} className="adm-feat-item" style={{display:"flex",alignItems:"center",gap:12,padding:"15px 18px",borderRadius:12,background:"#f8fafc",border:"1.5px solid #e5e7eb",fontSize:15,fontWeight:600,color:"#1e293b"}}><Ico size={22} strokeWidth={1.6} style={{color:"#4f46e5",flexShrink:0}}/>{f}</div>);})}</div>{longFeats&&<button onClick={()=>setFeatsExpanded(p=>!p)} style={{marginTop:14,background:"none",border:"none",cursor:"pointer",color:"#4f46e5",fontWeight:700,fontSize:14,display:"flex",alignItems:"center",gap:4,padding:0}}>{featsExpanded?<><ChevronLeft size={15} style={{transform:"rotate(90deg)"}}/> Voir moins</>:<>Voir les {prop.features.length-FEAT_LIMIT} autres caractéristiques <ChevronRight size={15}/></>}</button>}</div>);
+              return(<div className="det-section" style={{marginTop:32}}><h2 className="det-section__title">Caractéristiques du bien</h2><div className="adm-feats-grid" style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"12px"}}>{shownFeats.map(f=>{const Ico=FEAT_ICONS[f]||CheckCircle;return(<div key={f} className="adm-feat-item" style={{display:"flex",alignItems:"center",gap:12,padding:"15px 18px",borderRadius:12,background:"#f8fafc",border:"1.5px solid #e5e7eb",fontSize:15,fontWeight:600,color:"#1e293b"}}><Ico size={22} strokeWidth={1.6} style={{color:"#4f46e5",flexShrink:0}}/>{f}</div>);})}</div>{longFeats&&<button onClick={()=>setFeatsExpanded(p=>!p)} style={{marginTop:14,background:"none",border:"none",cursor:"pointer",color:"#4f46e5",fontWeight:700,fontSize:14,display:"flex",alignItems:"center",gap:4,padding:0}}>{featsExpanded?<><ChevronLeft size={15} style={{transform:"rotate(90deg)"}}/> Voir moins</>:<>Voir les {prop.features.length-FEAT_LIMIT} autres caractéristiques <ChevronRight size={15}/></>}</button>}</div>);
             })()}
           </div>
 
           {/* Right column */}
-          <div className="ad-right" style={{width:360,minWidth:260,display:"block"}}>
+          <div className="det-right" style={{width:360,minWidth:260,display:"block"}}>
             <div className="ad-card">
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6,flexWrap:"wrap",gap:6}}>
                 <span className={`ad-card__cat ad-card__cat--${prop.categorie?.toLowerCase()}`}>{prop.categorie}</span>
@@ -1154,10 +1154,10 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
           .ad-back { display:flex; align-items:center; gap:6px; font-size:13px; color:#6b7280; font-family:inherit; transition:color .15s; background:none; border:none; cursor:pointer; }
           .ad-back:hover { color:#111; }
           .ad-topbar__actions { display:flex; gap:8px; }
-          .ad-action { display:flex; align-items:center; gap:6px; padding:7px 14px; border:1px solid #e5e7eb; border-radius:6px; font-size:13px; color:#6b7280; background:#fff; font-family:inherit; cursor:pointer; transition:all .15s; text-decoration:none; }
-          .ad-action:hover { border-color:#9ca3af; color:#111; }
-          .ad-action--liked { color:#6366f1; border-color:#6366f1; background:#eef2ff; }
-          .ad-body { display:grid; grid-template-columns:1fr 360px; gap:24px; max-width:1200px; margin:24px auto; padding:0 24px 48px; }
+          .det-action { display:flex; align-items:center; gap:6px; padding:7px 14px; border:1px solid #e5e7eb; border-radius:6px; font-size:13px; color:#6b7280; background:#fff; font-family:inherit; cursor:pointer; transition:all .15s; text-decoration:none; }
+          .det-action:hover { border-color:#9ca3af; color:#111; }
+          .det-action--liked { color:#6366f1; border-color:#6366f1; background:#eef2ff; }
+          .det-body { display:grid; grid-template-columns:1fr 360px; gap:24px; max-width:1200px; margin:24px auto; padding:0 24px 48px; }
           .ad-gallery { margin-bottom:24px; }
           .ad-gallery__main { position:relative; border-radius:10px; overflow:hidden; background:#e5e7eb; }
           .ad-gallery__img { width:100%; height:440px; object-fit:cover; display:block; animation:fadeIn .2s ease; }
@@ -1170,8 +1170,8 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
           .ad-gallery__thumb { width:80px; height:60px; object-fit:cover; border-radius:6px; border:2px solid transparent; cursor:pointer; flex-shrink:0; opacity:.65; transition:all .15s; }
           .ad-gallery__thumb--on { border-color:#6366f1; opacity:1; }
           .ad-gallery__thumb:hover { opacity:1; }
-          .ad-section { margin-bottom:24px; }
-          .ad-section__title { font-size:20px; font-weight:800; color:#0f172a; margin-bottom:14px; }
+          .det-section { margin-bottom:24px; }
+          .det-section__title { font-size:20px; font-weight:800; color:#0f172a; margin-bottom:14px; }
           .ad-desc { font-family:'Poppins',system-ui,sans-serif; font-size:12px; color:#4b5563; line-height:1.8; text-align:justify; }
           .ad-card { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:24px; margin-bottom:16px; }
           .ad-card__cat { display:inline-block; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; margin-bottom:12px; color:#fff; }
@@ -1222,8 +1222,8 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
           .ad-cbtn--login:hover { background:#1e293b; }
           .ad-cbtn--register { background:#fff; color:#6366f1; border:1.5px solid #c7d2fe; }
           .ad-cbtn--register:hover { background:#eef2ff; }
-          .ad-section__header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
-          .ad-section__header .ad-section__title { margin-bottom:0; }
+          .det-section__header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+          .det-section__header .det-section__title { margin-bottom:0; }
           .ad-translate-btn { display:flex; align-items:center; gap:5px; padding:6px 12px; border-radius:8px; font-size:12px; font-weight:600; border:1.5px solid #e0e7ff; background:#eef2ff; color:#4f46e5; cursor:pointer; font-family:inherit; transition:all .15s; white-space:nowrap; }
           .ad-translate-btn:hover:not(:disabled) { background:#e0e7ff; }
           .ad-translate-btn:disabled { opacity:.6; cursor:not-allowed; }
@@ -1254,8 +1254,8 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
           .pc__loc    { display:flex; align-items:center; gap:3px; font-size:12px; color:#374151; font-weight:500; margin-bottom:9px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
           .pc__specs  { display:flex; gap:10px; flex-wrap:wrap; padding-top:8px; border-top:1px solid #f1f5f9; }
           .pc__specs span { display:flex; align-items:center; gap:3px; font-size:13px; color:#1e293b; font-weight:500; }
-          @media (max-width:900px) { .ad-body { grid-template-columns:1fr; } .ad-right { order:-1; } .ad-gallery__img { height:280px; } }
-          @media (max-width:560px) { .ad-body { padding:0 12px 32px; margin-top:12px; } .adm-topbar { padding:8px 12px; } .ad-topbar__actions { gap:4px; } .ad-action { padding:6px 10px; font-size:12px; } }
+          @media (max-width:900px) { .det-body { grid-template-columns:1fr; } .det-right { order:-1; } .ad-gallery__img { height:280px; } }
+          @media (max-width:560px) { .det-body { padding:0 12px 32px; margin-top:12px; } .adm-topbar { padding:8px 12px; } .ad-topbar__actions { gap:4px; } .det-action { padding:6px 10px; font-size:12px; } }
 
           /* ── MOBILE : galerie 1 seule image + bouton voir toutes ── */
           .adm-see-all-btn { display:none; }
@@ -1284,7 +1284,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
               font-family:inherit;
             }
             /* Corps du modal : padding latéral augmenté pour éviter le débordement */
-            .ad-body { padding:0 16px 24px !important; margin-top:10px !important; box-sizing:border-box !important; }
+            .det-body { padding:0 16px 24px !important; margin-top:10px !important; box-sizing:border-box !important; }
             /* Carte d'info (titre, adresse, specs) : supprimer le cadre, fond transparent, juste un trait séparateur */
             .ad-card { background:transparent !important; border:none !important; border-radius:0 !important; padding:0 0 16px !important; margin-bottom:0 !important; box-shadow:none !important; border-bottom:1px solid #f0f0f0 !important; }
             /* Section carte position : élargir, moins de padding latéral */
@@ -1294,7 +1294,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
             .adm-full-section { padding:0 12px !important; }
             /* Titres et description */
             .ad-title { font-size:17px !important; line-height:1.3 !important; }
-            .ad-section__title { font-size:14px !important; margin-bottom:10px !important; }
+            .det-section__title { font-size:14px !important; margin-bottom:10px !important; }
             .ad-desc { font-size:12px !important; line-height:1.7 !important; text-align:justify !important; }
             .ad-price { font-size:22px !important; }
             /* Caractéristiques : 2 par ligne, texte compact */
@@ -1337,8 +1337,8 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
             .bm-poi-mobile  { display:flex !important; }
             .bm-nav-desktop { display:none !important; }
             /* Boutons topbar : icône seulement */
-            .ad-action-txt { display:none !important; }
-            .ad-action { padding:7px 10px !important; }
+            .det-action-txt { display:none !important; }
+            .det-action { padding:7px 10px !important; }
             /* Bouton X de fermeture : caché (le Retour suffit) */
             .adm-close-btn { display:none !important; }
             /* Signaler : texte court + cacher paragraphe + bouton inline avec IDs */
