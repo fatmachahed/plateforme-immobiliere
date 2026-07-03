@@ -647,24 +647,46 @@ export const CreateListingForm = ({ editId = null }) => {
     return () => { urls.forEach(u => { try { URL.revokeObjectURL(u); } catch {} }); };
   }, [formData.allImages]); // eslint-disable-line
 
-  /* -- IndexedDB helpers for photo persistence across refresh -- */
+  /* -- IndexedDB helpers for photo persistence across refresh --
+     Store as ArrayBuffer (not File) for cross-browser compatibility (iOS Safari) -- */
   const IDB_NAME = "localizi_ca";
   const IDB_STORE = "photos";
   const openIDB = () => new Promise((res, rej) => {
-    const req = indexedDB.open(IDB_NAME, 1);
-    req.onupgradeneeded = e => e.target.result.createObjectStore(IDB_STORE, { keyPath: "idx" });
-    req.onsuccess = e => res(e.target.result);
-    req.onerror = () => rej();
-  });
-  const savePhotosIDB = async (files) => {
     try {
+      const req = indexedDB.open(IDB_NAME, 2);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(IDB_STORE))
+          db.createObjectStore(IDB_STORE, { keyPath: "idx" });
+      };
+      req.onsuccess = e => res(e.target.result);
+      req.onerror = () => rej();
+    } catch { rej(); }
+  });
+
+  const savePhotosIDB = async (files) => {
+    if (!files || files.length === 0) {
+      try {
+        const db = await openIDB();
+        const tx = db.transaction(IDB_STORE, "readwrite");
+        tx.objectStore(IDB_STORE).clear();
+      } catch {}
+      return;
+    }
+    try {
+      /* Convert each File to ArrayBuffer first — safe on all browsers */
+      const records = await Promise.all(files.map(async (f, idx) => {
+        const buf = await f.arrayBuffer();
+        return { idx, buf, name: f.name, type: f.type || "image/jpeg" };
+      }));
       const db = await openIDB();
       const tx = db.transaction(IDB_STORE, "readwrite");
       const store = tx.objectStore(IDB_STORE);
       store.clear();
-      files.forEach((f, idx) => store.put({ idx, file: f, name: f.name, type: f.type }));
+      records.forEach(r => store.put(r));
     } catch {}
   };
+
   const loadPhotosIDB = async () => {
     try {
       const db = await openIDB();
@@ -672,11 +694,20 @@ export const CreateListingForm = ({ editId = null }) => {
       const store = tx.objectStore(IDB_STORE);
       return await new Promise((res) => {
         const req = store.getAll();
-        req.onsuccess = e => res((e.target.result || []).sort((a, b) => a.idx - b.idx).map(r => r.file));
+        req.onsuccess = e => {
+          const rows = (e.target.result || []).sort((a, b) => a.idx - b.idx);
+          /* Reconstruct File from ArrayBuffer */
+          const files = rows.map(r => {
+            try { return new File([r.buf], r.name || "photo.jpg", { type: r.type || "image/jpeg" }); }
+            catch { return new Blob([r.buf], { type: r.type || "image/jpeg" }); }
+          });
+          res(files.filter(f => f.size > 0));
+        };
         req.onerror = () => res([]);
       });
     } catch { return []; }
   };
+
   const clearPhotosIDB = async () => {
     try {
       const db = await openIDB();
@@ -689,16 +720,17 @@ export const CreateListingForm = ({ editId = null }) => {
   useEffect(() => {
     if (editId) return;
     loadPhotosIDB().then(files => {
-      if (files.length > 0) {
+      if (files && files.length > 0) {
         setFormData(prev => ({ ...prev, allImages: files, mainImageIndex: 0 }));
       }
-    });
+    }).catch(() => {});
   }, []); // eslint-disable-line
 
-  /* Save photos to IndexedDB whenever they change */
+  /* Save photos to IndexedDB (debounced) */
   useEffect(() => {
     if (editId) return;
-    savePhotosIDB(formData.allImages || []);
+    const t = setTimeout(() => savePhotosIDB(formData.allImages || []), 400);
+    return () => clearTimeout(t);
   }, [formData.allImages, editId]); // eslint-disable-line
 
   const totalSteps = 5;
