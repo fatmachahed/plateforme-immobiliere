@@ -621,6 +621,8 @@ export const CreateListingForm = ({ editId = null }) => {
   const [imageValidation, setImageValidation] = useState({});
   /* -- Edit mode state -- */
   const [isSubmitting,       setIsSubmitting]       = useState(false);
+  const [showQuotaModal,     setShowQuotaModal]     = useState(false);
+  const [quotaInfo,          setQuotaInfo]          = useState({ current: 0, max: 0 });
   const [showPublishModal,   setShowPublishModal]   = useState(false);
   const [loadingEdit,        setLoadingEdit]        = useState(false);
   const [loadingEditError,   setLoadingEditError]   = useState(false);
@@ -1154,6 +1156,31 @@ export const CreateListingForm = ({ editId = null }) => {
   const handleSubmit = async (e) => {
     if (e?.preventDefault) e.preventDefault();
     if (isSubmitting) return;
+
+    /* ── Vérification quota annonces actives ── */
+    if (!editId) {
+      try {
+        const token_ = localStorage.getItem("token");
+        const user_  = (() => { try { return JSON.parse(localStorage.getItem("user")); } catch { return null; } })();
+        const quotas = (() => { try { return JSON.parse(localStorage.getItem("lz_quotas") || "{}"); } catch { return {}; } })();
+        const DEFAULT_QUOTAS = { particulier: 3, agence: 50, promoteur: 30, partenaire: 50, admin: 999 };
+        const role   = user_?.role || "particulier";
+        const maxQ   = quotas[role] ?? DEFAULT_QUOTAS[role] ?? 3;
+        if (maxQ < 999) {
+          const res = await fetch(`${API_URL}/annonces/`, { headers: { Authorization: `Bearer ${token_}` } });
+          if (res.ok) {
+            const myAnnonces = await res.json();
+            const active = (myAnnonces || []).filter(a => ["approuvee","en_attente"].includes(a.status)).length;
+            if (active >= maxQ) {
+              setQuotaInfo({ current: active, max: maxQ });
+              setShowQuotaModal(true);
+              return;
+            }
+          }
+        }
+      } catch { /* silencieux — si erreur réseau, on laisse passer */ }
+    }
+
     setIsSubmitting(true);
 
     /* Validation */
@@ -2280,8 +2307,8 @@ export const CreateListingForm = ({ editId = null }) => {
                               const totalDispo = totalCap - totalOcc;
                               return (
                                 <>
-                                  <div style={{overflowX:"auto",borderRadius:10,border:"1px solid #e2e8f0"}}>
-                                    <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                                  <div style={{overflowX:"auto",borderRadius:10,border:"1px solid #e2e8f0",maxWidth:"100%",WebkitOverflowScrolling:"touch"}}>
+                                    <table style={{minWidth:480,width:"100%",borderCollapse:"collapse",fontSize:12}}>
                                       <thead>
                                         <tr style={{background:"#eef2ff"}}>
                                           <th style={{padding:"7px 10px",fontWeight:700,color:"#4338ca",textAlign:"left"}}>Chambre</th>
@@ -3783,6 +3810,63 @@ export const CreateListingForm = ({ editId = null }) => {
           </form>
         </main>
 
+        {/* Modal quota atteint */}
+        {showQuotaModal && ReactDOM.createPortal(
+          <div style={{position:"fixed",inset:0,background:"rgba(15,23,42,.55)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:99999,padding:"16px"}}
+            onClick={e=>{if(e.target===e.currentTarget)setShowQuotaModal(false);}}>
+            <div style={{background:"#fff",borderRadius:20,padding:"0",width:480,maxWidth:"100%",boxShadow:"0 24px 64px rgba(0,0,0,.18)",overflow:"hidden"}}
+              onClick={e=>e.stopPropagation()}>
+
+              {/* Header */}
+              <div style={{padding:"22px 24px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:"1px solid #f1f5f9"}}>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <Logo variant="color" height={26} to={null}/>
+                  <div>
+                    <div style={{fontSize:15,fontWeight:800,color:"#0f172a"}}>Limite de publication atteinte</div>
+                    <div style={{fontSize:11,color:"#94a3b8",marginTop:2}}>Votre quota d'annonces actives est épuisé</div>
+                  </div>
+                </div>
+                <button onClick={()=>setShowQuotaModal(false)} style={{background:"#f1f5f9",border:"none",cursor:"pointer",borderRadius:10,width:34,height:34,display:"flex",alignItems:"center",justifyContent:"center",color:"#64748b",flexShrink:0}}>
+                  <X size={18} strokeWidth={2.5}/>
+                </button>
+              </div>
+
+              {/* Corps */}
+              <div style={{padding:"24px"}}>
+                <div style={{display:"flex",justifyContent:"center",marginBottom:20}}>
+                  <div style={{width:68,height:68,borderRadius:"50%",background:"#fef2f2",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    <AlertTriangle size={32} color="#ef4444" strokeWidth={1.8}/>
+                  </div>
+                </div>
+
+                <h2 style={{fontSize:20,fontWeight:900,color:"#0f172a",margin:"0 0 12px",textAlign:"center"}}>
+                  Vous avez atteint votre limite
+                </h2>
+                <p style={{fontSize:14,color:"#374151",lineHeight:1.7,margin:"0 0 16px",textAlign:"center"}}>
+                  Votre profil autorise un maximum de <strong>{quotaInfo.max} annonce{quotaInfo.max>1?"s":""} active{quotaInfo.max>1?"s":""}</strong> simultanément.<br/>
+                  Vous en avez actuellement <strong style={{color:"#ef4444"}}>{quotaInfo.current}</strong>.
+                </p>
+
+                <div style={{background:"#fef9ec",border:"1.5px solid #fde68a",borderRadius:12,padding:"12px 16px",marginBottom:20,fontSize:13,color:"#92400e",lineHeight:1.65}}>
+                  Pour publier une nouvelle annonce, vous devez d'abord <strong>supprimer</strong> ou <strong>retirer de la carte</strong> une annonce existante depuis votre tableau de bord.
+                </div>
+
+                <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
+                  <button onClick={()=>setShowQuotaModal(false)}
+                    style={{padding:"11px 24px",borderRadius:12,border:"1.5px solid #e2e8f0",background:"#fff",fontSize:14,fontWeight:600,color:"#374151",cursor:"pointer"}}>
+                    Fermer
+                  </button>
+                  <button onClick={()=>{ setShowQuotaModal(false); window.location.href="/compte?tab=annonces"; }}
+                    style={{padding:"11px 28px",borderRadius:12,border:"none",background:"#6366f1",color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:7}}>
+                    <LayoutGrid size={15}/> Gérer mes annonces
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
         {/* Modal confirmation publication */}
         {showPublishModal && ReactDOM.createPortal(
           <div style={{position:"fixed",inset:0,background:"rgba(15,23,42,.55)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:99999,padding:"16px"}}
@@ -4037,6 +4121,8 @@ export const CreateListingForm = ({ editId = null }) => {
             border-radius: 16px;
             padding: 28px 32px;
             box-shadow: 0 1px 6px rgba(0,0,0,.04);
+            max-width: 100%;
+            overflow-x: hidden;
           }
           .ca-step-content { animation: caFade .25s ease; }
           @keyframes caFade { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
