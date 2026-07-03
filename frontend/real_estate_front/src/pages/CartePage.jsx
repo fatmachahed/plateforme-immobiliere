@@ -3445,7 +3445,6 @@ export default function CartePage() {
               {!sortField && <ArrowUpDown size={14}/>}
               {sortField && sortDir === "asc"  && <ChevronUp size={14}/>}
               {sortField && sortDir === "desc" && <ChevronDown size={14}/>}
-              <span className="cp-filtersum__label">{sortField ? (sortField === "prix" ? "Prix" : "Surface") : "Trier"}</span>
               {sortField && <span className="cp-filtersum__badge">1</span>}
             </button>
           </div>
