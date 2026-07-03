@@ -2822,11 +2822,11 @@ export default function CartePage() {
   const [showHospitals,    setShowHospitals]    = useState(_savedPOI?.showHospitals    ?? false);
   const [listMode,         setListMode]         = useState(() => searchParams.get("vue") === "liste" || sessionStorage.getItem("localizi_carte_listmode") === "1");
   const [sortPrice,        setSortPrice]        = useState(null); // null | "asc" | "desc"
-  const [sortField,        setSortField]        = useState(null); // null | "prix" | "surface"
-  const [sortDir,          setSortDir]          = useState("asc");
-  const [showSortMenu,     setShowSortMenu]     = useState(false);
+  const [sortField,    setSortField]    = useState(() => { try { return sessionStorage.getItem("lz_carte_sortfield") || null; } catch { return null; } });
+  const [sortDir,      setSortDir]      = useState(() => { try { return sessionStorage.getItem("lz_carte_sortdir")  || "asc"; } catch { return "asc"; } });
+  const [showSortMenu, setShowSortMenu] = useState(false);
   const sortBtnRef = useRef(null);
-  const [compareCount,     setCompareCount]     = useState(() => getCompare().length);
+  const [compareCount, setCompareCount] = useState(() => getCompare().length);
   const [listPage,         setListPage]         = useState(1);
   const [listLoading,      setListLoading]      = useState(false);
   /* Mobile draggable filter panel */
@@ -3022,6 +3022,14 @@ export default function CartePage() {
     window.addEventListener("compare-updated", h);
     return () => window.removeEventListener("compare-updated", h);
   }, []);
+
+  /* Persist sort */
+  useEffect(() => {
+    try {
+      if (sortField) { sessionStorage.setItem("lz_carte_sortfield", sortField); sessionStorage.setItem("lz_carte_sortdir", sortDir); }
+      else { sessionStorage.removeItem("lz_carte_sortfield"); }
+    } catch {}
+  }, [sortField, sortDir]);
 
   /* Re-render map when switching from list → map (container was hidden, size was 0) */
   useEffect(() => {
@@ -3353,18 +3361,17 @@ export default function CartePage() {
           <CompareBar />
         </div>
 
-        {/* Icône comparateur — visible dès 2 annonces */}
+        {/* Icône comparateur — mobile only, dès 2 annonces */}
         {compareCount >= 2 && (
-          <div className="cp-filtersum">
+          <div className="cp-filtersum cp-compare-mob">
             <button
               className="cp-filtersum__btn"
               onClick={() => navigate(`/comparateur?ids=${getCompare().join(",")}`)}
               title="Aller au comparateur"
-              style={{color:"#6366f1"}}
             >
               <GitCompare size={14}/>
               <span className="cp-filtersum__label">Comparer</span>
-              <span className="cp-filtersum__badge" style={{background:"#6366f1"}}>{compareCount}</span>
+              <span className="cp-filtersum__badge">{compareCount}</span>
             </button>
           </div>
         )}
@@ -3426,17 +3433,22 @@ export default function CartePage() {
           <Save size={13} strokeWidth={2}/> Enregistrer la recherche
         </button>
 
-        {/* Bouton tri — dropdown */}
+        {/* Bouton tri — icône seule + dropdown */}
         <div style={{position:"relative"}} className={!listMode ? "cp-sort-map-hidden" : ""}>
-          <button
-            ref={sortBtnRef}
-            className="cp-toggle-btn"
-            onClick={() => setShowSortMenu(v => !v)}
-            style={sortField ? { borderColor:"#6366f1", color:"#6366f1", background:"#eef2ff" } : {}}
-          >
-            <ArrowUpDown size={14}/>
-            {sortField ? ` ${sortField === "prix" ? "Prix" : "Surface"} ${sortDir === "asc" ? "↑" : "↓"}` : " Trier"}
-          </button>
+          <div className="cp-filtersum">
+            <button
+              ref={sortBtnRef}
+              className="cp-filtersum__btn"
+              onClick={() => setShowSortMenu(v => !v)}
+              title={sortField ? `Tri : ${sortField === "prix" ? "Prix" : "Surface"} ${sortDir === "asc" ? "croissant" : "décroissant"}` : "Trier"}
+            >
+              {!sortField && <ArrowUpDown size={14}/>}
+              {sortField && sortDir === "asc"  && <ChevronUp size={14}/>}
+              {sortField && sortDir === "desc" && <ChevronDown size={14}/>}
+              <span className="cp-filtersum__label">{sortField ? (sortField === "prix" ? "Prix" : "Surface") : "Trier"}</span>
+              {sortField && <span className="cp-filtersum__badge">1</span>}
+            </button>
+          </div>
           {showSortMenu && ReactDOM.createPortal(
             <>
               <div style={{position:"fixed",inset:0,zIndex:9998}} onClick={()=>setShowSortMenu(false)}/>
@@ -4311,6 +4323,7 @@ export default function CartePage() {
 
         /* -- Résumé des filtres actifs (icône + menu) -- */
         .cp-filtersum { position: relative; display: flex; align-items: center; flex-shrink: 0; }
+        .cp-compare-mob { display: none; } /* caché desktop, montré mobile via media */
         .cp-filtersum__btn {
           position: relative; display: inline-flex; align-items: center; gap: 7px;
           height: 35px; padding: 0 13px; border-radius: 9px;
@@ -4678,6 +4691,8 @@ export default function CartePage() {
           .cp-bar__tags { display: none; }
           /* CompareBar masqué sur mobile */
           .cp-bar > div:nth-child(2) { display: none !important; }
+          /* Icône comparateur visible sur mobile uniquement */
+          .cp-compare-mob { display: flex; }
           /* Groupe boutons droite */
           .cp-filtersum { margin-left: 10px; }
           .cp-bar > button.cp-toggle-btn { margin-left: 6px; }
