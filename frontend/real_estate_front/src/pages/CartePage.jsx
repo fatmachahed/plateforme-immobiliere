@@ -3024,14 +3024,10 @@ export default function CartePage() {
       .catch(() => {});
   }, []); // eslint-disable-line
 
-  /* Fetch pins when a gouvernorat is selected */
+  /* Fetch all annonces once on mount */
   useEffect(() => {
-    if (!filters.govNom) { setApiProps([]); return; }
     setListLoading(true);
-    const params = new URLSearchParams({ limit: "300" });
-    params.set("gouvernorat", filters.govNom);
-    if (filters.delNom) params.set("delegation", filters.delNom);
-    fetch(`${API_URL}/annonces/public?${params}`)
+    fetch(`${API_URL}/annonces/public?limit=300`)
       .then(r => r.json())
       .then(data => {
         const transformed = (Array.isArray(data) ? data : []).map(transformApiAnnonce);
@@ -3039,7 +3035,7 @@ export default function CartePage() {
       })
       .catch(() => {})
       .finally(() => setListLoading(false));
-  }, [filters.govNom, filters.delNom]); // eslint-disable-line
+  }, []); // eslint-disable-line
 
   /* Sync favoris API ? localStorage au montage (si connect�) */
   useEffect(() => {
