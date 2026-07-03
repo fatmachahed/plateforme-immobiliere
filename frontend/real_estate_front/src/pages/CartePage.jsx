@@ -3000,10 +3000,10 @@ export default function CartePage() {
 
   /* Re-render map when switching from list → map (container was hidden, size was 0) */
   useEffect(() => {
-    if (!listMode && mapRef.current) {
-      setTimeout(() => { try { mapRef.current?.invalidateSize(); } catch {} }, 150);
+    if (!listMode && leafletMapRef.current) {
+      setTimeout(() => { try { leafletMapRef.current?.invalidateSize(); } catch {} }, 150);
     }
-  }, [listMode]);
+  }, [listMode]); // eslint-disable-line
 
   /* If any POI was restored from sessionStorage, trigger fetch once the map bbox is ready */
   useEffect(() => {
