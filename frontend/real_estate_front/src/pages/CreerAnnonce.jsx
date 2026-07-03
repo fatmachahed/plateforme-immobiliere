@@ -4847,8 +4847,8 @@ export const CreateListingForm = ({ editId = null }) => {
             .ca-sidebar { display: none; }
             .ca-main { padding: 0 0 100px; }
             .ca-mob-stepper { display: block; }
-            .ca-main > form { padding: 12px 16px 0; }
-            .ca-card { padding: 20px 18px; max-width: 100%; }
+            .ca-main > form { padding: 12px 12px 0; overflow-x: hidden; }
+            .ca-card { padding: 18px 14px; max-width: 100%; box-sizing: border-box; }
             /* La table ne doit pas élargir la carte — contain:inline-size isole sa largeur */
             .ca-coloc-table-wrap {
               contain: inline-size;
