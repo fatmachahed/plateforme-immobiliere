@@ -2219,7 +2219,7 @@ export const CreateListingForm = ({ editId = null }) => {
                             </div>
                           </div>
 
-                          {formData.colocation && (<div style={{overflowX:"hidden",maxWidth:"100%"}}><>
+                          {formData.colocation && (<>
                             {/* Profil recherché */}
                             <div style={{marginBottom:16}}>
                               <label style={{fontSize:11.5,fontWeight:700,color:"#374151",display:"block",marginBottom:7}}>Profil recherché</label>
@@ -2407,7 +2407,7 @@ export const CreateListingForm = ({ editId = null }) => {
                                 </>
                               );
                             })()}
-                          </></div>)}
+                          </>)}
                         </div>
                       )}
 
@@ -4848,7 +4848,8 @@ export const CreateListingForm = ({ editId = null }) => {
             .ca-main { padding: 0 0 100px; }
             .ca-mob-stepper { display: block; }
             .ca-main > form { padding: 12px 16px 0; }
-            .ca-card { padding: 20px 18px; }
+            .ca-card { padding: 20px 18px; overflow-x: clip; max-width: 100%; }
+            .ca-coloc-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; }
             .ca-step1-cols { grid-template-columns: 1fr; gap: 24px; }
             .ca-type-drop-mob { display: block; }
             .ca-type-btn-grid { display: none !important; }
