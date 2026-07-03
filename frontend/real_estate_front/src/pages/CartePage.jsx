@@ -3024,10 +3024,13 @@ export default function CartePage() {
       .catch(() => {});
   }, []); // eslint-disable-line
 
-  /* Fetch all annonces once on mount */
+  /* Fetch annonces only when a gouvernorat is selected */
   useEffect(() => {
+    if (!filters.govId) { setApiProps([]); return; }
     setListLoading(true);
-    fetch(`${API_URL}/annonces/public?limit=300`)
+    const params = new URLSearchParams({ limit: "500", gouvernorat_id: filters.govId });
+    if (filters.delId) params.set("delegation_id", filters.delId);
+    fetch(`${API_URL}/annonces/public?${params}`)
       .then(r => r.json())
       .then(data => {
         const transformed = (Array.isArray(data) ? data : []).map(transformApiAnnonce);
@@ -3035,7 +3038,7 @@ export default function CartePage() {
       })
       .catch(() => {})
       .finally(() => setListLoading(false));
-  }, []); // eslint-disable-line
+  }, [filters.govId, filters.delId]); // eslint-disable-line
 
   /* Sync favoris API ? localStorage au montage (si connect�) */
   useEffect(() => {
@@ -3608,40 +3611,19 @@ export default function CartePage() {
               }}>
                 <style>{`@keyframes cp-ov-fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}.cp-ov-txt{animation:cp-ov-fadein .4s ease both}`}</style>
                 <div className="cp-ov-txt" style={{color:"#fff", display:"flex", flexDirection:"column", alignItems:"center", gap:10}}>
-                  {!filters.govNom ? (
-                    <>
-                      <div style={{fontSize:15, fontWeight:700, letterSpacing:.2}}>
-                        Sélectionnez un <span style={{color:"#a5b4fc"}}>gouvernorat</span> puis une <span style={{color:"#a5b4fc"}}>délégation</span>
-                      </div>
-                      <div style={{fontSize:13, color:"rgba(255,255,255,.6)"}}>
-                        pour afficher les annonces sur la carte
-                      </div>
-                      {totalCount != null && (
-                        <div style={{marginTop:4, fontSize:22, fontWeight:900, color:"#fff"}}>
-                          {totalCount.toLocaleString("fr-TN")}
-                          <span style={{fontSize:13, fontWeight:600, color:"rgba(255,255,255,.7)", marginLeft:7}}>
-                            annonce{totalCount!==1?"s":""} disponible{totalCount!==1?"s":""}
-                          </span>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <div style={{fontSize:15, fontWeight:700}}>
-                        <span style={{color:"#86efac"}}>{filters.govNom}</span> sélectionné
-                      </div>
-                      {totalCount != null && (
-                        <div style={{fontSize:22, fontWeight:900, color:"#fff"}}>
-                          {totalCount.toLocaleString("fr-TN")}
-                          <span style={{fontSize:13, fontWeight:600, color:"rgba(255,255,255,.7)", marginLeft:7}}>
-                            annonce{totalCount!==1?"s":""} disponible{totalCount!==1?"s":""}
-                          </span>
-                        </div>
-                      )}
-                      <div style={{fontSize:13, color:"rgba(255,255,255,.6)"}}>
-                        Maintenant sélectionnez une <span style={{color:"#a5b4fc"}}>délégation</span>
-                      </div>
-                    </>
+                  <div style={{fontSize:16, fontWeight:700, letterSpacing:.2}}>
+                    Sélectionnez un <span style={{color:"#a5b4fc"}}>gouvernorat</span>
+                  </div>
+                  <div style={{fontSize:13, color:"rgba(255,255,255,.6)"}}>
+                    pour afficher les annonces sur la carte
+                  </div>
+                  {totalCount != null && (
+                    <div style={{marginTop:4, fontSize:22, fontWeight:900, color:"#fff"}}>
+                      {totalCount.toLocaleString("fr-TN")}
+                      <span style={{fontSize:13, fontWeight:600, color:"rgba(255,255,255,.7)", marginLeft:7}}>
+                        annonce{totalCount!==1?"s":""} disponible{totalCount!==1?"s":""}
+                      </span>
+                    </div>
                   )}
                 </div>
               </div>
