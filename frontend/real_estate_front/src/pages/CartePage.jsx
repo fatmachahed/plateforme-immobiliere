@@ -1709,6 +1709,31 @@ function FilterPanel({ filters, onChange, onSaveSearch, showSchools, showMosques
       {/* -- Filtres avancés -- */}
       {advanced && (
         <div className="fp__advanced">
+          {/* Catégorie — affichée ici uniquement sur mobile */}
+          <div className="fp__adv-cats">
+            <label className="fp__adv-label">Catégorie</label>
+            <div className="fp__pill-group fp__pill-group--mobile">
+              <button
+                className={`fp__pill fp__pill--tous${(local.categories||[]).length === 0 ? " fp__pill--on" : ""}`}
+                onClick={() => { const updated = { ...local, categories: [] }; setLocal(updated); onChange(updated); }}
+              >Tous</button>
+              {["vente","location","vacances"].map(v => {
+                const active = (local.categories||[]).includes(v);
+                return (
+                  <button key={v}
+                    className={`fp__pill fp__pill--${v}${active ? " fp__pill--on" : ""}`}
+                    onClick={() => {
+                      const cats = local.categories||[];
+                      const newCats = active ? cats.filter(c=>c!==v) : [...cats,v];
+                      const updated = { ...local, categories: newCats };
+                      setLocal(updated); onChange(updated);
+                    }}
+                  >{CAT_LBL[v]}</button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Localisation — affichée ici uniquement sur mobile (gain de place) */}
           <div className="fp__adv-loc">
             <label className="fp__adv-label">Localisation</label>
@@ -3929,6 +3954,7 @@ export default function CartePage() {
 
         /* Localisation déplacée dans les filtres : visible uniquement sur mobile */
         .fp__adv-loc { display: none; }
+        .fp__adv-cats { display: none; width: 100%; }
         .fp__adv-loc .fp__adv-label { display: block; margin-bottom: 6px; }
 
         .loc-cascade {
@@ -4524,7 +4550,8 @@ export default function CartePage() {
           .fp__row1    { flex-direction: column; gap: 8px; align-items: stretch; }
           .fp__search-wrap { min-width: 0; gap: 6px; }
           .fp__search  { min-width: 0; }
-          .fp__pill-group { display: none; }          /* cach�es sur mobile */
+          .fp__pill-group { display: none; }          /* cachées sur mobile */
+          .fp__pill-group--mobile { display: flex; flex-wrap: wrap; gap: 6px; }
           /* Les 3 boutons (Couche data / Filtres / Enregistrer) partagent la ligne à parts égales → toujours UNE seule ligne */
           .fp__row1 > div:last-child { flex-direction: row; flex-wrap: nowrap; gap: 5px; margin-left: 0; width: 100%; }
           .fp__layers { display: block; flex: 1 1 0; min-width: 0; }
@@ -4566,6 +4593,7 @@ export default function CartePage() {
           /* Localisation : retirée de la barre principale, déplacée dans les filtres */
           .fp__loc-row        { display: none !important; }
           .fp__adv-loc        { display: block; }
+          .fp__adv-cats       { display: block; }
           .loc-cascade        { flex-direction: column; gap: 6px; width: 100%; }
           .loc-cascade__arrow { display: none; }
           .loc-cascade__field { width: 100%; flex: none; min-width: 0; }
