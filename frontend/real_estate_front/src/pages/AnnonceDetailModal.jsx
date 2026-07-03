@@ -483,7 +483,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
 
         {/* Top bar */}
         <div className="adm-topbar">
-          <button className="ad-back" onClick={onClose} style={{display:"flex",alignItems:"center",gap:6,fontSize:13,color:"#6b7280",fontFamily:"inherit",background:"none",border:"none",cursor:"pointer"}}>
+          <button className="det-back" onClick={onClose} style={{display:"flex",alignItems:"center",gap:6,fontSize:13,color:"#6b7280",fontFamily:"inherit",background:"none",border:"none",cursor:"pointer"}}>
             <ArrowLeft size={15}/> Retour
           </button>
           <div className="ad-topbar__actions">
@@ -774,7 +774,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
                   {translated?t("ad_original"):t("ad_translate")}
                 </button>
               </div>
-              {(()=>{const DESC_LIMIT=420;const descText=translated||prop.description;const longDesc=descText.length>DESC_LIMIT;return(<><p className="ad-desc" style={{fontSize:16,lineHeight:1.85,margin:0}}>{descExpanded||!longDesc?descText:descText.slice(0,DESC_LIMIT)+"…"}</p>{longDesc&&<button onClick={()=>setDescExpanded(p=>!p)} style={{marginTop:10,background:"none",border:"none",cursor:"pointer",color:"#4f46e5",fontWeight:700,fontSize:14,display:"flex",alignItems:"center",gap:4,padding:0}}>{descExpanded?<><ChevronLeft size={15} style={{transform:"rotate(90deg)"}}/> Voir moins</>:<>Voir plus <ChevronRight size={15}/></>}</button>}</>);})()}
+              {(()=>{const DESC_LIMIT=420;const descText=translated||prop.description;const longDesc=descText.length>DESC_LIMIT;return(<><p className="det-desc" style={{fontSize:16,lineHeight:1.85,margin:0}}>{descExpanded||!longDesc?descText:descText.slice(0,DESC_LIMIT)+"…"}</p>{longDesc&&<button onClick={()=>setDescExpanded(p=>!p)} style={{marginTop:10,background:"none",border:"none",cursor:"pointer",color:"#4f46e5",fontWeight:700,fontSize:14,display:"flex",alignItems:"center",gap:4,padding:0}}>{descExpanded?<><ChevronLeft size={15} style={{transform:"rotate(90deg)"}}/> Voir moins</>:<>Voir plus <ChevronRight size={15}/></>}</button>}</>);})()}
               {translated&&<p className="ad-translated-note">🌐 Traduit automatiquement · <button onClick={()=>setTranslated("")} className="ad-translated-reset">Voir l'original</button></p>}
             </div>
 
@@ -788,51 +788,51 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
 
           {/* Right column */}
           <div className="det-right" style={{width:"100%",minWidth:0,display:"block"}}>
-            <div className="ad-card">
+            <div className="det-card">
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6,flexWrap:"wrap",gap:6}}>
-                <span className={`ad-card__cat ad-card__cat--${prop.categorie?.toLowerCase()}`}>{prop.categorie}</span>
+                <span className={`det-card__cat det-card__cat--${prop.categorie?.toLowerCase()}`}>{prop.categorie}</span>
                 {prop.reference&&<span style={{fontSize:11.5,fontWeight:700,color:"#64748b",background:"#f1f5f9",border:"1px solid #e2e8f0",padding:"3px 10px",borderRadius:999,letterSpacing:".04em"}}>Réf : {prop.reference}</span>}
               </div>
-              <h1 className="ad-card__titre">{prop.titre}</h1>
-              <div className="ad-addr">
-                {prop.address&&<p className="ad-addr__street"><MapPin size={13} className="ad-addr__ico"/>{prop.address}</p>}
-                <div className="ad-addr__hier">
-                  {prop.localite&&<span className="ad-addr__chip ad-addr__chip--loc">{prop.localite}</span>}
-                  {prop.localite&&prop.delegation&&<span className="ad-addr__sep">›</span>}
-                  {prop.delegation&&<span className="ad-addr__chip ad-addr__chip--del">{prop.delegation}</span>}
-                  {(prop.delegation||prop.localite)&&prop.gouvernorat&&<span className="ad-addr__sep">›</span>}
-                  {prop.gouvernorat&&<span className="ad-addr__chip ad-addr__chip--gov">{prop.gouvernorat}</span>}
+              <h1 className="det-card__titre">{prop.titre}</h1>
+              <div className="det-addr">
+                {prop.address&&<p className="det-addr__street"><MapPin size={13} className="det-addr__ico"/>{prop.address}</p>}
+                <div className="det-addr__hier">
+                  {prop.localite&&<span className="det-addr__chip det-addr__chip--loc">{prop.localite}</span>}
+                  {prop.localite&&prop.delegation&&<span className="det-addr__sep">›</span>}
+                  {prop.delegation&&<span className="det-addr__chip det-addr__chip--del">{prop.delegation}</span>}
+                  {(prop.delegation||prop.localite)&&prop.gouvernorat&&<span className="det-addr__sep">›</span>}
+                  {prop.gouvernorat&&<span className="det-addr__chip det-addr__chip--gov">{prop.gouvernorat}</span>}
                   {!prop.gouvernorat&&!prop.delegation&&!prop.localite&&!prop.address&&<span style={{color:"#9ca3af",fontSize:13}}><MapPin size={12}/> {prop.location}</span>}
                 </div>
               </div>
-              <div className="ad-specs">
-                {prop.beds!=null&&<div className="ad-spec"><Bed size={16}/><p className="ad-spec__val">{prop.beds}</p><p className="ad-spec__lbl">Chambres</p></div>}
-                {prop.baths!=null&&<div className="ad-spec"><Bath size={16}/><p className="ad-spec__val">{prop.baths}</p><p className="ad-spec__lbl">Sdb</p></div>}
-                {prop.area&&<div className="ad-spec"><Maximize size={16}/><p className="ad-spec__val">{prop.area}</p><p className="ad-spec__lbl">m²</p></div>}
+              <div className="det-specs">
+                {prop.beds!=null&&<div className="det-spec"><Bed size={16}/><p className="det-spec__val">{prop.beds}</p><p className="det-spec__lbl">Chambres</p></div>}
+                {prop.baths!=null&&<div className="det-spec"><Bath size={16}/><p className="det-spec__val">{prop.baths}</p><p className="det-spec__lbl">Sdb</p></div>}
+                {prop.area&&<div className="det-spec"><Maximize size={16}/><p className="det-spec__val">{prop.area}</p><p className="det-spec__lbl">m²</p></div>}
               </div>
-              <div className="ad-meta">
-                <div className="ad-meta__item"><Tag size={13}/> <span>Type :</span> {prop.type}</div>
-                {prop.etat&&<div className="ad-meta__item"><CheckCircle size={13}/><span>État :</span> {prop.etat}</div>}
-                {prop.annee&&<div className="ad-meta__item"><Calendar size={13}/><span>Année :</span> {prop.annee}</div>}
-                {prop.type_appartement&&<div className="ad-meta__item"><Layers size={13}/><span>Logement :</span> {prop.type_appartement.toUpperCase()}</div>}
-                {prop.etage!=null&&<div className="ad-meta__item"><ChevronsUp size={13}/><span>Étage :</span> {prop.etage===0?"RDC":`${prop.etage}e étage`}</div>}
-                {prop.type_villa&&<div className="ad-meta__item"><Home size={13}/><span>Villa :</span> {prop.type_villa.toUpperCase()}</div>}
-                {prop.type_option_villa&&<div className="ad-meta__item"><Star size={13}/><span>Options :</span> {prop.type_option_villa.replace(/,/g,", ")}</div>}
-                {prop.type_terrain&&<div className="ad-meta__item"><Ruler size={13}/><span>Terrain :</span> {prop.type_terrain.replace(/_/g," ")}</div>}
-                {prop.terrain_viabilise&&<div className="ad-meta__item"><CheckCircle size={13}/><span>Viabilisé</span></div>}
-                {prop.titre_foncier&&prop.titre_foncier!=="aucun"&&<div className="ad-meta__item"><Tag size={13}/><span>Titre foncier :</span> {prop.titre_foncier}</div>}
-                {prop.hauteur_immeuble&&<div className="ad-meta__item"><Building2 size={13}/><span>Hauteur :</span> {prop.hauteur_immeuble}</div>}
-                {prop.nb_appartements&&<div className="ad-meta__item"><Building2 size={13}/><span>Appartements :</span> {prop.nb_appartements}</div>}
-                {prop.orientation_immeuble&&<div className="ad-meta__item"><Compass size={13}/><span>Orientation :</span> {prop.orientation_immeuble.replace(/_/g," ")}</div>}
-                {prop.emplacement_garage&&<div className="ad-meta__item"><Car size={13}/><span>Emplacement :</span> {prop.emplacement_garage.replace(/_/g," ")}</div>}
-                {prop.nb_pieces!=null&&prop.nb_pieces>0&&<div className="ad-meta__item"><Package size={13}/><span>Pièces :</span> {prop.nb_pieces}</div>}
-                {prop.exclusivite&&<div className="ad-meta__item" style={{color:"#7c3aed"}}><Star size={13}/><span>Exclusivité</span></div>}
-                {!prop.anonyme&&prop.publisher_role&&(()=>{const roleMap={particulier:{label:"Particulier",color:"#6366f1",bg:"#eef2ff",Ico:Home},agence:{label:"Agence / Agent",color:"#0369a1",bg:"#e0f2fe",Ico:Building2},promoteur:{label:"Promoteur",color:"#7c3aed",bg:"#ede9fe",Ico:BadgeCheck},professionnel:{label:"Professionnel",color:"#15803d",bg:"#dcfce7",Ico:BadgeCheck}};const r=roleMap[prop.publisher_role]||{label:prop.publisher_role,color:"#64748b",bg:"#f1f5f9",Ico:Home};const{label,color,bg,Ico}=r;return(<div className="ad-meta__item"><Ico size={13} style={{color}}/><span>Publié par :</span><span style={{display:"inline-flex",alignItems:"center",gap:4,background:bg,color,padding:"2px 10px",borderRadius:999,fontSize:12,fontWeight:700}}>{label}</span></div>);})()}
+              <div className="det-meta">
+                <div className="det-meta__item"><Tag size={13}/> <span>Type :</span> {prop.type}</div>
+                {prop.etat&&<div className="det-meta__item"><CheckCircle size={13}/><span>État :</span> {prop.etat}</div>}
+                {prop.annee&&<div className="det-meta__item"><Calendar size={13}/><span>Année :</span> {prop.annee}</div>}
+                {prop.type_appartement&&<div className="det-meta__item"><Layers size={13}/><span>Logement :</span> {prop.type_appartement.toUpperCase()}</div>}
+                {prop.etage!=null&&<div className="det-meta__item"><ChevronsUp size={13}/><span>Étage :</span> {prop.etage===0?"RDC":`${prop.etage}e étage`}</div>}
+                {prop.type_villa&&<div className="det-meta__item"><Home size={13}/><span>Villa :</span> {prop.type_villa.toUpperCase()}</div>}
+                {prop.type_option_villa&&<div className="det-meta__item"><Star size={13}/><span>Options :</span> {prop.type_option_villa.replace(/,/g,", ")}</div>}
+                {prop.type_terrain&&<div className="det-meta__item"><Ruler size={13}/><span>Terrain :</span> {prop.type_terrain.replace(/_/g," ")}</div>}
+                {prop.terrain_viabilise&&<div className="det-meta__item"><CheckCircle size={13}/><span>Viabilisé</span></div>}
+                {prop.titre_foncier&&prop.titre_foncier!=="aucun"&&<div className="det-meta__item"><Tag size={13}/><span>Titre foncier :</span> {prop.titre_foncier}</div>}
+                {prop.hauteur_immeuble&&<div className="det-meta__item"><Building2 size={13}/><span>Hauteur :</span> {prop.hauteur_immeuble}</div>}
+                {prop.nb_appartements&&<div className="det-meta__item"><Building2 size={13}/><span>Appartements :</span> {prop.nb_appartements}</div>}
+                {prop.orientation_immeuble&&<div className="det-meta__item"><Compass size={13}/><span>Orientation :</span> {prop.orientation_immeuble.replace(/_/g," ")}</div>}
+                {prop.emplacement_garage&&<div className="det-meta__item"><Car size={13}/><span>Emplacement :</span> {prop.emplacement_garage.replace(/_/g," ")}</div>}
+                {prop.nb_pieces!=null&&prop.nb_pieces>0&&<div className="det-meta__item"><Package size={13}/><span>Pièces :</span> {prop.nb_pieces}</div>}
+                {prop.exclusivite&&<div className="det-meta__item" style={{color:"#7c3aed"}}><Star size={13}/><span>Exclusivité</span></div>}
+                {!prop.anonyme&&prop.publisher_role&&(()=>{const roleMap={particulier:{label:"Particulier",color:"#6366f1",bg:"#eef2ff",Ico:Home},agence:{label:"Agence / Agent",color:"#0369a1",bg:"#e0f2fe",Ico:Building2},promoteur:{label:"Promoteur",color:"#7c3aed",bg:"#ede9fe",Ico:BadgeCheck},professionnel:{label:"Professionnel",color:"#15803d",bg:"#dcfce7",Ico:BadgeCheck}};const r=roleMap[prop.publisher_role]||{label:prop.publisher_role,color:"#64748b",bg:"#f1f5f9",Ico:Home};const{label,color,bg,Ico}=r;return(<div className="det-meta__item"><Ico size={13} style={{color}}/><span>Publié par :</span><span style={{display:"inline-flex",alignItems:"center",gap:4,background:bg,color,padding:"2px 10px",borderRadius:999,fontSize:12,fontWeight:700}}>{label}</span></div>);})()}
               </div>
-              <div className="ad-divider"/>
+              <div className="det-divider"/>
 
               {/* Contact box */}
-              <div className="ad-contact-box">
+              <div className="det-contact-box">
                 {(()=>{
                   const storedUser=(() => { try { return JSON.parse(localStorage.getItem("user")); } catch { return null; } })();
                   const rawUrl=prop.publisher_picture||(isOwner?storedUser?.profile_picture:null);
@@ -841,9 +841,9 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
                   const initiale=(prop.contact.nom||"?")[0].toUpperCase();
                   const role=prop.publisher_role;
                   const roleLabels={particulier:"Particulier",agence:"Agence / Agent",promoteur:"Promoteur",professionnel:"Professionnel",partenaire:"Partenaire",admin:"Administrateur"};
-                  if(prop.anonyme)return(<div className="ad-contact-box__header"><div style={{width:44,height:44,borderRadius:"50%",background:"linear-gradient(135deg,#94a3b8,#64748b)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,border:"2px solid #e2e8f0"}}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div><div className="ad-contact-box__name">Membre anonyme</div><div className="ad-contact-box__role">Identité masquée · Publication anonyme</div></div></div>);
-                  if(role==="agence"||role==="promoteur"){const isAgence=role==="agence";const clr=isAgence?"#0369a1":"#7c3aed";const bg=isAgence?"#e0f2fe":"#ede9fe";const bgGrad=isAgence?"linear-gradient(135deg,#0369a1,#0ea5e9)":"linear-gradient(135deg,#7c3aed,#a855f7)";return(<div style={{background:"#f8fafc",borderRadius:14,padding:"16px 18px",marginBottom:4,border:`1.5px solid ${bg}`}}><div className="ad-contact-box__name" style={{marginBottom:3}}>{prop.contact.nom}</div><div className="ad-contact-box__role">Professionnel de l'immobilier</div><div style={{marginTop:18,textAlign:"center"}}>{photoUrl?<img src={photoUrl} alt="Logo" style={{width:"100%",maxHeight:150,objectFit:"contain",borderRadius:12,border:`1.5px solid ${bg}`,background:"#fff",padding:10}}/>:<div style={{width:"100%",height:110,borderRadius:12,background:bgGrad,display:"flex",alignItems:"center",justifyContent:"center",fontSize:52,fontWeight:900,color:"#fff"}}>{initiale}</div>}</div></div>);}
-                  return(<div className="ad-contact-box__header">{photoUrl?<img src={photoUrl} alt="avatar" style={{width:44,height:44,borderRadius:"50%",objectFit:"cover",flexShrink:0,border:"2px solid #e2e8f0"}}/>:<div className="ad-contact-box__avatar">{initiale}</div>}<div><div className="ad-contact-box__name">{prop.contact.nom}</div><div className="ad-contact-box__role">{roleLabels[role]||"Propriétaire"}</div></div></div>);
+                  if(prop.anonyme)return(<div className="det-contact-box__header"><div style={{width:44,height:44,borderRadius:"50%",background:"linear-gradient(135deg,#94a3b8,#64748b)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,border:"2px solid #e2e8f0"}}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div><div className="det-contact-box__name">Membre anonyme</div><div className="det-contact-box__role">Identité masquée · Publication anonyme</div></div></div>);
+                  if(role==="agence"||role==="promoteur"){const isAgence=role==="agence";const clr=isAgence?"#0369a1":"#7c3aed";const bg=isAgence?"#e0f2fe":"#ede9fe";const bgGrad=isAgence?"linear-gradient(135deg,#0369a1,#0ea5e9)":"linear-gradient(135deg,#7c3aed,#a855f7)";return(<div style={{background:"#f8fafc",borderRadius:14,padding:"16px 18px",marginBottom:4,border:`1.5px solid ${bg}`}}><div className="det-contact-box__name" style={{marginBottom:3}}>{prop.contact.nom}</div><div className="det-contact-box__role">Professionnel de l'immobilier</div><div style={{marginTop:18,textAlign:"center"}}>{photoUrl?<img src={photoUrl} alt="Logo" style={{width:"100%",maxHeight:150,objectFit:"contain",borderRadius:12,border:`1.5px solid ${bg}`,background:"#fff",padding:10}}/>:<div style={{width:"100%",height:110,borderRadius:12,background:bgGrad,display:"flex",alignItems:"center",justifyContent:"center",fontSize:52,fontWeight:900,color:"#fff"}}>{initiale}</div>}</div></div>);}
+                  return(<div className="det-contact-box__header">{photoUrl?<img src={photoUrl} alt="avatar" style={{width:44,height:44,borderRadius:"50%",objectFit:"cover",flexShrink:0,border:"2px solid #e2e8f0"}}/>:<div className="det-contact-box__avatar">{initiale}</div>}<div><div className="det-contact-box__name">{prop.contact.nom}</div><div className="det-contact-box__role">{roleLabels[role]||"Propriétaire"}</div></div></div>);
                 })()}
                 {isOwner&&prop.views_count>0&&<div className="ad-views-row"><Eye size={14}/> <span>{prop.views_count} vue{prop.views_count>1?"s":""}</span></div>}
                 {prop.anonyme?(
@@ -852,15 +852,15 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
                     {!isOwner&&<><button className="adm-contact-cta" onClick={()=>{const u=(() => { try { return JSON.parse(localStorage.getItem("user")); } catch { return null; } })();if(u)setContactForm(f=>({...f,nom:f.nom||u.username||"",telephone:f.telephone||u.phone_number||"",email:f.email||u.email||""}));setShowContactModal(true);}} style={{width:"100%",padding:"13px 16px",borderRadius:11,border:"none",background:"linear-gradient(135deg,#6366f1,#818cf8)",color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}><MessageCircle size={16} strokeWidth={2.5}/> Contacter le propriétaire</button><p className="adm-contact-sub" style={{fontSize:11.5,color:"#94a3b8",textAlign:"center",marginTop:8}}>Laissez vos coordonnées — le propriétaire vous contactera s'il est intéressé.</p></>}
                   </div>
                 ):token?(
-                  <div className="ad-contact-box__btns">
+                  <div className="det-contact-box__btns">
                     {prop.contact.tel&&<><a href={`tel:${prop.contact.tel.replace(/\s/g,"")}`} className="ad-cbtn ad-cbtn--call"><Phone size={15}/> {prop.contact.tel}</a><a href={`https://wa.me/${prop.contact.tel.replace(/[\s+]/g,"").replace(/^00/,"")}?text=${encodeURIComponent(`Bonjour, je suis intéressé(e) par votre annonce "${prop.titre}" sur Localizi.tn.`)}`} target="_blank" rel="noopener noreferrer" className="ad-cbtn ad-cbtn--whatsapp"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.12.549 4.112 1.51 5.845L.057 23.617a.5.5 0 00.611.65l5.975-1.566A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.894a9.893 9.893 0 01-5.048-1.38l-.361-.215-3.745.982.999-3.648-.235-.374A9.861 9.861 0 012.106 12C2.106 6.527 6.527 2.106 12 2.106S21.894 6.527 21.894 12 17.473 21.894 12 21.894z"/></svg>WhatsApp</a></>}
                     {prop.contact.email&&<a href={`mailto:${prop.contact.email}?subject=${encodeURIComponent(`Annonce "${prop.titre}" — Localizi.tn`)}&body=${encodeURIComponent(`Bonjour,\n\nJe suis intéressé(e) par votre annonce "${prop.titre}".\n\nCordialement`)}`} className="ad-cbtn ad-cbtn--mail"><Mail size={15}/> Envoyer un e-mail</a>}
                   </div>
                 ):(
-                  <div className="ad-contact-box__locked">
-                    <button className="ad-contact-box__blur-btn" onClick={()=>window.location.href=`/login?redirect=/annonce/${prop.id}`}><Phone size={14}/><span className="ad-contact-box__blur-num">+216 XX XXX XXX</span><span className="ad-contact-box__blur-lock">📞 Voir le numéro</span></button>
-                    <p className="ad-contact-box__lock-msg">Connectez-vous pour accéder aux coordonnées du propriétaire</p>
-                    <div className="ad-contact-box__auth-btns">
+                  <div className="det-contact-box__locked">
+                    <button className="det-contact-box__blur-btn" onClick={()=>window.location.href=`/login?redirect=/annonce/${prop.id}`}><Phone size={14}/><span className="det-contact-box__blur-num">+216 XX XXX XXX</span><span className="det-contact-box__blur-lock">📞 Voir le numéro</span></button>
+                    <p className="det-contact-box__lock-msg">Connectez-vous pour accéder aux coordonnées du propriétaire</p>
+                    <div className="det-contact-box__auth-btns">
                       <a href={`/login?redirect=/annonce/${prop.id}`} className="ad-cbtn ad-cbtn--login">Se connecter</a>
                       <a href="/register" className="ad-cbtn ad-cbtn--register">Créer un compte</a>
                     </div>
@@ -1024,9 +1024,9 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
 
         {/* Nearby */}
         {nearby.length>0&&(
-          <div className="ad-nearby">
-            <div className="ad-nearby__head"><Navigation size={18} className="ad-nearby__ico"/><h2 className="ad-nearby__title">{t("ad_nearby")}</h2></div>
-            <div className="ad-nearby__scroll">
+          <div className="det-nearby">
+            <div className="det-nearby__head"><Navigation size={18} className="det-nearby__ico"/><h2 className="det-nearby__title">{t("ad_nearby")}</h2></div>
+            <div className="det-nearby__scroll">
               {nearby.map(a => <ModalNearbyCard key={a.id} a={a}/>)}
             </div>
           </div>
@@ -1151,8 +1151,8 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
             padding:10px 24px; background:#fff; border-bottom:1px solid #e5e7eb;
             position:sticky; top:0; z-index:30;
           }
-          .ad-back { display:flex; align-items:center; gap:6px; font-size:13px; color:#6b7280; font-family:inherit; transition:color .15s; background:none; border:none; cursor:pointer; }
-          .ad-back:hover { color:#111; }
+          .det-back { display:flex; align-items:center; gap:6px; font-size:13px; color:#6b7280; font-family:inherit; transition:color .15s; background:none; border:none; cursor:pointer; }
+          .det-back:hover { color:#111; }
           .ad-topbar__actions { display:flex; gap:8px; }
           .det-action { display:flex; align-items:center; gap:6px; padding:7px 14px; border:1px solid #e5e7eb; border-radius:6px; font-size:13px; color:#6b7280; background:#fff; font-family:inherit; cursor:pointer; transition:all .15s; text-decoration:none; }
           .det-action:hover { border-color:#9ca3af; color:#111; }
@@ -1172,37 +1172,37 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
           .ad-gallery__thumb:hover { opacity:1; }
           .det-section { margin-bottom:24px; }
           .det-section__title { font-size:20px; font-weight:800; color:#0f172a; margin-bottom:14px; }
-          .ad-desc { font-family:'Poppins',system-ui,sans-serif; font-size:12px; color:#4b5563; line-height:1.8; text-align:justify; }
-          .ad-card { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:24px; margin-bottom:16px; }
-          .ad-card__cat { display:inline-block; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; margin-bottom:12px; color:#fff; }
-          .ad-card__cat--achat { background:#166534; }
-          .ad-card__cat--location { background:#1e40af; }
-          .ad-card__cat--vacances { background:#854d0e; }
-          .ad-card__titre { font-size:22px; font-weight:800; color:#111; line-height:1.3; margin-bottom:8px; }
-          .ad-addr { margin-bottom:14px; display:flex; flex-direction:column; gap:6px; }
-          .ad-addr__street { display:flex; align-items:flex-start; gap:5px; font-size:13px; color:#374151; font-weight:500; line-height:1.4; }
-          .ad-addr__ico { color:#6366f1; flex-shrink:0; margin-top:1px; }
-          .ad-addr__hier { display:flex; align-items:center; flex-wrap:wrap; gap:4px; }
-          .ad-addr__chip { display:inline-flex; align-items:center; padding:3px 9px; border-radius:20px; font-size:11.5px; font-weight:600; line-height:1; }
-          .ad-addr__chip--loc,.ad-addr__chip--del,.ad-addr__chip--gov { background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; }
-          .ad-addr__sep { font-size:13px; color:#d1d5db; font-weight:400; }
-          .ad-specs { display:flex; gap:0; margin-bottom:20px; }
-          .ad-spec { flex:1; text-align:center; padding:16px 10px; border:1px solid #e5e7eb; border-radius:10px; margin-right:8px; }
-          .ad-spec:last-child { margin-right:0; }
-          .ad-spec svg { color:#6366f1; margin:0 auto 6px; display:block; }
-          .ad-spec__val { font-size:22px; font-weight:800; color:#111; }
-          .ad-spec__lbl { font-size:12.5px; color:#9ca3af; margin-top:2px; font-weight:500; }
-          .ad-meta { display:flex; flex-direction:column; gap:10px; margin-bottom:20px; }
-          .ad-meta__item { display:flex; align-items:center; gap:9px; font-size:14px; color:#374151; }
-          .ad-meta__item svg { color:#6366f1; flex-shrink:0; }
-          .ad-meta__item span { font-weight:600; color:#6b7280; }
-          .ad-divider { height:1px; background:#f3f4f6; margin:16px 0; }
-          .ad-contact-box { border:1.5px solid #e5e7eb; border-radius:14px; overflow:hidden; background:#fff; }
-          .ad-contact-box__header { display:flex; align-items:center; gap:14px; padding:18px 18px; background:#f8fafc; border-bottom:1px solid #e5e7eb; }
-          .ad-contact-box__avatar { width:42px; height:42px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,#6366f1,#4f46e5); color:#fff; font-size:18px; font-weight:800; display:flex; align-items:center; justify-content:center; }
-          .ad-contact-box__name { font-size:16px; font-weight:700; color:#0f172a; }
-          .ad-contact-box__role { font-size:13px; color:#94a3b8; margin-top:3px; }
-          .ad-contact-box__btns { display:flex; flex-direction:column; gap:10px; padding:18px 18px; }
+          .det-desc { font-family:'Poppins',system-ui,sans-serif; font-size:12px; color:#4b5563; line-height:1.8; text-align:justify; }
+          .det-card { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:24px; margin-bottom:16px; }
+          .det-card__cat { display:inline-block; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; margin-bottom:12px; color:#fff; }
+          .det-card__cat--achat { background:#166534; }
+          .det-card__cat--location { background:#1e40af; }
+          .det-card__cat--vacances { background:#854d0e; }
+          .det-card__titre { font-size:22px; font-weight:800; color:#111; line-height:1.3; margin-bottom:8px; }
+          .det-addr { margin-bottom:14px; display:flex; flex-direction:column; gap:6px; }
+          .det-addr__street { display:flex; align-items:flex-start; gap:5px; font-size:13px; color:#374151; font-weight:500; line-height:1.4; }
+          .det-addr__ico { color:#6366f1; flex-shrink:0; margin-top:1px; }
+          .det-addr__hier { display:flex; align-items:center; flex-wrap:wrap; gap:4px; }
+          .det-addr__chip { display:inline-flex; align-items:center; padding:3px 9px; border-radius:20px; font-size:11.5px; font-weight:600; line-height:1; }
+          .det-addr__chip--loc,.det-addr__chip--del,.det-addr__chip--gov { background:#f1f5f9; color:#475569; border:1px solid #e2e8f0; }
+          .det-addr__sep { font-size:13px; color:#d1d5db; font-weight:400; }
+          .det-specs { display:flex; gap:0; margin-bottom:20px; }
+          .det-spec { flex:1; text-align:center; padding:16px 10px; border:1px solid #e5e7eb; border-radius:10px; margin-right:8px; }
+          .det-spec:last-child { margin-right:0; }
+          .det-spec svg { color:#6366f1; margin:0 auto 6px; display:block; }
+          .det-spec__val { font-size:22px; font-weight:800; color:#111; }
+          .det-spec__lbl { font-size:12.5px; color:#9ca3af; margin-top:2px; font-weight:500; }
+          .det-meta { display:flex; flex-direction:column; gap:10px; margin-bottom:20px; }
+          .det-meta__item { display:flex; align-items:center; gap:9px; font-size:14px; color:#374151; }
+          .det-meta__item svg { color:#6366f1; flex-shrink:0; }
+          .det-meta__item span { font-weight:600; color:#6b7280; }
+          .det-divider { height:1px; background:#f3f4f6; margin:16px 0; }
+          .det-contact-box { border:1.5px solid #e5e7eb; border-radius:14px; overflow:hidden; background:#fff; }
+          .det-contact-box__header { display:flex; align-items:center; gap:14px; padding:18px 18px; background:#f8fafc; border-bottom:1px solid #e5e7eb; }
+          .det-contact-box__avatar { width:42px; height:42px; border-radius:50%; flex-shrink:0; background:linear-gradient(135deg,#6366f1,#4f46e5); color:#fff; font-size:18px; font-weight:800; display:flex; align-items:center; justify-content:center; }
+          .det-contact-box__name { font-size:16px; font-weight:700; color:#0f172a; }
+          .det-contact-box__role { font-size:13px; color:#94a3b8; margin-top:3px; }
+          .det-contact-box__btns { display:flex; flex-direction:column; gap:10px; padding:18px 18px; }
           .ad-cbtn { display:flex; align-items:center; justify-content:center; gap:9px; width:100%; padding:14px 16px; border-radius:11px; font-size:15px; font-weight:700; font-family:inherit; cursor:pointer; transition:all .15s; text-decoration:none; border:none; text-align:center; }
           .ad-cbtn--call { background:#6366f1; color:#fff; }
           .ad-cbtn--call:hover { background:#4f46e5; }
@@ -1211,13 +1211,13 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
           .ad-cbtn--mail { background:#fff; color:#374151; border:1.5px solid #d1d5db; }
           .ad-cbtn--mail:hover { border-color:#6b7280; background:#f9fafb; }
           .ad-views-row { display:flex; align-items:center; gap:6px; font-size:13.5px; color:#64748b; font-weight:600; padding:10px 18px 0; }
-          .ad-contact-box__locked { padding:14px 16px; }
-          .ad-contact-box__blur-btn { display:flex; align-items:center; gap:10px; width:100%; padding:11px 14px; margin-bottom:6px; background:#f1f5f9; border:1.5px dashed #cbd5e1; border-radius:10px; cursor:pointer; text-align:left; transition:background .15s,border-color .15s; font-family:inherit; }
-          .ad-contact-box__blur-btn:hover { background:#e2e8f0; border-color:#94a3b8; }
-          .ad-contact-box__blur-num { flex:1; filter:blur(4px); user-select:none; pointer-events:none; font-weight:700; color:#374151; font-size:14px; letter-spacing:.5px; }
-          .ad-contact-box__blur-lock { font-size:12px; font-weight:700; color:#6366f1; white-space:nowrap; filter:none; }
-          .ad-contact-box__lock-msg { text-align:center; font-size:12.5px; color:#64748b; font-weight:500; margin:8px 0 12px; line-height:1.5; }
-          .ad-contact-box__auth-btns { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+          .det-contact-box__locked { padding:14px 16px; }
+          .det-contact-box__blur-btn { display:flex; align-items:center; gap:10px; width:100%; padding:11px 14px; margin-bottom:6px; background:#f1f5f9; border:1.5px dashed #cbd5e1; border-radius:10px; cursor:pointer; text-align:left; transition:background .15s,border-color .15s; font-family:inherit; }
+          .det-contact-box__blur-btn:hover { background:#e2e8f0; border-color:#94a3b8; }
+          .det-contact-box__blur-num { flex:1; filter:blur(4px); user-select:none; pointer-events:none; font-weight:700; color:#374151; font-size:14px; letter-spacing:.5px; }
+          .det-contact-box__blur-lock { font-size:12px; font-weight:700; color:#6366f1; white-space:nowrap; filter:none; }
+          .det-contact-box__lock-msg { text-align:center; font-size:12.5px; color:#64748b; font-weight:500; margin:8px 0 12px; line-height:1.5; }
+          .det-contact-box__auth-btns { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
           .ad-cbtn--login { background:#0f172a; color:#fff; text-decoration:none; }
           .ad-cbtn--login:hover { background:#1e293b; }
           .ad-cbtn--register { background:#fff; color:#6366f1; border:1.5px solid #c7d2fe; }
@@ -1229,11 +1229,11 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
           .ad-translate-btn:disabled { opacity:.6; cursor:not-allowed; }
           .ad-translated-note { font-size:11.5px; color:#9ca3af; margin-top:8px; }
           .ad-translated-reset { font-size:11.5px; color:#6366f1; text-decoration:underline; cursor:pointer; background:none; border:none; font-family:inherit; padding:0; }
-          .ad-nearby { max-width:1200px; margin:0 auto 48px; padding:0 24px; }
-          .ad-nearby__head { display:flex; align-items:center; gap:10px; margin-bottom:18px; }
-          .ad-nearby__ico { color:#6366f1; flex-shrink:0; }
-          .ad-nearby__title { font-size:18px; font-weight:800; color:#0f172a; letter-spacing:-.02em; }
-          .ad-nearby__scroll { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:16px; }
+          .det-nearby { max-width:1200px; margin:0 auto 48px; padding:0 24px; }
+          .det-nearby__head { display:flex; align-items:center; gap:10px; margin-bottom:18px; }
+          .det-nearby__ico { color:#6366f1; flex-shrink:0; }
+          .det-nearby__title { font-size:18px; font-weight:800; color:#0f172a; letter-spacing:-.02em; }
+          .det-nearby__scroll { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:16px; }
           @keyframes mncInL  { from{transform:translateX(100%)}  to{transform:translateX(0)} }
           @keyframes mncOutL { from{transform:translateX(0)}     to{transform:translateX(-100%)} }
           @keyframes mncInR  { from{transform:translateX(-100%)} to{transform:translateX(0)} }
@@ -1264,7 +1264,15 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
             .adm-modal-card {
               border-radius:12px !important;
               max-height:calc(100dvh - 24px) !important;
+              overflow-x:hidden !important;
+              max-width:100vw !important;
             }
+            .adm-modal-card * {
+              max-width:100% !important;
+              word-break:break-word !important;
+              box-sizing:border-box !important;
+            }
+            img, video { max-width:100% !important; }
             /* Galerie : 1 seule colonne, hauteur réduite */
             .adm-gallery-grid {
               grid-template-columns:1fr !important;
@@ -1286,17 +1294,17 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
             /* Corps du modal : padding latéral augmenté pour éviter le débordement */
             .det-body { padding:0 16px 24px !important; margin-top:10px !important; box-sizing:border-box !important; }
             /* Carte d'info (titre, adresse, specs) : supprimer le cadre, fond transparent, juste un trait séparateur */
-            .ad-card { background:transparent !important; border:none !important; border-radius:0 !important; padding:0 0 16px !important; margin-bottom:0 !important; box-shadow:none !important; border-bottom:1px solid #f0f0f0 !important; }
+            .det-card { background:transparent !important; border:none !important; border-radius:0 !important; padding:0 0 16px !important; margin-bottom:0 !important; box-shadow:none !important; border-bottom:1px solid #f0f0f0 !important; }
             /* Section carte position : élargir, moins de padding latéral */
             .adm-map-section { padding:0 6px !important; }
             .adm-topbar { padding:8px 14px !important; }
             /* Sections pleine largeur (satisfaction, signaler) */
             .adm-full-section { padding:0 12px !important; }
             /* Titres et description */
-            .ad-title { font-size:17px !important; line-height:1.3 !important; }
+            .det-title { font-size:17px !important; line-height:1.3 !important; }
             .det-section__title { font-size:14px !important; margin-bottom:10px !important; }
-            .ad-desc { font-size:12px !important; line-height:1.7 !important; text-align:justify !important; }
-            .ad-price { font-size:22px !important; }
+            .det-desc { font-size:12px !important; line-height:1.7 !important; text-align:justify !important; }
+            .det-price { font-size:22px !important; }
             /* Caractéristiques : 2 par ligne, texte compact */
             .adm-feats-grid { grid-template-columns:repeat(2,1fr) !important; gap:7px !important; }
             .adm-feat-item { padding:9px 10px !important; font-size:11px !important; border-radius:8px !important; gap:7px !important; }
@@ -1317,13 +1325,13 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
             .adm-report-head  { padding:12px 14px 10px !important; }
             .adm-report-body  { padding:12px 14px !important; }
             /* Titre de l'annonce */
-            .ad-title { font-size:15px !important; }
+            .det-title { font-size:15px !important; }
             /* Badge catégorie (Location / Vente / Vacances) */
-            .ad-card__cat { font-size:10px !important; padding:2px 8px !important; border-radius:6px !important; }
+            .det-card__cat { font-size:10px !important; padding:2px 8px !important; border-radius:6px !important; }
             /* Boîte contact : plus compact, bouton plus petit, marge augmentée */
-            .ad-contact-box { padding:12px !important; }
-            .ad-contact-box__name { font-size:13px !important; }
-            .ad-contact-box__role { font-size:11px !important; }
+            .det-contact-box { padding:12px !important; }
+            .det-contact-box__name { font-size:13px !important; }
+            .det-contact-box__role { font-size:11px !important; }
             .ad-cbtn { padding:8px 10px !important; font-size:11.5px !important; }
             /* Bouton contacter le propriétaire */
             .adm-contact-cta { padding:10px 12px !important; font-size:12px !important; margin-top:20px !important; border-radius:9px !important; }
@@ -1351,11 +1359,11 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
             .adm-sp-img-cell img { width:68px !important; height:52px !important; min-width:68px !important; object-fit:cover !important; border-radius:8px !important; display:block !important; }
             .adm-sp-img-cell > div { width:68px !important; height:52px !important; min-width:68px !important; border-radius:8px !important; }
             /* Specs (Chambres / Sdb / m²) : format carré, texte réduit */
-            .ad-specs { gap:6px !important; }
-            .ad-spec { padding:8px 6px !important; border-radius:8px !important; margin-right:0 !important; aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-            .ad-spec svg { width:14px !important; height:14px !important; margin-bottom:3px !important; }
-            .ad-spec__val { font-size:15px !important; margin:0 !important; line-height:1.1 !important; }
-            .ad-spec__lbl { font-size:9px !important; margin:0 !important; line-height:1.2 !important; }
+            .det-specs { gap:6px !important; }
+            .det-spec { padding:8px 6px !important; border-radius:8px !important; margin-right:0 !important; aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+            .det-spec svg { width:14px !important; height:14px !important; margin-bottom:3px !important; }
+            .det-spec__val { font-size:15px !important; margin:0 !important; line-height:1.1 !important; }
+            .det-spec__lbl { font-size:9px !important; margin:0 !important; line-height:1.2 !important; }
             /* Émojis satisfaction : carré, sans bordure grise, plus larges, overflow visible pour la bordure active */
             .adm-sat-btns  { gap:5px !important; justify-content:space-between !important; overflow:visible !important; padding:4px 2px !important; }
             .adm-sat-btn { padding:8px 6px !important; min-width:52px !important; max-width:none !important; aspect-ratio:1 !important; border-radius:10px !important; gap:2px !important; flex:1 !important; border:2px solid transparent !important; box-sizing:border-box !important; }
@@ -1372,8 +1380,8 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
             .adm-report-btn-full  { display:inline !important; }
             .adm-report-para { display:block !important; }
             /* Specs (Chambres/Sdb/m²) : toujours 3 colonnes égales, taille fixe */
-            .ad-specs { display:grid !important; grid-template-columns:repeat(3,1fr) !important; gap:6px !important; }
-            .ad-spec { margin-right:0 !important; flex:unset !important; width:auto !important; aspect-ratio:1 !important; }
+            .det-specs { display:grid !important; grid-template-columns:repeat(3,1fr) !important; gap:6px !important; }
+            .det-spec { margin-right:0 !important; flex:unset !important; width:auto !important; aspect-ratio:1 !important; }
           }
         `}</style>
         {modalContent}
