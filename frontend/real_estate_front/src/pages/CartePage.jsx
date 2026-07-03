@@ -3145,9 +3145,10 @@ export default function CartePage() {
 
   /* Sous-ensemble visible : zone dessin�e > bounds carte > tout
      En mode liste pure on ignore les bounds (la carte est masqu�e) */
+  /* En mode liste, on affiche tous les résultats filtrés (pas de restriction par bounds carte) */
   const visibleResults = drawnZones.length > 0
     ? results.filter(p => p.lat && p.lng && drawnZones.some(z => pointInPolygon({ lat: p.lat, lng: p.lng }, z)))
-    : mapBounds
+    : (!listMode && mapBounds)
       ? results.filter(p => p.lat && p.lng && mapBounds.contains && mapBounds.contains([p.lat, p.lng]))
       : results;
 
@@ -4551,12 +4552,13 @@ export default function CartePage() {
           .fp__search-wrap { min-width: 0; gap: 6px; }
           .fp__search  { min-width: 0; }
           .fp__pill-group { display: none; }          /* cachées sur mobile */
-          .fp__pill-group--mobile { display: flex; flex-wrap: nowrap; gap: 4px; width: 100%; }
+          .fp__pill-group--mobile { display: flex; flex-wrap: nowrap; gap: 6px; width: 100%; }
           .fp__pill-group--mobile .fp__pill {
             flex: 1 1 0; min-width: 0;
-            font-size: 10.5px; padding: 7px 2px;
+            font-size: 12px; padding: 8px 4px;
             text-align: center; letter-spacing: 0;
-            overflow: visible; white-space: nowrap;
+            white-space: nowrap; overflow: hidden;
+            text-overflow: clip;
           }
           /* Les 3 boutons (Couche data / Filtres / Enregistrer) partagent la ligne à parts égales → toujours UNE seule ligne */
           .fp__row1 > div:last-child { flex-direction: row; flex-wrap: nowrap; gap: 5px; margin-left: 0; width: 100%; }
@@ -4609,7 +4611,8 @@ export default function CartePage() {
           .fp__advanced > * { align-self: start !important; flex: none !important; min-width: 0 !important; }
           .fp__advanced .fp__adv-sel,
           .fp__advanced .fp__adv-inp { min-width: 0 !important; }
-          /* Champs pleine largeur : Localisation, Type de bien, Colocation, ligne d'actions */
+          /* Champs pleine largeur : Catégorie, Localisation, Type de bien, Colocation, ligne d'actions */
+          .fp__adv-cats,
           .fp__adv-loc,
           .fp__adv-group--full,
           .fp__adv-actions { grid-column: 1 / -1; }

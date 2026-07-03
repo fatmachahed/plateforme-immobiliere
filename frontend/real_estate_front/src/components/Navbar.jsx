@@ -393,6 +393,12 @@ export default function Navbar() {
             )}
             <Link to="/carte" onClick={closeAndNavigate("/carte")} className={`lz-mob-row${location.pathname==="/carte"?" lz-mob-row--active":""}`}><Map size={17}/> {t("nav_map") || "Carte"}</Link>
 
+            {/* Bouton Publier — même style que le CTA bas, positionné sous Carte */}
+            <div style={{padding:"6px 12px"}}>
+              <button onClick={() => { closeMenu(); setTimeout(() => handlePublishClick(), 260); }} className="btn btn-primary lz-mob-cta__btn">
+                <PlusCircle size={16}/> {t("nav_publish") || "Publier une annonce"}
+              </button>
+            </div>
 
             <div className="lz-mob-sep"/>
 
@@ -468,11 +474,8 @@ export default function Navbar() {
 
           </div>
 
-          {/* ── Zone fixe en bas : CTA + Réseaux sociaux ── */}
+          {/* ── Zone fixe en bas : Réseaux sociaux ── */}
           <div className="lz-mob-bottom">
-            <button onClick={() => { closeMenu(); setTimeout(() => handlePublishClick(), 260); }} className="btn btn-primary lz-mob-cta__btn">
-              <PlusCircle size={16}/> {t("nav_publish") || "Publier une annonce"}
-            </button>
             <div className="lz-mob-socials">
               <p className="lz-mob-socials__label">Suivez-nous</p>
               <div className="lz-mob-socials__row">
