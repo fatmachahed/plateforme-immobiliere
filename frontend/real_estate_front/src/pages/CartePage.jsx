@@ -10,7 +10,7 @@ import {
   ArrowUpDown, Car, Package, Sofa, Users, ShieldCheck,
   UtensilsCrossed, Wind, Thermometer, Flame, DoorClosed, LockKeyhole,
   Fingerprint, Wifi, Monitor, RefreshCw, KeyRound, PhoneCall, Check, PenLine,
-  Layers
+  Layers, GitCompare, ChevronUp
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Logo from "../components/Logo";
@@ -406,6 +406,7 @@ function PropCard({ p, active, onHover, onClick, govMarketStats, compact }) {
 
   /* -- Comparateur -- */
   const [inCompare, setInCompare] = React.useState(() => getCompare().includes(realId));
+  const [showAddedToast, setShowAddedToast] = React.useState(false);
   React.useEffect(() => {
     const handler = () => setInCompare(getCompare().includes(realId));
     window.addEventListener("compare-updated", handler);
@@ -437,6 +438,8 @@ function PropCard({ p, active, onHover, onClick, govMarketStats, compact }) {
         localStorage.setItem("localizi_cdata", JSON.stringify(cd));
       } catch {}
       setCompare([...cur, realId]);
+      setShowAddedToast(true);
+      setTimeout(() => setShowAddedToast(false), 2000);
     }
   };
 
@@ -490,6 +493,7 @@ function PropCard({ p, active, onHover, onClick, govMarketStats, compact }) {
     <div className={`pc${active?" pc--active":""}`}
       onMouseEnter={()=>onHover(p.id)} onMouseLeave={()=>onHover(null)}
       onClick={()=>onClick(p.id)}
+      style={{position:"relative"}}
     >
       <div style={{ position:"relative" }}>
         <Carousel images={p.images} h={compact ? 130 : 190} />
@@ -583,8 +587,21 @@ function PropCard({ p, active, onHover, onClick, govMarketStats, compact }) {
             transition:"all .15s",
           }}
         >
-          {inCompare ? "✓ Ajouté au comparateur" : "+ Comparer"}
+          {inCompare ? "✓ Dans le comparateur" : "+ Comparer"}
         </button>
+        {showAddedToast && (
+          <div style={{
+            position:"absolute", bottom:8, left:"50%", transform:"translateX(-50%)",
+            background:"#1e293b", color:"#fff", borderRadius:8,
+            padding:"6px 14px", fontSize:12, fontWeight:700,
+            whiteSpace:"nowrap", zIndex:9999,
+            boxShadow:"0 4px 16px rgba(0,0,0,.25)",
+            animation:"fadeInUp .2s ease",
+            display:"flex", alignItems:"center", gap:6,
+          }}>
+            <Check size={12} color="#4ade80"/> Ajouté au comparateur
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2805,6 +2822,11 @@ export default function CartePage() {
   const [showHospitals,    setShowHospitals]    = useState(_savedPOI?.showHospitals    ?? false);
   const [listMode,         setListMode]         = useState(() => searchParams.get("vue") === "liste" || sessionStorage.getItem("localizi_carte_listmode") === "1");
   const [sortPrice,        setSortPrice]        = useState(null); // null | "asc" | "desc"
+  const [sortField,        setSortField]        = useState(null); // null | "prix" | "surface"
+  const [sortDir,          setSortDir]          = useState("asc");
+  const [showSortMenu,     setShowSortMenu]     = useState(false);
+  const sortBtnRef = useRef(null);
+  const [compareCount,     setCompareCount]     = useState(() => getCompare().length);
   const [listPage,         setListPage]         = useState(1);
   const [listLoading,      setListLoading]      = useState(false);
   /* Mobile draggable filter panel */
@@ -2994,6 +3016,13 @@ export default function CartePage() {
     sessionStorage.setItem("localizi_carte_listmode", listMode ? "1" : "0");
   }, [listMode]);
 
+  /* Sync compare count */
+  useEffect(() => {
+    const h = () => setCompareCount(getCompare().length);
+    window.addEventListener("compare-updated", h);
+    return () => window.removeEventListener("compare-updated", h);
+  }, []);
+
   /* Re-render map when switching from list → map (container was hidden, size was 0) */
   useEffect(() => {
     if (!listMode && leafletMapRef.current) {
@@ -3171,11 +3200,13 @@ export default function CartePage() {
       ? results.filter(p => p.lat && p.lng && mapBounds.contains && mapBounds.contains([p.lat, p.lng]))
       : results;
 
-  /* Tri par prix */
-  const sortedVisibleResults = sortPrice
-    ? [...visibleResults].sort((a, b) => sortPrice === "asc"
-        ? (parseFloat(a.prix) || 0) - (parseFloat(b.prix) || 0)
-        : (parseFloat(b.prix) || 0) - (parseFloat(a.prix) || 0))
+  /* Tri */
+  const sortedVisibleResults = sortField
+    ? [...visibleResults].sort((a, b) => {
+        const va = sortField === "prix" ? (parseFloat(a.prix)||0) : (parseFloat(a.area)||0);
+        const vb = sortField === "prix" ? (parseFloat(b.prix)||0) : (parseFloat(b.area)||0);
+        return sortDir === "asc" ? va - vb : vb - va;
+      })
     : visibleResults;
 
   /* Pagination liste */
@@ -3322,6 +3353,22 @@ export default function CartePage() {
           <CompareBar />
         </div>
 
+        {/* Icône comparateur — visible dès 2 annonces */}
+        {compareCount >= 2 && (
+          <div className="cp-filtersum">
+            <button
+              className="cp-filtersum__btn"
+              onClick={() => navigate(`/comparateur?ids=${getCompare().join(",")}`)}
+              title="Aller au comparateur"
+              style={{color:"#6366f1"}}
+            >
+              <GitCompare size={14}/>
+              <span className="cp-filtersum__label">Comparer</span>
+              <span className="cp-filtersum__badge" style={{background:"#6366f1"}}>{compareCount}</span>
+            </button>
+          </div>
+        )}
+
         {/* Icône résumé des filtres actifs — juste à gauche de "Vue liste" */}
         {(activeTags.length > 0 || drawnZones.length > 0) && (
           <div className="cp-filtersum">
@@ -3379,16 +3426,64 @@ export default function CartePage() {
           <Save size={13} strokeWidth={2}/> Enregistrer la recherche
         </button>
 
-        {/* Bouton tri par prix — desktop: toujours visible / mobile: visible seulement en vue liste */}
-        <button
-          className={`cp-toggle-btn${!listMode ? " cp-sort-map-hidden" : ""}`}
-          onClick={() => setSortPrice(s => s === null ? "asc" : s === "asc" ? "desc" : null)}
-          title={sortPrice === "asc" ? "Prix croissant — cliquer pour décroissant" : sortPrice === "desc" ? "Prix décroissant — cliquer pour annuler" : "Trier par prix"}
-          style={sortPrice ? { borderColor: "#6366f1", color: "#6366f1", background: "#eef2ff" } : {}}
-        >
-          <ArrowUpDown size={14}/>
-          {sortPrice === "asc" ? " Prix ↑" : sortPrice === "desc" ? " Prix ↓" : " Trier"}
-        </button>
+        {/* Bouton tri — dropdown */}
+        <div style={{position:"relative"}} className={!listMode ? "cp-sort-map-hidden" : ""}>
+          <button
+            ref={sortBtnRef}
+            className="cp-toggle-btn"
+            onClick={() => setShowSortMenu(v => !v)}
+            style={sortField ? { borderColor:"#6366f1", color:"#6366f1", background:"#eef2ff" } : {}}
+          >
+            <ArrowUpDown size={14}/>
+            {sortField ? ` ${sortField === "prix" ? "Prix" : "Surface"} ${sortDir === "asc" ? "↑" : "↓"}` : " Trier"}
+          </button>
+          {showSortMenu && ReactDOM.createPortal(
+            <>
+              <div style={{position:"fixed",inset:0,zIndex:9998}} onClick={()=>setShowSortMenu(false)}/>
+              <div style={{
+                position:"fixed", zIndex:9999,
+                ...(()=>{const r=sortBtnRef.current?.getBoundingClientRect(); return r?{top:r.bottom+6,right:window.innerWidth-r.right}:{top:120,right:16};})(),
+                background:"#fff", border:"1.5px solid #e2e8f0", borderRadius:12,
+                boxShadow:"0 8px 28px rgba(0,0,0,.14)", padding:"6px 0", minWidth:180,
+              }}>
+                <div style={{padding:"6px 14px 4px",fontSize:11,fontWeight:700,color:"#94a3b8",letterSpacing:".06em"}}>TRIER PAR</div>
+                {[
+                  {field:"prix", dir:"asc",  label:"Prix croissant"},
+                  {field:"prix", dir:"desc", label:"Prix décroissant"},
+                  {field:"surface", dir:"asc",  label:"Surface croissante"},
+                  {field:"surface", dir:"desc", label:"Surface décroissante"},
+                ].map(opt => {
+                  const active = sortField === opt.field && sortDir === opt.dir;
+                  return (
+                    <button key={opt.field+opt.dir}
+                      onClick={() => { setSortField(opt.field); setSortDir(opt.dir); setShowSortMenu(false); }}
+                      style={{
+                        display:"flex", alignItems:"center", gap:8, width:"100%",
+                        padding:"8px 14px", border:"none", background: active?"#eef2ff":"transparent",
+                        color: active?"#4f46e5":"#374151", fontSize:13, fontWeight: active?700:500,
+                        cursor:"pointer", textAlign:"left",
+                      }}
+                    >
+                      {active && <Check size={13} color="#4f46e5"/>}
+                      {!active && <span style={{width:13}}/>}
+                      {opt.label}
+                    </button>
+                  );
+                })}
+                {sortField && (
+                  <>
+                    <div style={{borderTop:"1px solid #f1f5f9",margin:"4px 0"}}/>
+                    <button onClick={() => { setSortField(null); setShowSortMenu(false); }}
+                      style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"8px 14px",border:"none",background:"transparent",color:"#ef4444",fontSize:13,fontWeight:600,cursor:"pointer"}}>
+                      <X size={13}/> Supprimer le tri
+                    </button>
+                  </>
+                )}
+              </div>
+            </>,
+            document.body
+          )}
+        </div>
 
         <button className="cp-toggle-btn" onClick={()=>setListMode(v=>!v)}>
           {listMode
@@ -3616,6 +3711,9 @@ export default function CartePage() {
                   </div>
                   <div style={{fontSize:13, color:"rgba(255,255,255,.6)"}}>
                     pour afficher les annonces sur la carte
+                  </div>
+                  <div style={{fontSize:11.5, color:"rgba(255,255,255,.4)", marginTop:2}}>
+                    à partir du bouton <span style={{color:"rgba(255,255,255,.7)",fontWeight:600}}>Filtres</span>
                   </div>
                   {totalCount != null && (
                     <div style={{marginTop:4, fontSize:22, fontWeight:900, color:"#fff"}}>
