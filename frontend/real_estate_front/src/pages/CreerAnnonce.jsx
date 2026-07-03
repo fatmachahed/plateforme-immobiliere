@@ -2219,7 +2219,7 @@ export const CreateListingForm = ({ editId = null }) => {
                             </div>
                           </div>
 
-                          {formData.colocation && (<>
+                          {formData.colocation && (<div style={{overflowX:"hidden",maxWidth:"100%"}}><>
                             {/* Profil recherché */}
                             <div style={{marginBottom:16}}>
                               <label style={{fontSize:11.5,fontWeight:700,color:"#374151",display:"block",marginBottom:7}}>Profil recherché</label>
@@ -2307,8 +2307,8 @@ export const CreateListingForm = ({ editId = null }) => {
                               const totalDispo = totalCap - totalOcc;
                               return (
                                 <>
-                                  <div style={{overflowX:"auto",borderRadius:10,border:"1px solid #e2e8f0",maxWidth:"100%",WebkitOverflowScrolling:"touch"}}>
-                                    <table style={{minWidth:480,width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                                  <div className="ca-coloc-table-wrap">
+                                    <table style={{minWidth:460,width:"100%",borderCollapse:"collapse",fontSize:12}}>
                                       <thead>
                                         <tr style={{background:"#eef2ff"}}>
                                           <th style={{padding:"7px 10px",fontWeight:700,color:"#4338ca",textAlign:"left"}}>Chambre</th>
@@ -2407,7 +2407,7 @@ export const CreateListingForm = ({ editId = null }) => {
                                 </>
                               );
                             })()}
-                          </>)}
+                          </></div>)}
                         </div>
                       )}
 
@@ -4122,7 +4122,14 @@ export const CreateListingForm = ({ editId = null }) => {
             padding: 28px 32px;
             box-shadow: 0 1px 6px rgba(0,0,0,.04);
             max-width: 100%;
-            overflow-x: hidden;
+          }
+          .ca-coloc-table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            max-width: 100%;
+            width: 100%;
           }
           .ca-step-content { animation: caFade .25s ease; }
           @keyframes caFade { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }

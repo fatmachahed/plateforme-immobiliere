@@ -55,8 +55,39 @@ export default function Navbar() {
   const isAccActive  = location.pathname.startsWith("/compte") || location.pathname === "/admin";
   const { lang, toggleLang, t } = useLanguage();
   const [showPublishWarn, setShowPublishWarn] = useState(false);
+  const [quotaBlock,      setQuotaBlock]      = useState(false);
+  const [quotaBlockInfo,  setQuotaBlockInfo]  = useState({ current: 0, max: 0 });
   const [menuClosing,    setMenuClosing]    = useState(false);
   const navigate = useNavigate();
+
+  /* Vérifie le quota avant d'ouvrir la modal de publication */
+  const handlePublishClick = async () => {
+    try {
+      const token_ = localStorage.getItem("token");
+      const user_  = (() => { try { return JSON.parse(localStorage.getItem("user")); } catch { return null; } })();
+      if (token_ && user_) {
+        const DEFAULT_QUOTAS = { particulier: 3, agence: 50, promoteur: 30, partenaire: 50, admin: 999 };
+        const quotas = (() => { try { return JSON.parse(localStorage.getItem("lz_quotas") || "{}"); } catch { return {}; } })();
+        const role   = user_?.role || "particulier";
+        const maxQ   = quotas[role] ?? DEFAULT_QUOTAS[role] ?? 3;
+        if (maxQ < 999) {
+          const res = await fetch(`${API_URL}/annonces/`, { headers: { Authorization: `Bearer ${token_}` } });
+          if (res.ok) {
+            const myAnnonces = await res.json();
+            const active = (myAnnonces || []).filter(a => ["approuvee","en_attente"].includes(a.status)).length;
+            if (active >= maxQ) {
+              setQuotaBlockInfo({ current: active, max: maxQ });
+              setQuotaBlock(true);
+              setShowPublishWarn(true);
+              return;
+            }
+          }
+        }
+      }
+    } catch { /* réseau – on laisse passer */ }
+    setQuotaBlock(false);
+    setShowPublishWarn(true);
+  };
 
   /* Auto-ouvre les sous-menus si on est déjà sur une de leurs pages */
   useEffect(() => {
@@ -209,7 +240,7 @@ export default function Navbar() {
             )}
 
             {/* Publish CTA — hidden on mobile (shown in drawer instead) */}
-            <button onClick={() => setShowPublishWarn(true)} className="btn btn-primary btn-sm btn-round lz-nav__desktop-only">
+            <button onClick={() => handlePublishClick()} className="btn btn-primary btn-sm btn-round lz-nav__desktop-only">
               + Publier annonce
             </button>
 
@@ -362,10 +393,6 @@ export default function Navbar() {
             )}
             <Link to="/carte" onClick={closeAndNavigate("/carte")} className={`lz-mob-row${location.pathname==="/carte"?" lz-mob-row--active":""}`}><Map size={17}/> {t("nav_map") || "Carte"}</Link>
 
-            {/* Publier une annonce — juste après Carte */}
-            <button onClick={() => { closeMenu(); setTimeout(() => setShowPublishWarn(true), 260); }} className="lz-mob-row lz-mob-row--publish-cta">
-              <PlusCircle size={17}/> {t("nav_publish") || "Publier une annonce"}
-            </button>
 
             <div className="lz-mob-sep"/>
 
@@ -441,8 +468,11 @@ export default function Navbar() {
 
           </div>
 
-          {/* ── Zone fixe en bas : Réseaux sociaux ── */}
+          {/* ── Zone fixe en bas : CTA + Réseaux sociaux ── */}
           <div className="lz-mob-bottom">
+            <button onClick={() => { closeMenu(); setTimeout(() => handlePublishClick(), 260); }} className="btn btn-primary lz-mob-cta__btn">
+              <PlusCircle size={16}/> {t("nav_publish") || "Publier une annonce"}
+            </button>
             <div className="lz-mob-socials">
               <p className="lz-mob-socials__label">Suivez-nous</p>
               <div className="lz-mob-socials__row">
@@ -757,28 +787,32 @@ export default function Navbar() {
         .lz-nav__map-shortcut:hover { background: var(--surface); color: var(--primary); }
       `}</style>
 
-      {/* ── Popup avertissement publication ── */}
+      {/* ── Popup publication / quota atteint ── */}
       {showPublishWarn && (
         <div style={{
           position:"fixed", inset:0, zIndex:99999,
           background:"rgba(15,23,42,.55)", backdropFilter:"blur(4px)",
           display:"flex", alignItems:"center", justifyContent:"center", padding:20,
-        }} onClick={() => setShowPublishWarn(false)}>
+        }} onClick={() => { setShowPublishWarn(false); setQuotaBlock(false); }}>
           <div style={{
             background:"#fff", borderRadius:20, padding:"28px 32px 0",
-            maxWidth:580, width:"100%", maxHeight:"90vh",
+            maxWidth:480, width:"100%", maxHeight:"90vh",
             display:"flex", flexDirection:"column",
             boxShadow:"0 24px 64px rgba(0,0,0,.18)",
           }} onClick={e => e.stopPropagation()}>
 
-            {/* Header compact centré */}
+            {/* Header */}
             <div style={{textAlign:"center", marginBottom:12, position:"relative"}}>
               <div style={{display:"flex", justifyContent:"center", marginBottom:5}}>
                 <Logo variant="color" height={20} to={null}/>
               </div>
-              <div style={{fontSize:13, fontWeight:800, color:"#0f172a"}}>Publier une annonce</div>
-              <div style={{fontSize:10.5, color:"#94a3b8", marginTop:2}}>Informations importantes</div>
-              <button onClick={() => setShowPublishWarn(false)} style={{
+              <div style={{fontSize:13, fontWeight:800, color:"#0f172a"}}>
+                {quotaBlock ? "Limite de publication atteinte" : "Publier une annonce"}
+              </div>
+              <div style={{fontSize:10.5, color:"#94a3b8", marginTop:2}}>
+                {quotaBlock ? "Votre quota d'annonces actives est épuisé" : "Informations importantes"}
+              </div>
+              <button onClick={() => { setShowPublishWarn(false); setQuotaBlock(false); }} style={{
                 position:"absolute", top:0, right:0,
                 background:"#f1f5f9", border:"none", cursor:"pointer", borderRadius:8,
                 width:26, height:26, display:"flex", alignItems:"center", justifyContent:"center",
@@ -790,36 +824,62 @@ export default function Navbar() {
 
             {/* Icône */}
             <div style={{display:"flex", justifyContent:"center", marginBottom:10}}>
-              <div style={{width:42,height:42,borderRadius:"50%",background:"#f1f5f9",display:"flex",alignItems:"center",justifyContent:"center"}}>
-                <AlertTriangle size={21} color="#475569" strokeWidth={1.8}/>
+              <div style={{width:52,height:52,borderRadius:"50%",background: quotaBlock ? "#fef2f2" : "#f1f5f9",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <AlertTriangle size={26} color={quotaBlock ? "#ef4444" : "#475569"} strokeWidth={1.8}/>
               </div>
             </div>
 
-            <h2 style={{fontSize:15,fontWeight:900,color:"#0f172a",margin:"0 0 8px",textAlign:"center",lineHeight:1.2}}>
-              Avant de publier
-            </h2>
-            <p style={{fontSize:11.5,color:"#374151",lineHeight:1.6,margin:"0 0 16px",textAlign:"center"}}>
-              En publiant votre annonce sur Localizi.tn, la carte affichera la <strong>position exacte</strong> du bien immobilier.
-              Assurez-vous d'être le propriétaire ou le mandataire exclusif du bien.
-              Vous pouvez déplacer la position sur la carte si nécessaire.
-            </p>
-
-            <div style={{display:"flex", gap:8, paddingBottom:6}}>
-              <button onClick={() => setShowPublishWarn(false)} style={{
-                flex:1, padding:"10px 8px", borderRadius:10,
-                border:"1.5px solid #e2e8f0", background:"#fff",
-                fontSize:13, fontWeight:600, color:"#374151", cursor:"pointer", fontFamily:"inherit",
-              }}>
-                Annuler
-              </button>
-              <button onClick={() => { setShowPublishWarn(false); navigate("/creer_annonce"); }} style={{
-                flex:1, padding:"10px 8px", borderRadius:10,
-                border:"none", background:"#0f172a", color:"#fff",
-                fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit",
-              }}>
-                Je publie
-              </button>
-            </div>
+            {quotaBlock ? (
+              /* ── Contenu quota dépassé ── */
+              <>
+                <h2 style={{fontSize:16,fontWeight:900,color:"#0f172a",margin:"0 0 10px",textAlign:"center",lineHeight:1.2}}>
+                  Vous avez atteint votre limite
+                </h2>
+                <p style={{fontSize:12,color:"#374151",lineHeight:1.65,margin:"0 0 14px",textAlign:"center"}}>
+                  Votre profil autorise <strong>{quotaBlockInfo.max} annonce{quotaBlockInfo.max>1?"s":""} active{quotaBlockInfo.max>1?"s":""}</strong> au maximum.<br/>
+                  Vous en avez actuellement <strong style={{color:"#ef4444"}}>{quotaBlockInfo.current}</strong>.
+                </p>
+                <div style={{background:"#fef9ec",border:"1.5px solid #fde68a",borderRadius:10,padding:"10px 14px",marginBottom:16,fontSize:11.5,color:"#92400e",lineHeight:1.6}}>
+                  Pour publier une nouvelle annonce, <strong>supprimez</strong> ou <strong>retirez de la carte</strong> une annonce existante depuis votre tableau de bord.
+                </div>
+                <div style={{display:"flex", gap:8, paddingBottom:24}}>
+                  <button onClick={() => { setShowPublishWarn(false); setQuotaBlock(false); }} style={{
+                    flex:1, padding:"10px 8px", borderRadius:10,
+                    border:"1.5px solid #e2e8f0", background:"#fff",
+                    fontSize:12, fontWeight:600, color:"#374151", cursor:"pointer", fontFamily:"inherit",
+                  }}>Fermer</button>
+                  <button onClick={() => { setShowPublishWarn(false); setQuotaBlock(false); navigate("/compte?tab=annonces"); }} style={{
+                    flex:1, padding:"10px 8px", borderRadius:10,
+                    border:"none", background:"#6366f1", color:"#fff",
+                    fontSize:12, fontWeight:700, cursor:"pointer", fontFamily:"inherit",
+                  }}>Gérer mes annonces</button>
+                </div>
+              </>
+            ) : (
+              /* ── Contenu normal ── */
+              <>
+                <h2 style={{fontSize:15,fontWeight:900,color:"#0f172a",margin:"0 0 8px",textAlign:"center",lineHeight:1.2}}>
+                  Avant de publier
+                </h2>
+                <p style={{fontSize:11.5,color:"#374151",lineHeight:1.6,margin:"0 0 16px",textAlign:"center"}}>
+                  En publiant votre annonce sur Localizi.tn, la carte affichera la <strong>position exacte</strong> du bien immobilier.
+                  Assurez-vous d'être le propriétaire ou le mandataire exclusif du bien.
+                  Vous pouvez déplacer la position sur la carte si nécessaire.
+                </p>
+                <div style={{display:"flex", gap:8, paddingBottom:6}}>
+                  <button onClick={() => setShowPublishWarn(false)} style={{
+                    flex:1, padding:"10px 8px", borderRadius:10,
+                    border:"1.5px solid #e2e8f0", background:"#fff",
+                    fontSize:13, fontWeight:600, color:"#374151", cursor:"pointer", fontFamily:"inherit",
+                  }}>Annuler</button>
+                  <button onClick={() => { setShowPublishWarn(false); navigate("/creer_annonce"); }} style={{
+                    flex:1, padding:"10px 8px", borderRadius:10,
+                    border:"none", background:"#0f172a", color:"#fff",
+                    fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit",
+                  }}>Je publie</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
