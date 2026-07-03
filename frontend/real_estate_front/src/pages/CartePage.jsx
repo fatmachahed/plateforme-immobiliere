@@ -2639,10 +2639,6 @@ export default function CartePage() {
   const [active, setActive]         = useState(null);
   const [apiProperties, setApiProps] = useState([]);
   const [totalCount,    setTotalCount] = useState(null);
-  const [showMobOnboarding, setShowMobOnboarding] = useState(() => {
-    try { return !localStorage.getItem("lz_carte_onboarded"); } catch { return false; }
-  });
-  const onboardingStep = useRef(0); // 0=filtres, 1=gov, done
   const [mapBounds, setMapBounds]   = useState(null);
   /* Ref toujours synchronis� avec allProperties (utilisé dans applyFilters) */
   const allPropertiesRef = useRef([]);
@@ -3020,14 +3016,6 @@ export default function CartePage() {
     return () => clearInterval(waitId);
   }, []); // eslint-disable-line
 
-  /* Dismiss onboarding when gov+del both selected */
-  useEffect(() => {
-    if (filters.govNom && filters.delNom && showMobOnboarding) {
-      try { localStorage.setItem("lz_carte_onboarded","1"); } catch {}
-      setTimeout(() => setShowMobOnboarding(false), 800);
-    }
-  }, [filters.govNom, filters.delNom]); // eslint-disable-line
-
   /* Fetch total count once (lightweight — just IDs/count, no pins) */
   useEffect(() => {
     fetch(`${API_URL}/annonces/public?limit=500&fields=id`)
@@ -3312,57 +3300,6 @@ export default function CartePage() {
       />
 
       </div>{/* end sticky wrapper */}
-
-      {/* Mobile onboarding guide — first visit only */}
-      {showMobOnboarding && !listMode && (
-        <div style={{
-          position:"fixed", inset:0, zIndex:19000, pointerEvents:"none",
-        }}>
-          <style>{`
-            @keyframes cp-blink { 0%,100%{box-shadow:0 0 0 0 rgba(99,102,241,.6)} 50%{box-shadow:0 0 0 10px rgba(99,102,241,0)} }
-            @keyframes cp-bounce-arr { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
-            .cp-onb-arrow { animation: cp-bounce-arr 1s ease-in-out infinite; }
-            .cp-onb-blink-btn {
-              animation: cp-blink 1.2s ease-in-out infinite !important;
-              outline: 3px solid #6366f1 !important;
-              outline-offset: 2px !important;
-            }
-          `}</style>
-          {/* Tooltip at top pointing down to filter bar */}
-          <div style={{
-            position:"absolute", top: 72, left:"50%", transform:"translateX(-50%)",
-            background:"#1e1b4b", color:"#fff", borderRadius:16,
-            padding:"14px 20px 12px", maxWidth:280, width:"calc(100% - 32px)",
-            boxShadow:"0 12px 40px rgba(0,0,0,.4)",
-            display:"flex", flexDirection:"column", alignItems:"center", gap:8,
-            textAlign:"center", pointerEvents:"all",
-          }}>
-            <div style={{fontSize:22}}>👋</div>
-            <div style={{fontSize:14, fontWeight:800, lineHeight:1.3}}>
-              {!filters.govNom
-                ? "Commencez par choisir un gouvernorat"
-                : "Super ! Maintenant choisissez une délégation"}
-            </div>
-            <div style={{fontSize:12, color:"#a5b4fc", lineHeight:1.6}}>
-              {!filters.govNom
-                ? "Appuyez sur le sélecteur de gouvernorat dans la barre des filtres"
-                : "Sélectionnez une délégation pour voir les annonces apparaître"}
-            </div>
-            <div className="cp-onb-arrow" style={{fontSize:20, marginTop:2}}>↓</div>
-            <button
-              onClick={() => {
-                try { localStorage.setItem("lz_carte_onboarded","1"); } catch {}
-                setShowMobOnboarding(false);
-              }}
-              style={{
-                marginTop:4, background:"rgba(255,255,255,.15)", border:"none",
-                color:"#c7d2fe", fontSize:11, borderRadius:8, padding:"4px 12px",
-                cursor:"pointer", fontWeight:600,
-              }}
-            >Masquer ce guide</button>
-          </div>
-        </div>
-      )}
 
       {/* Mobile drag handle — toujours visible, AU-DESSUS de la barre cp-bar */}
       <div
@@ -3665,65 +3602,51 @@ export default function CartePage() {
               onMapRef={(map) => { leafletMapRef.current = map; }}
             />
 
-            {/* -- Overlay : aucun gouvernorat sélectionné -- */}
-            {!filters.govNom && (
+            {/* -- Overlay : pas de délégation sélectionnée — texte blanc direct sur la couche -- */}
+            {!filters.delNom && (
               <div style={{
                 position:"absolute", inset:0, zIndex:8500,
-                background:"rgba(10,12,20,0.52)",
-                backdropFilter:"blur(2px)",
+                background:"rgba(10,12,20,0.55)",
                 display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
-                gap:16, padding:24, textAlign:"center", pointerEvents:"none",
+                gap:12, padding:24, textAlign:"center", pointerEvents:"none",
               }}>
-                <style>{`
-                  @keyframes cp-ov-pulse { 0%,100%{transform:scale(1);opacity:.9} 50%{transform:scale(1.04);opacity:1} }
-                  @keyframes cp-ov-fadein { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
-                  .cp-ov-card { animation: cp-ov-fadein .45s ease both; }
-                `}</style>
-                <div className="cp-ov-card" style={{
-                  background:"rgba(255,255,255,0.96)", borderRadius:20,
-                  padding:"28px 32px", maxWidth:380, width:"100%",
-                  boxShadow:"0 24px 60px rgba(0,0,0,.35)",
-                }}>
-                  <div style={{fontSize:36,marginBottom:12}}>🗺️</div>
-                  <div style={{
-                    fontSize:18, fontWeight:800, color:"#0f172a", marginBottom:8, lineHeight:1.3,
-                  }}>Choisissez une zone</div>
-                  <div style={{fontSize:13.5, color:"#475569", lineHeight:1.7, marginBottom:16}}>
-                    Sélectionnez un <strong>gouvernorat</strong> puis une <strong>délégation</strong> pour afficher les annonces sur la carte.
-                  </div>
-                  {totalCount != null && (
-                    <div style={{
-                      display:"inline-flex", alignItems:"center", gap:8,
-                      background:"#eef2ff", borderRadius:10,
-                      padding:"8px 16px", fontSize:13, fontWeight:700, color:"#4f46e5",
-                    }}>
-                      <span style={{fontSize:18,fontWeight:900}}>{totalCount.toLocaleString("fr-TN")}</span>
-                      annonce{totalCount!==1?"s":""} disponible{totalCount!==1?"s":""}
-                    </div>
+                <style>{`@keyframes cp-ov-fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}.cp-ov-txt{animation:cp-ov-fadein .4s ease both}`}</style>
+                <div className="cp-ov-txt" style={{color:"#fff", display:"flex", flexDirection:"column", alignItems:"center", gap:10}}>
+                  {!filters.govNom ? (
+                    <>
+                      <div style={{fontSize:15, fontWeight:700, letterSpacing:.2}}>
+                        Sélectionnez un <span style={{color:"#a5b4fc"}}>gouvernorat</span> puis une <span style={{color:"#a5b4fc"}}>délégation</span>
+                      </div>
+                      <div style={{fontSize:13, color:"rgba(255,255,255,.6)"}}>
+                        pour afficher les annonces sur la carte
+                      </div>
+                      {totalCount != null && (
+                        <div style={{marginTop:4, fontSize:22, fontWeight:900, color:"#fff"}}>
+                          {totalCount.toLocaleString("fr-TN")}
+                          <span style={{fontSize:13, fontWeight:600, color:"rgba(255,255,255,.7)", marginLeft:7}}>
+                            annonce{totalCount!==1?"s":""} disponible{totalCount!==1?"s":""}
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <div style={{fontSize:15, fontWeight:700}}>
+                        <span style={{color:"#86efac"}}>{filters.govNom}</span> sélectionné
+                      </div>
+                      {totalCount != null && (
+                        <div style={{fontSize:22, fontWeight:900, color:"#fff"}}>
+                          {totalCount.toLocaleString("fr-TN")}
+                          <span style={{fontSize:13, fontWeight:600, color:"rgba(255,255,255,.7)", marginLeft:7}}>
+                            annonce{totalCount!==1?"s":""} disponible{totalCount!==1?"s":""}
+                          </span>
+                        </div>
+                      )}
+                      <div style={{fontSize:13, color:"rgba(255,255,255,.6)"}}>
+                        Maintenant sélectionnez une <span style={{color:"#a5b4fc"}}>délégation</span>
+                      </div>
+                    </>
                   )}
-                  <div style={{marginTop:14, fontSize:12, color:"#94a3b8"}}>
-                    Utilisez les filtres ci-dessus ou cliquez sur la carte
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* -- Overlay : gouvernorat sélectionné, pas encore de délégation -- */}
-            {filters.govNom && !filters.delNom && (
-              <div style={{
-                position:"absolute", bottom:80, left:"50%", transform:"translateX(-50%)",
-                zIndex:8500, pointerEvents:"none",
-              }}>
-                <div style={{
-                  background:"rgba(15,23,42,0.82)", color:"#fff",
-                  borderRadius:14, padding:"10px 20px",
-                  fontSize:13, fontWeight:700, whiteSpace:"nowrap",
-                  boxShadow:"0 8px 28px rgba(0,0,0,.35)",
-                  backdropFilter:"blur(4px)",
-                  display:"flex", alignItems:"center", gap:8,
-                }}>
-                  <span style={{fontSize:16}}>📍</span>
-                  Maintenant sélectionnez une délégation
                 </div>
               </div>
             )}
