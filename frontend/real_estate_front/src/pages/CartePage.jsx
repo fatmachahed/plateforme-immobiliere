@@ -3024,13 +3024,13 @@ export default function CartePage() {
       .catch(() => {});
   }, []); // eslint-disable-line
 
-  /* Only fetch pins when a delegation is selected */
+  /* Fetch pins when a gouvernorat is selected */
   useEffect(() => {
-    if (!filters.delNom) { setApiProps([]); return; }
+    if (!filters.govNom) { setApiProps([]); return; }
     setListLoading(true);
     const params = new URLSearchParams({ limit: "300" });
-    if (filters.govNom) params.set("gouvernorat", filters.govNom);
-    if (filters.delNom) params.set("delegation",  filters.delNom);
+    params.set("gouvernorat", filters.govNom);
+    if (filters.delNom) params.set("delegation", filters.delNom);
     fetch(`${API_URL}/annonces/public?${params}`)
       .then(r => r.json())
       .then(data => {
@@ -3039,7 +3039,7 @@ export default function CartePage() {
       })
       .catch(() => {})
       .finally(() => setListLoading(false));
-  }, [filters.delNom, filters.govNom]); // eslint-disable-line
+  }, [filters.govNom, filters.delNom]); // eslint-disable-line
 
   /* Sync favoris API ? localStorage au montage (si connect�) */
   useEffect(() => {
@@ -3602,8 +3602,8 @@ export default function CartePage() {
               onMapRef={(map) => { leafletMapRef.current = map; }}
             />
 
-            {/* -- Overlay : pas de délégation sélectionnée — texte blanc direct sur la couche -- */}
-            {!filters.delNom && (
+            {/* -- Overlay : pas de gouvernorat sélectionné — texte blanc direct sur la couche -- */}
+            {!filters.govNom && (
               <div style={{
                 position:"absolute", inset:0, zIndex:8500,
                 background:"rgba(10,12,20,0.55)",
