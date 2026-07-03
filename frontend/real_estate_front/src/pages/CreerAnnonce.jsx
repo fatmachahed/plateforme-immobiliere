@@ -4848,8 +4848,14 @@ export const CreateListingForm = ({ editId = null }) => {
             .ca-main { padding: 0 0 100px; }
             .ca-mob-stepper { display: block; }
             .ca-main > form { padding: 12px 16px 0; }
-            .ca-card { padding: 20px 18px; overflow-x: clip; max-width: 100%; }
-            .ca-coloc-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; }
+            .ca-card { padding: 20px 18px; max-width: 100%; }
+            /* La table ne doit pas élargir la carte — contain:inline-size isole sa largeur */
+            .ca-coloc-table-wrap {
+              contain: inline-size;
+              width: 100%;
+              overflow-x: auto;
+              -webkit-overflow-scrolling: touch;
+            }
             .ca-step1-cols { grid-template-columns: 1fr; gap: 24px; }
             .ca-type-drop-mob { display: block; }
             .ca-type-btn-grid { display: none !important; }
