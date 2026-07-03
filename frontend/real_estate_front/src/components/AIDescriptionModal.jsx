@@ -12,7 +12,9 @@ function genDescription(initialData, instruction) {
     maison: "maison", bord_eau: "bien en bord de mer",
   };
   const typeFr  = typeLabels[d.type_bien] || d.type_bien || "bien immobilier";
-  const det     = ["appartement","bureau"].includes(d.type_bien) ? "cet" : "ce";
+  const det     = ["appartement","bureau"].includes(d.type_bien) ? "cet"
+                : ["villa","maison","ferme","ferme_agricole"].includes(d.type_bien) ? "cette"
+                : "ce";
   const offreFr = d.categorie === "location" ? "à louer"
                 : d.categorie === "vacances"  ? "en location saisonnière"
                 : "à vendre";

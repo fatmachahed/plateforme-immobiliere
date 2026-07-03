@@ -4551,7 +4551,8 @@ export default function CartePage() {
           .fp__search-wrap { min-width: 0; gap: 6px; }
           .fp__search  { min-width: 0; }
           .fp__pill-group { display: none; }          /* cachées sur mobile */
-          .fp__pill-group--mobile { display: flex; flex-wrap: wrap; gap: 6px; }
+          .fp__pill-group--mobile { display: flex; flex-wrap: nowrap; gap: 5px; width: 100%; }
+          .fp__pill-group--mobile .fp__pill { flex: 1; font-size: 11px; padding: 5px 4px; min-width: 0; text-align: center; }
           /* Les 3 boutons (Couche data / Filtres / Enregistrer) partagent la ligne à parts égales → toujours UNE seule ligne */
           .fp__row1 > div:last-child { flex-direction: row; flex-wrap: nowrap; gap: 5px; margin-left: 0; width: 100%; }
           .fp__layers { display: block; flex: 1 1 0; min-width: 0; }

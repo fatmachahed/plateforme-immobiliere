@@ -45,6 +45,7 @@ import PromoteurOnboarding      from "./pages/PromoteurOnboarding";
 import TrouverUnPromoteur       from "./pages/TrouverUnPromoteur";
 import TrouverUnPrestataire     from "./pages/TrouverUnPrestataire";
 import Geolocalisation          from "./pages/Geolocalisation";
+import NotFound                 from "./pages/NotFound";
 
 function AnnonceRedirect() {
   const { id } = useParams();
@@ -121,6 +122,9 @@ function App() {
           <Route path="/trouver-un-promoteur"      element={<TrouverUnPromoteur />} />
           <Route path="/trouver-un-prestataire"   element={<TrouverUnPrestataire />} />
           <Route path="/faq/geolocalisation-immobilier" element={<Geolocalisation />} />
+
+          {/* 404 */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Router>
       <CookieBanner />

@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import {
   Home, Building2, MapPin, Camera, ChevronRight, ChevronLeft, Save, Layers, Crown,
   Check, X, Upload, Trash2, Eye, Bed, Bath, Maximize2, DollarSign,
-  CheckCircle2, XCircle, Loader, Sparkles, Wand2,
+  CheckCircle2, XCircle, Loader, Loader2, Sparkles, Wand2,
   Minus, Plus, Navigation,
   Leaf, Store, Waves, Mountain, TreePine, Sun, Flower2,
   ArrowUpDown, Car, ParkingCircle, Package, Sofa,
@@ -345,15 +345,15 @@ function ControlledMap({ position, onLocationChange, govLabel, delLabel, onZoneS
       <div ref={containerRef} style={{width:"100%", height:"100%", minHeight:420, borderRadius:12, overflow:"hidden"}}/>
       {/* Hint déplacement */}
       <div style={{
-        position:"absolute", top:14, left:"50%", transform:"translateX(-50%)",
+        position:"absolute", top:10, left:"50%", transform:"translateX(-50%)",
         background:"rgba(255,255,255,0.96)", backdropFilter:"blur(6px)",
-        border:"2px solid #e2e8f0", borderRadius:10,
-        padding:"9px 20px", fontSize:14, fontWeight:700, color:"#0f172a",
+        border:"1.5px solid #e2e8f0", borderRadius:8,
+        padding:"5px 12px", fontSize:11, fontWeight:600, color:"#334155",
         pointerEvents:"none", zIndex:999, whiteSpace:"nowrap",
-        boxShadow:"0 4px 16px rgba(0,0,0,.18)",
-        display:"flex", alignItems:"center", gap:8, letterSpacing:".01em"
+        boxShadow:"0 2px 8px rgba(0,0,0,.12)",
+        display:"flex", alignItems:"center", gap:5
       }}>
-        <span style={{fontSize:16}}>↔</span> Déplacez l'emplacement
+        <span style={{fontSize:12}}>↔</span> Déplacez l'emplacement
       </div>
       {/* Badge état zone */}
       {badge && (
@@ -620,6 +620,7 @@ export const CreateListingForm = ({ editId = null }) => {
 
   const [imageValidation, setImageValidation] = useState({});
   /* -- Edit mode state -- */
+  const [isSubmitting,       setIsSubmitting]       = useState(false);
   const [showPublishModal,   setShowPublishModal]   = useState(false);
   const [loadingEdit,        setLoadingEdit]        = useState(false);
   const [loadingEditError,   setLoadingEditError]   = useState(false);
@@ -1152,6 +1153,8 @@ export const CreateListingForm = ({ editId = null }) => {
 
   const handleSubmit = async (e) => {
     if (e?.preventDefault) e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
 
     /* Validation */
     if (!formData.type_bien)    { toast("Veuillez sélectionner un type de bien (étape 1).", "error"); return; }
@@ -1454,6 +1457,7 @@ export const CreateListingForm = ({ editId = null }) => {
         console.error("[CreerAnnonce] Erreur soumission:", err);
         toast(`Erreur : ${err?.message || "Vérifiez votre connexion et réessayez."}`, "error");
       }
+      setIsSubmitting(false);
     }
   };
 
@@ -1485,7 +1489,10 @@ export const CreateListingForm = ({ editId = null }) => {
       // -- Paragraphe 1 : accroche --
       let desc = "";
       const locStr = delLabel ? `${delLabel}${govLabel?`, ${govLabel}`:""}` : govLabel || "";
-      desc += `Nous vous proposons ${typeFr === "appartement" ? "cet" : "ce"} ${typeFr} ${offreFr}`;
+      const det = ["appartement","bureau"].includes(formData.type_bien) ? "cet"
+                : ["villa","maison","ferme","ferme_agricole"].includes(formData.type_bien) ? "cette"
+                : "ce";
+      desc += `Nous vous proposons ${det} ${typeFr} ${offreFr}`;
       if (locStr) desc += `, idéalement situé à ${locStr}`;
       if (formData.address && formData.address !== "Tunis, Tunisie") desc += ` (${formData.address})`;
       desc += ".\n\n";
@@ -3265,7 +3272,7 @@ export const CreateListingForm = ({ editId = null }) => {
                         <div key={index} className={`ca-img-uni-card${isMain ? " ca-img-uni-card--main" : ""}`}>
                           <img src={URL.createObjectURL(file)} alt={`Image ${index + 1}`}/>
                           {isMain && (
-                            <div className="ca-img-main-badge">? Principale</div>
+                            <div className="ca-img-main-badge"><Star size={11} fill="#fff" style={{marginRight:3}}/> Principale</div>
                           )}
                           <div className="ca-img-overlay">
                             <button type="button" className="ca-img-btn ca-img-btn--eye"
@@ -3768,8 +3775,8 @@ export const CreateListingForm = ({ editId = null }) => {
                   ? <button type="button" className="ca-nav-btn ca-nav-btn--preview" onClick={nextStep}>
                       <Eye size={17}/> Prévisualiser
                     </button>
-                  : <button type="button" className="ca-nav-btn ca-nav-btn--publish" onClick={() => handleSubmit()}>
-                      <Check size={17}/> {editId ? "Mettre à jour l'annonce" : "Créer l'annonce"}
+                  : <button type="button" className="ca-nav-btn ca-nav-btn--publish" onClick={() => handleSubmit()} disabled={isSubmitting} style={isSubmitting ? {opacity:.7,cursor:"not-allowed"} : {}}>
+                      {isSubmitting ? <><Loader2 size={17} style={{animation:"spin 1s linear infinite"}}/> Création en cours…</> : <><Check size={17}/> {editId ? "Mettre à jour l'annonce" : "Créer l'annonce"}</>}
                     </button>
               }
             </div>
@@ -3821,9 +3828,9 @@ export const CreateListingForm = ({ editId = null }) => {
                     style={{padding:"14px 32px",borderRadius:12,border:"1.5px solid #e2e8f0",background:"#fff",fontSize:15,fontWeight:600,color:"#374151",cursor:"pointer",minWidth:140}}>
                     Annuler
                   </button>
-                  <button onClick={()=>{setShowPublishModal(false);handleSubmit();}}
-                    style={{padding:"14px 40px",borderRadius:12,border:"none",background:"#0f172a",color:"#fff",fontSize:16,fontWeight:800,cursor:"pointer",minWidth:160,letterSpacing:".01em"}}>
-                    Je publie
+                  <button onClick={()=>{setShowPublishModal(false);handleSubmit();}} disabled={isSubmitting}
+                    style={{padding:"14px 40px",borderRadius:12,border:"none",background:isSubmitting?"#475569":"#0f172a",color:"#fff",fontSize:16,fontWeight:800,cursor:isSubmitting?"not-allowed":"pointer",minWidth:160,letterSpacing:".01em",display:"flex",alignItems:"center",gap:8,justifyContent:"center"}}>
+                    {isSubmitting ? <><Loader2 size={18} style={{animation:"spin 1s linear infinite"}}/> En cours…</> : "Je publie"}
                   </button>
                 </div>
               </div>

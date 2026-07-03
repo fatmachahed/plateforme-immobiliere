@@ -362,6 +362,11 @@ export default function Navbar() {
             )}
             <Link to="/carte" onClick={closeAndNavigate("/carte")} className={`lz-mob-row${location.pathname==="/carte"?" lz-mob-row--active":""}`}><Map size={17}/> {t("nav_map") || "Carte"}</Link>
 
+            {/* Publier une annonce — juste après Carte */}
+            <button onClick={() => { closeMenu(); setTimeout(() => setShowPublishWarn(true), 260); }} className="lz-mob-row lz-mob-row--publish-cta">
+              <PlusCircle size={17}/> {t("nav_publish") || "Publier une annonce"}
+            </button>
+
             <div className="lz-mob-sep"/>
 
             {/* Profil */}
@@ -384,6 +389,7 @@ export default function Navbar() {
                       { to:"/compte?tab=annonces", label:"Mes annonces",     Ico:LayoutDashboard, badge:0           },
                       { to:"/compte?tab=contacts", label:"Demandes reçues",  Ico:Bell,            badge:unreadCount },
                       { to:"/compte?tab=favoris",  label:"Mes favoris",      Ico:Heart,           badge:0           },
+                      { to:"/compte?tab=alertes",  label:"Mes alertes",      Ico:Bell,            badge:0           },
                     ].map(({to,label,Ico,badge}) => {
                       const tabMatch = location.pathname === "/compte" &&
                         new URLSearchParams(location.search).get("tab") === new URLSearchParams(to.split("?")[1]).get("tab");
@@ -422,7 +428,6 @@ export default function Navbar() {
 
             {/* Pages supplémentaires */}
             {[
-              { to:"/compte?tab=alertes",    label:"Mes alertes",           Ico:Bell          },
               { to:"/signaler-probleme",     label:"Signaler un problème",  Ico:AlertTriangle },
               { to:"/comment-ca-marche",     label:"Comment ça marche ?",   Ico:HelpCircle    },
               { to:"/qui-sommes-nous",       label:"Qui sommes-nous ?",     Ico:Info          },
@@ -436,11 +441,8 @@ export default function Navbar() {
 
           </div>
 
-          {/* ── Zone fixe en bas : CTA + Réseaux sociaux ── */}
+          {/* ── Zone fixe en bas : Réseaux sociaux ── */}
           <div className="lz-mob-bottom">
-            <button onClick={() => { closeMenu(); setTimeout(() => setShowPublishWarn(true), 260); }} className="btn btn-primary lz-mob-cta__btn">
-              <PlusCircle size={16}/> {t("nav_publish") || "Publier une annonce"}
-            </button>
             <div className="lz-mob-socials">
               <p className="lz-mob-socials__label">Suivez-nous</p>
               <div className="lz-mob-socials__row">
@@ -661,6 +663,8 @@ export default function Navbar() {
         .lz-mob-row--gold       { color: #b45309; }
         .lz-mob-row--gold:hover { background: #fef9ec; color: #92400e; }
         .lz-mob-row--profile    { justify-content: space-between; }
+        .lz-mob-row--publish-cta { color: #6366f1; font-weight: 700; }
+        .lz-mob-row--publish-cta:hover { background: #eef2ff; color: #4338ca; }
         .lz-mob-row__left       { display: flex; align-items: center; gap: 10px; }
 
         /* Separator */
