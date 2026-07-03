@@ -787,7 +787,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
           </div>
 
           {/* Right column */}
-          <div className="det-right" style={{width:360,minWidth:260,display:"block"}}>
+          <div className="det-right" style={{width:"100%",minWidth:0,display:"block"}}>
             <div className="ad-card">
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6,flexWrap:"wrap",gap:6}}>
                 <span className={`ad-card__cat ad-card__cat--${prop.categorie?.toLowerCase()}`}>{prop.categorie}</span>
@@ -1139,7 +1139,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
 
       <div
         className="adm-modal-card"
-        style={{background:"#f9fafb",width:"100%",maxWidth:1200,maxHeight:"calc(100vh - 32px)",overflowY:"auto",borderRadius:16,boxShadow:"0 32px 80px rgba(0,0,0,.35)",fontFamily:"'Poppins',system-ui,sans-serif",fontSize:"11.5px"}}
+        style={{background:"#f9fafb",width:"100%",maxWidth:1200,maxHeight:"calc(100vh - 32px)",overflowY:"auto",overflowX:"hidden",borderRadius:16,boxShadow:"0 32px 80px rgba(0,0,0,.35)",fontFamily:"'Poppins',system-ui,sans-serif",fontSize:"11.5px"}}
         onClick={e=>e.stopPropagation()}
       >
         <style>{`
