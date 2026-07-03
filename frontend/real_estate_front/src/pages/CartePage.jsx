@@ -2993,6 +2993,13 @@ export default function CartePage() {
     sessionStorage.setItem("localizi_carte_listmode", listMode ? "1" : "0");
   }, [listMode]);
 
+  /* Re-render map when switching from list → map (container was hidden, size was 0) */
+  useEffect(() => {
+    if (!listMode && mapRef.current) {
+      setTimeout(() => { try { mapRef.current?.invalidateSize(); } catch {} }, 150);
+    }
+  }, [listMode]);
+
   /* If any POI was restored from sessionStorage, trigger fetch once the map bbox is ready */
   useEffect(() => {
     if (!(showSchools || showMosques || showFaculties || showGrandSurfaces || showHospitals)) return;

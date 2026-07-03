@@ -647,6 +647,60 @@ export const CreateListingForm = ({ editId = null }) => {
     return () => { urls.forEach(u => { try { URL.revokeObjectURL(u); } catch {} }); };
   }, [formData.allImages]); // eslint-disable-line
 
+  /* -- IndexedDB helpers for photo persistence across refresh -- */
+  const IDB_NAME = "localizi_ca";
+  const IDB_STORE = "photos";
+  const openIDB = () => new Promise((res, rej) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore(IDB_STORE, { keyPath: "idx" });
+    req.onsuccess = e => res(e.target.result);
+    req.onerror = () => rej();
+  });
+  const savePhotosIDB = async (files) => {
+    try {
+      const db = await openIDB();
+      const tx = db.transaction(IDB_STORE, "readwrite");
+      const store = tx.objectStore(IDB_STORE);
+      store.clear();
+      files.forEach((f, idx) => store.put({ idx, file: f, name: f.name, type: f.type }));
+    } catch {}
+  };
+  const loadPhotosIDB = async () => {
+    try {
+      const db = await openIDB();
+      const tx = db.transaction(IDB_STORE, "readonly");
+      const store = tx.objectStore(IDB_STORE);
+      return await new Promise((res) => {
+        const req = store.getAll();
+        req.onsuccess = e => res((e.target.result || []).sort((a, b) => a.idx - b.idx).map(r => r.file));
+        req.onerror = () => res([]);
+      });
+    } catch { return []; }
+  };
+  const clearPhotosIDB = async () => {
+    try {
+      const db = await openIDB();
+      const tx = db.transaction(IDB_STORE, "readwrite");
+      tx.objectStore(IDB_STORE).clear();
+    } catch {}
+  };
+
+  /* Restore photos from IndexedDB on mount */
+  useEffect(() => {
+    if (editId) return;
+    loadPhotosIDB().then(files => {
+      if (files.length > 0) {
+        setFormData(prev => ({ ...prev, allImages: files, mainImageIndex: 0 }));
+      }
+    });
+  }, []); // eslint-disable-line
+
+  /* Save photos to IndexedDB whenever they change */
+  useEffect(() => {
+    if (editId) return;
+    savePhotosIDB(formData.allImages || []);
+  }, [formData.allImages, editId]); // eslint-disable-line
+
   const totalSteps = 5;
 
   const [addressFilter, setAddressFilter] = useState("");
@@ -837,6 +891,7 @@ export const CreateListingForm = ({ editId = null }) => {
     ["ca_step", "ca_formdata", "ca_hierarchy", "ca_maploc"].forEach(k => {
       try { localStorage.removeItem(k); } catch { /* ignore */ }
     });
+    clearPhotosIDB();
   };
 
   const handleHierarchyChange = (level, value) => {
@@ -4616,9 +4671,10 @@ export const CreateListingForm = ({ editId = null }) => {
 
           /* Preview (step 5) responsive */
           @media (max-width: 860px) {
-            .ca-prev-detail-grid { grid-template-columns: 1fr !important; }
-            .ca-prev-detail-grid > div:first-child { order: 2; }
-            .ca-prev-detail-grid > div:last-child  { order: 1; }
+            .ca-prev-detail-grid { grid-template-columns: 1fr !important; overflow-x: hidden; }
+            .ca-prev-detail-grid > div:first-child { order: 2; min-width: 0; }
+            .ca-prev-detail-grid > div:last-child  { order: 1; min-width: 0; }
+            .ca-prev-detail-grid * { max-width: 100%; box-sizing: border-box; }
           }
 
           /* Step 5 */
