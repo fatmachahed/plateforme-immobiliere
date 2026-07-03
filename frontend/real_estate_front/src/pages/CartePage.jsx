@@ -2638,6 +2638,11 @@ export default function CartePage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [active, setActive]         = useState(null);
   const [apiProperties, setApiProps] = useState([]);
+  const [totalCount,    setTotalCount] = useState(null);
+  const [showMobOnboarding, setShowMobOnboarding] = useState(() => {
+    try { return !localStorage.getItem("lz_carte_onboarded"); } catch { return false; }
+  });
+  const onboardingStep = useRef(0); // 0=filtres, 1=gov, done
   const [mapBounds, setMapBounds]   = useState(null);
   /* Ref toujours synchronis� avec allProperties (utilisé dans applyFilters) */
   const allPropertiesRef = useRef([]);
@@ -3015,18 +3020,38 @@ export default function CartePage() {
     return () => clearInterval(waitId);
   }, []); // eslint-disable-line
 
+  /* Dismiss onboarding when gov+del both selected */
   useEffect(() => {
+    if (filters.govNom && filters.delNom && showMobOnboarding) {
+      try { localStorage.setItem("lz_carte_onboarded","1"); } catch {}
+      setTimeout(() => setShowMobOnboarding(false), 800);
+    }
+  }, [filters.govNom, filters.delNom]); // eslint-disable-line
+
+  /* Fetch total count once (lightweight — just IDs/count, no pins) */
+  useEffect(() => {
+    fetch(`${API_URL}/annonces/public?limit=500&fields=id`)
+      .then(r => { const c = r.headers.get("X-Total-Count"); if (c) { setTotalCount(+c); return null; } return r.json(); })
+      .then(data => { if (data && Array.isArray(data)) setTotalCount(data.length); })
+      .catch(() => {});
+  }, []); // eslint-disable-line
+
+  /* Only fetch pins when a delegation is selected */
+  useEffect(() => {
+    if (!filters.delNom) { setApiProps([]); return; }
     setListLoading(true);
-    fetch(`${API_URL}/annonces/public?limit=300`)
+    const params = new URLSearchParams({ limit: "300" });
+    if (filters.govNom) params.set("gouvernorat", filters.govNom);
+    if (filters.delNom) params.set("delegation",  filters.delNom);
+    fetch(`${API_URL}/annonces/public?${params}`)
       .then(r => r.json())
       .then(data => {
         const transformed = (Array.isArray(data) ? data : []).map(transformApiAnnonce);
-        // Keep ALL approved annonces in the list; pins without valid coords are hidden from map markers only
         setApiProps(transformed);
       })
       .catch(() => {})
       .finally(() => setListLoading(false));
-  }, []);
+  }, [filters.delNom, filters.govNom]); // eslint-disable-line
 
   /* Sync favoris API ? localStorage au montage (si connect�) */
   useEffect(() => {
@@ -3287,6 +3312,57 @@ export default function CartePage() {
       />
 
       </div>{/* end sticky wrapper */}
+
+      {/* Mobile onboarding guide — first visit only */}
+      {showMobOnboarding && !listMode && (
+        <div style={{
+          position:"fixed", inset:0, zIndex:19000, pointerEvents:"none",
+        }}>
+          <style>{`
+            @keyframes cp-blink { 0%,100%{box-shadow:0 0 0 0 rgba(99,102,241,.6)} 50%{box-shadow:0 0 0 10px rgba(99,102,241,0)} }
+            @keyframes cp-bounce-arr { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+            .cp-onb-arrow { animation: cp-bounce-arr 1s ease-in-out infinite; }
+            .cp-onb-blink-btn {
+              animation: cp-blink 1.2s ease-in-out infinite !important;
+              outline: 3px solid #6366f1 !important;
+              outline-offset: 2px !important;
+            }
+          `}</style>
+          {/* Tooltip at top pointing down to filter bar */}
+          <div style={{
+            position:"absolute", top: 72, left:"50%", transform:"translateX(-50%)",
+            background:"#1e1b4b", color:"#fff", borderRadius:16,
+            padding:"14px 20px 12px", maxWidth:280, width:"calc(100% - 32px)",
+            boxShadow:"0 12px 40px rgba(0,0,0,.4)",
+            display:"flex", flexDirection:"column", alignItems:"center", gap:8,
+            textAlign:"center", pointerEvents:"all",
+          }}>
+            <div style={{fontSize:22}}>👋</div>
+            <div style={{fontSize:14, fontWeight:800, lineHeight:1.3}}>
+              {!filters.govNom
+                ? "Commencez par choisir un gouvernorat"
+                : "Super ! Maintenant choisissez une délégation"}
+            </div>
+            <div style={{fontSize:12, color:"#a5b4fc", lineHeight:1.6}}>
+              {!filters.govNom
+                ? "Appuyez sur le sélecteur de gouvernorat dans la barre des filtres"
+                : "Sélectionnez une délégation pour voir les annonces apparaître"}
+            </div>
+            <div className="cp-onb-arrow" style={{fontSize:20, marginTop:2}}>↓</div>
+            <button
+              onClick={() => {
+                try { localStorage.setItem("lz_carte_onboarded","1"); } catch {}
+                setShowMobOnboarding(false);
+              }}
+              style={{
+                marginTop:4, background:"rgba(255,255,255,.15)", border:"none",
+                color:"#c7d2fe", fontSize:11, borderRadius:8, padding:"4px 12px",
+                cursor:"pointer", fontWeight:600,
+              }}
+            >Masquer ce guide</button>
+          </div>
+        </div>
+      )}
 
       {/* Mobile drag handle — toujours visible, AU-DESSUS de la barre cp-bar */}
       <div
@@ -3588,6 +3664,70 @@ export default function CartePage() {
               onEraseSelect={(i) => setEraseSelectedIdx(i === eraseSelectedIdx ? null : i)}
               onMapRef={(map) => { leafletMapRef.current = map; }}
             />
+
+            {/* -- Overlay : aucun gouvernorat sélectionné -- */}
+            {!filters.govNom && (
+              <div style={{
+                position:"absolute", inset:0, zIndex:8500,
+                background:"rgba(10,12,20,0.52)",
+                backdropFilter:"blur(2px)",
+                display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+                gap:16, padding:24, textAlign:"center", pointerEvents:"none",
+              }}>
+                <style>{`
+                  @keyframes cp-ov-pulse { 0%,100%{transform:scale(1);opacity:.9} 50%{transform:scale(1.04);opacity:1} }
+                  @keyframes cp-ov-fadein { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+                  .cp-ov-card { animation: cp-ov-fadein .45s ease both; }
+                `}</style>
+                <div className="cp-ov-card" style={{
+                  background:"rgba(255,255,255,0.96)", borderRadius:20,
+                  padding:"28px 32px", maxWidth:380, width:"100%",
+                  boxShadow:"0 24px 60px rgba(0,0,0,.35)",
+                }}>
+                  <div style={{fontSize:36,marginBottom:12}}>🗺️</div>
+                  <div style={{
+                    fontSize:18, fontWeight:800, color:"#0f172a", marginBottom:8, lineHeight:1.3,
+                  }}>Choisissez une zone</div>
+                  <div style={{fontSize:13.5, color:"#475569", lineHeight:1.7, marginBottom:16}}>
+                    Sélectionnez un <strong>gouvernorat</strong> puis une <strong>délégation</strong> pour afficher les annonces sur la carte.
+                  </div>
+                  {totalCount != null && (
+                    <div style={{
+                      display:"inline-flex", alignItems:"center", gap:8,
+                      background:"#eef2ff", borderRadius:10,
+                      padding:"8px 16px", fontSize:13, fontWeight:700, color:"#4f46e5",
+                    }}>
+                      <span style={{fontSize:18,fontWeight:900}}>{totalCount.toLocaleString("fr-TN")}</span>
+                      annonce{totalCount!==1?"s":""} disponible{totalCount!==1?"s":""}
+                    </div>
+                  )}
+                  <div style={{marginTop:14, fontSize:12, color:"#94a3b8"}}>
+                    Utilisez les filtres ci-dessus ou cliquez sur la carte
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* -- Overlay : gouvernorat sélectionné, pas encore de délégation -- */}
+            {filters.govNom && !filters.delNom && (
+              <div style={{
+                position:"absolute", bottom:80, left:"50%", transform:"translateX(-50%)",
+                zIndex:8500, pointerEvents:"none",
+              }}>
+                <div style={{
+                  background:"rgba(15,23,42,0.82)", color:"#fff",
+                  borderRadius:14, padding:"10px 20px",
+                  fontSize:13, fontWeight:700, whiteSpace:"nowrap",
+                  boxShadow:"0 8px 28px rgba(0,0,0,.35)",
+                  backdropFilter:"blur(4px)",
+                  display:"flex", alignItems:"center", gap:8,
+                }}>
+                  <span style={{fontSize:16}}>📍</span>
+                  Maintenant sélectionnez une délégation
+                </div>
+              </div>
+            )}
+
             {/* -- Boutons dessin / effacement zone -- */}
             <div style={{
               position:"absolute", bottom:12, left:12, zIndex:9200,
