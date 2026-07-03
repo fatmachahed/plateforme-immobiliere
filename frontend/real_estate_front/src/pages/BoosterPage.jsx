@@ -31,7 +31,7 @@ const PLANS = {
       cta: "Créer un compte", ctaStyle: "outline",
       features: [
         { label: "Consultation des annonces", ok: true },
-        { label: "5 annonces / mois", ok: true },
+        { label: "5 annonces actives", ok: true },
         { label: "0 boost / mois", ok: true },
         { label: "Visibilité sur la carte (standard)", ok: true },
         { label: "Contact via formulaire", ok: true },
