@@ -47,6 +47,9 @@ export default function AdminDashboard() {
     catch { return DEFAULT_QUOTAS; }
   });
   const [quotasSaved, setQuotasSaved] = useState(false);
+  const [boostEnabled, setBoostEnabled] = useState(() => {
+    try { return localStorage.getItem("lz_boost_enabled") !== "0"; } catch { return true; }
+  });
   const saveQuotas = (next) => {
     setQuotas(next);
     localStorage.setItem("lz_quotas", JSON.stringify(next));
@@ -1885,6 +1888,44 @@ export default function AdminDashboard() {
                   transition:"background .3s",
                 }}>
                 {quotasSaved ? <><Check size={15}/> Sauvegardé !</> : <><Save size={15}/> Enregistrer</>}
+              </button>
+            </div>
+          </div>
+
+          {/* Bloc Boost */}
+          <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:16,padding:"24px 32px",boxShadow:"0 1px 6px rgba(0,0,0,.04)",marginBottom:24}}>
+            <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20,paddingBottom:16,borderBottom:"1px solid #f1f5f9"}}>
+              <div style={{width:40,height:40,borderRadius:12,background:"#fefce8",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <span style={{fontSize:20}}>⚡</span>
+              </div>
+              <div>
+                <h2 style={{fontSize:16,fontWeight:800,color:"#0f172a",margin:0}}>Bouton Booster mes annonces</h2>
+                <p style={{fontSize:12,color:"#64748b",margin:"3px 0 0"}}>Afficher ou masquer l'option "Booster mes annonces" dans le menu utilisateur.</p>
+              </div>
+            </div>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:16}}>
+              <div>
+                <div style={{fontSize:14,fontWeight:600,color:"#374151",marginBottom:4}}>
+                  Statut actuel : <span style={{color: boostEnabled?"#16a34a":"#dc2626",fontWeight:800}}>{boostEnabled ? "Activé ✓" : "Désactivé ✕"}</span>
+                </div>
+                <div style={{fontSize:12,color:"#94a3b8"}}>
+                  {boostEnabled ? "Le bouton est visible dans le menu de chaque utilisateur connecté." : "Le bouton est masqué sur toute la plateforme."}
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  const next = !boostEnabled;
+                  setBoostEnabled(next);
+                  localStorage.setItem("lz_boost_enabled", next ? "1" : "0");
+                }}
+                style={{
+                  padding:"10px 22px",borderRadius:10,border:"none",cursor:"pointer",
+                  fontWeight:700,fontSize:14,transition:"all .2s",
+                  background: boostEnabled ? "#fee2e2" : "#dcfce7",
+                  color: boostEnabled ? "#dc2626" : "#16a34a",
+                  flexShrink:0,
+                }}>
+                {boostEnabled ? "Désactiver" : "Activer"}
               </button>
             </div>
           </div>

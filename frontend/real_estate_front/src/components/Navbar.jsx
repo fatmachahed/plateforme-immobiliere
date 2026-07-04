@@ -280,7 +280,9 @@ export default function Navbar() {
                         <Link to="/compte?tab=annonces&statut=approuvee"  className="lz-nav__dd-item"><LayoutDashboard size={14} /> Mes annonces</Link>
                         <Link to="/compte?tab=contacts"  className="lz-nav__dd-item"><Bell size={14} /> Demandes reçues</Link>
                         <Link to="/compte?tab=favoris"   className="lz-nav__dd-item"><Heart size={14} /> Mes favoris</Link>
-                        <Link to="/booster" className="lz-nav__dd-item" style={{color:"#b45309",fontWeight:700}}><Zap size={14} style={{color:"#f59e0b"}}/> Booster mes annonces</Link>
+                        {(()=>{ try{ return localStorage.getItem("lz_boost_enabled") !== "0"; }catch{ return true; } })() && (
+                          <Link to="/booster" className="lz-nav__dd-item" style={{color:"#b45309",fontWeight:700}}><Zap size={14} style={{color:"#f59e0b"}}/> Booster mes annonces</Link>
+                        )}
                         {user?.role === "agence" && (
                           <Link to="/compte?tab=equipe"  className="lz-nav__dd-item"><Users size={14} /> Mon équipe</Link>
                         )}
