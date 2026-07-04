@@ -1640,6 +1640,125 @@ export default function AdminDashboard() {
             );
           })()}
 
+          {/* ─── TAB: Paramètres ─── */}
+          {tab === "parametres" && (
+            <div style={{maxWidth:760,margin:"0 auto",fontFamily:"'Inter',system-ui,sans-serif"}}>
+              {/* Bloc limites annonces */}
+              <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:16,padding:"28px 32px",boxShadow:"0 1px 6px rgba(0,0,0,.04)",marginBottom:24}}>
+                <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:24,paddingBottom:16,borderBottom:"1px solid #f1f5f9"}}>
+                  <div style={{width:40,height:40,borderRadius:12,background:"#eef2ff",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    <ShieldAlert size={20} color="#6366f1"/>
+                  </div>
+                  <div>
+                    <h2 style={{fontSize:16,fontWeight:800,color:"#0f172a",margin:0}}>Limites d'annonces actives par profil</h2>
+                    <p style={{fontSize:12,color:"#64748b",margin:"3px 0 0"}}>
+                      Nombre maximum d'annonces <strong>en cours</strong> (approuvées + en attente) par utilisateur selon son profil.
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{display:"flex",flexDirection:"column",gap:14}}>
+                  {[
+                    { role:"particulier", label:"Particulier",          desc:"Compte standard sans abonnement",        color:"#475569", bg:"#f1f5f9" },
+                    { role:"agence",      label:"Agence / Agent",        desc:"Compte agence ou agent immobilier",      color:"#6366f1", bg:"#eef2ff" },
+                    { role:"promoteur",   label:"Promoteur immobilier",  desc:"Compte promoteur immobilier",           color:"#7c3aed", bg:"#ede9fe" },
+                    { role:"partenaire",  label:"Partenaire",            desc:"Partenaire commercial certifié",        color:"#0284c7", bg:"#e0f2fe" },
+                    { role:"admin",       label:"Administrateur",        desc:"Aucune limite effective (>999)",        color:"#dc2626", bg:"#fee2e2" },
+                  ].map(({ role, label, desc, color, bg }) => (
+                    <div key={role} style={{display:"flex",alignItems:"center",gap:16,padding:"14px 18px",background:"#f8fafc",borderRadius:12,border:"1px solid #e2e8f0"}}>
+                      <div style={{flexShrink:0,width:32,height:32,borderRadius:8,background:bg,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                        <span style={{fontSize:14,fontWeight:900,color}}>{label.charAt(0)}</span>
+                      </div>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:13.5,fontWeight:700,color:"#0f172a"}}>{label}</div>
+                        <div style={{fontSize:11,color:"#94a3b8",marginTop:2}}>{desc}</div>
+                      </div>
+                      <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+                        <label style={{fontSize:11,fontWeight:700,color:"#64748b",whiteSpace:"nowrap"}}>Max annonces</label>
+                        <input
+                          type="number" min={0} max={9999}
+                          value={quotas[role] ?? DEFAULT_QUOTAS[role]}
+                          onChange={e => setQuotas(prev => ({ ...prev, [role]: Math.max(0, parseInt(e.target.value) || 0) }))}
+                          style={{width:72,padding:"6px 10px",borderRadius:8,border:"1.5px solid #c7d2fe",fontFamily:"inherit",fontSize:14,fontWeight:700,color:"#374151",textAlign:"center",outline:"none"}}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{marginTop:20,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
+                  <p style={{fontSize:11.5,color:"#94a3b8",margin:0,display:"flex",alignItems:"center",gap:6}}>
+                    <AlertTriangle size={13} color="#f59e0b"/>
+                    Ces limites sont appliquées côté client. Pour une sécurité maximale, configurez aussi côté serveur.
+                  </p>
+                  <button
+                    onClick={() => saveQuotas({...quotas})}
+                    style={{
+                      display:"flex",alignItems:"center",gap:8,
+                      padding:"10px 22px",borderRadius:10,border:"none",
+                      background: quotasSaved ? "#22c55e" : "#6366f1",
+                      color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer",
+                      transition:"background .3s",
+                    }}>
+                    {quotasSaved ? <><Check size={15}/> Sauvegardé !</> : <><Save size={15}/> Enregistrer</>}
+                  </button>
+                </div>
+              </div>
+
+              {/* Bloc Boost */}
+              <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:16,padding:"24px 32px",boxShadow:"0 1px 6px rgba(0,0,0,.04)",marginBottom:24}}>
+                <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20,paddingBottom:16,borderBottom:"1px solid #f1f5f9"}}>
+                  <div style={{width:40,height:40,borderRadius:12,background:"#fefce8",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    <span style={{fontSize:20}}>⚡</span>
+                  </div>
+                  <div>
+                    <h2 style={{fontSize:16,fontWeight:800,color:"#0f172a",margin:0}}>Bouton Booster mes annonces</h2>
+                    <p style={{fontSize:12,color:"#64748b",margin:"3px 0 0"}}>Afficher ou masquer l'option "Booster mes annonces" dans le menu utilisateur.</p>
+                  </div>
+                </div>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:16}}>
+                  <div>
+                    <div style={{fontSize:14,fontWeight:600,color:"#374151",marginBottom:4}}>
+                      Statut actuel : <span style={{color: boostEnabled?"#16a34a":"#dc2626",fontWeight:800}}>{boostEnabled ? "Activé ✓" : "Désactivé ✕"}</span>
+                    </div>
+                    <div style={{fontSize:12,color:"#94a3b8"}}>
+                      {boostEnabled ? "Le bouton est visible dans le menu de chaque utilisateur connecté." : "Le bouton est masqué sur toute la plateforme."}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const next = !boostEnabled;
+                      setBoostEnabled(next);
+                      localStorage.setItem("lz_boost_enabled", next ? "1" : "0");
+                    }}
+                    style={{
+                      padding:"10px 22px",borderRadius:10,border:"none",cursor:"pointer",
+                      fontWeight:700,fontSize:14,transition:"all .2s",
+                      background: boostEnabled ? "#fee2e2" : "#dcfce7",
+                      color: boostEnabled ? "#dc2626" : "#16a34a",
+                      flexShrink:0,
+                    }}>
+                    {boostEnabled ? "Désactiver" : "Activer"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Résumé des quotas actuels */}
+              <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:12,padding:"14px 18px"}}>
+                <p style={{fontSize:12,fontWeight:700,color:"#15803d",margin:"0 0 10px",display:"flex",alignItems:"center",gap:6}}>
+                  <CheckCircle size={14}/> Configuration active
+                </p>
+                <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                  {Object.entries(quotas).map(([role,val]) => (
+                    <span key={role} style={{padding:"4px 12px",borderRadius:20,background:"#fff",border:"1px solid #bbf7d0",fontSize:12,fontWeight:600,color:"#374151"}}>
+                      {role} : <strong style={{color:"#16a34a"}}>{val}</strong>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
         </main>
       </div>
 
@@ -1827,8 +1946,8 @@ export default function AdminDashboard() {
         );
       })()}
 
-      {/* ─── TAB: Paramètres ─── */}
-      {tab === "parametres" && (
+      {/* ─── (ancien bloc paramètres supprimé — maintenant dans adm-main) ─── */}
+      {false && (
         <div style={{maxWidth:760,margin:"0 auto",fontFamily:"'Inter',system-ui,sans-serif"}}>
           {/* Bloc limites annonces */}
           <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:16,padding:"28px 32px",boxShadow:"0 1px 6px rgba(0,0,0,.04)",marginBottom:24}}>
