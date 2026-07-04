@@ -65,15 +65,6 @@ export default defineConfig({
             purpose: 'maskable',
           },
         ],
-        screenshots: [
-          {
-            src: '/screenshots/mobile-home.png',
-            sizes: '390x844',
-            type: 'image/png',
-            form_factor: 'narrow',
-            label: 'Page d\'accueil Localizi',
-          },
-        ],
       },
       workbox: {
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB
