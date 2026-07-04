@@ -50,6 +50,9 @@ export default function AdminDashboard() {
   const [boostEnabled, setBoostEnabled] = useState(() => {
     try { return localStorage.getItem("lz_boost_enabled") !== "0"; } catch { return true; }
   });
+  const [poiEnabled, setPoiEnabled] = useState(() => {
+    try { return localStorage.getItem("lz_poi_enabled") !== "0"; } catch { return true; }
+  });
   const saveQuotas = (next) => {
     setQuotas(next);
     localStorage.setItem("lz_quotas", JSON.stringify(next));
@@ -1739,6 +1742,44 @@ export default function AdminDashboard() {
                       flexShrink:0,
                     }}>
                     {boostEnabled ? "Désactiver" : "Activer"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Bloc POI / Lieux */}
+              <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:16,padding:"24px 32px",boxShadow:"0 1px 6px rgba(0,0,0,.04)",marginBottom:24}}>
+                <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20,paddingBottom:16,borderBottom:"1px solid #f1f5f9"}}>
+                  <div style={{width:40,height:40,borderRadius:12,background:"#eff6ff",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    <MapPin size={20} color="#3b82f6"/>
+                  </div>
+                  <div>
+                    <h2 style={{fontSize:16,fontWeight:800,color:"#0f172a",margin:0}}>Bouton Lieux (couche POI)</h2>
+                    <p style={{fontSize:12,color:"#64748b",margin:"3px 0 0"}}>Afficher ou masquer les boutons Écoles, Mosquées, Facultés, Grandes surfaces, Hôpitaux sur la carte et dans les détails d'annonce.</p>
+                  </div>
+                </div>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:16}}>
+                  <div>
+                    <div style={{fontSize:14,fontWeight:600,color:"#374151",marginBottom:4}}>
+                      Statut actuel : <span style={{color: poiEnabled?"#16a34a":"#dc2626",fontWeight:800}}>{poiEnabled ? "Activé ✓" : "Désactivé ✕"}</span>
+                    </div>
+                    <div style={{fontSize:12,color:"#94a3b8"}}>
+                      {poiEnabled ? "Les boutons de lieux sont visibles sur la carte et dans les popups d'annonces." : "Les boutons de lieux sont masqués sur toute la plateforme."}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const next = !poiEnabled;
+                      setPoiEnabled(next);
+                      localStorage.setItem("lz_poi_enabled", next ? "1" : "0");
+                    }}
+                    style={{
+                      padding:"10px 22px",borderRadius:10,border:"none",cursor:"pointer",
+                      fontWeight:700,fontSize:14,transition:"all .2s",
+                      background: poiEnabled ? "#fee2e2" : "#dcfce7",
+                      color: poiEnabled ? "#dc2626" : "#16a34a",
+                      flexShrink:0,
+                    }}>
+                    {poiEnabled ? "Désactiver" : "Activer"}
                   </button>
                 </div>
               </div>

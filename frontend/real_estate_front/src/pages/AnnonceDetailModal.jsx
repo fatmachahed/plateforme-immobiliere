@@ -1494,16 +1494,16 @@ function BigMap({lat,lng}){
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8,padding:"10px 16px",borderBottom:"1px solid #f1f5f9",background:"#fafafa",position:"relative",zIndex:1001}}>
 
         {/* Desktop: boutons POI inline */}
-        <div className="bm-poi-desktop" style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
+        {(()=>{ try{ return localStorage.getItem("lz_poi_enabled") !== "0"; }catch{ return true; } })() && <div className="bm-poi-desktop" style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
           {livePOIs.loading&&<span style={{fontSize:11,color:"#94a3b8",fontWeight:600}}>Chargement…</span>}
           {POI_ITEMS.map(({key,show,set,color,svg,label,data})=>(
             <button key={key} style={btnStyle(show,color)} onClick={()=>set(v=>!v)} disabled={livePOIs.loading}>
               <BmPoiSvg path={svg}/> {label} {livePOIs.fetched?`(${data.length})`:""}</button>
           ))}
-        </div>
+        </div>}
 
         {/* Mobile: bouton dropdown compact + M'y rendre côte à côte */}
-        <div className="bm-poi-mobile" style={{display:"none",position:"relative",alignItems:"center",gap:6,flex:1}}>
+        {(()=>{ try{ return localStorage.getItem("lz_poi_enabled") !== "0"; }catch{ return true; } })() && <div className="bm-poi-mobile" style={{display:"none",position:"relative",alignItems:"center",gap:6,flex:1}}>
           <button onClick={()=>setShowPoiMenu(v=>!v)} style={{display:"flex",alignItems:"center",gap:4,padding:"5px 10px",borderRadius:20,border:"1px solid #e2e8f0",background:"#fff",cursor:"pointer",fontFamily:"inherit",fontSize:11,fontWeight:700,color:"#374151"}}>
             Lieux {showPoiMenu?"▲":"▼"}
           </button>
@@ -1524,7 +1524,7 @@ function BigMap({lat,lng}){
               ))}
             </div>
           )}
-        </div>
+        </div>}
 
         {/* Desktop: M'y rendre dans le header */}
         <a className="bm-nav-desktop" href={navLink} target="_blank" rel="noopener noreferrer" style={{display:"inline-flex",alignItems:"center",gap:7,padding:"8px 18px",borderRadius:20,textDecoration:"none",background:"#6366f1",color:"#fff",fontSize:13,fontWeight:700,boxShadow:"0 2px 8px rgba(99,102,241,.3)",whiteSpace:"nowrap"}}>

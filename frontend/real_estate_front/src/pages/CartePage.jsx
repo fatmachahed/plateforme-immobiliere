@@ -1601,7 +1601,7 @@ function FilterPanel({ filters, onChange, onSaveSearch, showSchools, showMosques
 
         <div style={{ display:"flex", gap:8, marginLeft:"auto", alignItems:"center" }}>
           {/* Couche data — menu déroulant multi-choix des POI à afficher sur la carte */}
-          <div className="fp__layers">
+          {(()=>{ try{ return localStorage.getItem("lz_poi_enabled") !== "0"; }catch{ return true; } })() && <div className="fp__layers">
             <button
               ref={layersBtnRef}
               className={`fp__adv-btn${activeLayers>0?" fp__adv-btn--on":""}`}
@@ -1639,7 +1639,7 @@ function FilterPanel({ filters, onChange, onSaveSearch, showSchools, showMosques
               })(),
               document.body
             )}
-          </div>
+          </div>}
 
           {/* Filtres avancés */}
           <button className={`fp__adv-btn${advanced?" fp__adv-btn--on":""}`} onClick={()=>setAdvanced(!advanced)}>
