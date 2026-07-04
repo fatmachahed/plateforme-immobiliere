@@ -274,7 +274,7 @@ export default function QuiSommesNous() {
           margin: 0 auto 16px;
         }
         .qsn-free__grid {
-          display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          display: grid; grid-template-columns: repeat(5, 1fr);
           gap: 16px; margin-bottom: 40px;
         }
         .qsn-free-card {
@@ -359,6 +359,7 @@ export default function QuiSommesNous() {
           .qsn-hero { min-height: 320px; }
         }
         @media (max-width: 860px) {
+          .qsn-free__grid { grid-template-columns: repeat(2, 1fr) !important; }
           .qsn-section { padding: 36px 0 !important; }
           .qsn-section__head { margin-bottom: 24px !important; }
           .qsn-value-card__head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }

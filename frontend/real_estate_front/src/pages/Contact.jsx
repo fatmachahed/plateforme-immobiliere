@@ -236,7 +236,7 @@ export default function Contact() {
 
                         <button type="submit" className="ct-submit" disabled={sending}>
                           <Send size={16} strokeWidth={1.8}/>
-                          {sending ? "Envoi en cours…" : "Envoyer le message"}
+                          {sending ? "Envoi en cours…" : "Envoyer le message directement"}
                         </button>
 
                         <div style={{display:"flex",gap:10,marginTop:4,flexWrap:"nowrap"}}>

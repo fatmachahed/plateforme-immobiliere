@@ -7,7 +7,7 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   Search, MapPin, Home, TrendingUp, Shield, Clock, Star,
   ArrowRight, Bed, Bath, Maximize, Zap, CheckCircle,
-  Building2, Trees, ChevronRight, ChevronLeft, Play, Car, Users, Moon, Heart, X
+  Building2, Trees, ChevronRight, ChevronLeft, Play, Car, Users, Moon, Heart, X, Download, Smartphone, Wifi
 } from "lucide-react";
 import ReactDOM from "react-dom";
 import Navbar from "../components/Navbar";
@@ -451,6 +451,13 @@ export default function HomePage() {
   const { gouvernorats: apiGouvernorats } = useLocalisation({ gouvernorat:"", delegation:"", localite:"" });
   const [recentAnnonces, setRecentAnnonces] = useState([]);
   const [modalId, setModalId] = useState(null);
+
+  /* Capture PWA install prompt */
+  useEffect(() => {
+    const handler = (e) => { e.preventDefault(); window._lzInstallPrompt = e; };
+    window.addEventListener("beforeinstallprompt", handler);
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
 
   /* Scroll reveal animations */
   useEffect(() => {
@@ -965,6 +972,101 @@ export default function HomePage() {
                 <span className="hp-help-card__cta">Signaler <ArrowRight size={16}/></span>
               </Link>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Section Télécharger l'application ── */}
+      <section className="hp-install-section">
+        <div className="hp-install-inner">
+          {/* Gauche : texte */}
+          <div className="hp-install-content">
+            {/* Logo + nom */}
+            <div className="hp-install-brand">
+              <div className="hp-install-logo">
+                <svg width="32" height="32" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <defs>
+                    <linearGradient id="pin-g2" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#6366f1"/>
+                      <stop offset="100%" stopColor="#4338ca"/>
+                    </linearGradient>
+                  </defs>
+                  <path d="M16 2C9.92 2 5 6.92 5 13C5 21.5 16 38 16 38C16 38 27 21.5 27 13C27 6.92 22.08 2 16 2Z" fill="url(#pin-g2)" stroke="white" strokeWidth="2.5" strokeLinejoin="round" paintOrder="stroke"/>
+                  <circle cx="16" cy="13" r="6" fill="white"/>
+                  <path d="M13 16V12.8L16 10.5L19 12.8V16H17.2V14.2H14.8V16H13Z" fill="#4f46e5"/>
+                </svg>
+              </div>
+              <span className="hp-install-appname">Localizi.tn</span>
+              <span className="hp-install-badge">Application</span>
+            </div>
+
+            <h2 className="hp-install-title">
+              Emportez Localizi<br/>partout avec vous
+            </h2>
+            <p className="hp-install-desc">
+              Installez l'application directement sur votre téléphone — sans passer par un store. Accédez à toutes vos annonces, la carte interactive et vos favoris même en déplacement.
+            </p>
+
+            {/* Avantages */}
+            <ul className="hp-install-perks">
+              <li><CheckCircle size={15} color="#6366f1"/><span>Accès rapide depuis l'écran d'accueil</span></li>
+              <li><Wifi size={15} color="#6366f1"/><span>Expérience fluide, comme une app native</span></li>
+              <li><Smartphone size={15} color="#6366f1"/><span>Compatible iOS et Android</span></li>
+            </ul>
+
+            {/* CTA */}
+            <div className="hp-install-ctas">
+              <button
+                className="hp-install-btn hp-install-btn--primary"
+                onClick={() => {
+                  if (window._lzInstallPrompt) {
+                    window._lzInstallPrompt.prompt();
+                  } else {
+                    // Guide manuel si pas de prompt natif
+                    alert("Pour installer : appuyez sur le menu de votre navigateur, puis "Ajouter à l'écran d'accueil" ou "Installer l'application".");
+                  }
+                }}
+              >
+                <Download size={16}/>
+                Installer l'application
+              </button>
+              <div className="hp-install-hint">
+                <span>📱 iOS : Menu → Partager → Sur l'écran d'accueil</span>
+                <span>🤖 Android : Menu ⋮ → Installer l'application</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Droite : illustration mockup téléphone */}
+          <div className="hp-install-visual">
+            <div className="hp-install-phone">
+              <div className="hp-install-phone__notch"/>
+              <div className="hp-install-phone__screen">
+                {/* Mini aperçu de l'app */}
+                <div style={{background:"#6366f1",padding:"10px 12px",display:"flex",alignItems:"center",gap:8}}>
+                  <svg width="16" height="16" viewBox="0 0 44 44" fill="none">
+                    <path d="M16 2C9.92 2 5 6.92 5 13C5 21.5 16 38 16 38C16 38 27 21.5 27 13C27 6.92 22.08 2 16 2Z" fill="white"/>
+                    <circle cx="16" cy="13" r="5" fill="#4f46e5"/>
+                  </svg>
+                  <span style={{color:"#fff",fontWeight:800,fontSize:13,fontFamily:"inherit"}}>LOCALIZI.TN</span>
+                </div>
+                <div style={{background:"#f8fafc",flex:1,padding:"10px 10px",display:"flex",flexDirection:"column",gap:8}}>
+                  {[1,2,3].map(i=>(
+                    <div key={i} style={{background:"#fff",borderRadius:10,padding:"10px 10px",display:"flex",gap:8,alignItems:"center",boxShadow:"0 1px 4px rgba(0,0,0,.06)"}}>
+                      <div style={{width:44,height:44,borderRadius:8,background:`hsl(${220+i*30},70%,92%)`,flexShrink:0}}/>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{height:8,background:"#e2e8f0",borderRadius:4,marginBottom:5,width:"80%"}}/>
+                        <div style={{height:7,background:"#e2e8f0",borderRadius:4,width:"55%"}}/>
+                        <div style={{height:6,background:"#6366f1",borderRadius:4,width:"40%",marginTop:6}}/>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            {/* Cercles déco */}
+            <div className="hp-install-deco hp-install-deco--1"/>
+            <div className="hp-install-deco hp-install-deco--2"/>
           </div>
         </div>
       </section>
@@ -1685,6 +1787,101 @@ export default function HomePage() {
           .hp-stats-title { font-size: 21px; line-height: 1.2; }
           .hp-stats-desc { font-size: 13.5px; max-width: 320px; }
           .hp-stat-card { padding: 26px 16px 24px; }
+        }
+
+        /* ── PWA INSTALL SECTION ── */
+        .hp-install-section {
+          background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #312e81 100%);
+          padding: 80px 0; overflow: hidden; position: relative;
+        }
+        .hp-install-inner {
+          max-width: 1160px; margin: 0 auto; padding: 0 32px;
+          display: flex; align-items: center; gap: 64px;
+        }
+        .hp-install-content { flex: 1; min-width: 0; }
+        .hp-install-brand {
+          display: flex; align-items: center; gap: 10px; margin-bottom: 20px;
+        }
+        .hp-install-logo {
+          width: 44px; height: 44px; border-radius: 12px;
+          background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2);
+          display: flex; align-items: center; justify-content: center;
+        }
+        .hp-install-appname {
+          font-size: 15px; font-weight: 800; color: #fff; letter-spacing: -.01em;
+        }
+        .hp-install-badge {
+          background: rgba(99,102,241,.4); border: 1px solid rgba(165,180,252,.35);
+          border-radius: 20px; padding: 2px 10px;
+          font-size: 11px; font-weight: 700; color: #a5b4fc;
+        }
+        .hp-install-title {
+          font-size: 38px; font-weight: 900; color: #fff;
+          line-height: 1.15; margin: 0 0 16px; letter-spacing: -.02em;
+        }
+        .hp-install-desc {
+          font-size: 15px; color: rgba(255,255,255,.68); line-height: 1.7;
+          margin: 0 0 24px; max-width: 480px;
+        }
+        .hp-install-perks {
+          list-style: none; margin: 0 0 28px; padding: 0;
+          display: flex; flex-direction: column; gap: 10px;
+        }
+        .hp-install-perks li {
+          display: flex; align-items: center; gap: 10px;
+          font-size: 14px; color: rgba(255,255,255,.8); font-weight: 500;
+        }
+        .hp-install-ctas { display: flex; flex-direction: column; gap: 14px; }
+        .hp-install-btn {
+          display: inline-flex; align-items: center; gap: 10px;
+          border: none; cursor: pointer; font-family: inherit;
+          font-weight: 800; font-size: 15px; border-radius: 14px;
+          padding: 14px 28px; transition: transform .15s, box-shadow .15s;
+          width: fit-content;
+        }
+        .hp-install-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,.35); }
+        .hp-install-btn--primary { background: #fff; color: #0f172a; }
+        .hp-install-hint {
+          display: flex; flex-direction: column; gap: 4px;
+        }
+        .hp-install-hint span {
+          font-size: 12px; color: rgba(255,255,255,.45); font-weight: 500;
+        }
+        /* Mockup téléphone */
+        .hp-install-visual {
+          flex-shrink: 0; position: relative; width: 220px; height: 420px;
+        }
+        .hp-install-phone {
+          width: 200px; height: 400px; border-radius: 36px;
+          background: #1e293b; border: 6px solid rgba(255,255,255,.15);
+          overflow: hidden; display: flex; flex-direction: column;
+          box-shadow: 0 24px 64px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.06);
+          position: relative; z-index: 1;
+        }
+        .hp-install-phone__notch {
+          position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+          width: 60px; height: 20px; background: #0f172a; border-radius: 0 0 14px 14px;
+          z-index: 2;
+        }
+        .hp-install-phone__screen {
+          flex: 1; display: flex; flex-direction: column; margin-top: 20px;
+          overflow: hidden; font-family: 'Inter', system-ui, sans-serif;
+        }
+        .hp-install-deco {
+          position: absolute; border-radius: 50%;
+          background: rgba(99,102,241,.2); pointer-events: none;
+        }
+        .hp-install-deco--1 { width: 160px; height: 160px; top: -40px; right: -40px; }
+        .hp-install-deco--2 { width: 100px; height: 100px; bottom: -20px; left: -20px; background: rgba(59,130,246,.15); }
+
+        @media (max-width: 860px) {
+          .hp-install-section { padding: 52px 0; }
+          .hp-install-inner { flex-direction: column; gap: 36px; padding: 0 20px; }
+          .hp-install-title { font-size: 26px; }
+          .hp-install-desc { font-size: 13.5px; max-width: 100%; }
+          .hp-install-visual { width: 170px; height: 340px; }
+          .hp-install-phone { width: 158px; height: 316px; border-radius: 28px; }
+          .hp-install-btn { font-size: 14px; padding: 12px 22px; }
         }
       `}</style>
     </div>
