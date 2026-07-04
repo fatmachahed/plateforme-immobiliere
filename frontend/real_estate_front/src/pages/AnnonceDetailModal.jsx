@@ -1060,7 +1060,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
         )}
 
         {/* ── Trouver un prestataire ── */}
-        <div style={{maxWidth:1200,margin:"0 auto 32px",padding:"0 24px"}}>
+        <div className="lz-prest-wrap" style={{maxWidth:1200,margin:"0 auto 32px",padding:"0 24px"}}>
           <div style={{
             background:"linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #1e40af 100%)",
             borderRadius:20,overflow:"hidden",position:"relative",
@@ -1070,9 +1070,9 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
             <div style={{position:"absolute",bottom:-30,left:-20,width:120,height:120,borderRadius:"50%",background:"rgba(59,130,246,.15)",pointerEvents:"none"}}/>
             <div style={{position:"absolute",top:"50%",right:160,transform:"translateY(-50%)",width:60,height:60,borderRadius:"50%",background:"rgba(255,255,255,.06)",pointerEvents:"none"}}/>
 
-            <div style={{position:"relative",padding:"28px 32px",display:"flex",alignItems:"center",gap:24,flexWrap:"wrap"}}>
+            <div className="lz-prest-inner" style={{position:"relative",padding:"28px 32px",display:"flex",alignItems:"center",gap:24,flexWrap:"wrap"}}>
               {/* Icône */}
-              <div style={{
+              <div className="lz-prest-icon" style={{
                 flexShrink:0,width:60,height:60,borderRadius:18,
                 background:"rgba(255,255,255,.12)",
                 backdropFilter:"blur(8px)",
@@ -1085,7 +1085,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
               </div>
 
               {/* Texte */}
-              <div style={{flex:1,minWidth:0}}>
+              <div className="lz-prest-text" style={{flex:1,minWidth:0}}>
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,flexWrap:"wrap"}}>
                   <span style={{fontSize:18,fontWeight:800,color:"#fff",letterSpacing:"-.02em",lineHeight:1.2}}>
                     Besoin d'un professionnel ?
@@ -1129,6 +1129,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
 
               {/* Bouton CTA */}
               <a
+                className="lz-prest-cta"
                 href="/trouver-un-prestataire"
                 onClick={e=>{ e.preventDefault(); window.location.href="/trouver-un-prestataire"; }}
                 style={{
@@ -1478,6 +1479,12 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
             /* Specs (Chambres/Sdb/m²) : toujours 3 colonnes égales, taille fixe */
             .det-specs { display:grid !important; grid-template-columns:repeat(3,1fr) !important; gap:6px !important; }
             .det-spec { margin-right:0 !important; flex:unset !important; width:auto !important; aspect-ratio:1 !important; }
+            /* Section prestataire : layout mobile */
+            .lz-prest-wrap { padding:0 8px !important; margin-bottom:20px !important; }
+            .lz-prest-inner { padding:18px 16px !important; flex-direction:column !important; align-items:flex-start !important; gap:12px !important; }
+            .lz-prest-icon { width:44px !important; height:44px !important; border-radius:12px !important; }
+            .lz-prest-text { width:100% !important; flex:unset !important; }
+            .lz-prest-cta { width:100% !important; justify-content:center !important; padding:12px 16px !important; box-sizing:border-box !important; }
           }
         `}</style>
         {modalContent}
