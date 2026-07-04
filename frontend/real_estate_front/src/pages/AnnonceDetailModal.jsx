@@ -1059,6 +1059,102 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
           </div>
         )}
 
+        {/* ── Trouver un prestataire ── */}
+        <div style={{maxWidth:1200,margin:"0 auto 32px",padding:"0 24px"}}>
+          <div style={{
+            background:"linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #1e40af 100%)",
+            borderRadius:20,overflow:"hidden",position:"relative",
+          }}>
+            {/* Cercles décoratifs */}
+            <div style={{position:"absolute",top:-40,right:-40,width:180,height:180,borderRadius:"50%",background:"rgba(99,102,241,.18)",pointerEvents:"none"}}/>
+            <div style={{position:"absolute",bottom:-30,left:-20,width:120,height:120,borderRadius:"50%",background:"rgba(59,130,246,.15)",pointerEvents:"none"}}/>
+            <div style={{position:"absolute",top:"50%",right:160,transform:"translateY(-50%)",width:60,height:60,borderRadius:"50%",background:"rgba(255,255,255,.06)",pointerEvents:"none"}}/>
+
+            <div style={{position:"relative",padding:"28px 32px",display:"flex",alignItems:"center",gap:24,flexWrap:"wrap"}}>
+              {/* Icône */}
+              <div style={{
+                flexShrink:0,width:60,height:60,borderRadius:18,
+                background:"rgba(255,255,255,.12)",
+                backdropFilter:"blur(8px)",
+                border:"1px solid rgba(255,255,255,.2)",
+                display:"flex",alignItems:"center",justifyContent:"center",
+              }}>
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                </svg>
+              </div>
+
+              {/* Texte */}
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,flexWrap:"wrap"}}>
+                  <span style={{fontSize:18,fontWeight:800,color:"#fff",letterSpacing:"-.02em",lineHeight:1.2}}>
+                    Besoin d'un professionnel ?
+                  </span>
+                  <span style={{
+                    background:"rgba(99,102,241,.35)",border:"1px solid rgba(165,180,252,.4)",
+                    borderRadius:20,padding:"2px 10px",fontSize:11,fontWeight:700,color:"#a5b4fc",
+                    whiteSpace:"nowrap",
+                  }}>
+                    Nouveau
+                  </span>
+                </div>
+                <p style={{
+                  margin:0,fontSize:13,color:"rgba(255,255,255,.72)",lineHeight:1.6,
+                  maxWidth:520,
+                }}>
+                  Architectes, décorateurs, plombiers, électriciens… Trouvez le prestataire idéal pour vos travaux, rénovations ou aménagements.
+                </p>
+
+                {/* Badges prestataires */}
+                <div style={{display:"flex",gap:8,marginTop:12,flexWrap:"wrap"}}>
+                  {[
+                    {icon:"🏗️", label:"Travaux"},
+                    {icon:"🎨", label:"Décoration"},
+                    {icon:"⚡", label:"Électricité"},
+                    {icon:"🔧", label:"Plomberie"},
+                    {icon:"🏡", label:"Architecture"},
+                  ].map(b => (
+                    <span key={b.label} style={{
+                      display:"flex",alignItems:"center",gap:4,
+                      background:"rgba(255,255,255,.1)",
+                      border:"1px solid rgba(255,255,255,.15)",
+                      borderRadius:20,padding:"3px 10px",
+                      fontSize:11,fontWeight:600,color:"rgba(255,255,255,.85)",
+                    }}>
+                      {b.icon} {b.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Bouton CTA */}
+              <a
+                href="/trouver-un-prestataire"
+                onClick={e=>{ e.preventDefault(); window.location.href="/trouver-un-prestataire"; }}
+                style={{
+                  flexShrink:0,display:"inline-flex",alignItems:"center",gap:9,
+                  background:"#fff",color:"#0f172a",
+                  padding:"13px 24px",borderRadius:14,
+                  fontSize:14,fontWeight:800,textDecoration:"none",
+                  boxShadow:"0 4px 20px rgba(0,0,0,.25)",
+                  whiteSpace:"nowrap",
+                  transition:"transform .15s, box-shadow .15s",
+                }}
+                onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 8px 28px rgba(0,0,0,.3)";}}
+                onMouseLeave={e=>{e.currentTarget.style.transform="";e.currentTarget.style.boxShadow="0 4px 20px rgba(0,0,0,.25)";}}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                </svg>
+                Trouver un prestataire
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0f172a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+              </a>
+            </div>
+          </div>
+        </div>
+
         {/* Footer */}
         <Footer/>
 
