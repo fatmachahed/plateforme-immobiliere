@@ -1023,7 +1023,7 @@ export default function HomePage() {
                     window._lzInstallPrompt.prompt();
                   } else {
                     // Guide manuel si pas de prompt natif
-                    alert("Pour installer : appuyez sur le menu de votre navigateur, puis "Ajouter à l'écran d'accueil" ou "Installer l'application".");
+                    alert("Pour installer : appuyez sur le menu de votre navigateur, puis 'Ajouter à l\'écran d\'accueil' ou 'Installer l\'application'.");
                   }
                 }}
               >
