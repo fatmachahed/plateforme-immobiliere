@@ -1676,6 +1676,7 @@ function FilterPanel({ filters, onChange, onSaveSearch, showSchools, showMosques
 
         {/* Overlays POI — boutons cliquables (desktop uniquement ; sur mobile c'est le menu "Couche data") */}
         {/* POI désactivés si aucun gouvernorat sélectionné — la recherche Overpass nécessite une bbox limitée */}
+        {(()=>{ try{ return localStorage.getItem("lz_poi_enabled") !== "0"; }catch{ return true; } })() && (
         <div className="fp__poi-group">
           {!local.govNom && (
             <div style={{fontSize:11,color:"#94a3b8",fontStyle:"italic",padding:"4px 2px"}}>
@@ -1708,6 +1709,7 @@ function FilterPanel({ filters, onChange, onSaveSearch, showSchools, showMosques
             {showHospitals && !poiLoading && <span className="fp__poi-count">{liveHospitalCount}</span>}
           </button>
         </div>
+        )}
       </div>
 
       {/* -- Filtres avancés -- */}
