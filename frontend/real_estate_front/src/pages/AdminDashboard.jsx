@@ -543,8 +543,8 @@ export default function AdminDashboard() {
             <button className="adm-refresh" onClick={loadAll}><RefreshCw size={15}/></button>
           </div>
 
-          {/* Global stats row */}
-          {stats && (
+          {/* Global stats row — masqué sur l'onglet paramètres */}
+          {stats && tab !== "parametres" && (
             <div className="adm-stats">
               {STAT_CARDS.map(s => (
                 <div key={s.label} className={`adm-stat ${s.cls}`}
