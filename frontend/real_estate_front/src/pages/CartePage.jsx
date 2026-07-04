@@ -850,7 +850,7 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
         const cc  = catFgMap[pin.categorie] || "#475569";
         const dev = fmtDevise(pin.devise);
         const rid = pin._realId || pin.id.toString().replace("api_","");
-        return `<div style="width:460px;font-family:'Inter',system-ui,sans-serif;overflow:hidden;border-radius:2px;cursor:pointer;" onclick="if(window.__openAnnonceModal){window.__openAnnonceModal('${rid}');}else{window.location.href='/annonce/${rid}';}event.stopPropagation();">
+        return `<div style="width:min(460px,calc(100vw - 32px));max-width:calc(100vw - 32px);font-family:'Inter',system-ui,sans-serif;overflow:hidden;border-radius:2px;cursor:pointer;" onclick="if(window.__openAnnonceModal){window.__openAnnonceModal('${rid}');}else{window.location.href='/annonce/${rid}';}event.stopPropagation();">
           <div style="position:relative;height:190px;overflow:hidden;background:#f1f5f9;">
             ${img ? `<img src="${img}" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.src='https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=70'"/>` : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:48px;color:#cbd5e1;">&#127968;</div>`}
             ${pin.spotlight ? `<span style="position:absolute;bottom:8px;left:8px;background:rgba(234,88,12,.92);color:#fff;border-radius:7px;padding:3px 8px;font-size:10px;font-weight:800;backdrop-filter:blur(4px);">&#11088; &Agrave; ne pas manquer</span>` : ""}
@@ -876,7 +876,8 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
       const gid = group[0].id;
       window[`_stPrev_${gid}`] = () => { currentIdx=(currentIdx-1+count)%count; marker.setPopupContent(buildPopup()); };
       window[`_stNext_${gid}`] = () => { currentIdx=(currentIdx+1)%count;       marker.setPopupContent(buildPopup()); };
-      marker.bindPopup(buildPopup(), { maxWidth:480, closeButton:true, className:"cluster-popup", offset:L.point(0,-8), autoPan:true, autoPanPadding:[20,20] });
+      const isMob = window.innerWidth < 640;
+      marker.bindPopup(buildPopup(), { maxWidth: isMob ? window.innerWidth - 32 : 480, closeButton:true, className:"cluster-popup", offset:L.point(0,-8), autoPan:true, autoPanPadding: isMob ? [8,8] : [20,20] });
       marker.on("click", (e) => { L.DomEvent.stopPropagation(e); onPinHoverRef.current?.(null); });
     };
 
