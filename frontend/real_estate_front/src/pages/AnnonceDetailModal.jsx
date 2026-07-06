@@ -1094,55 +1094,30 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
                 </div>
               </div>
 
-              {/* Boutons CTA */}
-              <div style={{display:"flex",flexDirection:"column",gap:10,flexShrink:0}}>
-                <a
-                  href="/trouver-un-agent"
-                  onClick={e=>{e.preventDefault();window.location.href="/trouver-un-agent";}}
-                  style={{
-                    display:"inline-flex",alignItems:"center",gap:9,
-                    background:"#fff",color:"#0f172a",
-                    padding:"11px 20px",borderRadius:12,
-                    fontSize:13,fontWeight:800,textDecoration:"none",
-                    boxShadow:"0 4px 20px rgba(0,0,0,.25)",
-                    whiteSpace:"nowrap",
-                    transition:"transform .15s, box-shadow .15s",
-                  }}
-                  onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 8px 28px rgba(0,0,0,.3)";}}
-                  onMouseLeave={e=>{e.currentTarget.style.transform="";e.currentTarget.style.boxShadow="0 4px 20px rgba(0,0,0,.25)";}}
-                >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-                  </svg>
-                  Trouver un agent
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0f172a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M5 12h14M12 5l7 7-7 7"/>
-                  </svg>
-                </a>
-                <a
-                  href="/trouver-une-agence"
-                  onClick={e=>{e.preventDefault();window.location.href="/trouver-une-agence";}}
-                  style={{
-                    display:"inline-flex",alignItems:"center",gap:9,
-                    background:"rgba(255,255,255,.15)",color:"#fff",
-                    padding:"11px 20px",borderRadius:12,
-                    fontSize:13,fontWeight:700,textDecoration:"none",
-                    border:"1px solid rgba(255,255,255,.25)",
-                    whiteSpace:"nowrap",
-                    transition:"transform .15s, background .15s",
-                  }}
-                  onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.background="rgba(255,255,255,.22)";}}
-                  onMouseLeave={e=>{e.currentTarget.style.transform="";e.currentTarget.style.background="rgba(255,255,255,.15)";}}
-                >
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
-                  </svg>
-                  Trouver une agence
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M5 12h14M12 5l7 7-7 7"/>
-                  </svg>
-                </a>
-              </div>
+              {/* Bouton CTA */}
+              <a
+                href="/trouver-un-agent"
+                onClick={e=>{e.preventDefault();window.location.href="/trouver-un-agent";}}
+                style={{
+                  flexShrink:0,display:"inline-flex",alignItems:"center",gap:9,
+                  background:"#fff",color:"#0f172a",
+                  padding:"13px 20px",borderRadius:14,
+                  fontSize:13,fontWeight:800,textDecoration:"none",
+                  boxShadow:"0 4px 20px rgba(0,0,0,.25)",
+                  whiteSpace:"nowrap",
+                  transition:"transform .15s, box-shadow .15s",
+                }}
+                onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 8px 28px rgba(0,0,0,.3)";}}
+                onMouseLeave={e=>{e.currentTarget.style.transform="";e.currentTarget.style.boxShadow="0 4px 20px rgba(0,0,0,.25)";}}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+                Trouver un agent / une agence
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0f172a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+              </a>
             </div>
           </div>
         </div>
