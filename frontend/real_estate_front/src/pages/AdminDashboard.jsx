@@ -636,6 +636,7 @@ export default function AdminDashboard() {
                   <table className="adm-table">
                     <thead>
                       <tr>
+                        <th style={{width:64}}></th>
                         <th>Annonce</th><th>Propriétaire</th><th>Type / Cat.</th>
                         <th>Lieu</th><th>Prix</th><th>Statut</th><th>Date</th><th>Actions</th>
                       </tr>
@@ -643,6 +644,14 @@ export default function AdminDashboard() {
                     <tbody>
                       {filteredAnnonces.map(a => (
                         <tr key={a.id} className="adm-table__row--clickable" onClick={() => openPreview(a)}>
+                          <td style={{padding:"8px 8px 8px 12px",width:64,verticalAlign:"middle"}}>
+                            <img
+                              src={a.image_principale ? (a.image_principale.startsWith("http") ? a.image_principale : `${import.meta.env.VITE_API_URL||""}${a.image_principale}`) : "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=120&q=60"}
+                              alt=""
+                              style={{width:52,height:40,objectFit:"cover",borderRadius:6,display:"block",flexShrink:0,border:"1px solid #e5e7eb"}}
+                              onError={e=>{e.target.src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=120&q=60";}}
+                            />
+                          </td>
                           <td>
                             <p className="adm-table__title">{a.titre}</p>
                             <span className="adm-table__id">#{a.id}</span>
@@ -1343,6 +1352,7 @@ export default function AdminDashboard() {
                   <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
                     <thead>
                       <tr style={{borderBottom:"2px solid #e5e7eb",background:"#f8fafc"}}>
+                        <th style={{padding:"10px 14px",width:64}}></th>
                         {["Annonce","Propriétaire","Type","Agence A","Agence B","Agence contactée","Réponse reçue","Accompagné","Remarques"].map(h => (
                           <th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:700,color:"#374151",fontSize:11.5,textTransform:"uppercase",letterSpacing:".05em",whiteSpace:"nowrap"}}>{h}</th>
                         ))}
@@ -1365,6 +1375,14 @@ export default function AdminDashboard() {
                           <tr key={a.id} style={{borderBottom:"1px solid #f1f5f9"}}
                             onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"}
                             onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
+                            <td style={{padding:"8px 8px 8px 12px",width:64,verticalAlign:"middle"}}>
+                              <img
+                                src={a.image_principale ? (a.image_principale.startsWith("http") ? a.image_principale : `${import.meta.env.VITE_API_URL||""}${a.image_principale}`) : "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=120&q=60"}
+                                alt=""
+                                style={{width:52,height:40,objectFit:"cover",borderRadius:6,display:"block",border:"1px solid #e5e7eb"}}
+                                onError={e=>{e.target.src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=120&q=60";}}
+                              />
+                            </td>
                             <td style={{padding:"12px 14px",verticalAlign:"middle",maxWidth:220}}>
                               <a href={`/annonce/${a.id}`} target="_blank" rel="noopener noreferrer"
                                 style={{fontWeight:700,color:"#4f46e5",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"block",textDecoration:"none"}}

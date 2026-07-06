@@ -97,6 +97,7 @@ def list_annonces(
             "latitude":     prop.latitude  if prop else None,
             "longitude":    prop.longitude if prop else None,
             "address":      prop.address   if prop else None,
+            "image_principale": prop.image_principale if prop else None,
             "boost_level":    a.boost_level or 0,
             "views_count":    a.views_count  or 0,
             "description":    a.description,
