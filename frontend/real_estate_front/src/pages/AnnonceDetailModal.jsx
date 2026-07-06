@@ -1016,7 +1016,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
                 style={{display:"flex",alignItems:"center",gap:8,flexShrink:0,background:"#ef4444",color:"#fff",border:"none",cursor:"pointer",padding:"11px 24px",borderRadius:10,fontSize:13.5,fontWeight:700,fontFamily:"inherit",transition:"background .15s",whiteSpace:"nowrap"}}
                 onMouseEnter={e=>e.currentTarget.style.background="#dc2626"}
                 onMouseLeave={e=>e.currentTarget.style.background="#ef4444"}>
-                <Flag size={15} color="#fff"/><span className="adm-report-btn-full"> Signaler l'annonce</span><span className="adm-report-btn-short"> Signaler</span>
+                <Flag size={15} color="#fff"/> Signaler l'annonce
               </button>
             </div>
           </div>
