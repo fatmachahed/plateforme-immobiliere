@@ -1033,6 +1033,120 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
         )}
 
 
+        {/* ── Besoin d'un accompagnement ── */}
+        <div className="lz-prest-wrap" style={{maxWidth:1200,margin:"0 auto 16px",padding:"0 24px"}}>
+          <div style={{
+            background:"linear-gradient(135deg, #0f2a1a 0%, #134d2e 50%, #166534 100%)",
+            borderRadius:20,overflow:"hidden",position:"relative",
+          }}>
+            {/* Cercles décoratifs */}
+            <div style={{position:"absolute",top:-40,right:-40,width:180,height:180,borderRadius:"50%",background:"rgba(34,197,94,.15)",pointerEvents:"none"}}/>
+            <div style={{position:"absolute",bottom:-30,left:-20,width:120,height:120,borderRadius:"50%",background:"rgba(74,222,128,.12)",pointerEvents:"none"}}/>
+            <div style={{position:"absolute",top:"50%",right:160,transform:"translateY(-50%)",width:60,height:60,borderRadius:"50%",background:"rgba(255,255,255,.06)",pointerEvents:"none"}}/>
+
+            <div className="lz-prest-inner" style={{position:"relative",padding:"28px 32px",display:"flex",alignItems:"center",gap:24,flexWrap:"wrap"}}>
+              {/* Icône */}
+              <div className="lz-prest-icon" style={{
+                flexShrink:0,width:60,height:60,borderRadius:18,
+                background:"rgba(255,255,255,.12)",
+                backdropFilter:"blur(8px)",
+                border:"1px solid rgba(255,255,255,.2)",
+                display:"flex",alignItems:"center",justifyContent:"center",
+              }}>
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </div>
+
+              {/* Texte */}
+              <div className="lz-prest-text" style={{flex:1,minWidth:0}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,flexWrap:"wrap"}}>
+                  <span style={{fontSize:18,fontWeight:800,color:"#fff",letterSpacing:"-.02em",lineHeight:1.2}}>
+                    Besoin d'un accompagnement ?
+                  </span>
+                </div>
+                <p style={{
+                  margin:0,fontSize:13,color:"rgba(255,255,255,.72)",lineHeight:1.6,
+                  maxWidth:520,
+                }}>
+                  Agents indépendants ou agences immobilières — faites-vous accompagner par un professionnel de confiance pour votre projet.
+                </p>
+
+                {/* Badges */}
+                <div style={{display:"flex",gap:8,marginTop:12,flexWrap:"wrap"}}>
+                  {[
+                    {icon:"🧑‍💼", label:"Agents immobiliers"},
+                    {icon:"🏢", label:"Agences immobilières"},
+                    {icon:"🤝", label:"Mise en relation"},
+                    {icon:"📋", label:"Conseil personnalisé"},
+                  ].map(b => (
+                    <span key={b.label} style={{
+                      display:"flex",alignItems:"center",gap:4,
+                      background:"rgba(255,255,255,.1)",
+                      border:"1px solid rgba(255,255,255,.15)",
+                      borderRadius:20,padding:"3px 10px",
+                      fontSize:11,fontWeight:600,color:"rgba(255,255,255,.85)",
+                    }}>
+                      {b.icon} {b.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Boutons CTA */}
+              <div style={{display:"flex",flexDirection:"column",gap:10,flexShrink:0}}>
+                <a
+                  href="/trouver-un-agent"
+                  onClick={e=>{e.preventDefault();window.location.href="/trouver-un-agent";}}
+                  style={{
+                    display:"inline-flex",alignItems:"center",gap:9,
+                    background:"#fff",color:"#0f172a",
+                    padding:"11px 20px",borderRadius:12,
+                    fontSize:13,fontWeight:800,textDecoration:"none",
+                    boxShadow:"0 4px 20px rgba(0,0,0,.25)",
+                    whiteSpace:"nowrap",
+                    transition:"transform .15s, box-shadow .15s",
+                  }}
+                  onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow="0 8px 28px rgba(0,0,0,.3)";}}
+                  onMouseLeave={e=>{e.currentTarget.style.transform="";e.currentTarget.style.boxShadow="0 4px 20px rgba(0,0,0,.25)";}}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                  </svg>
+                  Trouver un agent
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#0f172a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                  </svg>
+                </a>
+                <a
+                  href="/trouver-une-agence"
+                  onClick={e=>{e.preventDefault();window.location.href="/trouver-une-agence";}}
+                  style={{
+                    display:"inline-flex",alignItems:"center",gap:9,
+                    background:"rgba(255,255,255,.15)",color:"#fff",
+                    padding:"11px 20px",borderRadius:12,
+                    fontSize:13,fontWeight:700,textDecoration:"none",
+                    border:"1px solid rgba(255,255,255,.25)",
+                    whiteSpace:"nowrap",
+                    transition:"transform .15s, background .15s",
+                  }}
+                  onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.background="rgba(255,255,255,.22)";}}
+                  onMouseLeave={e=>{e.currentTarget.style.transform="";e.currentTarget.style.background="rgba(255,255,255,.15)";}}
+                >
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+                  </svg>
+                  Trouver une agence
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                  </svg>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* ── Trouver un prestataire ── */}
         <div className="lz-prest-wrap" style={{maxWidth:1200,margin:"0 auto 32px",padding:"0 24px"}}>
           <div style={{
