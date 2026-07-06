@@ -340,7 +340,7 @@ const PLANS = {
     {
       id: "smart", name: "Smart Partner", priceMonthly: 149, priceAnnual: 1490, period: "/ mois",
       cible: "Artisans / Professionnels du bâtiment",
-      color: "#c8956c", lightColor: "#fdf4ec", badge: "3 mois offerts",
+      color: "#a78bfa", lightColor: "#f5f3ff", badge: "3 mois offerts",
       cta: "Nous contacter", ctaStyle: "fill",
       features: [
         { label: "Profil partenaire dédié avec logo", ok: true },
@@ -356,7 +356,7 @@ const PLANS = {
     {
       id: "bronze", name: "Bronze Partner", priceMonthly: 299, priceAnnual: 2990, period: "/ mois",
       cible: "Notaires / Avocats · Architectes",
-      color: "#a0673a", lightColor: "#fae8d5", badge: "3 mois offerts",
+      color: "#8b5cf6", lightColor: "#ede9fe", badge: "3 mois offerts",
       cta: "Nous contacter", ctaStyle: "fill",
       features: [
         { label: "Profil partenaire dédié avec logo", ok: true },
@@ -374,7 +374,7 @@ const PLANS = {
     {
       id: "silver", name: "Silver Partner", priceMonthly: 449, priceAnnual: 4490, period: "/ mois",
       cible: "Assurances",
-      color: "#7a4a28", lightColor: "#f5dcc8", badge: "3 mois offerts", popular: true,
+      color: "#7c3aed", lightColor: "#e9d5ff", badge: "3 mois offerts", popular: true,
       cta: "Nous contacter", ctaStyle: "fill",
       features: [
         { label: "Profil partenaire dédié avec logo & présentation vidéo", ok: true },
@@ -394,7 +394,7 @@ const PLANS = {
     {
       id: "gold", name: "Gold Partner", priceMonthly: 599, priceAnnual: 5990, period: "/ mois",
       cible: "Banques",
-      color: "#4d2d12", lightColor: "#eed9c0", badge: "3 mois offerts",
+      color: "#6d28d9", lightColor: "#ddd6fe", badge: "3 mois offerts",
       cta: "Nous contacter", ctaStyle: "fill",
       features: [
         { label: "Profil partenaire dédié avec logo & présentation vidéo", ok: true },
