@@ -19,7 +19,7 @@ const SEGMENTS = [
   { id: "agent",        label: "Agents indépendants",  icon: Briefcase,  color: "#0ea5e9", lightColor: "#e0f2fe" },
   { id: "agence",       label: "Agences",              icon: Building2,  color: "#10b981", lightColor: "#d1fae5" },
   { id: "promoteur",    label: "Promoteurs",           icon: HardHat,    color: "#f59e0b", lightColor: "#fef3c7" },
-  { id: "partenaire",   label: "Partenaires",          icon: Handshake,  color: "#8b5cf6", lightColor: "#f5f3ff" },
+  { id: "partenaire",   label: "Partenaires/Prestataires", icon: Handshake,  color: "#8b5cf6", lightColor: "#f5f3ff" },
   { id: "catalogue",    label: "Acheter des Boosts",   icon: Zap,        color: "#f59e0b", lightColor: "#fef3c7" },
 ];
 
@@ -316,6 +316,7 @@ const PLANS = {
   partenaire: [
     {
       id: "smart", name: "Smart Partner", priceMonthly: 149, priceAnnual: 1490, period: "/ mois",
+      cible: "Artisans / Professionnels du bâtiment",
       color: "#c8956c", lightColor: "#fdf4ec", badge: "3 mois offerts",
       cta: "Nous contacter", ctaStyle: "fill",
       features: [
@@ -334,6 +335,7 @@ const PLANS = {
     },
     {
       id: "bronze", name: "Bronze Partner", priceMonthly: 299, priceAnnual: 2990, period: "/ mois",
+      cible: "Notaires / Avocats · Architectes",
       color: "#a0673a", lightColor: "#fae8d5", badge: "3 mois offerts",
       cta: "Nous contacter", ctaStyle: "fill",
       features: [
@@ -353,6 +355,7 @@ const PLANS = {
     },
     {
       id: "silver", name: "Silver Partner", priceMonthly: 449, priceAnnual: 4490, period: "/ mois",
+      cible: "Assurances",
       color: "#7a4a28", lightColor: "#f5dcc8", badge: "3 mois offerts", popular: true,
       cta: "Nous contacter", ctaStyle: "fill",
       features: [
@@ -372,6 +375,7 @@ const PLANS = {
     },
     {
       id: "gold", name: "Gold Partner", priceMonthly: 599, priceAnnual: 5990, period: "/ mois",
+      cible: "Banques",
       color: "#4d2d12", lightColor: "#eed9c0", badge: "3 mois offerts",
       cta: "Nous contacter", ctaStyle: "fill",
       features: [
@@ -423,6 +427,17 @@ function PlanCard({ plan, color, billing }) {
       {/* Header */}
       <div className="bst-plan-card__head">
         <div className="bst-plan-card__name" style={{ color: c }}>{plan.name}</div>
+        {plan.cible && (
+          <div style={{
+            display:"inline-flex", alignItems:"center", gap:5,
+            background: `${c}15`, border:`1px solid ${c}30`,
+            borderRadius:20, padding:"3px 10px",
+            fontSize:11, fontWeight:700, color:c, marginBottom:6,
+          }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            {plan.cible}
+          </div>
+        )}
         <div className="bst-plan-card__price">
           {isDevis ? (
             <span className="bst-plan-card__price-val" style={{ color: c, fontSize: 28 }}>Sur devis</span>
@@ -1195,7 +1210,7 @@ export default function BoosterPage() {
                 {activeSegment === "agent"       && "Freelances · 4 niveaux · 3 mois d'essai gratuit sur tous les plans payants au lancement"}
                 {activeSegment === "agence"      && "Structures établies · Multi-comptes · Tableau de bord centralisé"}
                 {activeSegment === "promoteur"   && "Par projet actif · Visibilité maximale · Outils de lancement"}
-                {activeSegment === "partenaire"  && "Phase 2 uniquement (dès le mois 18) · Référencement géolocalisé · Leads qualifiés"}
+                {activeSegment === "partenaire"  && "Référencement géolocalisé · Leads qualifiés"}
                 {activeSegment === "catalogue"   && "1 boost = 5 TND · 6 catégories de services · Packs avec remise jusqu'à 10%"}
               </p>
             </div>
