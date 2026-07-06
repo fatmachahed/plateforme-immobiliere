@@ -328,9 +328,6 @@ const PLANS = {
         { label: "20 boosts / mois", ok: true },
         { label: "Statistiques de visibilité (vues, clics)", ok: true },
         { label: "Support WhatsApp 24h/24 7j/7", ok: true },
-        { label: "Bannières sur fiches annonces", ok: false },
-        { label: "Widget intégré (simulateur / calculateur)", ok: false },
-        { label: "Mise en avant page d'accueil", ok: false },
       ],
     },
     {
@@ -349,8 +346,6 @@ const PLANS = {
         { label: "Statistiques avancées (taux de conversion, clics)", ok: true },
         { label: "Accès aux annonces avec accompagnement activé", ok: true },
         { label: "Support WhatsApp 24h/24 7j/7", ok: true },
-        { label: "Widget intégré (simulateur / calculateur)", ok: false },
-        { label: "Mise en avant page d'accueil", ok: false },
       ],
     },
     {
@@ -1140,7 +1135,7 @@ export default function BoosterPage() {
   }
 
   const isCatalogue = activeSegment === "catalogue";
-  const hasBillingToggle = !["partenaire", "catalogue"].includes(activeSegment);
+  const hasBillingToggle = !["catalogue"].includes(activeSegment);
   const plans = PLANS[activeSegment] || [];
 
   /* For "particulier" (2 plans) use 4 cols so cards have same width as 4-plan segments */
@@ -1214,11 +1209,6 @@ export default function BoosterPage() {
                 {activeSegment === "catalogue"   && "1 boost = 5 TND · 6 catégories de services · Packs avec remise jusqu'à 10%"}
               </p>
             </div>
-            {activeSegment === "partenaire" && (
-              <div className="bst-seg-head__alert">
-                <Clock size={14}/> Disponible à partir du mois 18 — inscription gratuite dès maintenant
-              </div>
-            )}
             {isCatalogue && (
               <div className="bst-seg-head__catalogue-wallet">
                 {/* 1. Solde Boosts (monnaie) */}
