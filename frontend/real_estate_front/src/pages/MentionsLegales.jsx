@@ -1,14 +1,20 @@
 ﻿import React from "react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import { Scale } from "lucide-react";
 
 export default function MentionsLegales() {
   return (
     <div style={{ minHeight:"100vh", background:"#f8fafc", fontFamily:"'Poppins',system-ui,sans-serif" }}>
       <Navbar />
-      <div style={{ maxWidth:820, margin:"48px auto", padding:"0 24px 80px" }}>
-        <h1 style={{ fontSize:30, fontWeight:900, color:"#0f172a", marginBottom:6 }}>Mentions légales</h1>
-        <p style={{ fontSize:13.5, color:"#94a3b8", marginBottom:40 }}>Dernière mise à jour : juin 2026</p>
+      <div style={{ background:"linear-gradient(135deg,#0f172a 0%,#1e293b 100%)", padding:"60px 24px 48px", textAlign:"center" }}>
+        <div style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", width:56, height:56, borderRadius:"50%", background:"rgba(99,102,241,.2)", marginBottom:18 }}>
+          <Scale size={28} color="#818cf8"/>
+        </div>
+        <h1 style={{ fontSize:32, fontWeight:800, color:"#fff", margin:"0 0 12px", letterSpacing:"-.02em" }}>Mentions légales</h1>
+        <p style={{ fontSize:14, color:"rgba(255,255,255,.5)", margin:0 }}>Dernière mise à jour : juin 2026</p>
+      </div>
+      <div style={{ maxWidth:820, margin:"0 auto", padding:"48px 24px 80px" }}>
 
         {[
           {
