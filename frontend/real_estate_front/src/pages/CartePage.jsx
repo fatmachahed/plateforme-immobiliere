@@ -3844,11 +3844,11 @@ export default function CartePage() {
                   <div style={{fontSize:16, fontWeight:700, letterSpacing:.2}}>
                     Sélectionnez un <span style={{color:"#a5b4fc"}}>gouvernorat</span>
                   </div>
-                  <div style={{fontSize:13, color:"rgba(255,255,255,.6)"}}>
+                  <div style={{fontSize:14, color:"#fff"}}>
                     pour afficher les annonces sur la carte
                   </div>
-                  <div style={{fontSize:11.5, color:"rgba(255,255,255,.4)", marginTop:2}}>
-                    à partir du bouton <span style={{color:"rgba(255,255,255,.7)",fontWeight:600}}>Filtres</span>
+                  <div style={{fontSize:14, color:"#fff", marginTop:2}}>
+                    à partir du bouton <span style={{fontWeight:600}}>Filtres</span>
                   </div>
                 </div>
               </div>
