@@ -587,7 +587,7 @@ function PropCard({ p, active, onHover, onClick, govMarketStats, compact }) {
             transition:"all .15s",
           }}
         >
-          {inCompare ? "✓ Dans le comparateur" : "+ Comparer"}
+          <GitCompare size={11}/>{inCompare ? " Dans le comparateur" : " Comparer"}
         </button>
       </div>
     </div>

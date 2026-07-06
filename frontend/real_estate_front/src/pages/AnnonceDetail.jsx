@@ -13,7 +13,7 @@ import {
   ChevronLeft, ChevronRight, ArrowLeft, MapPin,
   Bed, Bath, Maximize, Phone, Mail, Heart, Share2,
   CheckCircle, Calendar, Tag, Home, Loader,
-  Languages, Navigation, Eye, BarChart2, BadgeCheck, Building2,
+  Languages, Navigation, Eye, GitCompare, BadgeCheck, Building2,
   Waves, Mountain, TreePine, Fence, Sun, Flower2, Droplets, ParkingCircle,
   ArrowUpDown, Car, Package, Sofa, Users, ShieldCheck,
   UtensilsCrossed, Wind, Thermometer, Flame, DoorClosed, LockKeyhole,
@@ -618,7 +618,7 @@ export default function AnnonceDetail() {
             setCompareItems(updatedMeta);
             if (updatedMeta.length >= 2) setComparePopup(true);
           }}>
-            <BarChart2 size={15}/> {isInCompare ? "Dans le comparateur" : "Comparer"}
+            <GitCompare size={15}/> {isInCompare ? "Dans le comparateur" : "Comparer"}
           </button>
           <button className="ad-action" onClick={() => {
             const url = window.location.href;

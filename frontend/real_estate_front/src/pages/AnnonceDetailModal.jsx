@@ -14,7 +14,7 @@ import {
   ChevronLeft, ChevronRight, ArrowLeft, MapPin,
   Bed, Bath, Maximize, Phone, Mail, Heart, Share2,
   CheckCircle, Calendar, Tag, Home, Loader,
-  Languages, Navigation, Eye, BarChart2, BadgeCheck, Building2,
+  Languages, Navigation, Eye, GitCompare, BadgeCheck, Building2,
   Waves, Mountain, TreePine, Fence, Sun, Flower2, Droplets, ParkingCircle,
   ArrowUpDown, Car, Package, Sofa, Users, ShieldCheck,
   UtensilsCrossed, Wind, Thermometer, Flame, DoorClosed, LockKeyhole,
@@ -536,7 +536,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
               setCompareItems(updatedMeta);
               if(updatedMeta.length>=2)setComparePopup(true);
             }}>
-              <BarChart2 size={15}/><span className="det-action-txt"> {isInCompare?"Dans le comparateur":"Comparer"}</span>
+              <GitCompare size={15}/><span className="det-action-txt"> {isInCompare?"Dans le comparateur":"Comparer"}</span>
             </button>
             <button className="det-action" onClick={()=>{
               const url=`${window.location.origin}/annonce/${prop.id}`;
