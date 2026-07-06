@@ -1032,32 +1032,6 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
           </div>
         )}
 
-        {/* Fiche complète */}
-        {rawData&&(
-          <div style={{maxWidth:1200,margin:"0 auto 40px",padding:"0 24px"}}>
-            <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:16,overflow:"hidden"}}>
-              <div style={{padding:"18px 28px 14px",borderBottom:"1px solid #e5e7eb",display:"flex",alignItems:"center",gap:10}}>
-                <span style={{fontSize:14,fontWeight:800,color:"#0f172a"}}>Fiche complète — toutes les données</span>
-                <span style={{fontSize:11,color:"#94a3b8",fontWeight:500}}>ID #{rawData.id} · Réf. {rawData.reference||"—"}</span>
-              </div>
-              <div style={{padding:"24px 28px",display:"flex",flexDirection:"column",gap:24}}>
-                {[{titre:"Identité",champs:[["ID",rawData.id],["Référence",rawData.reference],["Statut",rawData.status],["Boost",rawData.boost_level],["Vues",rawData.views_count],["Date création",rawData.date_creation],["Date mise à jour",rawData.date_mise_a_jour],["Boost expire",rawData.boost_expires_at]]},{titre:"Type & Catégorie",champs:[["Catégorie",rawData.categorie],["Type bien",rawData.type_bien],["Type appartement",rawData.type_appartement],["Type villa",rawData.type_villa],["Type terrain",rawData.type_terrain],["Etat bien",rawData.etat_bien],["Titre foncier",rawData.titre_foncier]]},{titre:"Dimensions & Prix",champs:[["Titre",rawData.titre],["Prix",rawData.prix],["Devise",rawData.devise],["Superficie",rawData.superficie],["Etage",rawData.etage],["Nb pièces",rawData.nb_pieces],["Nb chambres",rawData.nb_chambres],["Nb sdb",rawData.nb_salles_bain],["Année construction",rawData.annee_construction]]},{titre:"Localisation",champs:[["Gouvernorat",rawData.gouvernorat],["Délégation",rawData.delegation],["Localité",rawData.localite],["Adresse",rawData.address],["Latitude",rawData.latitude],["Longitude",rawData.longitude]]}].map(({titre,champs})=>(
-                  <div key={titre}>
-                    <div style={{fontSize:12,fontWeight:700,color:"#6366f1",textTransform:"uppercase",letterSpacing:".06em",marginBottom:10}}>{titre}</div>
-                    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:"6px 16px"}}>
-                      {champs.map(([label,val])=>(
-                        <div key={label} style={{display:"flex",gap:6,fontSize:13,padding:"4px 0",borderBottom:"1px solid #f1f5f9"}}>
-                          <span style={{color:"#94a3b8",fontWeight:600,minWidth:140,flexShrink:0}}>{label}</span>
-                          <span style={{color:val===null||val===undefined||val===""?"#cbd5e1":"#0f172a",fontStyle:val===null||val===undefined||val===""?"italic":"normal",fontWeight:500}}>{val===null||val===undefined||val===""?"null":String(val)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* ── Trouver un prestataire ── */}
         <div className="lz-prest-wrap" style={{maxWidth:1200,margin:"0 auto 32px",padding:"0 24px"}}>
