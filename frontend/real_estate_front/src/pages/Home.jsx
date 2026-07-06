@@ -991,9 +991,11 @@ export default function HomePage() {
                       <stop offset="100%" stopColor="#4338ca"/>
                     </linearGradient>
                   </defs>
-                  <path d="M16 2C9.92 2 5 6.92 5 13C5 21.5 16 38 16 38C16 38 27 21.5 27 13C27 6.92 22.08 2 16 2Z" fill="url(#pin-g2)" stroke="white" strokeWidth="2.5" strokeLinejoin="round" paintOrder="stroke"/>
-                  <circle cx="16" cy="13" r="6" fill="white"/>
-                  <path d="M13 16V12.8L16 10.5L19 12.8V16H17.2V14.2H14.8V16H13Z" fill="#4f46e5"/>
+                  <g transform="translate(6, 2)">
+                    <path d="M16 2C9.92 2 5 6.92 5 13C5 21.5 16 38 16 38C16 38 27 21.5 27 13C27 6.92 22.08 2 16 2Z" fill="url(#pin-g2)" stroke="white" strokeWidth="2.5" strokeLinejoin="round" paintOrder="stroke"/>
+                    <circle cx="16" cy="13" r="6" fill="white"/>
+                    <path d="M13 16V12.8L16 10.5L19 12.8V16H17.2V14.2H14.8V16H13Z" fill="#4f46e5"/>
+                  </g>
                 </svg>
               </div>
               <span className="hp-install-appname">Localizi.tn</span>
