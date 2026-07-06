@@ -18,7 +18,7 @@ const FAQS = [
       },
       {
         q: "Localizi.tn est-elle gratuite ?",
-        a: "Oui, entièrement gratuite. Aucun paiement n'est demandé pour publier ou consulter des annonces, que vous soyez particulier, agent immobilier, agence immobilière ou promoteur. Il n'existe aucun abonnement, aucune commission et aucune carte bancaire n'est requise."
+        a: "Oui, gratuite. Aucun paiement n'est demandé pour publier ou consulter des annonces, que vous soyez particulier, agent immobilier, agence immobilière ou promoteur."
       },
       {
         q: "Qui peut utiliser Localizi.tn ?",
@@ -60,7 +60,7 @@ const FAQS = [
       },
       {
         q: "Combien coûte la publication ?",
-        a: "La publication est entièrement gratuite pour tous les profils : particuliers, agents immobiliers, agences immobilières et promoteurs immobiliers. Aucun paiement n'est demandé."
+        a: "La publication est entièrement gratuite pour tous les profils : particuliers, agents immobiliers, agences immobilières, promoteurs immobiliers et autres professionnels de l'immobilier."
       },
       {
         q: "Sous quel délai mon annonce sera-t-elle publiée ?",
@@ -113,7 +113,7 @@ const FAQS = [
         a: "Lors de l'inscription, choisissez le profil « Professionnel » puis sélectionnez « Agence/Agent » ou « Promoteur ». Votre profil sera visible dans l'annuaire des professionnels de Localizi.tn."
       },
       {
-        q: "Les agences et promoteurs paient-ils pour publier ?",
+        q: "Les agents, agences et promoteurs paient-ils pour publier leur annonce ?",
         a: "Non. La publication est gratuite pour tous, y compris les agences immobilières et les promoteurs immobiliers. Aucun abonnement n'est requis."
       },
       {
@@ -122,7 +122,7 @@ const FAQS = [
       },
       {
         q: "Un promoteur peut-il publier des biens neufs ?",
-        a: "Oui. Les promoteurs immobiliers inscrits sur Localizi.tn peuvent publier leurs projets immobiliers neufs et les présenter à des milliers d'acheteurs potentiels, sans aucun frais."
+        a: "Oui. Les promoteurs immobiliers inscrits sur Localizi.tn peuvent publier leurs projets immobiliers neufs et les présenter à des milliers d'acheteurs potentiels, sans aucun frais. Un badge \"neuf\" est alors apposé sur les photos du bien immobilier."
       },
     ],
   },
