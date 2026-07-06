@@ -57,7 +57,7 @@ export default function QuiSommesNous() {
             </h1>
             <p className="qsn-hero__sub">
               Localizi.tn est née d'une conviction simple : trouver ou vendre un bien immobilier
-              en Tunisie devrait être simple, transparent et accessible à tous — sans aucun frais.
+              en Tunisie devrait être simple, transparent et accessible à tous.
             </p>
           </div>
         </section>
@@ -107,7 +107,7 @@ export default function QuiSommesNous() {
               </div>
               <span className="qsn-eyebrow" style={{color:"#a5b4fc"}}>Notre engagement</span>
               <h2 className="qsn-section__title" style={{color:"#fff"}}>
-                Localizi.tn est entièrement gratuite
+                Localizi.tn est accessible à tous
               </h2>
               <p style={{color:"rgba(255,255,255,.7)", fontSize:15, lineHeight:1.7, maxWidth:620, margin:"0 auto 48px"}}>
                 Nous croyons que la mise en relation immobilière ne devrait coûter rien.
@@ -127,9 +127,6 @@ export default function QuiSommesNous() {
                   </div>
                 </div>
               ))}
-            </div>
-            <div className="qsn-free__badge">
-              <span>0 DT</span> — Aucun abonnement · Aucune commission · Aucune carte bancaire requise
             </div>
           </div>
         </section>
