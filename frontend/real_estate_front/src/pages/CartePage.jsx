@@ -3850,14 +3850,6 @@ export default function CartePage() {
                   <div style={{fontSize:11.5, color:"rgba(255,255,255,.4)", marginTop:2}}>
                     à partir du bouton <span style={{color:"rgba(255,255,255,.7)",fontWeight:600}}>Filtres</span>
                   </div>
-                  {totalCount != null && (
-                    <div style={{marginTop:4, fontSize:22, fontWeight:900, color:"#fff"}}>
-                      {totalCount.toLocaleString("fr-TN")}
-                      <span style={{fontSize:13, fontWeight:600, color:"rgba(255,255,255,.7)", marginLeft:7}}>
-                        annonce{totalCount!==1?"s":""} disponible{totalCount!==1?"s":""}
-                      </span>
-                    </div>
-                  )}
                 </div>
               </div>
             )}
