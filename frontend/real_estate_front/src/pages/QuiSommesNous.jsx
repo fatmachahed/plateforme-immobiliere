@@ -118,13 +118,13 @@ export default function QuiSommesNous() {
             <div className="qsn-free__grid">
               {FREE_PROFILES.map((p, i) => (
                 <div key={i} className="qsn-free-card">
-                  <div className="qsn-free-card__check">
-                    <CheckCircle size={22} color="#6366f1"/>
-                  </div>
-                  <div>
+                  <div className="qsn-free-card__head">
+                    <div className="qsn-free-card__check">
+                      <CheckCircle size={22} color="#6366f1"/>
+                    </div>
                     <div className="qsn-free-card__label">{p.label}</div>
-                    <div className="qsn-free-card__desc">{p.desc}</div>
                   </div>
+                  <div className="qsn-free-card__desc">{p.desc}</div>
                 </div>
               ))}
             </div>
@@ -277,16 +277,19 @@ export default function QuiSommesNous() {
         .qsn-free-card {
           background: rgba(255,255,255,.07); border: 1.5px solid rgba(255,255,255,.12);
           border-radius: 14px; padding: 20px 22px;
-          display: flex; align-items: flex-start; gap: 14px;
+          display: flex; flex-direction: column; gap: 10px;
           backdrop-filter: blur(6px);
           transition: background .2s;
         }
         .qsn-free-card:hover { background: rgba(255,255,255,.12); }
+        .qsn-free-card__head {
+          display: flex; align-items: center; gap: 12px;
+        }
         .qsn-free-card__check {
           background: rgba(99,102,241,.15); border-radius: 8px;
-          padding: 6px; flex-shrink: 0; margin-top: 2px;
+          padding: 6px; flex-shrink: 0;
         }
-        .qsn-free-card__label { font-size: 15px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .qsn-free-card__label { font-size: 15px; font-weight: 700; color: #fff; }
         .qsn-free-card__desc { font-size: 13px; color: rgba(255,255,255,.6); line-height: 1.6; }
         .qsn-free__badge {
           text-align: center;
