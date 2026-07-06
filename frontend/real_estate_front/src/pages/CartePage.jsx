@@ -3841,6 +3841,11 @@ export default function CartePage() {
               }}>
                 <style>{`@keyframes cp-ov-fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}.cp-ov-txt{animation:cp-ov-fadein .4s ease both}`}</style>
                 <div className="cp-ov-txt" style={{color:"#fff", display:"flex", flexDirection:"column", alignItems:"center", gap:10}}>
+                  {totalCount != null && (
+                    <div style={{fontSize:15, fontWeight:700, color:"#a5b4fc", letterSpacing:.1}}>
+                      {totalCount.toLocaleString("fr-FR")} annonce{totalCount !== 1 ? "s" : ""} présente{totalCount !== 1 ? "s" : ""} aujourd'hui sur la plateforme
+                    </div>
+                  )}
                   <div style={{fontSize:16, fontWeight:700, letterSpacing:.2}}>
                     Sélectionnez un <span style={{color:"#a5b4fc"}}>gouvernorat</span>
                   </div>
