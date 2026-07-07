@@ -545,13 +545,18 @@ export default function MonAbonnement() {
 
       <style>{`
         .mab-grid {
-          display: grid;
-          grid-template-columns: repeat(${Math.min(plans.length, 4)}, 1fr);
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
           gap: 20px;
           align-items: stretch;
         }
-        @media (max-width: 1100px) { .mab-grid { grid-template-columns: repeat(2, 1fr); } }
-        @media (max-width: 600px)  { .mab-grid { grid-template-columns: 1fr; } }
+        .mab-card {
+          flex: 0 0 260px;
+          max-width: 260px;
+        }
+        @media (max-width: 1100px) { .mab-card { flex: 0 0 calc(50% - 10px); max-width: calc(50% - 10px); } }
+        @media (max-width: 600px)  { .mab-card { flex: 0 0 100%; max-width: 100%; } }
 
         .mab-card {
           background: #fff;
