@@ -552,8 +552,8 @@ export default function MonAbonnement() {
           align-items: stretch;
         }
         .mab-card {
-          flex: 0 0 170px;
-          max-width: 170px;
+          flex: 0 0 510px;
+          max-width: 510px;
         }
         @media (max-width: 1100px) { .mab-card { flex: 0 0 calc(50% - 10px); max-width: calc(50% - 10px); } }
         @media (max-width: 600px)  { .mab-card { flex: 0 0 100%; max-width: 100%; } }
