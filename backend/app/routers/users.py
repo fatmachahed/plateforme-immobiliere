@@ -743,11 +743,11 @@ def forgot_password(body: dict, request: Request, db: Session = Depends(get_db))
 
     token = secrets.token_urlsafe(32)
     _save_reset_token(db, token, user.email, datetime.utcnow() + timedelta(hours=2))
+    link = f"{_FRONTEND_URL}/reset-password?token={token}"
 
     # Envoi par email (silencieux si SMTP non configuré)
     try:
         from app.email_utils import send_email
-        link = f"{_FRONTEND_URL}/reset-password?token={token}"
         html = f"""
         <div style="font-family:sans-serif;max-width:520px;margin:0 auto;color:#0f172a">
           <div style="background:#6366f1;padding:24px 28px;border-radius:10px 10px 0 0">
@@ -765,7 +765,7 @@ def forgot_password(body: dict, request: Request, db: Session = Depends(get_db))
     except Exception:
         pass
 
-    return {"message": "Si cet email existe, un lien de réinitialisation a été envoyé."}
+    return {"message": "Un lien de réinitialisation a été envoyé à votre adresse email.", "reset_link": link}
 
 
 # ===============================

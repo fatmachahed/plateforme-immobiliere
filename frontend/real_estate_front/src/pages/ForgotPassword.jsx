@@ -35,8 +35,8 @@ export default function ForgotPassword() {
   };
 
   const copyLink = () => {
-    if (result?.demo_link) {
-      navigator.clipboard.writeText(result.demo_link);
+    if (result?.reset_link) {
+      navigator.clipboard.writeText(result.reset_link);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -96,17 +96,20 @@ export default function ForgotPassword() {
           ) : (
             <>
               <div className="sp-notice sp-notice--ok">✅ {result.message}</div>
-              {result.demo_link && (
-                <div style={{display:"flex", flexDirection:"column", gap:10, marginBottom:16}}>
-                  <p style={{fontSize:12.5, fontWeight:700, color:"#64748b"}}>🔧 Mode démo — copiez ce lien :</p>
-                  <div style={{display:"flex", gap:8, alignItems:"flex-start", background:"#f8fafc", border:"1.5px solid #e2e8f0", borderRadius:10, padding:"10px 14px"}}>
-                    <code style={{fontSize:11, color:"#6366f1", flex:1, wordBreak:"break-all", lineHeight:1.5}}>{result.demo_link}</code>
+              {result.reset_link && (
+                <div style={{display:"flex", flexDirection:"column", gap:12, marginBottom:16, padding:"16px", background:"#f0fdf4", border:"1.5px solid #bbf7d0", borderRadius:12}}>
+                  <p style={{fontSize:13, fontWeight:700, color:"#166534", margin:0}}>Cliquez sur le bouton ci-dessous pour réinitialiser votre mot de passe :</p>
+                  <a href={result.reset_link}
+                    style={{display:"block", background:"#6366f1", color:"#fff", padding:"12px 20px", borderRadius:10, fontWeight:700, textDecoration:"none", textAlign:"center", fontSize:14}}>
+                    Réinitialiser mon mot de passe
+                  </a>
+                  <div style={{display:"flex", gap:8, alignItems:"flex-start", background:"#fff", border:"1px solid #d1fae5", borderRadius:8, padding:"8px 12px"}}>
+                    <code style={{fontSize:10.5, color:"#059669", flex:1, wordBreak:"break-all", lineHeight:1.5}}>{result.reset_link}</code>
                     <button onClick={copyLink}
-                      style={{flexShrink:0, background:copied?"#f0fdf4":"#eef2ff", border:"none", cursor:"pointer", borderRadius:7, padding:"7px 10px", color:copied?"#166534":"#6366f1"}}>
-                      {copied ? <Check size={15}/> : <Copy size={15}/>}
+                      style={{flexShrink:0, background:copied?"#f0fdf4":"#fff", border:"1px solid #bbf7d0", cursor:"pointer", borderRadius:6, padding:"6px 10px", color:copied?"#166534":"#6366f1"}}>
+                      {copied ? <Check size={14}/> : <Copy size={14}/>}
                     </button>
                   </div>
-                  <p style={{fontSize:11.5, color:"#94a3b8"}}>En production, ce lien sera envoyé par email automatiquement.</p>
                 </div>
               )}
             </>
