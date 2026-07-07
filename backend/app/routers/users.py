@@ -119,7 +119,7 @@ router = APIRouter(
 )
 
 get_db = database.get_db
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=10)
 
 
 # ===============================

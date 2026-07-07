@@ -1,7 +1,7 @@
 # app/utils/security.py
 from passlib.context import CryptContext
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=10)
 
 def hash_password(password: str) -> str:
     # Tronquer à 72 caractères pour bcrypt

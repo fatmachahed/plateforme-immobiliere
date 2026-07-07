@@ -11,7 +11,7 @@ from app.enums import RoleEnum
 from app.email_utils import notify_saved_searches_for_annonce, send_email, LOGO_IMG_HTML
 import json as _json, os as _os
 
-_pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
+_pwd = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=10)
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 get_db = database.get_db
