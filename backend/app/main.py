@@ -167,8 +167,16 @@ app.include_router(auth_google.router, tags=["Auth"])
 def health():
     return {"status": "ok"}
 
-# 5b. Config publique des offres d'abonnement
+# 6. Route formulaire de contact (POST /contact)
+from fastapi import Depends
+from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from typing import Optional
+import html as _html  # pour échapper les inputs utilisateur dans les emails
 import json as _main_json
+from app import models
+
+# 5b. Config publique des offres d'abonnement (après imports Depends/Session)
 _DEFAULT_PLANS_CONFIG = {
     "particulier": {"gratuit": True, "essentiel": True, "investisseur": True},
     "agent":       {"gratuit": True, "starter": True, "pro": True, "expert": True},
@@ -176,20 +184,13 @@ _DEFAULT_PLANS_CONFIG = {
     "promoteur":   {"gratuit-promo": True, "basic": True, "standard": True, "premium": True},
     "partenaire":  {"smart": True, "bronze": True, "silver": True, "gold": True},
 }
+
 @app.get("/plans-config", tags=["Plans"])
 def get_plans_config_public(db: Session = Depends(get_db)):
     row = db.execute(text("SELECT value FROM settings WHERE key = 'plans_config'")).fetchone()
     if not row:
         return _DEFAULT_PLANS_CONFIG
     return _main_json.loads(row[0])
-
-# 6. Route formulaire de contact (POST /contact)
-from fastapi import Depends
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from typing import Optional
-import html as _html  # pour échapper les inputs utilisateur dans les emails
-from app import models
 
 class ContactBody(BaseModel):
     nom:       str
