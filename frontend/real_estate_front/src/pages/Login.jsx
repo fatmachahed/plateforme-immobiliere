@@ -41,7 +41,7 @@ export default function Login() {
       store.setItem("token", data.access_token);
       if (data.user) store.setItem("user", JSON.stringify(data.user));
       toast("Connexion Google réussie ! Bienvenue.");
-      window.location.href = redirectAfter;
+      navigate(redirectAfter, { replace: true });
     } catch {
       setError("Serveur inaccessible — vérifiez que le backend est démarré.");
     } finally {
@@ -85,9 +85,9 @@ export default function Login() {
       const isFirstLogin = localStorage.getItem("first_login") === "1";
       if (isFirstLogin) {
         localStorage.removeItem("first_login");
-        window.location.href = "/compte?welcome=1";
+        navigate("/compte?welcome=1", { replace: true });
       } else {
-        window.location.href = redirectAfter;
+        navigate(redirectAfter, { replace: true });
       }
     } catch {
       setError("Serveur inaccessible — vérifiez que le backend est démarré.");
