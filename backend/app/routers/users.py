@@ -267,8 +267,8 @@ async def login(
 
     _clear_attempts(ip)  # Login réussi → reset compteur
 
-    # Rehash si le hash utilise encore bcrypt rounds=12 → migrer vers rounds=10
-    if user.hashed_password.startswith("$2b$12$"):
+    # Rehash si le hash n'est pas déjà en rounds=10 → migrer automatiquement
+    if not user.hashed_password.startswith("$2b$10$"):
         new_hash = await loop.run_in_executor(
             _bcrypt_executor,
             lambda: pwd_context.hash(form_data.password[:72])
