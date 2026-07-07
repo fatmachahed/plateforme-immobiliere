@@ -81,6 +81,7 @@ export default function Register() {
   const handleNext = (e) => {
     e.preventDefault(); setError("");
     if (!username.trim()) { setError("Nom d'utilisateur requis."); return; }
+    if (username.trim().length < 4) { setUsernameStatus("too-short"); return; }
     if (usernameStatus === "taken") { setError("Ce nom d'utilisateur est déjà pris."); return; }
     if (!email.trim()) { setEmailError("Adresse e-mail requise."); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setEmailError("Adresse e-mail invalide — exemple : nom@domaine.com"); return; }
@@ -277,13 +278,19 @@ export default function Register() {
                   placeholder="votre_nom"
                   value={username}
                   onChange={e=>{ setUsername(e.target.value); setUsernameStatus(null); }}
-                  onBlur={async e=>{ const v=e.target.value.trim(); if(!v) return; setUsernameStatus("checking"); try{ const r=await fetch(`${API_URL}/users/check-username?username=${encodeURIComponent(v)}`); const d=await r.json(); setUsernameStatus(d.available?"available":"taken"); }catch{ setUsernameStatus(null); } }}
+                  onBlur={async e=>{ const v=e.target.value.trim(); if(!v) return; if(v.length<4){setUsernameStatus("too-short");return;} setUsernameStatus("checking"); try{ const r=await fetch(`${API_URL}/users/check-username?username=${encodeURIComponent(v)}`); const d=await r.json(); setUsernameStatus(d.available?"available":"taken"); }catch{ setUsernameStatus(null); } }}
                   disabled={loading}
                   autoComplete="username"
-                  style={usernameStatus==="taken"?{borderColor:"#ef4444",boxShadow:"0 0 0 3px rgba(239,68,68,.15)"}:usernameStatus==="available"?{borderColor:"#10b981",boxShadow:"0 0 0 3px rgba(16,185,129,.15)"}:{}}
+                  style={usernameStatus==="taken"||usernameStatus==="too-short"?{borderColor:"#ef4444",boxShadow:"0 0 0 3px rgba(239,68,68,.15)"}:usernameStatus==="available"?{borderColor:"#10b981",boxShadow:"0 0 0 3px rgba(16,185,129,.15)"}:{}}
                 />
                 {usernameStatus==="checking" && (
                   <div style={{marginTop:6,fontSize:12.5,color:"#94a3b8",fontWeight:500}}>Vérification…</div>
+                )}
+                {usernameStatus==="too-short" && (
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginTop:6,fontSize:12.5,color:"#ef4444",fontWeight:500}}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    Le nom d'utilisateur doit contenir au moins 4 caractères
+                  </div>
                 )}
                 {usernameStatus==="available" && (
                   <div style={{display:"flex",alignItems:"center",gap:6,marginTop:6,fontSize:12.5,color:"#10b981",fontWeight:600}}>

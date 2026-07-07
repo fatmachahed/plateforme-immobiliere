@@ -4,7 +4,7 @@ import {
   Search, Menu, X, User, LogIn, UserPlus, LogOut,
   LayoutDashboard, Zap, ChevronDown, ChevronRight, Map, Heart, Globe,
   Home, Key, Umbrella, Phone, PlusCircle, Bell, Users, AlertTriangle, Building2,
-  HelpCircle, Info, Mail, Wrench, Facebook, Instagram, Youtube
+  HelpCircle, Info, Mail, Wrench, Facebook, Instagram, Youtube, CreditCard
 } from "lucide-react";
 import API_URL from "../config";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -280,6 +280,7 @@ export default function Navbar() {
                         <Link to="/compte?tab=annonces&statut=approuvee"  className="lz-nav__dd-item"><LayoutDashboard size={14} /> Mes annonces</Link>
                         <Link to="/compte?tab=contacts"  className="lz-nav__dd-item"><Bell size={14} /> Demandes reçues</Link>
                         <Link to="/compte?tab=favoris"   className="lz-nav__dd-item"><Heart size={14} /> Mes favoris</Link>
+                        <Link to="/mon-abonnement" className="lz-nav__dd-item"><CreditCard size={14}/> Mon abonnement</Link>
                         {(()=>{ try{ return localStorage.getItem("lz_boost_enabled") !== "0"; }catch{ return true; } })() && (
                           <Link to="/booster" className="lz-nav__dd-item" style={{color:"#b45309",fontWeight:700}}><Zap size={14} style={{color:"#f59e0b"}}/> Booster mes annonces</Link>
                         )}
@@ -425,6 +426,7 @@ export default function Navbar() {
                       { to:"/compte?tab=contacts", label:"Demandes reçues",  Ico:Bell,            badge:unreadCount },
                       { to:"/compte?tab=favoris",  label:"Mes favoris",      Ico:Heart,           badge:0           },
                       { to:"/compte?tab=alertes",  label:"Mes alertes",      Ico:Bell,            badge:0           },
+                      { to:"/mon-abonnement",      label:"Mon abonnement",   Ico:CreditCard,      badge:0           },
                     ].map(({to,label,Ico,badge}) => {
                       const tabMatch = location.pathname === "/compte" &&
                         new URLSearchParams(location.search).get("tab") === new URLSearchParams(to.split("?")[1]).get("tab");

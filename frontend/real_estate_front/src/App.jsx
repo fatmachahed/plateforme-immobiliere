@@ -26,6 +26,7 @@ import EditAnnonce      from "./pages/EditAnnonce";
 import ForgotPassword   from "./pages/ForgotPassword";
 import ResetPassword    from "./pages/ResetPassword";
 import BoosterPage             from "./pages/BoosterPage";
+import MonAbonnement           from "./pages/MonAbonnement";
 import QuiSommesNous          from "./pages/QuiSommesNous";
 import PolitiqueConfidentialite from "./pages/PolitiqueConfidentialite";
 import Comparateur              from "./pages/Comparateur";
@@ -84,6 +85,7 @@ function App() {
           <Route path="/creer_annonce"           element={<CreerAnnonce />} />
           <Route path="/modifier_annonce/:id"    element={<EditAnnonce />} />
           <Route path="/booster"                element={<BoosterPage />} />
+          <Route path="/mon-abonnement"         element={<MonAbonnement />} />
           <Route path="/comparateur"            element={<Comparateur />} />
 
           {/* Compte */}
