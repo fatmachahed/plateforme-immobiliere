@@ -80,6 +80,7 @@ export default function Register() {
     e.preventDefault(); setError("");
     if (!username.trim()) { setError("Nom d'utilisateur requis."); return; }
     if (!email.trim())    { setError("Adresse e-mail requise."); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setError("Adresse e-mail invalide (exemple : nom@domaine.com)."); return; }
     if (role === "professionnel" && !sousRole) { setError("Veuillez sélectionner votre type de professionnel."); return; }
     setStep(2);
   };
