@@ -147,11 +147,16 @@ _GOV_CODES = {
 def _generate_reference(db, gouvernorat_id: int, utilisateur_id: int = None) -> str:
     """Génère une référence unique basée sur la référence agence (si agence) ou le gouvernorat."""
     prefix = None
-    # Priorité : référence de l'agence connectée
+    # Priorité 1 : référence de l'agence connectée
     if utilisateur_id:
         agency = db.query(models.Agency).filter(models.Agency.user_id == utilisateur_id).first()
         if agency and agency.reference:
             prefix = agency.reference.upper()
+    # Priorité 2 : référence du promoteur
+    if not prefix and utilisateur_id:
+        user = db.query(models.User).filter(models.User.id == utilisateur_id).first()
+        if user and user.promoteur_reference:
+            prefix = user.promoteur_reference.upper()
     # Fallback : code gouvernorat
     if not prefix:
         gov = db.query(models.Gouvernorat).filter(models.Gouvernorat.id == gouvernorat_id).first()

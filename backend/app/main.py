@@ -96,6 +96,8 @@ with engine.connect() as conn:
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS registre_commerce VARCHAR;",
         # Référence unique agence
         "ALTER TABLE agencies ADD COLUMN IF NOT EXISTS reference VARCHAR UNIQUE;",
+        # Référence unique promoteur
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS promoteur_reference VARCHAR UNIQUE;",
         # Migrer devise DT → TND dans les annonces existantes
         "UPDATE annonces SET devise = 'TND' WHERE devise = 'DT';",
         # Backfill références agences existantes sans référence

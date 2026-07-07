@@ -41,6 +41,7 @@ class User(Base):
     profil_particulier = Column(String, nullable=True)   # etudiant | parent | couple | investisseur | ...
     sexe               = Column(String, nullable=True)   # homme | femme | non_precise
     objectif           = Column(String, nullable=True)   # achete | vend | loue | met_location
+    promoteur_reference= Column(String, nullable=True, unique=True)  # ref 3 lettres promoteur
     last_login         = Column(DateTime, nullable=True)
     created_at         = Column(DateTime, default=datetime.utcnow, nullable=True)
     updated_at         = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=True)

@@ -143,12 +143,15 @@ export default function Compte() {
     delegation:        storedUser?.localite           || "",
     delegation_id:     "",
     reference:         storedUser?.agency?.reference  || "",
+    promoteur_reference: storedUser?.promoteur_reference || "",
     metier_artisan:    storedUser?.metier_artisan     || "",
   });
   const [gouvernorats, setGouvernorats] = useState([]);
   const [delegations,  setDelegations]  = useState([]);
-  const [refStatus, setRefStatus] = useState("idle"); // idle | checking | available | taken
+  const [refStatus, setRefStatus] = useState("idle"); // idle | checking | available | taken | invalid
+  const [proRefStatus, setProRefStatus] = useState("idle");
   const refDebounceRef = useRef(null);
+  const proRefDebounceRef = useRef(null);
 
   /* ──────── ANNONCES (dashboard) ──────── */
   const [annonces, setAnnonces]         = useState([]);
@@ -423,7 +426,7 @@ export default function Compte() {
 
   const checkReference = (val) => {
     if (!val.trim()) { setRefStatus("idle"); return; }
-    if (!/^[A-Za-zÀ-ÖØ-öø-ÿ]+$/.test(val) || val.length < 2) { setRefStatus("invalid"); return; }
+    if (!/^[A-Za-zÀ-ÖØ-öø-ÿ]{3}$/.test(val)) { setRefStatus("invalid"); return; }
     setRefStatus("checking");
     clearTimeout(refDebounceRef.current);
     refDebounceRef.current = setTimeout(async () => {
@@ -436,16 +439,34 @@ export default function Compte() {
     }, 500);
   };
 
+  const checkPromoteurReference = (val) => {
+    if (!val.trim()) { setProRefStatus("idle"); return; }
+    if (!/^[A-Za-zÀ-ÖØ-öø-ÿ]{3}$/.test(val)) { setProRefStatus("invalid"); return; }
+    setProRefStatus("checking");
+    clearTimeout(proRefDebounceRef.current);
+    proRefDebounceRef.current = setTimeout(async () => {
+      try {
+        const r = await fetch(`${API_URL}/users/promoteur/check-reference?ref=${encodeURIComponent(val)}`, { headers: { Authorization: `Bearer ${token}` } });
+        if (!r.ok) { setProRefStatus("idle"); return; }
+        const data = await r.json();
+        setProRefStatus(data.available ? "available" : "taken");
+      } catch { setProRefStatus("idle"); }
+    }, 500);
+  };
+
   const handleSavePro = async () => {
     if (storedUser?.role === "agence" && (refStatus === "taken" || refStatus === "invalid")) {
       toast("Référence invalide ou déjà utilisée.", "error"); return;
+    }
+    if (storedUser?.role === "promoteur" && (proRefStatus === "taken" || proRefStatus === "invalid")) {
+      toast("Référence promoteur invalide ou déjà utilisée.", "error"); return;
     }
     setProSaving(true);
     try {
       const res = await fetch(`${API_URL}/users/me`,{method:"PUT",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({matricule_fiscal:proFields.matricule_fiscal||null,registre_commerce:proFields.registre_commerce||null,adresse:proFields.adresse||null,gouvernorat:proFields.gouvernorat||null,localite:proFields.delegation||null,metier_artisan:proFields.metier_artisan||null})});
       if(!res.ok) throw new Error();
       const updated = await res.json();
-      // Also save agency reference if agence role
+      // Save agency reference if agence role
       if (storedUser?.role === "agence" && proFields.reference) {
         const rr = await fetch(`${API_URL}/users/agency/reference`, { method:"PUT", headers:{ Authorization:`Bearer ${token}`, "Content-Type":"application/json" }, body: JSON.stringify({ reference: proFields.reference }) });
         if (!rr.ok) {
@@ -454,6 +475,19 @@ export default function Compte() {
         }
         const refData = await rr.json();
         const newUser = { ...storedUser, ...updated, agency: { ...(storedUser?.agency||{}), reference: refData.reference } };
+        localStorage.setItem("user", JSON.stringify(newUser));
+        setProEditing(false); toast("Infos pro mises à jour !");
+        return;
+      }
+      // Save promoteur reference if promoteur role
+      if (storedUser?.role === "promoteur" && proFields.promoteur_reference) {
+        const rr = await fetch(`${API_URL}/users/promoteur/reference`, { method:"PUT", headers:{ Authorization:`Bearer ${token}`, "Content-Type":"application/json" }, body: JSON.stringify({ reference: proFields.promoteur_reference }) });
+        if (!rr.ok) {
+          const err = await rr.json().catch(()=>({}));
+          throw new Error(err.detail || "Erreur référence promoteur");
+        }
+        const refData = await rr.json();
+        const newUser = { ...storedUser, ...updated, promoteur_reference: refData.reference };
         localStorage.setItem("user", JSON.stringify(newUser));
         setProEditing(false); toast("Infos pro mises à jour !");
         return;
@@ -1017,9 +1051,10 @@ export default function Compte() {
                                   style={{...inp(proEditing),paddingRight:proEditing?36:undefined}}
                                   value={proFields.reference}
                                   readOnly={!proEditing}
-                                  placeholder={proEditing?"Ex : LOCALIZI":"Non renseignée"}
+                                  placeholder={proEditing?"Ex : LOC":"Non renseignée"}
+                                  maxLength={3}
                                   onChange={e=>{
-                                    const cleaned = e.target.value.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ]/g,"");
+                                    const cleaned = e.target.value.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ]/g,"").slice(0,3).toUpperCase();
                                     setProFields(p=>({...p,reference:cleaned}));
                                     if(proEditing) checkReference(cleaned);
                                   }}
@@ -1033,10 +1068,42 @@ export default function Compte() {
                                   </span>
                                 )}
                               </div>
-                              {proEditing&&<div style={{fontSize:11,color:"#94a3b8",marginTop:4}}>Au moins 2 caractères · lettres uniquement, pas de chiffres ni de caractères spéciaux.</div>}
-                              {proEditing&&refStatus==="taken"&&<div style={{fontSize:11,color:"#dc2626",marginTop:2}}>Référence déjà utilisée.</div>}
-                              {proEditing&&refStatus==="invalid"&&<div style={{fontSize:11,color:"#dc2626",marginTop:2}}>Minimum 2 lettres, lettres uniquement.</div>}
+                              {proEditing&&<div style={{fontSize:11,color:"#94a3b8",marginTop:4}}>Exactement 3 lettres · pas de chiffres ni de caractères spéciaux.</div>}
+                              {proEditing&&refStatus==="taken"&&<div style={{fontSize:11,color:"#dc2626",marginTop:2}}>Référence déjà utilisée par une autre agence.</div>}
+                              {proEditing&&refStatus==="invalid"&&<div style={{fontSize:11,color:"#dc2626",marginTop:2}}>Exactement 3 lettres uniquement.</div>}
                               {proEditing&&refStatus==="available"&&<div style={{fontSize:11,color:"#16a34a",marginTop:2}}>Référence disponible.</div>}
+                            </F>
+                          </>
+                        : storedUser?.role==="promoteur"
+                        ? <>
+                            <F label="Adresse" full><input style={inp(proEditing)} value={proFields.adresse} readOnly={!proEditing} placeholder={proEditing?"Ex : 12 rue de la Liberté, La Marsa":"Non renseignée"} onChange={e=>setProFields(p=>({...p,adresse:e.target.value}))}/></F>
+                            <F label="Référence promoteur">
+                              <div style={{position:"relative"}}>
+                                <input
+                                  style={{...inp(proEditing),paddingRight:proEditing?36:undefined}}
+                                  value={proFields.promoteur_reference}
+                                  readOnly={!proEditing}
+                                  placeholder={proEditing?"Ex : IMM":"Non renseignée"}
+                                  maxLength={3}
+                                  onChange={e=>{
+                                    const cleaned = e.target.value.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ]/g,"").slice(0,3).toUpperCase();
+                                    setProFields(p=>({...p,promoteur_reference:cleaned}));
+                                    if(proEditing) checkPromoteurReference(cleaned);
+                                  }}
+                                />
+                                {proEditing&&proFields.promoteur_reference&&(
+                                  <span style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",fontSize:16}}>
+                                    {proRefStatus==="checking"&&<span style={{color:"#94a3b8",fontSize:12}}>…</span>}
+                                    {proRefStatus==="available"&&<span style={{color:"#16a34a"}}>✓</span>}
+                                    {proRefStatus==="taken"&&<span style={{color:"#dc2626"}}>✗</span>}
+                                    {proRefStatus==="invalid"&&<span style={{color:"#dc2626"}}>✗</span>}
+                                  </span>
+                                )}
+                              </div>
+                              {proEditing&&<div style={{fontSize:11,color:"#94a3b8",marginTop:4}}>Exactement 3 lettres · utilisée comme préfixe dans vos références d'annonces.</div>}
+                              {proEditing&&proRefStatus==="taken"&&<div style={{fontSize:11,color:"#dc2626",marginTop:2}}>Référence déjà utilisée par un autre promoteur.</div>}
+                              {proEditing&&proRefStatus==="invalid"&&<div style={{fontSize:11,color:"#dc2626",marginTop:2}}>Exactement 3 lettres uniquement.</div>}
+                              {proEditing&&proRefStatus==="available"&&<div style={{fontSize:11,color:"#16a34a",marginTop:2}}>Référence disponible.</div>}
                             </F>
                           </>
                         : <F label="Adresse" full><input style={inp(proEditing)} value={proFields.adresse} readOnly={!proEditing} placeholder={proEditing?"Ex : 12 rue de la Liberté, La Marsa":"Non renseignée"} onChange={e=>setProFields(p=>({...p,adresse:e.target.value}))}/></F>

@@ -310,14 +310,51 @@ def update_agency_reference(
         models.Agency.reference == body.reference,
         models.Agency.id != agency.id
     ).first()
-    if not re.fullmatch(r"[A-Za-zÀ-ÖØ-öø-ÿ]{2,}", body.reference):
-        raise HTTPException(status_code=422, detail="La référence doit contenir uniquement des lettres (minimum 2)")
+    if not re.fullmatch(r"[A-Za-zÀ-ÖØ-öø-ÿ]{3}", body.reference):
+        raise HTTPException(status_code=422, detail="La référence doit contenir exactement 3 lettres")
     if conflict:
         raise HTTPException(status_code=400, detail="Cette référence est déjà utilisée par une autre agence")
     agency.reference = body.reference
     db.commit()
     db.refresh(agency)
     return {"reference": agency.reference}
+
+
+class PromoteurReferenceBody(BaseModel):
+    reference: str
+
+@router.get("/promoteur/check-reference")
+def check_promoteur_reference(
+    ref: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    existing = db.query(models.User).filter(models.User.promoteur_reference == ref).first()
+    if existing is None:
+        return {"available": True}
+    return {"available": existing.id == current_user.id}
+
+
+@router.put("/promoteur/reference")
+def update_promoteur_reference(
+    body: PromoteurReferenceBody,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    if current_user.role.value != "promoteur":
+        raise HTTPException(status_code=403, detail="Réservé aux comptes Promoteur")
+    if not re.fullmatch(r"[A-Za-zÀ-ÖØ-öø-ÿ]{3}", body.reference):
+        raise HTTPException(status_code=422, detail="La référence doit contenir exactement 3 lettres")
+    conflict = db.query(models.User).filter(
+        models.User.promoteur_reference == body.reference,
+        models.User.id != current_user.id
+    ).first()
+    if conflict:
+        raise HTTPException(status_code=400, detail="Cette référence est déjà utilisée par un autre promoteur")
+    current_user.promoteur_reference = body.reference
+    db.commit()
+    db.refresh(current_user)
+    return {"reference": current_user.promoteur_reference}
 
 
 # ===============================
