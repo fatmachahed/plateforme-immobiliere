@@ -123,6 +123,15 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 # ===============================
+# CHECK USERNAME AVAILABILITY
+# ===============================
+@router.get("/check-username")
+def check_username(username: str, db: Session = Depends(get_db)):
+    exists = db.query(models.User).filter(models.User.username == username).first()
+    return {"available": exists is None}
+
+
+# ===============================
 # REGISTER (CREATE USER)
 # ===============================
 @router.post("/", response_model=schemas.UserRead)

@@ -26,6 +26,7 @@ export default function Register() {
   const [showConfirm,       setShowConfirm]       = useState(false);
   const [error,             setError]             = useState("");
   const [emailError,        setEmailError]        = useState("");
+  const [usernameStatus,    setUsernameStatus]    = useState(null); // null | "checking" | "available" | "taken"
   const [loading,           setLoading]           = useState(false);
   const [acceptCGU,         setAcceptCGU]         = useState(false);
   const [resendLoading,     setResendLoading]     = useState(false);
@@ -80,6 +81,7 @@ export default function Register() {
   const handleNext = (e) => {
     e.preventDefault(); setError("");
     if (!username.trim()) { setError("Nom d'utilisateur requis."); return; }
+    if (usernameStatus === "taken") { setError("Ce nom d'utilisateur est déjà pris."); return; }
     if (!email.trim()) { setEmailError("Adresse e-mail requise."); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setEmailError("Adresse e-mail invalide — exemple : nom@domaine.com"); return; }
     setEmailError("");
@@ -269,7 +271,32 @@ export default function Register() {
 
               <div className="sp-field">
                 <label className="sp-label">Nom d'utilisateur</label>
-                <input type="text" className="sp-input" placeholder="votre_nom" value={username} onChange={e=>setUsername(e.target.value)} required disabled={loading} autoComplete="username"/>
+                <input
+                  type="text"
+                  className="sp-input"
+                  placeholder="votre_nom"
+                  value={username}
+                  onChange={e=>{ setUsername(e.target.value); setUsernameStatus(null); }}
+                  onBlur={async e=>{ const v=e.target.value.trim(); if(!v) return; setUsernameStatus("checking"); try{ const r=await fetch(`${API_URL}/users/check-username?username=${encodeURIComponent(v)}`); const d=await r.json(); setUsernameStatus(d.available?"available":"taken"); }catch{ setUsernameStatus(null); } }}
+                  disabled={loading}
+                  autoComplete="username"
+                  style={usernameStatus==="taken"?{borderColor:"#ef4444",boxShadow:"0 0 0 3px rgba(239,68,68,.15)"}:usernameStatus==="available"?{borderColor:"#10b981",boxShadow:"0 0 0 3px rgba(16,185,129,.15)"}:{}}
+                />
+                {usernameStatus==="checking" && (
+                  <div style={{marginTop:6,fontSize:12.5,color:"#94a3b8",fontWeight:500}}>Vérification…</div>
+                )}
+                {usernameStatus==="available" && (
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginTop:6,fontSize:12.5,color:"#10b981",fontWeight:600}}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    Nom d'utilisateur disponible
+                  </div>
+                )}
+                {usernameStatus==="taken" && (
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginTop:6,fontSize:12.5,color:"#ef4444",fontWeight:500}}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    Ce nom d'utilisateur est déjà pris
+                  </div>
+                )}
               </div>
               <div className="sp-field">
                 <label className="sp-label">Adresse e-mail</label>
