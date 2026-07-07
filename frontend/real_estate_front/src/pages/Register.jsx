@@ -377,23 +377,37 @@ export default function Register() {
                             <label className="sp-label" style={{marginBottom:6,display:"block"}}>Métier <span style={{color:"#ef4444"}}>*</span></label>
                             <select value={metierArtisan} onChange={e=>setMetierArtisan(e.target.value)} disabled={loading} style={{width:"100%",padding:"11px 14px",borderRadius:10,border:`1.5px solid ${metierArtisan?"#6366f1":"#e2e8f0"}`,fontFamily:"inherit",fontSize:14,outline:"none",background:"#f8fafc",color:"#0f172a",boxSizing:"border-box"}}>
                               <option value="">— Sélectionnez votre métier —</option>
-                              <option value="Maçon / Gros œuvre">Maçon / Gros œuvre</option>
-                              <option value="Plombier">Plombier</option>
-                              <option value="Électricien">Électricien</option>
-                              <option value="Peintre en bâtiment">Peintre en bâtiment</option>
-                              <option value="Carreleur">Carreleur</option>
-                              <option value="Menuisier">Menuisier</option>
-                              <option value="Charpentier">Charpentier</option>
-                              <option value="Couvreur">Couvreur</option>
-                              <option value="Plâtrier">Plâtrier</option>
-                              <option value="Serrurier / Métallier">Serrurier / Métallier</option>
-                              <option value="Climaticien / Chauffagiste">Climaticien / Chauffagiste</option>
-                              <option value="Cuisiniste">Cuisiniste</option>
                               <option value="Architecte d'intérieur">Architecte d'intérieur</option>
-                              <option value="Géomètre / Topographe">Géomètre / Topographe</option>
-                              <option value="Expert immobilier">Expert immobilier</option>
-                              <option value="Photographe immobilier">Photographe immobilier</option>
+                              <option value="Carreleur / Poseur">Carreleur / Poseur</option>
+                              <option value="Charpentier">Charpentier</option>
+                              <option value="Chapiste / Cuveleur (chape, cuvelage)">Chapiste / Cuveleur (chape, cuvelage)</option>
+                              <option value="Climaticien / Chauffagiste">Climaticien / Chauffagiste</option>
+                              <option value="Conseiller immobilier">Conseiller immobilier</option>
+                              <option value="Couvreur">Couvreur</option>
+                              <option value="Cuisiniste">Cuisiniste</option>
+                              <option value="Décorateur">Décorateur</option>
                               <option value="Déménageur">Déménageur</option>
+                              <option value="Électricien">Électricien</option>
+                              <option value="Entrepreneur">Entrepreneur</option>
+                              <option value="Entreprise VRD (Voieries, réseaux et aménagements extérieurs)">Entreprise VRD (Voieries, réseaux et aménagements extérieurs)</option>
+                              <option value="Etancheur (étanchéité)">Etancheur (étanchéité)</option>
+                              <option value="Expert immobilier">Expert immobilier</option>
+                              <option value="Géomètre / Topographe">Géomètre / Topographe</option>
+                              <option value="Ingénieur électricité">Ingénieur électricité</option>
+                              <option value="Ingénieur fluides">Ingénieur fluides</option>
+                              <option value="Ingénieur génie civil">Ingénieur génie civil</option>
+                              <option value="Ingénieur sécurité incendie">Ingénieur sécurité incendie</option>
+                              <option value="Jardinier / Paysagiste">Jardinier / Paysagiste</option>
+                              <option value="Lustreur">Lustreur</option>
+                              <option value="Maçon">Maçon</option>
+                              <option value="Menuisier aluminium">Menuisier aluminium</option>
+                              <option value="Menuisier bois">Menuisier bois</option>
+                              <option value="Peintre en bâtiment">Peintre en bâtiment</option>
+                              <option value="Photographe immobilier">Photographe immobilier</option>
+                              <option value="Pisciniste">Pisciniste</option>
+                              <option value="Plâtrier">Plâtrier</option>
+                              <option value="Plombier">Plombier</option>
+                              <option value="Serrurier / Métallier">Serrurier / Métallier</option>
                               <option value="Autre">Autre</option>
                             </select>
                           </div>
