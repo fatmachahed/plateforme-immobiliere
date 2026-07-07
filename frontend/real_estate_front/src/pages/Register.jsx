@@ -25,6 +25,7 @@ export default function Register() {
   const [showPwd,           setShowPwd]           = useState(false);
   const [showConfirm,       setShowConfirm]       = useState(false);
   const [error,             setError]             = useState("");
+  const [emailError,        setEmailError]        = useState("");
   const [loading,           setLoading]           = useState(false);
   const [acceptCGU,         setAcceptCGU]         = useState(false);
   const [resendLoading,     setResendLoading]     = useState(false);
@@ -79,8 +80,9 @@ export default function Register() {
   const handleNext = (e) => {
     e.preventDefault(); setError("");
     if (!username.trim()) { setError("Nom d'utilisateur requis."); return; }
-    if (!email.trim())    { setError("Adresse e-mail requise."); return; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setError("Adresse e-mail invalide (exemple : nom@domaine.com)."); return; }
+    if (!email.trim()) { setEmailError("Adresse e-mail requise."); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setEmailError("Adresse e-mail invalide — exemple : nom@domaine.com"); return; }
+    setEmailError("");
     if (role === "professionnel" && !sousRole) { setError("Veuillez sélectionner votre type de professionnel."); return; }
     setStep(2);
   };
@@ -271,7 +273,23 @@ export default function Register() {
               </div>
               <div className="sp-field">
                 <label className="sp-label">Adresse e-mail</label>
-                <input type="email" className="sp-input" placeholder="vous@exemple.com" value={email} onChange={e=>setEmail(e.target.value)} required disabled={loading} autoComplete="email"/>
+                <input
+                  type="text"
+                  className="sp-input"
+                  placeholder="vous@exemple.com"
+                  value={email}
+                  onChange={e=>{ setEmail(e.target.value); if(emailError) setEmailError(""); }}
+                  onBlur={e=>{ const v=e.target.value.trim(); if(v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) setEmailError("Adresse e-mail invalide — exemple : nom@domaine.com"); }}
+                  disabled={loading}
+                  autoComplete="email"
+                  style={emailError ? {borderColor:"#ef4444",boxShadow:"0 0 0 3px rgba(239,68,68,.15)"} : {}}
+                />
+                {emailError && (
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginTop:6,fontSize:12.5,color:"#ef4444",fontWeight:500}}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    {emailError}
+                  </div>
+                )}
               </div>
 
               {/* Rôle */}
