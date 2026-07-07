@@ -3,8 +3,11 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional
-import base64, uuid, os, secrets, json, re
+import base64, uuid, os, secrets, json, re, asyncio
 from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor
+
+_bcrypt_executor = ThreadPoolExecutor(max_workers=8)
 
 from app import schemas, crud, database, models
 from app.utils.auth import create_access_token, get_current_user
@@ -204,7 +207,7 @@ def resend_verify_email(body: ResendVerifyBody, request: Request, db: Session = 
 # LOGIN
 # ===============================
 @router.post("/login")
-def login(
+async def login(
     request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
@@ -216,8 +219,19 @@ def login(
 
     user = crud.get_user_by_email(db, form_data.username)
 
-    if not user or not pwd_context.verify(form_data.password, user.hashed_password):
-        _record_failed(ip)  # Incrémenter le compteur d'échecs
+    if not user:
+        _record_failed(ip)
+        raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect.")
+
+    # Vérification bcrypt dans un thread dédié (non-bloquant pour les autres workers)
+    loop = asyncio.get_event_loop()
+    password_ok = await loop.run_in_executor(
+        _bcrypt_executor,
+        lambda: pwd_context.verify(form_data.password, user.hashed_password)
+    )
+
+    if not password_ok:
+        _record_failed(ip)
         raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect.")
 
     # Sécurité 3 : bloquer si email non vérifié
@@ -231,7 +245,11 @@ def login(
 
     # Rehash si le hash utilise encore bcrypt rounds=12 → migrer vers rounds=10
     if user.hashed_password.startswith("$2b$12$"):
-        user.hashed_password = pwd_context.hash(form_data.password[:72])
+        new_hash = await loop.run_in_executor(
+            _bcrypt_executor,
+            lambda: pwd_context.hash(form_data.password[:72])
+        )
+        user.hashed_password = new_hash
 
     # Mettre à jour last_login
     user.last_login = datetime.utcnow()
