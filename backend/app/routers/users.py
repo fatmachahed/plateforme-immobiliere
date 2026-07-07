@@ -229,6 +229,10 @@ def login(
 
     _clear_attempts(ip)  # Login réussi → reset compteur
 
+    # Rehash si le hash utilise encore bcrypt rounds=12 → migrer vers rounds=10
+    if user.hashed_password.startswith("$2b$12$"):
+        user.hashed_password = pwd_context.hash(form_data.password[:72])
+
     # Mettre à jour last_login
     user.last_login = datetime.utcnow()
     db.commit()
