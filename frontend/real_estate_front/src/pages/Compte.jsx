@@ -103,9 +103,10 @@ export default function Compte() {
   }
   const _storedPhoneSplit = splitStoredPhone(storedUser?.phone_number || "");
 
-  const [editing,   setEditing]   = useState(false);
-  const [editing2,  setEditing2]  = useState(false); // infos complémentaires (particulier)
-  const [saving,  setSaving]  = useState(false);
+  const [editing,         setEditing]         = useState(false);
+  const [editing2,        setEditing2]        = useState(false);
+  const [saving,          setSaving]          = useState(false);
+  const [usernameStatus,  setUsernameStatus]  = useState(null); // null|"checking"|"available"|"taken"|"too-short"
   const [phoneOtpModal, _setPhoneOtpModal] = useState(() => sessionStorage.getItem("phone_otp_pending") === "1");
   const setPhoneOtpModal = (v) => { _setPhoneOtpModal(v); if (v) sessionStorage.setItem("phone_otp_pending","1"); else sessionStorage.removeItem("phone_otp_pending"); };
   const [phoneOtpCode,  setPhoneOtpCode]  = useState("");
@@ -382,6 +383,10 @@ export default function Compte() {
   const handleDrop = e => { e.preventDefault(); setDragOver(false); uploadFile(e.dataTransfer.files?.[0]); };
 
   const handleSaveProfile = async () => {
+    if (usernameStatus === "taken" || usernameStatus === "too-short") {
+      toast("Nom d'utilisateur invalide ou déjà pris.", "error");
+      return;
+    }
     setSaving(true);
     try {
       // phone_number contient maintenant seulement la partie locale (ex: "22300992")
@@ -886,11 +891,40 @@ export default function Compte() {
                     </div>
                     {!editing
                       ?<button onClick={()=>setEditing(true)} style={btnSec}><Edit size={13}/> Modifier</button>
-                      :<button onClick={()=>setEditing(false)} style={btnSec}><X size={13}/> Annuler</button>
+                      :<button onClick={()=>{setEditing(false);setUsernameStatus(null);}} style={btnSec}><X size={13}/> Annuler</button>
                     }
                   </div>
                   <div className="cpt-profil-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:13}}>
-                    <F label="Nom d'utilisateur"><input style={inp(editing)} value={profile.username} readOnly={!editing} onChange={e=>setProfile(p=>({...p,username:e.target.value}))}/></F>
+                    <F label="Nom d'utilisateur">
+                      <input
+                        style={{
+                          ...inp(editing),
+                          ...(editing && usernameStatus==="taken"    ? {borderColor:"#ef4444",boxShadow:"0 0 0 3px rgba(239,68,68,.15)"}   : {}),
+                          ...(editing && usernameStatus==="too-short"? {borderColor:"#ef4444",boxShadow:"0 0 0 3px rgba(239,68,68,.15)"}   : {}),
+                          ...(editing && usernameStatus==="available" ? {borderColor:"#10b981",boxShadow:"0 0 0 3px rgba(16,185,129,.15)"} : {}),
+                        }}
+                        value={profile.username}
+                        readOnly={!editing}
+                        onChange={e => { setProfile(p=>({...p,username:e.target.value})); setUsernameStatus(null); }}
+                        onBlur={async e => {
+                          if (!editing) return;
+                          const v = e.target.value.trim();
+                          if (!v) return;
+                          if (v === storedUser?.username) { setUsernameStatus(null); return; }
+                          if (v.length < 4) { setUsernameStatus("too-short"); return; }
+                          setUsernameStatus("checking");
+                          try {
+                            const r = await fetch(`${API_URL}/users/check-username?username=${encodeURIComponent(v)}`);
+                            const d = await r.json();
+                            setUsernameStatus(d.available ? "available" : "taken");
+                          } catch { setUsernameStatus(null); }
+                        }}
+                      />
+                      {editing && usernameStatus === "checking"  && <div style={{marginTop:5,fontSize:12,color:"#94a3b8",fontWeight:500}}>Vérification…</div>}
+                      {editing && usernameStatus === "too-short" && <div style={{display:"flex",alignItems:"center",gap:5,marginTop:5,fontSize:12,color:"#ef4444",fontWeight:500}}><span>✗</span> Au moins 4 caractères requis</div>}
+                      {editing && usernameStatus === "available" && <div style={{display:"flex",alignItems:"center",gap:5,marginTop:5,fontSize:12,color:"#10b981",fontWeight:600}}><span>✓</span> Nom d'utilisateur disponible</div>}
+                      {editing && usernameStatus === "taken"     && <div style={{display:"flex",alignItems:"center",gap:5,marginTop:5,fontSize:12,color:"#ef4444",fontWeight:500}}><span>✗</span> Ce nom d'utilisateur est déjà pris</div>}
+                    </F>
                     <F label="E-mail"><input style={inp(false)} value={profile.email} readOnly/></F>
                     <F label="Rôle">
                       <input

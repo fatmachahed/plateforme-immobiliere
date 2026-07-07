@@ -1,18 +1,19 @@
 import { useState } from "react";
 import API_URL from "../config";
 import { Link } from "react-router-dom";
-import { Home, Copy, Check, Menu } from "lucide-react";
+import { Home, Menu } from "lucide-react";
 import Logo from "../components/Logo";
 import Navbar from "../components/Navbar";
 
 const heroUrl = "https://www.guidesulysse.com/images/destinations/iStock-498116298.jpg";
 
 export default function ForgotPassword() {
-  const [email,   setEmail]   = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState("");
-  const [result,  setResult]  = useState(null);
-  const [copied,  setCopied]  = useState(false);
+  const [email,        setEmail]        = useState("");
+  const [loading,      setLoading]      = useState(false);
+  const [error,        setError]        = useState("");
+  const [result,       setResult]       = useState(null);
+  const [resendLoading,setResendLoading]= useState(false);
+  const [resendDone,   setResendDone]   = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -34,12 +35,18 @@ export default function ForgotPassword() {
     }
   };
 
-  const copyLink = () => {
-    if (result?.reset_link) {
-      navigator.clipboard.writeText(result.reset_link);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
+  const handleResend = async () => {
+    setResendLoading(true); setResendDone(false);
+    try {
+      const res = await fetch(`${API_URL}/users/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      if (res.ok) setResendDone(true);
+      else { const d = await res.json().catch(()=>({})); setError(d.detail || "Erreur lors du renvoi."); }
+    } catch { setError("Serveur inaccessible."); }
+    finally { setResendLoading(false); }
   };
 
   return (
@@ -96,22 +103,16 @@ export default function ForgotPassword() {
           ) : (
             <>
               <div className="sp-notice sp-notice--ok">✅ {result.message}</div>
-              {result.reset_link && (
-                <div style={{display:"flex", flexDirection:"column", gap:12, marginBottom:16, padding:"16px", background:"#f0fdf4", border:"1.5px solid #bbf7d0", borderRadius:12}}>
-                  <p style={{fontSize:13, fontWeight:700, color:"#166534", margin:0}}>Cliquez sur le bouton ci-dessous pour réinitialiser votre mot de passe :</p>
-                  <a href={result.reset_link}
-                    style={{display:"block", background:"#6366f1", color:"#fff", padding:"12px 20px", borderRadius:10, fontWeight:700, textDecoration:"none", textAlign:"center", fontSize:14}}>
-                    Réinitialiser mon mot de passe
-                  </a>
-                  <div style={{display:"flex", gap:8, alignItems:"flex-start", background:"#fff", border:"1px solid #d1fae5", borderRadius:8, padding:"8px 12px"}}>
-                    <code style={{fontSize:10.5, color:"#059669", flex:1, wordBreak:"break-all", lineHeight:1.5}}>{result.reset_link}</code>
-                    <button onClick={copyLink}
-                      style={{flexShrink:0, background:copied?"#f0fdf4":"#fff", border:"1px solid #bbf7d0", cursor:"pointer", borderRadius:6, padding:"6px 10px", color:copied?"#166534":"#6366f1"}}>
-                      {copied ? <Check size={14}/> : <Copy size={14}/>}
-                    </button>
-                  </div>
-                </div>
-              )}
+              <div style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:12,padding:"16px 18px",marginBottom:16,fontSize:13,color:"#475569",lineHeight:1.6}}>
+                Vérifiez aussi votre dossier <strong>spam / courriers indésirables</strong> si vous ne voyez pas l'email.
+              </div>
+              {error && <div className="sp-notice sp-notice--err">{error}</div>}
+              <button
+                onClick={handleResend}
+                disabled={resendLoading || resendDone}
+                style={{width:"100%",padding:"12px",borderRadius:11,border:"1.5px solid #e2e8f0",background:resendDone?"#f0fdf4":"#f8fafc",color:resendDone?"#16a34a":"#6366f1",fontWeight:700,fontSize:14,cursor:resendLoading||resendDone?"default":"pointer",fontFamily:"inherit",transition:"all .2s",marginBottom:4}}>
+                {resendLoading ? "Envoi en cours…" : resendDone ? "✓ Lien renvoyé !" : "Je n'ai rien reçu — Renvoyer le lien"}
+              </button>
             </>
           )}
 

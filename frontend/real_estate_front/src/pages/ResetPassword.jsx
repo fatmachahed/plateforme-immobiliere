@@ -26,7 +26,14 @@ export default function ResetPassword() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (password.length < 6) { setError("Le mot de passe doit contenir au moins 6 caractères."); return; }
+    const pwdChecks = [
+      password.length >= 8,
+      /\d/.test(password),
+      /[A-Z]/.test(password),
+      /[a-z]/.test(password),
+      /[^a-zA-Z0-9]/.test(password),
+    ];
+    if (pwdChecks.filter(Boolean).length < 3) { setError("Votre mot de passe est trop faible. Respectez au moins 3 critères."); return; }
     if (password !== confirm)  { setError("Les mots de passe ne correspondent pas."); return; }
     setLoading(true); setError("");
     try {
@@ -102,11 +109,41 @@ export default function ResetPassword() {
                     <input type={showPwd ? "text" : "password"} className="sp-input"
                       placeholder="••••••••" value={password}
                       onChange={e => setPassword(e.target.value)}
-                      required minLength={6} disabled={loading} autoComplete="new-password"/>
+                      required disabled={loading} autoComplete="new-password"/>
                     <button type="button" className="sp-eye" onClick={() => setShowPwd(v => !v)} tabIndex={-1}>
                       {showPwd ? <EyeOff size={17}/> : <Eye size={17}/>}
                     </button>
                   </div>
+                  {password.length > 0 && (() => {
+                    const checks = [
+                      { label: "Au moins 8 caractères",         ok: password.length >= 8 },
+                      { label: "Au moins un chiffre",           ok: /\d/.test(password) },
+                      { label: "Au moins une majuscule",        ok: /[A-Z]/.test(password) },
+                      { label: "Au moins une minuscule",        ok: /[a-z]/.test(password) },
+                      { label: "Au moins un caractère spécial", ok: /[^a-zA-Z0-9]/.test(password) },
+                    ];
+                    const score = checks.filter(c => c.ok).length;
+                    const strength = score <= 1 ? "Faible" : score <= 2 ? "Moyen" : score <= 3 ? "Assez fort" : score <= 4 ? "Fort" : "Très fort";
+                    const color   = score <= 1 ? "#ef4444" : score <= 2 ? "#f59e0b" : score <= 3 ? "#3b82f6" : score <= 4 ? "#16a34a" : "#15803d";
+                    return (
+                      <div style={{ marginTop: 10 }}>
+                        <div style={{ display:"flex", flexDirection:"column", gap:5, marginBottom:10 }}>
+                          {checks.map(c => (
+                            <div key={c.label} style={{ display:"flex", alignItems:"center", gap:7, fontSize:12.5, fontWeight:500, color: c.ok ? "#16a34a" : "#ef4444" }}>
+                              <span style={{ fontSize:13, fontWeight:700 }}>{c.ok ? "✓" : "✗"}</span>
+                              {c.label}
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                          <div style={{ flex:1, height:5, borderRadius:999, background:"#e2e8f0", overflow:"hidden" }}>
+                            <div style={{ width:`${(score/5)*100}%`, height:"100%", background:color, borderRadius:999, transition:"width .3s,background .3s" }}/>
+                          </div>
+                          <span style={{ fontSize:12, fontWeight:700, color, minWidth:60, textAlign:"right" }}>{strength}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="sp-field">
