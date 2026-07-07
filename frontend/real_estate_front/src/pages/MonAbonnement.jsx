@@ -536,7 +536,7 @@ export default function MonAbonnement() {
           display: grid;
           grid-template-columns: repeat(${Math.min(plans.length, 4)}, 1fr);
           gap: 20px;
-          align-items: start;
+          align-items: stretch;
         }
         @media (max-width: 1100px) { .mab-grid { grid-template-columns: repeat(2, 1fr); } }
         @media (max-width: 600px)  { .mab-grid { grid-template-columns: 1fr; } }
