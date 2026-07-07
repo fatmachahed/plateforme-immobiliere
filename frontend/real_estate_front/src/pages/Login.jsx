@@ -85,9 +85,9 @@ export default function Login() {
       const isFirstLogin = localStorage.getItem("first_login") === "1";
       if (isFirstLogin) {
         localStorage.removeItem("first_login");
-        navigate("/compte?welcome=1", { replace: true });
+        window.location.href = "/compte?welcome=1";
       } else {
-        navigate(redirectAfter, { replace: true });
+        window.location.href = redirectAfter;
       }
     } catch {
       setError("Serveur inaccessible — vérifiez que le backend est démarré.");

@@ -738,8 +738,7 @@ def forgot_password(body: dict, request: Request, db: Session = Depends(get_db))
     email = body.get("email", "").strip().lower()
     user = db.query(models.User).filter(func.lower(models.User.email) == email).first()
     if not user:
-        # Don't reveal if email exists
-        return {"message": "Si cet email existe, un lien de réinitialisation a été envoyé."}
+        raise HTTPException(status_code=404, detail="Aucun compte n'est associé à cet email.")
 
     token = secrets.token_urlsafe(32)
     _save_reset_token(db, token, user.email, datetime.utcnow() + timedelta(hours=2))
