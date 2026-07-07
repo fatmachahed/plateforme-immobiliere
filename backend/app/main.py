@@ -132,6 +132,13 @@ with engine.connect() as conn:
         # Ajout statuts vendue/louee dans l'enum PostgreSQL
         "ALTER TYPE statusenum ADD VALUE IF NOT EXISTS 'vendue';",
         "ALTER TYPE statusenum ADD VALUE IF NOT EXISTS 'louee';",
+        # Table paramètres plateforme (clé-valeur JSON)
+        """
+        CREATE TABLE IF NOT EXISTS settings (
+            key VARCHAR PRIMARY KEY,
+            value TEXT NOT NULL
+        );
+        """,
     ]
     for sql in migrations:
         try:
@@ -159,6 +166,22 @@ app.include_router(auth_google.router, tags=["Auth"])
 @app.get("/health", tags=["Health"])
 def health():
     return {"status": "ok"}
+
+# 5b. Config publique des offres d'abonnement
+import json as _main_json
+_DEFAULT_PLANS_CONFIG = {
+    "particulier": {"gratuit": True, "essentiel": True, "investisseur": True},
+    "agent":       {"gratuit": True, "starter": True, "pro": True, "expert": True},
+    "agence":      {"gratuit": True, "start": True, "pro": True, "power": True},
+    "promoteur":   {"gratuit-promo": True, "basic": True, "standard": True, "premium": True},
+    "partenaire":  {"smart": True, "bronze": True, "silver": True, "gold": True},
+}
+@app.get("/plans-config", tags=["Plans"])
+def get_plans_config_public(db: Session = Depends(get_db)):
+    row = db.execute(text("SELECT value FROM settings WHERE key = 'plans_config'")).fetchone()
+    if not row:
+        return _DEFAULT_PLANS_CONFIG
+    return _main_json.loads(row[0])
 
 # 6. Route formulaire de contact (POST /contact)
 from fastapi import Depends

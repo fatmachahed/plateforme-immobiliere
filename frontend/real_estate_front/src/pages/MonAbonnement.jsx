@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import API_URL from "../config";
 import {
-  Check, X, Star, ChevronRight, ToggleLeft, ToggleRight,
+  Check, X, Star, ChevronRight,
   User, Briefcase, Building2, HardHat, Handshake, Crown
 } from "lucide-react";
 
@@ -465,8 +466,16 @@ function PlanCard({ plan, billing }) {
 
 export default function MonAbonnement() {
   const [billing, setBilling] = useState("monthly");
+  const [plansConfig, setPlansConfig] = useState(null);
   const user = (() => { try { return JSON.parse(localStorage.getItem("user")); } catch { return null; } })();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    fetch(`${API_URL}/plans-config`)
+      .then(r => r.json())
+      .then(setPlansConfig)
+      .catch(() => setPlansConfig(null));
+  }, []);
 
   if (!user) {
     return (
@@ -487,7 +496,10 @@ export default function MonAbonnement() {
 
   const role = user.role === "agent_independant" ? "agent" : (user.role || "particulier");
   const segment = PLANS[role] ? role : "particulier";
-  const plans = PLANS[segment];
+  const segConfig = plansConfig?.[segment];
+  const plans = PLANS[segment].filter(p =>
+    !segConfig || segConfig[p.id] !== false
+  );
   const meta = SEGMENT_META[segment] || SEGMENT_META.particulier;
   const { Icon, color, label, desc } = meta;
 

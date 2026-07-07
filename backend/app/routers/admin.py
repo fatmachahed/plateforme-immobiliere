@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func, desc
+from sqlalchemy import func, desc, text
 from typing import Optional
 from pydantic import BaseModel
 from datetime import datetime
@@ -463,6 +463,39 @@ def list_conventions(
 
 class ConventionStatusBody(BaseModel):
     status: str  # soumis / accepte / refuse
+
+
+_DEFAULT_PLANS_CONFIG = {
+    "particulier": {"gratuit": True, "essentiel": True, "investisseur": True},
+    "agent":       {"gratuit": True, "starter": True, "pro": True, "expert": True},
+    "agence":      {"gratuit": True, "start": True, "pro": True, "power": True},
+    "promoteur":   {"gratuit-promo": True, "basic": True, "standard": True, "premium": True},
+    "partenaire":  {"smart": True, "bronze": True, "silver": True, "gold": True},
+}
+
+@router.get("/plans-config")
+def get_plans_config(
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_admin),
+):
+    row = db.execute(text("SELECT value FROM settings WHERE key = 'plans_config'")).fetchone()
+    if not row:
+        return _DEFAULT_PLANS_CONFIG
+    return _json.loads(row[0])
+
+@router.put("/plans-config")
+def update_plans_config(
+    config: dict,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_admin),
+):
+    existing = db.execute(text("SELECT key FROM settings WHERE key = 'plans_config'")).fetchone()
+    if existing:
+        db.execute(text("UPDATE settings SET value = :v WHERE key = 'plans_config'"), {"v": _json.dumps(config)})
+    else:
+        db.execute(text("INSERT INTO settings (key, value) VALUES ('plans_config', :v)"), {"v": _json.dumps(config)})
+    db.commit()
+    return {"ok": True}
 
 
 @router.patch("/conventions/{convention_id}/status")

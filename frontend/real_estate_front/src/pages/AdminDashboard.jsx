@@ -53,6 +53,50 @@ export default function AdminDashboard() {
   const [poiEnabled, setPoiEnabled] = useState(() => {
     try { return localStorage.getItem("lz_poi_enabled") !== "0"; } catch { return true; }
   });
+
+  /* ── Plans config ── */
+  const _DEFAULT_PLANS_CONFIG = {
+    particulier: { gratuit: true, essentiel: true, investisseur: true },
+    agent:       { gratuit: true, starter: true, pro: true, expert: true },
+    agence:      { gratuit: true, start: true, pro: true, power: true },
+    promoteur:   { "gratuit-promo": true, basic: true, standard: true, premium: true },
+    partenaire:  { smart: true, bronze: true, silver: true, gold: true },
+  };
+  const _PLANS_META = {
+    particulier: { label:"Particuliers",             color:"#6366f1", plans:[
+      {id:"gratuit",      name:"Gratuit"},
+      {id:"essentiel",    name:"Essentiel"},
+      {id:"investisseur", name:"Investisseur"},
+    ]},
+    agent: { label:"Agents indépendants", color:"#0ea5e9", plans:[
+      {id:"gratuit",  name:"Gratuit"},
+      {id:"starter",  name:"Starter"},
+      {id:"pro",      name:"Pro"},
+      {id:"expert",   name:"Expert"},
+    ]},
+    agence: { label:"Agences", color:"#10b981", plans:[
+      {id:"gratuit", name:"Gratuit"},
+      {id:"start",   name:"Agency Start"},
+      {id:"pro",     name:"Agency Pro"},
+      {id:"power",   name:"Agency Power"},
+    ]},
+    promoteur: { label:"Promoteurs", color:"#f59e0b", plans:[
+      {id:"gratuit-promo", name:"Gratuit"},
+      {id:"basic",         name:"Basic"},
+      {id:"standard",      name:"Standard"},
+      {id:"premium",       name:"Premium"},
+    ]},
+    partenaire: { label:"Partenaires/Prestataires", color:"#8b5cf6", plans:[
+      {id:"smart",  name:"Smart Partner"},
+      {id:"bronze", name:"Bronze Partner"},
+      {id:"silver", name:"Silver Partner"},
+      {id:"gold",   name:"Gold Partner"},
+    ]},
+  };
+  const [plansConfig, setPlansConfig] = useState(_DEFAULT_PLANS_CONFIG);
+  const [plansSaved, setPlansSaved] = useState(false);
+  const [plansLoaded, setPlansLoaded] = useState(false);
+
   const saveQuotas = (next) => {
     setQuotas(next);
     localStorage.setItem("lz_quotas", JSON.stringify(next));
@@ -158,7 +202,32 @@ export default function AdminDashboard() {
     if (tab === "agences")        { loadAgencies(); if (allAnnonces.length === 0) loadAllAnnonces(); }
     if (tab === "accompagnements"){ loadAllAnnonces(); if (users.length === 0) loadUsers(); if (agencies.length === 0) loadAgencies(); loadProfessionals(); }
     if (tab === "conventions") loadConventions();
+    if (tab === "parametres" && !plansLoaded) loadPlansConfig();
   }, [tab, filter]);
+
+  async function loadPlansConfig() {
+    try {
+      const r = await authFetch("/admin/plans-config");
+      const d = await r.json();
+      setPlansConfig(d);
+      setPlansLoaded(true);
+    } catch {}
+  }
+
+  async function savePlansConfig() {
+    try {
+      await authFetch("/admin/plans-config", { method:"PUT", body: JSON.stringify(plansConfig) });
+      setPlansSaved(true);
+      setTimeout(() => setPlansSaved(false), 2500);
+    } catch {}
+  }
+
+  function togglePlan(segment, planId) {
+    setPlansConfig(prev => ({
+      ...prev,
+      [segment]: { ...prev[segment], [planId]: !prev[segment][planId] },
+    }));
+  }
 
   async function authFetch(url, opts = {}) {
     const res = await fetch(`${API_URL}${url}`, {
@@ -1798,6 +1867,75 @@ export default function AdminDashboard() {
                       flexShrink:0,
                     }}>
                     {poiEnabled ? "Désactiver" : "Activer"}
+                  </button>
+                </div>
+              </div>
+
+              {/* ─── Bloc : Gestion des offres d'abonnement ─── */}
+              <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:16,padding:"28px 32px",boxShadow:"0 1px 6px rgba(0,0,0,.04)",marginBottom:24}}>
+                <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:24,paddingBottom:16,borderBottom:"1px solid #f1f5f9"}}>
+                  <div style={{width:40,height:40,borderRadius:12,background:"#f5f3ff",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    <CreditCard size={20} color="#7c3aed"/>
+                  </div>
+                  <div style={{flex:1}}>
+                    <h2 style={{fontSize:16,fontWeight:800,color:"#0f172a",margin:0}}>Offres d'abonnement visibles</h2>
+                    <p style={{fontSize:12,color:"#64748b",margin:"3px 0 0"}}>Activez ou désactivez les offres affichées aux utilisateurs dans "Mon abonnement". Les offres désactivées sont masquées immédiatement.</p>
+                  </div>
+                </div>
+
+                <div style={{display:"flex",flexDirection:"column",gap:20}}>
+                  {Object.entries(_PLANS_META).map(([seg, meta]) => (
+                    <div key={seg} style={{border:"1.5px solid #f1f5f9",borderRadius:14,overflow:"hidden"}}>
+                      {/* Header segment */}
+                      <div style={{background:`${meta.color}10`,padding:"12px 18px",display:"flex",alignItems:"center",gap:10,borderBottom:"1px solid #f1f5f9"}}>
+                        <div style={{width:10,height:10,borderRadius:"50%",background:meta.color,flexShrink:0}}/>
+                        <span style={{fontSize:13.5,fontWeight:800,color:meta.color}}>{meta.label}</span>
+                      </div>
+                      {/* Plans rows */}
+                      <div style={{padding:"8px 18px 12px",display:"flex",flexDirection:"column",gap:6}}>
+                        {meta.plans.map(plan => {
+                          const active = plansConfig?.[seg]?.[plan.id] !== false;
+                          return (
+                            <div key={plan.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",borderRadius:10,background: active?"#f8fafc":"#fef2f2",border:`1px solid ${active?"#e2e8f0":"#fecaca"}`,transition:"background .2s"}}>
+                              <div>
+                                <span style={{fontSize:14,fontWeight:700,color: active?"#0f172a":"#94a3b8"}}>{plan.name}</span>
+                                {!active && <span style={{marginLeft:10,fontSize:11,color:"#ef4444",fontWeight:700,background:"#fee2e2",padding:"2px 8px",borderRadius:20}}>Masquée</span>}
+                              </div>
+                              {/* Toggle switch */}
+                              <div
+                                onClick={() => togglePlan(seg, plan.id)}
+                                style={{
+                                  width:44, height:24,
+                                  background: active ? meta.color : "#d1d5db",
+                                  borderRadius:999, padding:3, cursor:"pointer",
+                                  transition:"background .2s", flexShrink:0,
+                                  display:"flex", alignItems:"center",
+                                }}>
+                                <div style={{
+                                  width:18, height:18, background:"#fff", borderRadius:"50%",
+                                  transition:"transform .2s", boxShadow:"0 1px 4px rgba(0,0,0,.2)",
+                                  transform: active ? "translateX(20px)" : "translateX(0)",
+                                }}/>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{marginTop:20,display:"flex",justifyContent:"flex-end"}}>
+                  <button
+                    onClick={savePlansConfig}
+                    style={{
+                      display:"flex",alignItems:"center",gap:8,
+                      padding:"10px 24px",borderRadius:10,border:"none",
+                      background: plansSaved ? "#22c55e" : "#7c3aed",
+                      color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer",
+                      transition:"background .3s",
+                    }}>
+                    {plansSaved ? <><Check size={15}/> Sauvegardé !</> : <><Save size={15}/> Enregistrer les offres</>}
                   </button>
                 </div>
               </div>
