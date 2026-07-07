@@ -1,8 +1,9 @@
 import { useState } from "react";
 import API_URL from "../config";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Home, Eye, EyeOff, CheckCircle } from "lucide-react";
+import { Home, Eye, EyeOff, CheckCircle, Menu } from "lucide-react";
 import Logo from "../components/Logo";
+import Navbar from "../components/Navbar";
 
 const heroUrl = "https://www.guidesulysse.com/images/destinations/iStock-498116298.jpg";
 
@@ -47,6 +48,15 @@ export default function ResetPassword() {
 
   return (
     <div className="sp-page">
+      {/* Barre mobile : logo + hamburger */}
+      <div className="sp-logo-mobile">
+        <Link to="/"><Logo height={28} /></Link>
+        <button className="sp-mob-burger" onClick={() => window.dispatchEvent(new CustomEvent('localizi:openMobileMenu'))}>
+          <Menu size={22}/>
+        </button>
+      </div>
+      <div className="sp-hidden-nav"><Navbar /></div>
+
       <div className="sp-left">
         <img src={heroUrl} alt="" className="sp-left__bg" />
         <div className="sp-left__overlay" />
@@ -68,7 +78,6 @@ export default function ResetPassword() {
 
       <div className="sp-right">
         <div className="sp-form-wrap">
-          <div className="sp-logo-mobile"><Logo variant="color" height={40} to="/" /></div>
 
           {success ? (
             <div style={{textAlign:"center", display:"flex", flexDirection:"column", alignItems:"center", gap:20, paddingTop:20}}>
@@ -162,8 +171,10 @@ export default function ResetPassword() {
         .sp-switch { text-align:center; font-size:13.5px; color:#6b7280; margin-top:22px; }
         .sp-link { color:#6366f1; font-weight:700; text-decoration:none; }
         .sp-link:hover { text-decoration:underline; }
-        @media (max-width:900px) { .sp-left { display:none; } .sp-center-icon { display:none; } .sp-right { width:100%; padding:40px 24px; } .sp-logo-mobile { display:flex; } }
-        @media (max-width:480px) { .sp-right { padding:32px 20px; } .sp-form-wrap { max-width:100%; } }
+        .sp-hidden-nav { display:none; }
+        .sp-mob-burger { background:none; border:none; cursor:pointer; color:#0f172a; display:flex; align-items:center; padding:4px; border-radius:8px; }
+        @media (max-width:900px) { .sp-left { display:none; } .sp-center-icon { display:none; } .sp-right { width:100%; padding:72px 24px 40px; } .sp-logo-mobile { display:flex; position:fixed; top:0; left:0; right:0; z-index:100; background:#fff; border-bottom:1px solid #e2e8f0; padding:12px 20px; align-items:center; justify-content:space-between; } }
+        @media (max-width:480px) { .sp-right { padding:72px 20px 32px; } .sp-form-wrap { max-width:100%; } }
       `}</style>
     </div>
   );

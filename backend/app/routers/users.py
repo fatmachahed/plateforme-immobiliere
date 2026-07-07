@@ -6,8 +6,32 @@ from typing import Optional
 import base64, uuid, os, secrets, json, re, asyncio
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor
+from sqlalchemy import text
 
 _bcrypt_executor = ThreadPoolExecutor(max_workers=8)
+
+# ── Helpers tokens reset (stockés en DB pour compatibilité multi-workers) ──
+def _save_reset_token(db, token: str, email: str, expires: datetime):
+    payload = json.dumps({"email": email, "expires": expires.isoformat()})
+    key = f"reset_token:{token}"
+    existing = db.execute(text("SELECT key FROM settings WHERE key=:k"), {"k": key}).fetchone()
+    if existing:
+        db.execute(text("UPDATE settings SET value=:v WHERE key=:k"), {"v": payload, "k": key})
+    else:
+        db.execute(text("INSERT INTO settings (key,value) VALUES (:k,:v)"), {"k": key, "v": payload})
+    db.commit()
+
+def _get_reset_token(db, token: str):
+    key = f"reset_token:{token}"
+    row = db.execute(text("SELECT value FROM settings WHERE key=:k"), {"k": key}).fetchone()
+    if not row:
+        return None
+    return json.loads(row[0])
+
+def _delete_reset_token(db, token: str):
+    key = f"reset_token:{token}"
+    db.execute(text("DELETE FROM settings WHERE key=:k"), {"k": key})
+    db.commit()
 
 from app import schemas, crud, database, models
 from app.utils.auth import create_access_token, get_current_user
@@ -718,10 +742,7 @@ def forgot_password(body: dict, request: Request, db: Session = Depends(get_db))
         return {"message": "Si cet email existe, un lien de réinitialisation a été envoyé."}
 
     token = secrets.token_urlsafe(32)
-    _reset_tokens[token] = {
-        "email": user.email,
-        "expires": datetime.utcnow() + timedelta(hours=2),
-    }
+    _save_reset_token(db, token, user.email, datetime.utcnow() + timedelta(hours=2))
 
     # Envoi par email (silencieux si SMTP non configuré)
     try:
@@ -760,12 +781,12 @@ def reset_password(body: dict, db: Session = Depends(get_db)):
 
     _validate_password(new_password)
 
-    token_data = _reset_tokens.get(token)
+    token_data = _get_reset_token(db, token)
     if not token_data:
         raise HTTPException(400, "Token invalide ou expiré")
 
-    if datetime.utcnow() > token_data["expires"]:
-        del _reset_tokens[token]
+    if datetime.utcnow() > datetime.fromisoformat(token_data["expires"]):
+        _delete_reset_token(db, token)
         raise HTTPException(400, "Token expiré. Veuillez refaire la demande.")
 
     user = db.query(models.User).filter(models.User.email == token_data["email"]).first()
@@ -775,7 +796,7 @@ def reset_password(body: dict, db: Session = Depends(get_db)):
     user.hashed_password = hash_password(new_password)
     db.commit()
 
-    del _reset_tokens[token]
+    _delete_reset_token(db, token)
     return {"message": "Mot de passe réinitialisé avec succès"}
 
 
