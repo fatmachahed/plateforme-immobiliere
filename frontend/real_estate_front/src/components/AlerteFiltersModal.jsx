@@ -206,6 +206,7 @@ export default function AlerteFiltersModal({ form, setForm, onClose, onSave, sav
                   ["local_commercial","Local commercial"],["bureau","Bureau"],["ferme_agricole","Ferme agricole"],
                   ["immeuble","Immeuble"],["garage_parking","Garage/Parking"],
                   ["depot_stockage","Dépôt de stockage"],
+                  ["batiment_industriel","Bâtiment industriel"],
                   ["immobiliers_divers","Immobiliers divers"]].map(([v,l])=>(
                   <option key={v} value={v}>{l}</option>
                 ))}

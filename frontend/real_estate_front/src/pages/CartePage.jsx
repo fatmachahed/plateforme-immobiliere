@@ -242,7 +242,7 @@ const GRAND_SURFACES = [
   { id:"gs27",nom:"MG Manouba",                        lat:36.812, lng:10.100, gov:"Manouba"    },
 ];
 
-const TYPES    = ["appartement","villa_maison","immeuble","terrain","local_commercial","bureau","ferme_agricole","garage_parking","depot_stockage","immobiliers_divers"];
+const TYPES    = ["appartement","villa_maison","immeuble","terrain","local_commercial","bureau","ferme_agricole","garage_parking","depot_stockage","batiment_industriel","immobiliers_divers"];
 const TYPE_LBL = {
   appartement:       "Appartement",
   villa_maison:      "Villa/Maison",
@@ -253,6 +253,7 @@ const TYPE_LBL = {
   ferme_agricole:    "Ferme agricole",
   garage_parking:    "Garage / Parking",
   depot_stockage:    "Dépôt de stockage",
+  batiment_industriel:"Bâtiment industriel",
   immobiliers_divers:"Immobiliers divers",
 };
 const ETATS    = ["nouveau","bon_etat","a_renover","cours_construction"];
@@ -1822,7 +1823,7 @@ function FilterPanel({ filters, onChange, onSaveSearch, showSchools, showMosques
               onChange={e => set("superficieMax", e.target.value)}/>
           </div>
           {/* Nbr pièces min */}
-          {!["terrain","garage_parking","depot_stockage","immeuble"].includes(local.type) && (
+          {!["terrain","garage_parking","depot_stockage","batiment_industriel","immeuble"].includes(local.type) && (
             <div className="fp__adv-group">
               <label className="fp__adv-label">Nbr pièces min</label>
               <select className="fp__adv-sel" value={local.piecesMin||""} onChange={e=>set("piecesMin",e.target.value)}>
@@ -1832,7 +1833,7 @@ function FilterPanel({ filters, onChange, onSaveSearch, showSchools, showMosques
             </div>
           )}
           {/* Nbr chambre min */}
-          {!["terrain","garage_parking","depot_stockage","immeuble","bureau","local_commercial"].includes(local.type) && (
+          {!["terrain","garage_parking","depot_stockage","batiment_industriel","immeuble","bureau","local_commercial"].includes(local.type) && (
             <div className="fp__adv-group">
               <label className="fp__adv-label">Nbr chambre min</label>
               <select className="fp__adv-sel" value={local.chambresMin||""} onChange={e=>set("chambresMin",e.target.value)}>
@@ -1842,7 +1843,7 @@ function FilterPanel({ filters, onChange, onSaveSearch, showSchools, showMosques
             </div>
           )}
           {/* État du bien */}
-          {!["terrain","garage_parking","depot_stockage"].includes(local.type) && (
+          {!["terrain","garage_parking","depot_stockage","batiment_industriel"].includes(local.type) && (
             <div className="fp__adv-group">
               <label className="fp__adv-label">État du bien</label>
               <select className="fp__adv-sel" value={local.etat||""} onChange={e=>set("etat",e.target.value)}>
@@ -2070,7 +2071,7 @@ function FilterPanel({ filters, onChange, onSaveSearch, showSchools, showMosques
 
           {/* Actions : Autres critères (gauche) + Réinitialiser (droite) — toujours même ligne, à la fin */}
           <div className="fp__adv-actions">
-            {!["terrain","garage_parking","depot_stockage"].includes(local.type) && (
+            {!["terrain","garage_parking","depot_stockage","batiment_industriel"].includes(local.type) && (
               <button
                 className={`fp__adv-btn${(local.features||[]).length > 0 ? " fp__adv-btn--on" : ""}`}
                 type="button"

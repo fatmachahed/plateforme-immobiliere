@@ -19,6 +19,7 @@ class TypeBienEnum(str, enum.Enum):
     #   ALTER TYPE typebienum ADD VALUE 'villa_maison';
     #   ALTER TYPE typebienum ADD VALUE 'immobiliers_divers';
     #   ALTER TYPE typebienum ADD VALUE 'depot_stockage';
+    #   ALTER TYPE typebienum ADD VALUE 'batiment_industriel';
     #   (bord_eau and maison kept in DB for backward compat, but new entries use villa_maison/immobiliers_divers)
     appartement = "appartement"
     villa = "villa"
@@ -32,6 +33,7 @@ class TypeBienEnum(str, enum.Enum):
     immeuble           = "immeuble"
     garage_parking     = "garage_parking"
     depot_stockage     = "depot_stockage"
+    batiment_industriel = "batiment_industriel"
 
 class EtatBienEnum(str, enum.Enum):
     nouveau = "nouveau"

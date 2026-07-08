@@ -32,7 +32,7 @@ function statusBadge(s) {
 function typeBienLabel(t) {
   const map = { appartement:"Appartement", villa:"Villa", maison:"Maison",
     terrain:"Terrain", bureau:"Bureau", local_commercial:"Local commercial", ferme:"Ferme agricole", ferme_agricole:"Ferme agricole",
-    garage_parking:"Garage / Parking", depot_stockage:"Dépôt de stockage", immobiliers_divers:"Immobiliers divers" };
+    garage_parking:"Garage / Parking", depot_stockage:"Dépôt de stockage", batiment_industriel:"Bâtiment industriel", immobiliers_divers:"Immobiliers divers" };
   return map[t] || t;
 }
 function categorieLabel(c) {
@@ -434,6 +434,7 @@ export default function Dashboard() {
     ferme: "Ferme agricole", ferme_agricole: "Ferme agricole", local_commercial: "Local commercial",
     garage_parking: "Garage / Parking",
     depot_stockage: "Dépôt de stockage",
+    batiment_industriel: "Bâtiment industriel",
     immobiliers_divers: "Immobiliers divers",
   };
   const STATUS_LABEL_MAP = {
@@ -811,7 +812,7 @@ export default function Dashboard() {
                       {savedSearches.map(s => {
                         const c = s.criteres || {};
                         const CAT_FR = { vente:"Achat", location:"Location", vacances:"Vacances" };
-                        const TYPE_FR = { appartement:"Appartement", villa:"Villa/Maison", terrain:"Terrain", bureau:"Bureau", local_commercial:"Local commercial", ferme:"Ferme agricole", ferme_agricole:"Ferme agricole", immeuble:"Immeuble", garage_parking:"Garage / Parking", depot_stockage:"Dépôt de stockage", immobiliers_divers:"Immobiliers divers" };
+                        const TYPE_FR = { appartement:"Appartement", villa:"Villa/Maison", terrain:"Terrain", bureau:"Bureau", local_commercial:"Local commercial", ferme:"Ferme agricole", ferme_agricole:"Ferme agricole", immeuble:"Immeuble", garage_parking:"Garage / Parking", depot_stockage:"Dépôt de stockage", batiment_industriel:"Bâtiment industriel", immobiliers_divers:"Immobiliers divers" };
                         const ETAT_FR = { nouveau:"Neuf", bon_etat:"Bon état", a_renover:"À rénover", cours_construction:"En construction" };
                         const tags = [
                           c.categories?.length > 0 && c.categories.map(v => CAT_FR[v]||v).join(" / "),
@@ -993,6 +994,7 @@ export default function Dashboard() {
                       ["ferme_agricole",    "Ferme agricole"],
                       ["garage_parking",    "Garage / Parking"],
                       ["depot_stockage",    "Dépôt de stockage"],
+                      ["batiment_industriel","Bâtiment industriel"],
                       ["immobiliers_divers","Immobiliers divers"],
                     ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                   </select>
@@ -1566,7 +1568,7 @@ export default function Dashboard() {
                 <select value={alerteForm.type||""} onChange={e=>setAlerteForm(f=>({...f,type:e.target.value}))}
                   style={{width:"100%",padding:"10px 14px",borderRadius:10,border:"1.5px solid #e2e8f0",fontFamily:"inherit",fontSize:13.5,outline:"none",background:"#f8fafc",boxSizing:"border-box"}}>
                   <option value="">Tous les types</option>
-                  {[["appartement","Appartement"],["villa","Villa/Maison"],["terrain","Terrain"],["local_commercial","Local commercial"],["bureau","Bureau"],["ferme_agricole","Ferme agricole"],["immeuble","Immeuble"],["garage_parking","Garage/Parking"],["depot_stockage","Dépôt de stockage"]].map(([v,l])=>(
+                  {[["appartement","Appartement"],["villa","Villa/Maison"],["terrain","Terrain"],["local_commercial","Local commercial"],["bureau","Bureau"],["ferme_agricole","Ferme agricole"],["immeuble","Immeuble"],["garage_parking","Garage/Parking"],["depot_stockage","Dépôt de stockage"],["batiment_industriel","Bâtiment industriel"]].map(([v,l])=>(
                     <option key={v} value={v}>{l}</option>
                   ))}
                 </select>

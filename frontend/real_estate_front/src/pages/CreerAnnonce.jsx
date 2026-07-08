@@ -12,7 +12,7 @@ import {
   UtensilsCrossed, Wind, Thermometer, Compass, Wrench,
   HardHat, ThumbsUp, Hammer,
   Wifi, Flame, DoorClosed, ShieldCheck, Tv, PhoneCall, Users, KeyRound, Droplets, Signal, Heart, RefreshCw, Monitor, LockKeyhole, Fence, Fingerprint, Briefcase,
-  Tractor, LayoutGrid, Star, Tag, Phone, Mail, Warehouse, AlertTriangle
+  Tractor, LayoutGrid, Star, Tag, Phone, Mail, Warehouse, AlertTriangle, Factory
 } from "lucide-react";
 import Layout from "../components/Layout";
 import Logo from "../components/Logo";
@@ -822,7 +822,7 @@ export const CreateListingForm = ({ editId = null }) => {
 
   /* -- Reset categorie if type_bien changes to terrain/local_commercial and categorie is vacances -- */
   useEffect(() => {
-    if (["terrain","local_commercial","immeuble","garage_parking","depot_stockage","bureau"].includes(formData.type_bien) && formData.categorie === "vacances") {
+    if (["terrain","local_commercial","immeuble","garage_parking","depot_stockage","batiment_industriel","bureau"].includes(formData.type_bien) && formData.categorie === "vacances") {
       setFormData(prev => ({ ...prev, categorie: "" }));
     }
     /* Effacer toutes les erreurs de validation quand le type change */
@@ -960,7 +960,7 @@ export const CreateListingForm = ({ editId = null }) => {
   /* Réinitialiser aussi la catégorie si elle devient incompatible */
   useEffect(() => {
     const t = formData.type_bien;
-    if (["terrain","local_commercial","depot_stockage","bureau"].includes(t) && formData.categorie === "vacances") {
+    if (["terrain","local_commercial","depot_stockage","batiment_industriel","bureau"].includes(t) && formData.categorie === "vacances") {
       setFormData(f => ({ ...f, categorie: "" }));
     }
   }, [formData.type_bien]); // eslint-disable-line
@@ -1203,7 +1203,7 @@ export const CreateListingForm = ({ editId = null }) => {
         errors.etat_bien = true;
       }
       /* Pièces / chambres / SDB obligatoires pour les types qui affichent ces compteurs */
-      if (formData.type_bien && !["terrain","garage_parking","immeuble","depot_stockage"].includes(formData.type_bien)) {
+      if (formData.type_bien && !["terrain","garage_parking","immeuble","depot_stockage","batiment_industriel"].includes(formData.type_bien)) {
         if (!formData.nb_pieces    || formData.nb_pieces    < 1) errors.nb_pieces    = true;
         if (!formData.nb_chambres  || formData.nb_chambres  < 1) errors.nb_chambres  = true;
         if (!formData.nb_salles_bain || formData.nb_salles_bain < 1) errors.nb_salles_bain = true;
@@ -1635,7 +1635,7 @@ export const CreateListingForm = ({ editId = null }) => {
       const typeLabels = {
         appartement:"appartement", villa:"villa", terrain:"terrain",
         bureau:"bureau", ferme_agricole:"ferme agricole", ferme:"ferme agricole", local_commercial:"local commercial", maison:"maison",
-        depot_stockage:"dépôt de stockage"
+        depot_stockage:"dépôt de stockage", batiment_industriel:"bâtiment industriel"
       };
       const typeFr = typeLabels[formData.type_bien] || formData.type_bien;
       const offreFr = formData.categorie === "location"  ? "à louer"
@@ -1767,7 +1767,7 @@ export const CreateListingForm = ({ editId = null }) => {
     const typeLabels = {
       appartement:"appartement", villa:"villa", villa_maison:"villa", terrain:"terrain",
       bureau:"bureau", ferme_agricole:"ferme agricole", local_commercial:"local commercial",
-      maison:"maison", depot_stockage:"dépôt de stockage", immeuble:"immeuble",
+      maison:"maison", depot_stockage:"dépôt de stockage", batiment_industriel:"bâtiment industriel", immeuble:"immeuble",
       garage_parking:"garage", immobiliers_divers:"bien immobilier",
     };
     const typeFr = typeLabels[formData.type_bien] || formData.type_bien;
@@ -1853,6 +1853,7 @@ export const CreateListingForm = ({ editId = null }) => {
     { value: "ferme_agricole",   label: "Ferme agricole",   Ico: Tractor,    color: "#16a34a" },
     { value: "garage_parking",   label: "Garage / Parking",    Ico: Car,       color: "#64748b" },
     { value: "depot_stockage",   label: "Dépôt de stockage",   Ico: Warehouse, color: "#78716c" },
+    { value: "batiment_industriel",label: "Bâtiment industriel", Ico: Factory,  color: "#57534e" },
     { value: "immobiliers_divers",label:"Immobiliers divers",   Ico: LayoutGrid,color: "#94a3b8" },
   ];
 
@@ -2295,7 +2296,7 @@ export const CreateListingForm = ({ editId = null }) => {
                       )}
 
                       {/* Pièces & espaces */}
-                      {!["terrain","garage_parking","immeuble","depot_stockage"].includes(formData.type_bien) && (<>
+                      {!["terrain","garage_parking","immeuble","depot_stockage","batiment_industriel"].includes(formData.type_bien) && (<>
                         <div className="ca-section-label" style={{marginTop:20}}>Pièces & espaces</div>
                         <div className="ca-counters">
                           {[
@@ -2679,7 +2680,7 @@ export const CreateListingForm = ({ editId = null }) => {
                       <div className="ca-section-label" style={{marginTop:20}}>Type d'offre <span className="ca-req">*</span></div>
                       <div className={`ca-pill-row${validationErrors.categorie?" ca-pill-row--err":""}`}>
                         {[{v:"vente",l:"Vente"},{v:"location",l:"Location"},{v:"vacances",l:"Vacances"}]
-                          .filter(o => !(o.v==="vacances"&&(["terrain","local_commercial","immeuble","garage_parking","depot_stockage","bureau"].includes(formData.type_bien))))
+                          .filter(o => !(o.v==="vacances"&&(["terrain","local_commercial","immeuble","garage_parking","depot_stockage","batiment_industriel","bureau"].includes(formData.type_bien))))
                           .map(o => (
                             <button key={o.v} type="button"
                               className={`ca-pill${formData.categorie===o.v?" ca-pill--on":""}`}
@@ -2811,7 +2812,7 @@ export const CreateListingForm = ({ editId = null }) => {
 
                   {/* -- Caractéristiques — directement dans la page, sans wrapper -- */}
 
-                  {!["garage_parking","depot_stockage"].includes(formData.type_bien) && <>
+                  {!["garage_parking","depot_stockage","batiment_industriel"].includes(formData.type_bien) && <>
                   <div className="ca-feats-section-title" style={{marginTop:40, paddingTop:28, borderTop:"1.5px solid #f1f5f9"}}>Vue</div>
                   <div className="ca-feat-big-grid">
                     {FEAT_VUE.map(item => {
@@ -2828,7 +2829,7 @@ export const CreateListingForm = ({ editId = null }) => {
                     })}
                   </div>
 
-                  {!["terrain","garage_parking","depot_stockage"].includes(formData.type_bien) && (
+                  {!["terrain","garage_parking","depot_stockage","batiment_industriel"].includes(formData.type_bien) && (
                     <>
                       <div className="ca-feats-section-title" style={{marginTop:36}}>Espaces extérieurs</div>
                       <div className="ca-feat-big-grid">
@@ -2858,7 +2859,7 @@ export const CreateListingForm = ({ editId = null }) => {
                     </>
                   )}
 
-                  {!["terrain","garage_parking","depot_stockage"].includes(formData.type_bien) && (<>
+                  {!["terrain","garage_parking","depot_stockage","batiment_industriel"].includes(formData.type_bien) && (<>
                     <div className="ca-feats-section-title" style={{marginTop:36}}>Commodités</div>
                     <div className="ca-feat-big-grid">
                       {FEAT_COM.map(item => {
@@ -3128,7 +3129,7 @@ export const CreateListingForm = ({ editId = null }) => {
                                 appartement:"appartement", villa_maison:"villa", villa:"villa", maison:"maison",
                                 terrain:"terrain", bureau:"bureau", local_commercial:"local commercial",
                                 immeuble:"immeuble", ferme_agricole:"ferme agricole",
-                                garage_parking:"garage", depot_stockage:"dépôt", immobiliers_divers:"bien immobilier",
+                                garage_parking:"garage", depot_stockage:"dépôt", batiment_industriel:"bâtiment industriel", immobiliers_divers:"bien immobilier",
                               };
                               const t = TYPE_FR[formData.type_bien] || formData.type_bien;
                               const sup = formData.superficie ? ` ${formData.superficie} m²` : "";

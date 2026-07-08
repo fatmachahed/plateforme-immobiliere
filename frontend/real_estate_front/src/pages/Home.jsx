@@ -7,7 +7,7 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   Search, MapPin, Home, TrendingUp, Shield, Clock, Star,
   ArrowRight, Bed, Bath, Maximize, Zap, CheckCircle,
-  Building2, Trees, ChevronRight, ChevronLeft, Play, Car, Users, Moon, Heart, X, Download, Smartphone, Wifi
+  Building2, Trees, ChevronRight, ChevronLeft, Play, Car, Users, Moon, Heart, X, Download, Smartphone, Wifi, Factory
 } from "lucide-react";
 import ReactDOM from "react-dom";
 import Navbar from "../components/Navbar";
@@ -160,6 +160,7 @@ const TYPES = [
   { label: "Ferme agricole",      icon: <Trees size={32}/>,     href: "/carte?type=ferme_agricole",    color: "#16a34a" },
   { label: "Garage / Parking",    icon: <Car size={32}/>,       href: "/carte?type=garage_parking",    color: "#64748b" },
   { label: "Dépôt / Stockage",    icon: <Building2 size={32}/>, href: "/carte?type=depot_stockage",    color: "#92400e" },
+  { label: "Bâtiment industriel", icon: <Factory size={32}/>,   href: "/carte?type=batiment_industriel", color: "#57534e" },
   { label: "Immobiliers divers",  icon: <ChevronRight size={32}/>, href: "/carte",                     color: "#475569" },
 ];
 
