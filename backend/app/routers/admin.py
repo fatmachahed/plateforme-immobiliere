@@ -506,6 +506,37 @@ def update_plans_config(
     return {"ok": True}
 
 
+# ── Feature flags (activation globale de fonctionnalités) ──────
+# Stockées en base (table settings) au lieu du localStorage : sinon chaque
+# navigateur/appareil garde sa propre valeur et un admin qui désactive une
+# fonctionnalité sur PC ne voit pas le changement sur mobile (et vice versa).
+_DEFAULT_FEATURE_FLAGS = {"poi_enabled": True, "boost_enabled": True}
+
+@router.get("/feature-flags")
+def get_feature_flags(db: Session = Depends(get_db)):
+    """Lecture publique — utilisée par toutes les pages (carte, navbar, etc.)."""
+    row = db.execute(text("SELECT value FROM settings WHERE key = 'feature_flags'")).fetchone()
+    if not row:
+        return _DEFAULT_FEATURE_FLAGS
+    return {**_DEFAULT_FEATURE_FLAGS, **_json.loads(row[0])}
+
+@router.put("/feature-flags")
+def update_feature_flags(
+    flags: dict,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_admin),
+):
+    current_row = db.execute(text("SELECT value FROM settings WHERE key = 'feature_flags'")).fetchone()
+    current = _json.loads(current_row[0]) if current_row else dict(_DEFAULT_FEATURE_FLAGS)
+    current.update(flags)
+    if current_row:
+        db.execute(text("UPDATE settings SET value = :v WHERE key = 'feature_flags'"), {"v": _json.dumps(current)})
+    else:
+        db.execute(text("INSERT INTO settings (key, value) VALUES ('feature_flags', :v)"), {"v": _json.dumps(current)})
+    db.commit()
+    return current
+
+
 @router.patch("/conventions/{convention_id}/status")
 def update_convention_status(
     convention_id: int,

@@ -4,6 +4,7 @@ import API_URL, { fmtDevise } from "../config";
 import Navbar from "../components/Navbar";
 import Logo from "../components/Logo";
 import { useToast } from "../components/Toast";
+import { setFeatureFlagsCache } from "../hooks/useFeatureFlags";
 import AnnonceDetailModal from "./AnnonceDetailModal";
 import {
   LayoutDashboard, FileText, Users, CheckCircle, XCircle, Clock,
@@ -47,12 +48,36 @@ export default function AdminDashboard() {
     catch { return DEFAULT_QUOTAS; }
   });
   const [quotasSaved, setQuotasSaved] = useState(false);
-  const [boostEnabled, setBoostEnabled] = useState(() => {
-    try { return localStorage.getItem("lz_boost_enabled") !== "0"; } catch { return true; }
-  });
-  const [poiEnabled, setPoiEnabled] = useState(() => {
-    try { return localStorage.getItem("lz_poi_enabled") !== "0"; } catch { return true; }
-  });
+  /* Feature flags "Boost" et "Lieux" — stockés côté backend (table settings), pas
+     en localStorage, pour que la valeur soit identique sur tous les appareils
+     connectés avec le même compte admin. */
+  const [boostEnabled, setBoostEnabled] = useState(true);
+  const [poiEnabled,   setPoiEnabled]   = useState(true);
+  useEffect(() => {
+    fetch(`${API_URL}/admin/feature-flags`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        if (typeof data.boost_enabled === "boolean") setBoostEnabled(data.boost_enabled);
+        if (typeof data.poi_enabled   === "boolean") setPoiEnabled(data.poi_enabled);
+      })
+      .catch(() => {});
+  }, []);
+
+  async function toggleFeatureFlag(key, next, setter) {
+    setter(next); // optimiste
+    try {
+      const res = await authFetch("/admin/feature-flags", {
+        method: "PUT",
+        body: JSON.stringify({ [key]: next }),
+      });
+      if (!res.ok) throw new Error();
+      setFeatureFlagsCache({ [key]: next });
+    } catch {
+      setter(!next); // rollback si échec
+      toast("Erreur lors de la mise à jour.", "error");
+    }
+  }
 
   /* ── Plans config ── */
   const _DEFAULT_PLANS_CONFIG = {
@@ -1847,11 +1872,7 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                   <button
-                    onClick={() => {
-                      const next = !boostEnabled;
-                      setBoostEnabled(next);
-                      localStorage.setItem("lz_boost_enabled", next ? "1" : "0");
-                    }}
+                    onClick={() => toggleFeatureFlag("boost_enabled", !boostEnabled, setBoostEnabled)}
                     style={{
                       padding:"10px 22px",borderRadius:10,border:"none",cursor:"pointer",
                       fontWeight:700,fontSize:14,transition:"all .2s",
@@ -1885,11 +1906,7 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                   <button
-                    onClick={() => {
-                      const next = !poiEnabled;
-                      setPoiEnabled(next);
-                      localStorage.setItem("lz_poi_enabled", next ? "1" : "0");
-                    }}
+                    onClick={() => toggleFeatureFlag("poi_enabled", !poiEnabled, setPoiEnabled)}
                     style={{
                       padding:"10px 22px",borderRadius:10,border:"none",cursor:"pointer",
                       fontWeight:700,fontSize:14,transition:"all .2s",
@@ -2260,11 +2277,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
               <button
-                onClick={() => {
-                  const next = !boostEnabled;
-                  setBoostEnabled(next);
-                  localStorage.setItem("lz_boost_enabled", next ? "1" : "0");
-                }}
+                onClick={() => toggleFeatureFlag("boost_enabled", !boostEnabled, setBoostEnabled)}
                 style={{
                   padding:"10px 22px",borderRadius:10,border:"none",cursor:"pointer",
                   fontWeight:700,fontSize:14,transition:"all .2s",

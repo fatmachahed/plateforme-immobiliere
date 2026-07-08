@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom";
 import API_URL, { fmtDevise, fmtPriceApprox } from '../config';
+import { useFeatureFlags } from "../hooks/useFeatureFlags";
 
 /* Format prix/m² : arrondi supérieur à 1 décimale, jamais 0 */
 function fmtM2(prix, area) {
@@ -1573,6 +1574,7 @@ function bmPoiIcon(L,color,svgPath){return L.divIcon({className:"",html:`<div st
 function BmPoiSvg({path}){return(<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" dangerouslySetInnerHTML={{__html:path}}/>);}
 
 function BigMap({lat,lng}){
+  const { poi_enabled: poiEnabled } = useFeatureFlags();
   const ref=React.useRef(null);const mapRef=React.useRef(null);const leafletRef=React.useRef(null);
   const poiRef=React.useRef({schools:[],mosques:[],faculties:[],surfaces:[],hospitals:[]});
   const[showSchools,setShowSchools]=React.useState(false);
@@ -1660,7 +1662,7 @@ function BigMap({lat,lng}){
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8,padding:"10px 16px",borderBottom:"1px solid #f1f5f9",background:"#fafafa",position:"relative",zIndex:1001}}>
 
         {/* Desktop: boutons POI inline */}
-        {(()=>{ try{ return localStorage.getItem("lz_poi_enabled") !== "0"; }catch{ return true; } })() && <div className="bm-poi-desktop" style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
+        {poiEnabled && <div className="bm-poi-desktop" style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
           {livePOIs.loading&&<span style={{fontSize:11,color:"#94a3b8",fontWeight:600}}>Chargement…</span>}
           {POI_ITEMS.map(({key,show,set,color,svg,label,data})=>(
             <button key={key} style={btnStyle(show,color)} onClick={()=>set(v=>!v)} disabled={livePOIs.loading}>
@@ -1669,7 +1671,7 @@ function BigMap({lat,lng}){
         </div>}
 
         {/* Mobile: bouton dropdown compact + M'y rendre côte à côte */}
-        {(()=>{ try{ return localStorage.getItem("lz_poi_enabled") !== "0"; }catch{ return true; } })() && <div className="bm-poi-mobile" style={{display:"none",position:"relative",alignItems:"center",gap:6,flex:1}}>
+        {poiEnabled && <div className="bm-poi-mobile" style={{display:"none",position:"relative",alignItems:"center",gap:6,flex:1}}>
           <button onClick={()=>setShowPoiMenu(v=>!v)} style={{display:"flex",alignItems:"center",gap:4,padding:"5px 10px",borderRadius:20,border:"1px solid #e2e8f0",background:"#fff",cursor:"pointer",fontFamily:"inherit",fontSize:11,fontWeight:700,color:"#374151"}}>
             Lieux {showPoiMenu?"▲":"▼"}
           </button>

@@ -3,6 +3,7 @@ import ReactDOM from "react-dom";
 import API_URL, { fmtDevise, convertPrice, fmtPriceApprox } from '../config';
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useToast } from "../components/Toast";
+import { useFeatureFlags } from "../hooks/useFeatureFlags";
 import {
   Search, ChevronLeft, ChevronRight, Bed, Bath, Maximize,
   MapPin, Heart, X, SlidersHorizontal, Star, School, Moon,
@@ -1532,6 +1533,7 @@ function FilterPanel({ filters, onChange, onSaveSearch, showSchools, showMosques
   const [showFeatModal, setShowFeatModal] = useState(false);
   const [layersOpen,    setLayersOpen]    = useState(false);
   const layersBtnRef = useRef(null);
+  const { poi_enabled: poiEnabled } = useFeatureFlags();
 
   /* Couches de données POI à afficher sur la carte (menu multi-choix "Couche data") */
   const LAYER_ITEMS = [
@@ -1609,7 +1611,7 @@ function FilterPanel({ filters, onChange, onSaveSearch, showSchools, showMosques
 
         <div style={{ display:"flex", gap:8, marginLeft:"auto", alignItems:"center" }}>
           {/* Couche data — menu déroulant multi-choix des POI à afficher sur la carte */}
-          {(()=>{ try{ return localStorage.getItem("lz_poi_enabled") !== "0"; }catch{ return true; } })() && <div className="fp__layers">
+          {poiEnabled && <div className="fp__layers">
             <button
               ref={layersBtnRef}
               className={`fp__adv-btn${activeLayers>0?" fp__adv-btn--on":""}`}
@@ -1684,7 +1686,7 @@ function FilterPanel({ filters, onChange, onSaveSearch, showSchools, showMosques
 
         {/* Overlays POI — boutons cliquables (desktop uniquement ; sur mobile c'est le menu "Couche data") */}
         {/* POI désactivés si aucun gouvernorat sélectionné — la recherche Overpass nécessite une bbox limitée */}
-        {(()=>{ try{ return localStorage.getItem("lz_poi_enabled") !== "0"; }catch{ return true; } })() && (
+        {poiEnabled && (
         <div className="fp__poi-group">
           {!local.govNom && (
             <div style={{fontSize:11,color:"#94a3b8",fontStyle:"italic",padding:"4px 2px"}}>

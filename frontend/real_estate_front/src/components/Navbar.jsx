@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import API_URL, { imgUrl } from "../config";
 import { useLanguage } from "../contexts/LanguageContext";
+import { useFeatureFlags } from "../hooks/useFeatureFlags";
 import Logo from "./Logo";
 
 /* Icônes réseaux sociaux non disponibles dans lucide-react */
@@ -54,6 +55,7 @@ export default function Navbar() {
   const isProsActive = PROS_LINKS.some(p => location.pathname === p.href);
   const isAccActive  = location.pathname.startsWith("/compte") || location.pathname === "/admin";
   const { lang, toggleLang, t } = useLanguage();
+  const { boost_enabled: boostEnabled } = useFeatureFlags();
   const [showPublishWarn, setShowPublishWarn] = useState(false);
   const [quotaBlock,      setQuotaBlock]      = useState(false);
   const [quotaBlockInfo,  setQuotaBlockInfo]  = useState({ current: 0, max: 0 });
@@ -317,7 +319,7 @@ export default function Navbar() {
                         <Link to="/compte?tab=noter" className="lz-nav__dd-item"><Star size={14} /> Noter les services{toRateCount>0&&<span style={{marginLeft:"auto",background:"#ef4444",color:"#fff",borderRadius:10,fontSize:10,fontWeight:800,padding:"1px 6px",minWidth:16,textAlign:"center"}}>{toRateCount}</span>}</Link>
                         <Link to="/compte?tab=favoris"   className="lz-nav__dd-item"><Heart size={14} /> Mes favoris</Link>
                         <Link to="/mon-abonnement" className="lz-nav__dd-item"><CreditCard size={14}/> Mon abonnement</Link>
-                        {(()=>{ try{ return localStorage.getItem("lz_boost_enabled") !== "0"; }catch{ return true; } })() && (
+                        {boostEnabled && (
                           <Link to="/booster" className="lz-nav__dd-item" style={{color:"#b45309",fontWeight:700}}><Zap size={14} style={{color:"#f59e0b"}}/> Booster mes annonces</Link>
                         )}
                         {user?.role === "agence" && (
