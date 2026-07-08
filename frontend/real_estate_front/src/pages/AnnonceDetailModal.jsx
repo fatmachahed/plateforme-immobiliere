@@ -1593,21 +1593,27 @@ function BigMap({lat,lng}){
       function drawPin(){
         pinLayers.forEach(l=>{try{l.remove();}catch{}});
         pinLayers=[];
-        const tip=map.latLngToContainerPoint([lat,lng]);
-        const px2ll=(dx,dy)=>map.containerPointToLatLng([tip.x+dx,tip.y+dy]);
-        const R=12, C={x:0,y:-28}; // centre de la tête, à 28px au-dessus de la pointe
-        const phi=Math.acos(R/28)*180/Math.PI; // ~64.6°
-        const outline=[[0,0]]; // pointe = position exacte du bien
-        const steps=28;
-        for(let i=0;i<=steps;i++){
-          const a=(90-phi) - (i/steps)*(360-2*phi); // balaie le grand arc en passant par le haut
-          const rad=a*Math.PI/180;
-          outline.push([C.x+R*Math.cos(rad), C.y+R*Math.sin(rad)]);
-        }
-        outline.push([0,0]);
-        const latlngs=outline.map(([dx,dy])=>px2ll(dx,dy));
-        pinLayers.push(L.polygon(latlngs,{stroke:true,color:"#fff",weight:2,fillColor:"#6366f1",fillOpacity:1,interactive:false,pane:"markerPane"}).addTo(map));
-        pinLayers.push(L.circleMarker(px2ll(C.x,C.y),{radius:5,weight:0,fillColor:"#fff",fillOpacity:1,interactive:false,pane:"markerPane"}).addTo(map));
+        // Filet de sécurité : un point plein garanti visible, dessiné en premier,
+        // directement à la position exacte. Si la forme goutte ci-dessous échoue
+        // pour une raison quelconque, ce point reste affiché.
+        pinLayers.push(L.circleMarker([lat,lng],{radius:9,color:"#fff",weight:3,fillColor:"#6366f1",fillOpacity:1,interactive:false}).addTo(map));
+        try{
+          const tip=map.latLngToContainerPoint([lat,lng]);
+          const px2ll=(dx,dy)=>map.containerPointToLatLng([tip.x+dx,tip.y+dy]);
+          const R=12, C={x:0,y:-28}; // centre de la tête, à 28px au-dessus de la pointe
+          const phi=Math.acos(R/28)*180/Math.PI; // ~64.6°
+          const outline=[[0,0]]; // pointe = position exacte du bien
+          const steps=28;
+          for(let i=0;i<=steps;i++){
+            const a=(90-phi) - (i/steps)*(360-2*phi); // balaie le grand arc en passant par le haut
+            const rad=a*Math.PI/180;
+            outline.push([C.x+R*Math.cos(rad), C.y+R*Math.sin(rad)]);
+          }
+          outline.push([0,0]);
+          const latlngs=outline.map(([dx,dy])=>px2ll(dx,dy));
+          pinLayers.push(L.polygon(latlngs,{stroke:true,color:"#fff",weight:2,fillColor:"#6366f1",fillOpacity:1,interactive:false}).addTo(map));
+          pinLayers.push(L.circleMarker(px2ll(C.x,C.y),{radius:5,weight:0,fillColor:"#fff",fillOpacity:1,interactive:false}).addTo(map));
+        }catch{ /* le filet de sécurité ci-dessus reste affiché */ }
       }
       drawPin();
       setTimeout(()=>{
