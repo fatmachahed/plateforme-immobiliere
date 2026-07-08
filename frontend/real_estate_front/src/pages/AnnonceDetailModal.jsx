@@ -42,7 +42,7 @@ const DEMO = [
   { id:2, titre:"Appartement S+3 — Lac 2", prix:320000, devise:"TND", location:"Berges du Lac, Tunis", beds:3, baths:2, area:145, type:"Appartement", categorie:"Vente", etat:"Neuf", annee:2023, description:"Appartement neuf S+3 dans résidence sécurisée avec ascenseur et parking.", features:["Ascenseur","Parking","Gardien","Double vitrage"], lat:36.838, lng:10.235, images:["https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=900&q=80"], contact:{nom:"Sonia Trabelsi",tel:"+216 22 987 654",email:"sonia@immo.tn"} },
 ];
 
-const TYPE_FR  = { appartement:"Appartement", villa:"Villa", maison:"Maison", terrain:"Terrain", bureau:"Bureau", local_commercial:"Local commercial", ferme:"Ferme agricole", ferme_agricole:"Ferme agricole", garage_parking:"Garage / Parking", depot_stockage:"Dépôt de stockage", immobiliers_divers:"Immobiliers divers" };
+const TYPE_FR  = { appartement:"Appartement", villa:"Villa", maison:"Maison", terrain:"Terrain", bureau:"Bureau", local_commercial:"Local commercial", ferme:"Ferme agricole", ferme_agricole:"Ferme agricole", garage_parking:"Garage / Parking", depot_stockage:"Dépôt de stockage", batiment_industriel:"Bâtiment industriel", immobiliers_divers:"Immobiliers divers" };
 const CAT_FR   = { vente:"Achat", location:"Location", vacances:"Vacances" };
 const ETAT_FR  = { nouveau:"Neuf", bon_etat:"Bon état", a_renover:"À rénover", cours_construction:"En construction" };
 
@@ -531,7 +531,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
                 const newMeta=[...meta.filter(m=>String(m.id)!==rid),{id:prop.id,titre:prop.titre,prix:prop.prix,devise:prop.devise,image:prop.images?.[0]||null,gouvernorat:prop.gouvernorat,delegation:prop.delegation}];
                 localStorage.setItem("localizi_compare",JSON.stringify(nextIds));
                 localStorage.setItem("localizi_compare_meta",JSON.stringify(newMeta));
-                setIsInCompare(true); window.dispatchEvent(new Event("compare-updated"));
+                setIsInCompare(true); window.dispatchEvent(new Event("compare-updated")); toast("Ajouté au comparateur !");
               }
               const updatedMeta=(() => { try { return JSON.parse(localStorage.getItem("localizi_compare_meta")||"[]"); } catch { return []; } })();
               setCompareItems(updatedMeta);
@@ -1612,15 +1612,22 @@ function BigMap({lat,lng}){
     (async()=>{
       const L=(await import("leaflet")).default;
       if(!live||!ref.current)return;
-      const isMob=window.innerWidth<=860;
-      const map=L.map(ref.current,{zoomControl:false,dragging:true,scrollWheelZoom:false}).setView([lat,lng],15);
+      /* Carte figée : le bien reste toujours exactement au centre du cadre.
+         Aucune interaction (glisser, zoom, molette, double-clic, pincement)
+         ne doit pouvoir déplacer la vue — sinon sur mobile un simple geste de
+         défilement de la page fait glisser la carte et le point disparaît. */
+      const map=L.map(ref.current,{
+        zoomControl:false, dragging:false, scrollWheelZoom:false,
+        doubleClickZoom:false, boxZoom:false, keyboard:false, touchZoom:false,
+        tap:false,
+      }).setView([lat,lng],15);
       mapRef.current=map;leafletRef.current=L;
-      L.control.zoom({position:isMob?"bottomleft":"topleft"}).addTo(map);
       L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{attribution:"© OpenStreetMap © CARTO",maxZoom:19}).addTo(map);
       const icon=L.divIcon({className:"",html:PIN_SVG_HTML,iconSize:[36,48],iconAnchor:[18,48]});
-      L.marker([lat,lng],{icon}).addTo(map);
+      L.marker([lat,lng],{icon,interactive:false}).addTo(map);
       setTimeout(()=>{
         map.invalidateSize();
+        map.setView([lat,lng],15); // re-centre après le vrai calcul de taille du conteneur
         const b=map.getBounds();
         fetchPOIs(`${b.getSouth().toFixed(6)},${b.getWest().toFixed(6)},${b.getNorth().toFixed(6)},${b.getEast().toFixed(6)}`);
       },150);
