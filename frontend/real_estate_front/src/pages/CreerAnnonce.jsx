@@ -673,6 +673,8 @@ export const CreateListingForm = ({ editId = null }) => {
   const [existingImageUrls,  setExistingImageUrls]  = useState([]);
   /* Image principale parmi les existantes (index, -1 = aucune) */
   const [mainExistingIdx,    setMainExistingIdx]    = useState(0);
+  /* true = l'image principale est une image existante ; false = une nouvelle image ajoutée */
+  const [mainIsExisting,     setMainIsExisting]     = useState(true);
   /* -- Agences pour dropdown accompagnement -- */
   const [agences, setAgences] = useState([]);
   const [agenceChoisie, setAgenceChoisie] = useState("");
@@ -1461,12 +1463,12 @@ export const CreateListingForm = ({ editId = null }) => {
         }
 
         /* Upload new images and link them to the property */
+        let newMainUrl = null; // URL de la nouvelle image choisie comme principale (si applicable)
         if (formData.allImages.length > 0) {
           if (!editPropertyIdState) {
             toast("Avertissement : impossible de lier les images (propriété introuvable).", "error");
           } else {
-            let mainImageUrl = null;
-            await Promise.all(formData.allImages.map(async (imgFile, i) => {
+            const uploaded = await Promise.all(formData.allImages.map(async (imgFile, i) => {
               try {
                 const compressed = await compressImageForUpload(imgFile);
                 const imgForm = new FormData();
@@ -1476,43 +1478,38 @@ export const CreateListingForm = ({ editId = null }) => {
                   headers: { Authorization: `Bearer ${token}` },
                   body: imgForm,
                 });
-                if (imgRes.ok) {
-                  const imgData = await imgRes.json();
-                  if (i === formData.mainImageIndex) mainImageUrl = imgData.url;
-                  await fetch(`${API_URL}/properties/${editPropertyIdState}/images`, {
-                    method: "POST",
-                    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-                    body: JSON.stringify({ image: imgData.url }),
-                  });
-                }
-              } catch { /* non-bloquant */ }
-            }));
-            /* Update image_principale if the selected main image was uploaded */
-            if (mainImageUrl) {
-              try {
-                await fetch(`${API_URL}/properties/${editPropertyIdState}`, {
-                  method: "PUT",
+                if (!imgRes.ok) { toast(`Image ${i + 1} : échec de l'upload`, "error"); return null; }
+                const imgData = await imgRes.json();
+                await fetch(`${API_URL}/properties/${editPropertyIdState}/images`, {
+                  method: "POST",
                   headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-                  body: JSON.stringify({ image_principale: mainImageUrl }),
+                  body: JSON.stringify({ image: imgData.url }),
                 });
-              } catch { /* non-bloquant */ }
-            }
+                return { i, url: imgData.url };
+              } catch { toast(`Image ${i + 1} : erreur lors de l'upload`, "error"); return null; }
+            }));
+            const mainNew = uploaded.filter(Boolean).find(r => r.i === formData.mainImageIndex);
+            if (mainNew) newMainUrl = mainNew.url;
           }
         }
 
-        /* Update property location + image_principale si changée parmi les existantes */
+        /* Update property location + image principale (existante OU nouvelle) */
         if (editPropertyIdState) {
           const propPayload = {
             address:   mapLocation.address || formData.address || "",
             latitude:  mapLocation.lat || parseFloat(formData.latitude) || 36.8065,
             longitude: mapLocation.lng || parseFloat(formData.longitude) || 10.1815,
           };
-          /* Si aucune nouvelle image ajoutée, l'image principale est celle sélectionnée parmi les existantes */
-          if (formData.allImages.length === 0 && existingImageUrls.length > 0) {
+          let mainRel = null;
+          if (!mainIsExisting && newMainUrl) {
+            mainRel = newMainUrl;                       // principale = nouvelle image sélectionnée
+          } else if (existingImageUrls.length > 0) {
             const selectedMainUrl = existingImageUrls[mainExistingIdx] || existingImageUrls[0];
-            const relUrl = selectedMainUrl.startsWith(API_URL) ? selectedMainUrl.slice(API_URL.length) : selectedMainUrl;
-            propPayload.image_principale = relUrl;
+            mainRel = selectedMainUrl.startsWith(API_URL) ? selectedMainUrl.slice(API_URL.length) : selectedMainUrl;
+          } else if (newMainUrl) {
+            mainRel = newMainUrl;                       // aucune image existante restante → 1ère nouvelle
           }
+          if (mainRel) propPayload.image_principale = mainRel;
           await fetch(`${API_URL}/properties/${editPropertyIdState}`, {
             method: "PUT",
             headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -3375,7 +3372,7 @@ export const CreateListingForm = ({ editId = null }) => {
                       </div>
                       <div className="ca-img-unified-grid">
                         {existingImageUrls.map((url, idx) => {
-                          const isMain = idx === mainExistingIdx && formData.allImages.length === 0;
+                          const isMain = mainIsExisting && idx === mainExistingIdx;
                           return (
                             <div key={url} className={`ca-img-uni-card${isMain ? " ca-img-uni-card--main" : ""}`}
                               style={{border: isMain ? "2px solid #6366f1" : "2px solid #e5e7eb"}}>
@@ -3389,7 +3386,7 @@ export const CreateListingForm = ({ editId = null }) => {
                                 <button type="button"
                                   className={`ca-img-btn ca-img-btn--heart${isMain ? " ca-img-btn--heart-on" : ""}`}
                                   title={isMain ? "Image principale ★" : "Définir comme principale"}
-                                  onClick={() => { setMainExistingIdx(idx); handleInputChange("mainImageIndex", 0); }}>
+                                  onClick={() => { setMainExistingIdx(idx); setMainIsExisting(true); }}>
                                   <Star size={15} fill={isMain ? "#fff" : "none"}/>
                                 </button>
                                 <button type="button" className="ca-img-btn ca-img-btn--eye"
@@ -3435,8 +3432,8 @@ export const CreateListingForm = ({ editId = null }) => {
                         e.currentTarget.classList.remove("ca-img-dnd-zone--over");
                         const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith("image/"));
                         const remaining = 10 - existingImageUrls.length - formData.allImages.length;
-                        const toAdd = files.slice(0, remaining).filter(f => f.size <= 10 * 1024 * 1024);
-                        if (files.some(f => f.size > 10 * 1024 * 1024)) toast("Certaines images dépassent 10 MB.", "error");
+                        const toAdd = files.slice(0, remaining).filter(f => f.size <= 40 * 1024 * 1024);
+                        if (files.some(f => f.size > 40 * 1024 * 1024)) toast("Certaines images dépassent 40 MB.", "error");
                         if (toAdd.length > 0) setFormData(prev => ({ ...prev, allImages: [...prev.allImages, ...toAdd] }));
                       }}
                       onClick={() => document.getElementById("ca-dnd-input").click()}
@@ -3460,7 +3457,7 @@ export const CreateListingForm = ({ editId = null }) => {
 
                   <div className="ca-img-unified-grid" style={{marginTop: formData.allImages.length > 0 ? 16 : 0}}>
                     {formData.allImages.map((file, index) => {
-                      const isMain = index === formData.mainImageIndex;
+                      const isMain = (!mainIsExisting || existingImageUrls.length === 0) && index === formData.mainImageIndex;
                       return (
                         <div key={index} className={`ca-img-uni-card${isMain ? " ca-img-uni-card--main" : ""}`}>
                           <img src={URL.createObjectURL(file)} alt={`Image ${index + 1}`}/>
@@ -3475,7 +3472,7 @@ export const CreateListingForm = ({ editId = null }) => {
                             <button type="button"
                               className={`ca-img-btn ca-img-btn--heart${isMain ? " ca-img-btn--heart-on" : ""}`}
                               title={isMain ? "Image principale ★" : "Définir comme principale"}
-                              onClick={() => handleInputChange("mainImageIndex", index)}>
+                              onClick={() => { handleInputChange("mainImageIndex", index); setMainIsExisting(false); }}>
                               <Star size={15} fill={isMain ? "#fff" : "none"}/>
                             </button>
                             <button type="button" className="ca-img-btn ca-img-btn--del"
@@ -3504,7 +3501,8 @@ export const CreateListingForm = ({ editId = null }) => {
                           onChange={e => {
                             const files = Array.from(e.target.files || []);
                             const remaining = 10 - existingImageUrls.length - formData.allImages.length;
-                            const toAdd = files.slice(0, remaining).filter(f => f.size <= 10 * 1024 * 1024);
+                            const toAdd = files.slice(0, remaining).filter(f => f.size <= 40 * 1024 * 1024);
+                            if (files.some(f => f.size > 40 * 1024 * 1024)) toast("Certaines images dépassent 40 MB.", "error");
                             if (toAdd.length > 0) setFormData(prev => ({ ...prev, allImages: [...prev.allImages, ...toAdd] }));
                             e.target.value = "";
                           }}
@@ -3644,7 +3642,14 @@ export const CreateListingForm = ({ editId = null }) => {
                 /* Combiner images existantes + nouvelles ; l'image principale en tête */
                 const newImgs = imgUrls; // blob URLs des nouvelles photos
                 let imgs;
-                if (newImgs.length > 0) {
+                if (newImgs.length > 0 && mainIsExisting && existingImageUrls.length > 0) {
+                  /* Principale = image existante conservée, puis le reste (existantes + nouvelles) */
+                  imgs = [
+                    existingImageUrls[mainExistingIdx] || existingImageUrls[0],
+                    ...existingImageUrls.filter((_, i) => i !== mainExistingIdx),
+                    ...newImgs,
+                  ];
+                } else if (newImgs.length > 0) {
                   /* Nouvelles images ajoutées : la principale est celle sélectionnée parmi les nouvelles */
                   imgs = [
                     newImgs[formData.mainImageIndex] || newImgs[0],
