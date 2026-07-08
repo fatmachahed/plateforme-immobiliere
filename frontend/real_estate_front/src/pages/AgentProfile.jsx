@@ -281,6 +281,8 @@ export default function AgentProfile() {
           .ap-hero-inner { flex-direction:column !important; align-items:center !important; text-align:center !important; }
           .ap-hero-avatar{ margin:0 auto !important; }
           .ap-hero-btns  { justify-content:center !important; }
+          .ap-hero-stats { width:100% !important; gap:8px !important; }
+          .ap-hero-stats > div { padding:14px 8px !important; min-width:0 !important; }
         }
       `}</style>
 
@@ -351,26 +353,27 @@ export default function AgentProfile() {
             </div>
 
             {/* Stats */}
-            <div style={{ flexShrink:0, display:"flex", gap:10 }}>
-              {isPartenaire && agent.note != null && (
-                <div style={{ background:"#fffbeb", border:"1px solid #fde68a", borderRadius:14, padding:"18px 20px", textAlign:"center", minWidth:90 }}>
-                  <div style={{ fontSize:32, fontWeight:900, color:"#f59e0b", lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center", gap:4 }}>
-                    <Star size={22} fill="#f59e0b" color="#f59e0b" />{Number(agent.note).toFixed(1)}
+            <div className="ap-hero-stats" style={{ flexShrink:0, display:"flex", gap:10 }}>
+              {/* Annonces — toujours affiché */}
+              <div style={{ flex:1, background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:14, padding:"18px 16px", textAlign:"center", minWidth:84 }}>
+                <div style={{ fontSize:30, fontWeight:900, color:accentColor, lineHeight:1 }}>{agent.nb_annonces}</div>
+                <div style={{ fontSize:11.5, color:"#94a3b8", marginTop:5, fontWeight:600 }}>annonce{agent.nb_annonces !== 1 ? "s" : ""}</div>
+              </div>
+
+              {/* Note + missions — uniquement pour les prestataires/partenaires */}
+              {isPartenaire && (
+                <>
+                  <div style={{ flex:1, background:"#fffbeb", border:"1px solid #fde68a", borderRadius:14, padding:"18px 16px", textAlign:"center", minWidth:84 }}>
+                    <div style={{ fontSize:30, fontWeight:900, color:"#f59e0b", lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center", gap:3 }}>
+                      <Star size={20} fill="#f59e0b" color="#f59e0b" />{agent.note != null ? Number(agent.note).toFixed(1) : "—"}
+                    </div>
+                    <div style={{ fontSize:11.5, color:"#b45309", marginTop:5, fontWeight:600 }}>note /5</div>
                   </div>
-                  <div style={{ fontSize:11.5, color:"#b45309", marginTop:5, fontWeight:600 }}>note /5</div>
-                </div>
-              )}
-              {isPartenaire && agent.nombre_missions > 0 && (
-                <div style={{ background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:14, padding:"18px 20px", textAlign:"center", minWidth:90 }}>
-                  <div style={{ fontSize:32, fontWeight:900, color:accentColor, lineHeight:1 }}>{agent.nombre_missions}</div>
-                  <div style={{ fontSize:11.5, color:"#94a3b8", marginTop:5, fontWeight:600 }}>mission{agent.nombre_missions !== 1 ? "s" : ""}</div>
-                </div>
-              )}
-              {!isPartenaire && (
-                <div style={{ background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:14, padding:"18px 24px", textAlign:"center", minWidth:90 }}>
-                  <div style={{ fontSize:32, fontWeight:900, color:accentColor, lineHeight:1 }}>{agent.nb_annonces}</div>
-                  <div style={{ fontSize:11.5, color:"#94a3b8", marginTop:5, fontWeight:600 }}>annonce{agent.nb_annonces !== 1 ? "s" : ""}</div>
-                </div>
+                  <div style={{ flex:1, background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:14, padding:"18px 16px", textAlign:"center", minWidth:84 }}>
+                    <div style={{ fontSize:30, fontWeight:900, color:accentColor, lineHeight:1 }}>{agent.nombre_missions || 0}</div>
+                    <div style={{ fontSize:11.5, color:"#94a3b8", marginTop:5, fontWeight:600 }}>mission{(agent.nombre_missions || 0) !== 1 ? "s" : ""}</div>
+                  </div>
+                </>
               )}
             </div>
           </div>
