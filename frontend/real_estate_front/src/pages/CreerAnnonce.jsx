@@ -520,6 +520,48 @@ function buildPrefillHierarchy(a) {
   };
 }
 
+/* Compresse/redimensionne une image côté client AVANT l'upload.
+   Corrige : rejet serveur des fichiers > 5 Mo (photos desktop souvent 5-15 Mo),
+   lenteur d'envoi, et garantit un JPEG valide accepté par le backend. */
+async function compressImageForUpload(file, maxDim = 1920, quality = 0.82) {
+  try {
+    if (!file || !file.type || !file.type.startsWith("image/")) return file;
+    let width, height, drawSource, bmp = null;
+    try {
+      bmp = await createImageBitmap(file);
+      width = bmp.width; height = bmp.height; drawSource = bmp;
+    } catch {
+      const url = URL.createObjectURL(file);
+      const img = await new Promise((res) => {
+        const im = new Image();
+        im.onload = () => res(im);
+        im.onerror = () => res(null);
+        im.src = url;
+      });
+      URL.revokeObjectURL(url);
+      if (!img) return file; // format non décodable (ex: HEIC) → on laisse le serveur gérer
+      width = img.naturalWidth; height = img.naturalHeight; drawSource = img;
+    }
+    if (!width || !height) return file;
+    let w = width, h = height;
+    if (Math.max(w, h) > maxDim) {
+      if (w >= h) { h = Math.round(h * maxDim / w); w = maxDim; }
+      else        { w = Math.round(w * maxDim / h); h = maxDim; }
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(drawSource, 0, 0, w, h);
+    if (bmp && bmp.close) bmp.close();
+    const blob = await new Promise((res) => canvas.toBlob(res, "image/jpeg", quality));
+    if (!blob) return file;
+    const baseName = (file.name || "photo").replace(/\.[^.]+$/, "");
+    return new File([blob], `${baseName}.jpg`, { type: "image/jpeg" });
+  } catch {
+    return file;
+  }
+}
+
 export const CreateListingForm = ({ editId = null }) => {
   const toast    = useToast();
   const navigate = useNavigate();
@@ -1426,8 +1468,9 @@ export const CreateListingForm = ({ editId = null }) => {
             let mainImageUrl = null;
             await Promise.all(formData.allImages.map(async (imgFile, i) => {
               try {
+                const compressed = await compressImageForUpload(imgFile);
                 const imgForm = new FormData();
-                imgForm.append("file", imgFile);
+                imgForm.append("file", compressed);
                 const imgRes = await fetch(`${API_URL}/upload/image`, {
                   method: "POST",
                   headers: { Authorization: `Bearer ${token}` },
@@ -1508,8 +1551,9 @@ export const CreateListingForm = ({ editId = null }) => {
       /* Upload en parallèle (au lieu d'un par un) — divise le temps par le nombre de photos */
       const uploadResults = await Promise.all(orderedImages.map(async (imgFile, i) => {
         try {
+          const compressed = await compressImageForUpload(imgFile);
           const imgForm = new FormData();
-          imgForm.append("file", imgFile);
+          imgForm.append("file", compressed);
           const imgRes = await fetch(`${API_URL}/upload/image`, {
             method: "POST",
             headers: { "Authorization": `Bearer ${token}` },

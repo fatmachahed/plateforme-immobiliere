@@ -8,7 +8,9 @@ UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 ALLOWED_EXT = {"jpg", "jpeg", "png", "webp"}
-MAX_SIZE    = 5 * 1024 * 1024  # 5 MB
+# Les images sont compressées côté client avant l'envoi ; cette limite reste un
+# filet de sécurité (l'image est de toute façon recompressée en WebP côté serveur).
+MAX_SIZE    = 15 * 1024 * 1024  # 15 MB
 
 # Magic bytes des formats autorisés (anti content-type spoofing)
 MAGIC_BYTES = {
@@ -48,7 +50,7 @@ def _compress_image(contents: bytes, max_width: int = 1200, quality: int = 75) -
 
     # Sauvegarder en WebP
     output = io.BytesIO()
-    img.save(output, format="WEBP", quality=quality, method=6)
+    img.save(output, format="WEBP", quality=quality, method=4)
     return output.getvalue(), "webp"
 
 
@@ -90,7 +92,7 @@ async def upload_image(
     contents = await file.read()
 
     if len(contents) > MAX_SIZE:
-        raise HTTPException(400, "Fichier trop volumineux (max 5 MB)")
+        raise HTTPException(400, "Fichier trop volumineux (max 15 MB)")
 
     if not _check_magic(contents):
         raise HTTPException(400, "Contenu du fichier invalide")
