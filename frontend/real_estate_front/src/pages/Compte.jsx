@@ -278,6 +278,14 @@ export default function Compte() {
       .catch(()=>setContactsLoaded(true));
   }, []);
 
+  /* ── Eager load interventions count for badge (partenaire) ── */
+  useEffect(() => {
+    if (!token || interventionsLoaded || storedUser?.role !== "partenaire") return;
+    fetch(`${API_URL}/users/interventions/mine`, { headers:{Authorization:`Bearer ${token}`} })
+      .then(r=>r.ok?r.json():[]).then(d=>{ setInterventions(Array.isArray(d)?d:[]); setInterventionsLoaded(true); })
+      .catch(()=>setInterventionsLoaded(true));
+  }, []);
+
   /* ── Load tab data on demand ── */
   useEffect(() => {
     if (!token) return;
@@ -759,6 +767,7 @@ export default function Compte() {
   const initials = (profile.username || "?")[0].toUpperCase();
   const roleLabel = { particulier:"Particulier", agent:"Agent", agence:"Agence", promoteur:"Promoteur", partenaire:"Partenaire", admin:"Admin" };
   const unreadCount = contactRequests.filter(r=>!r.lu).length;
+  const pendingInterventions = interventions.filter(i=>i.status==="en_attente").length;
   const alertesCount = savedSearches.length;
 
   const [_onbVersion, _setOnbVersion] = useState(0);
@@ -788,7 +797,7 @@ export default function Compte() {
     { key:"contacts",  icon:<Bell size={19}/>,   label:"Demandes reçues", badge: contactsLoaded ? unreadCount : 0 },
     { key:"alertes",   icon:<Bell size={19}/>,   label:"Mes alertes", badge: alertesLoaded ? alertesCount : 0 },
     { key:"favoris",   icon:<Heart size={19}/>,  label:"Mes favoris" },
-    ...(storedUser?.role==="partenaire"?[{key:"interventions",icon:<Briefcase size={19}/>,label:"Mes interventions"}]:[]),
+    ...(storedUser?.role==="partenaire"?[{key:"interventions",icon:<Briefcase size={19}/>,label:"Mes interventions", badge: interventionsLoaded ? pendingInterventions : 0}]:[]),
     ...(storedUser?.role==="agence"?[{key:"equipe",icon:<Users size={19}/>,label:"Mon équipe"}]:[]),
     ...(storedUser?.role==="agence"?[{key:"onboarding_agence",icon:<FileText size={19}/>,label:"Convention agence",onbInfo:_onbInfo(_onbAgence)}]:[]),
     ...(storedUser?.role==="promoteur"?[{key:"onboarding_promoteur",icon:<FileText size={19}/>,label:"Convention promoteur",onbInfo:_onbInfo(_onbProm)}]:[]),

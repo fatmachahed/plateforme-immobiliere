@@ -4,7 +4,7 @@ import {
   Search, Menu, X, User, LogIn, UserPlus, LogOut,
   LayoutDashboard, Zap, ChevronDown, ChevronRight, Map, Heart, Globe,
   Home, Key, Umbrella, Phone, PlusCircle, Bell, Users, AlertTriangle, Building2,
-  HelpCircle, Info, Mail, Wrench, Facebook, Instagram, Youtube, CreditCard
+  HelpCircle, Info, Mail, Wrench, Facebook, Instagram, Youtube, CreditCard, Briefcase
 } from "lucide-react";
 import API_URL, { imgUrl } from "../config";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -135,6 +135,22 @@ export default function Navbar() {
     };
     load();
     const interval = setInterval(load, 60000); // refresh toutes les 60s
+    return () => clearInterval(interval);
+  }, []);
+
+  /* ── Badge notifications : interventions en attente (partenaire) ── */
+  const [interventionsCount, setInterventionsCount] = useState(0);
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token || user?.role !== "partenaire") return;
+    const load = () => {
+      fetch(`${API_URL}/users/interventions/mine`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : [])
+        .then(data => { if (Array.isArray(data)) setInterventionsCount(data.filter(i => i.status === "en_attente").length); })
+        .catch(() => {});
+    };
+    load();
+    const interval = setInterval(load, 60000);
     return () => clearInterval(interval);
   }, []);
 
@@ -278,7 +294,10 @@ export default function Navbar() {
                       <div className="lz-nav__dd-body">
                         <Link to="/compte?tab=profil"    className="lz-nav__dd-item"><User size={14} /> Mon profil</Link>
                         <Link to="/compte?tab=annonces&statut=approuvee"  className="lz-nav__dd-item"><LayoutDashboard size={14} /> Mes annonces</Link>
-                        <Link to="/compte?tab=contacts"  className="lz-nav__dd-item"><Bell size={14} /> Demandes reçues</Link>
+                        <Link to="/compte?tab=contacts"  className="lz-nav__dd-item"><Bell size={14} /> Demandes reçues{unreadCount>0&&<span style={{marginLeft:"auto",background:"#ef4444",color:"#fff",borderRadius:10,fontSize:10,fontWeight:800,padding:"1px 6px",minWidth:16,textAlign:"center"}}>{unreadCount}</span>}</Link>
+                        {user?.role==="partenaire" && (
+                          <Link to="/compte?tab=interventions" className="lz-nav__dd-item"><Briefcase size={14} /> Mes interventions{interventionsCount>0&&<span style={{marginLeft:"auto",background:"#ef4444",color:"#fff",borderRadius:10,fontSize:10,fontWeight:800,padding:"1px 6px",minWidth:16,textAlign:"center"}}>{interventionsCount}</span>}</Link>
+                        )}
                         <Link to="/compte?tab=favoris"   className="lz-nav__dd-item"><Heart size={14} /> Mes favoris</Link>
                         <Link to="/mon-abonnement" className="lz-nav__dd-item"><CreditCard size={14}/> Mon abonnement</Link>
                         {(()=>{ try{ return localStorage.getItem("lz_boost_enabled") !== "0"; }catch{ return true; } })() && (
@@ -424,6 +443,7 @@ export default function Navbar() {
                       { to:"/compte?tab=profil",   label:"Mon profil",       Ico:User,            badge:0           },
                       { to:"/compte?tab=annonces", label:"Mes annonces",     Ico:LayoutDashboard, badge:0           },
                       { to:"/compte?tab=contacts", label:"Demandes reçues",  Ico:Bell,            badge:unreadCount },
+                      ...(user?.role==="partenaire" ? [{ to:"/compte?tab=interventions", label:"Mes interventions", Ico:Briefcase, badge:interventionsCount }] : []),
                       { to:"/compte?tab=favoris",  label:"Mes favoris",      Ico:Heart,           badge:0           },
                       { to:"/compte?tab=alertes",  label:"Mes alertes",      Ico:Bell,            badge:0           },
                       { to:"/mon-abonnement",      label:"Mon abonnement",   Ico:CreditCard,      badge:0           },
