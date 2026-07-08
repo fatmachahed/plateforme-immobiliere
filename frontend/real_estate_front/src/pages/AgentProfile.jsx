@@ -277,9 +277,13 @@ export default function AgentProfile() {
         .peb__bar   { display:flex; gap:2px; }
         .peb__seg   { flex:1; height:5px; border-radius:2px; transition:background .2s; }
         /* ── Responsive mobile ── */
+        .ap-hero-stats > div > div:last-child { text-align:center; }
         @media(max-width:700px){
-          .ap-hero-inner { flex-direction:column !important; align-items:center !important; text-align:center !important; }
-          .ap-hero-avatar{ margin:0 auto !important; }
+          .ap-hero-inner { flex-direction:column !important; align-items:center !important; text-align:center !important; gap:14px !important; }
+          .ap-hero-avatar{ margin:0 auto -8px !important; }
+          .ap-hero-info  { width:100% !important; display:flex; flex-direction:column; align-items:center; }
+          .ap-hero-badges{ justify-content:center !important; margin-top:6px !important; }
+          .ap-hero-loc   { justify-content:center !important; }
           .ap-hero-btns  { justify-content:center !important; }
           .ap-hero-stats { width:100% !important; gap:8px !important; }
           .ap-hero-stats > div { padding:14px 8px !important; min-width:0 !important; }
@@ -321,9 +325,14 @@ export default function AgentProfile() {
             </div>
 
             {/* Infos */}
-            <div style={{ flex:1, minWidth:0, paddingTop:4 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap", marginBottom:8 }}>
-                <h1 style={{ fontSize:22, fontWeight:900, color:"#0f172a", margin:0, letterSpacing:"-.02em" }}>{agent.nom}</h1>
+            <div className="ap-hero-info" style={{ flex:1, minWidth:0, paddingTop:4 }}>
+              <h1 style={{ fontSize:22, fontWeight:900, color:"#0f172a", margin:0, letterSpacing:"-.02em" }}>{agent.nom}</h1>
+              {isPartenaire && (agent.nom_civil || agent.prenom) && (
+                <div style={{ fontSize:14.5, fontWeight:600, color:"#475569", marginTop:4 }}>
+                  {[agent.nom_civil, agent.prenom].filter(Boolean).join(" ")}
+                </div>
+              )}
+              <div className="ap-hero-badges" style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginTop:8, marginBottom:8 }}>
                 <span style={{ fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:6, background: secteurMeta?.bg || "#eef2ff", color:accentColor, border:`1px solid ${accentColor}33` }}>
                   {roleLabel}
                 </span>
@@ -334,18 +343,18 @@ export default function AgentProfile() {
                 )}
               </div>
               {(agent.gouvernorat || agent.localite) && (
-                <div style={{ display:"flex", alignItems:"center", gap:6, fontSize:13.5, color:"#64748b", marginBottom:18 }}>
+                <div className="ap-hero-loc" style={{ display:"flex", alignItems:"center", gap:6, fontSize:13.5, color:"#64748b", marginBottom:14 }}>
                   <MapPin size={14} style={{ color:accentColor }}/>{[agent.localite, agent.gouvernorat].filter(Boolean).join(" · ")}
                 </div>
               )}
               <div className="ap-hero-btns" style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
                 {agent.telephone && (
-                  <a href={`tel:${agent.telephone}`} style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"11px 22px", borderRadius:10, fontSize:14, fontWeight:700, textDecoration:"none", background:accentColor, color:"#fff" }}>
+                  <a href={`tel:${agent.telephone}`} style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"9px 16px", borderRadius:10, fontSize:13.5, fontWeight:700, textDecoration:"none", background:accentColor, color:"#fff" }}>
                     <Phone size={15}/> {agent.telephone}
                   </a>
                 )}
                 {agent.email && (
-                  <a href={`mailto:${agent.email}`} style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"11px 22px", borderRadius:10, fontSize:14, fontWeight:700, textDecoration:"none", background:"#f1f5f9", color:"#0f172a", border:"1px solid #e2e8f0" }}>
+                  <a href={`mailto:${agent.email}`} style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"9px 16px", borderRadius:10, fontSize:13.5, fontWeight:700, textDecoration:"none", background:"#f1f5f9", color:"#0f172a", border:"1px solid #e2e8f0" }}>
                     <Mail size={15}/> {agent.email}
                   </a>
                 )}
@@ -355,7 +364,7 @@ export default function AgentProfile() {
             {/* Stats */}
             <div className="ap-hero-stats" style={{ flexShrink:0, display:"flex", gap:10 }}>
               {/* Annonces — toujours affiché */}
-              <div style={{ flex:1, background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:14, padding:"18px 16px", textAlign:"center", minWidth:84 }}>
+              <div style={{ flex:1, background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:14, padding:"18px 10px", textAlign:"center", minWidth:96 }}>
                 <div style={{ fontSize:30, fontWeight:900, color:accentColor, lineHeight:1 }}>{agent.nb_annonces}</div>
                 <div style={{ fontSize:11.5, color:"#94a3b8", marginTop:5, fontWeight:600 }}>annonce{agent.nb_annonces !== 1 ? "s" : ""}</div>
               </div>
@@ -363,13 +372,13 @@ export default function AgentProfile() {
               {/* Note + missions — uniquement pour les prestataires/partenaires */}
               {isPartenaire && (
                 <>
-                  <div style={{ flex:1, background:"#fffbeb", border:"1px solid #fde68a", borderRadius:14, padding:"18px 16px", textAlign:"center", minWidth:84 }}>
+                  <div style={{ flex:1, background:"#fffbeb", border:"1px solid #fde68a", borderRadius:14, padding:"18px 10px", textAlign:"center", minWidth:96 }}>
                     <div style={{ fontSize:30, fontWeight:900, color:"#f59e0b", lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center", gap:3 }}>
                       <Star size={20} fill="#f59e0b" color="#f59e0b" />{agent.note != null ? Number(agent.note).toFixed(1) : "—"}
                     </div>
                     <div style={{ fontSize:11.5, color:"#b45309", marginTop:5, fontWeight:600 }}>note /5</div>
                   </div>
-                  <div style={{ flex:1, background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:14, padding:"18px 16px", textAlign:"center", minWidth:84 }}>
+                  <div style={{ flex:1, background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:14, padding:"18px 10px", textAlign:"center", minWidth:96 }}>
                     <div style={{ fontSize:30, fontWeight:900, color:accentColor, lineHeight:1 }}>{agent.nombre_interventions || 0}</div>
                     <div style={{ fontSize:11.5, color:"#94a3b8", marginTop:5, fontWeight:600 }}>intervention{(agent.nombre_interventions || 0) !== 1 ? "s" : ""}</div>
                   </div>

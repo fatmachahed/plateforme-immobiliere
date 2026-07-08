@@ -1144,6 +1144,8 @@ def get_agent_public_profile(user_id: int, db: Session = Depends(get_db)):
         "role":               role_val,
         "secteur_partenaire": getattr(user, "secteur_partenaire", None),
         "metier_artisan":     getattr(user, "metier_artisan", None),
+        "nom_civil":          getattr(user, "nom", None),
+        "prenom":             getattr(user, "prenom", None),
         "note":                 getattr(user, "note_prestataire", None),
         "nombre_interventions": getattr(user, "nombre_interventions", None) or 0,
         "annonces":           annonces_list,
