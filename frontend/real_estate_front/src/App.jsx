@@ -112,6 +112,7 @@ function App() {
           <Route path="/trouver-un-agent"           element={<TrouverUnAgent />} />
           <Route path="/agent/:id"                  element={<AgentProfile />} />
           <Route path="/promoteur/:id"              element={<AgentProfile />} />
+          <Route path="/prestataire/:id"            element={<AgentProfile />} />
           <Route path="/comment-ca-marche"          element={<CommentCaMarche />} />
           <Route path="/signaler-probleme"          element={<SignalerProbleme />} />
           <Route path="/partenaires"               element={<Partenaires />} />

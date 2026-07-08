@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import API_URL from "../config";
-import { Search, MapPin, Phone, Mail, ChevronRight, Wrench, Landmark, Shield, Scale, Ruler } from "lucide-react";
+import { Search, MapPin, Phone, Mail, ChevronRight, Wrench, Landmark, Shield, Scale, Ruler, Star, Briefcase } from "lucide-react";
 
 /* ── Secteurs : ordre d'affichage et métadonnées ── */
 const SECTEURS = [
@@ -64,7 +64,7 @@ function PartenaireCard({ p }) {
 
   return (
     <div
-      onClick={() => navigate(`/agent/${p.id}`)}
+      onClick={() => navigate(`/prestataire/${p.id}`)}
       style={{
         background: "#fff", borderRadius: 16, border: "1px solid #e2e8f0",
         overflow: "hidden", boxShadow: "0 2px 12px rgba(0,0,0,.05)",
@@ -101,6 +101,20 @@ function PartenaireCard({ p }) {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, fontSize: 12, color: "#64748b" }}>
             <MapPin size={11} style={{ flexShrink: 0, color: "#6366f1" }} />
             {[p.gouvernorat, p.localite].filter(Boolean).join(" · ")}
+          </div>
+        )}
+        {(p.note != null || p.nombre_missions > 0) && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, fontSize: 12, marginTop: 2 }}>
+            {p.note != null && (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 3, color: "#f59e0b", fontWeight: 700 }}>
+                <Star size={13} fill="#f59e0b" color="#f59e0b" /> {Number(p.note).toFixed(1)}/5
+              </span>
+            )}
+            {p.nombre_missions > 0 && (
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 3, color: "#0f172a", fontWeight: 600 }}>
+                <Briefcase size={12} color="#6366f1" /> {p.nombre_missions} mission{p.nombre_missions > 1 ? "s" : ""}
+              </span>
+            )}
           </div>
         )}
         <div style={{ borderTop: "1px solid #f1f5f9", marginTop: 8, paddingTop: 10, display: "flex", flexDirection: "column", gap: 6 }}>

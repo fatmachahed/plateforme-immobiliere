@@ -1424,10 +1424,10 @@ export const CreateListingForm = ({ editId = null }) => {
             toast("Avertissement : impossible de lier les images (propriété introuvable).", "error");
           } else {
             let mainImageUrl = null;
-            for (let i = 0; i < formData.allImages.length; i++) {
+            await Promise.all(formData.allImages.map(async (imgFile, i) => {
               try {
                 const imgForm = new FormData();
-                imgForm.append("file", formData.allImages[i]);
+                imgForm.append("file", imgFile);
                 const imgRes = await fetch(`${API_URL}/upload/image`, {
                   method: "POST",
                   headers: { Authorization: `Bearer ${token}` },
@@ -1443,7 +1443,7 @@ export const CreateListingForm = ({ editId = null }) => {
                   });
                 }
               } catch { /* non-bloquant */ }
-            }
+            }));
             /* Update image_principale if the selected main image was uploaded */
             if (mainImageUrl) {
               try {
@@ -1505,13 +1505,11 @@ export const CreateListingForm = ({ editId = null }) => {
           ]
         : [];
 
-      let imageUrl = null;
-      const uploadedExtraUrls = [];
-
-      for (let i = 0; i < orderedImages.length; i++) {
+      /* Upload en parallèle (au lieu d'un par un) — divise le temps par le nombre de photos */
+      const uploadResults = await Promise.all(orderedImages.map(async (imgFile, i) => {
         try {
           const imgForm = new FormData();
-          imgForm.append("file", orderedImages[i]);
+          imgForm.append("file", imgFile);
           const imgRes = await fetch(`${API_URL}/upload/image`, {
             method: "POST",
             headers: { "Authorization": `Bearer ${token}` },
@@ -1519,16 +1517,18 @@ export const CreateListingForm = ({ editId = null }) => {
           });
           if (imgRes.ok) {
             const imgData = await imgRes.json();
-            const relUrl = imgData.url;
-            if (i === 0) imageUrl = relUrl;
-            else uploadedExtraUrls.push(relUrl);
-          } else {
-            toast(`Image ${i + 1} : échec de l'upload`, "error");
+            return imgData.url;
           }
+          toast(`Image ${i + 1} : échec de l'upload`, "error");
+          return null;
         } catch {
           toast(`Image ${i + 1} : erreur lors de l'upload`, "error");
+          return null;
         }
-      }
+      }));
+
+      const imageUrl = uploadResults[0] || null;
+      const uploadedExtraUrls = uploadResults.slice(1).filter(Boolean);
 
       /* -- 3. Créer la propriété (localisation + image principale) -- */
       // Use mapLocation state directly — it's always initialized with valid Tunis defaults
@@ -1552,16 +1552,14 @@ export const CreateListingForm = ({ editId = null }) => {
       }
       const propData = propRes.ok ? await propRes.json().catch(()=>({})) : {};
 
-      /* -- 3b. Ajouter les images supplémentaires -- */
-      for (const extraUrl of uploadedExtraUrls) {
-        try {
-          await fetch(`${API_URL}/properties/${propData.id}/images`, {
-            method: "POST",
-            headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-            body: JSON.stringify({ image: extraUrl }),
-          });
-        } catch { /* silencieux — images extra non bloquantes */ }
-      }
+      /* -- 3b. Ajouter les images supplémentaires (en parallèle) -- */
+      await Promise.all(uploadedExtraUrls.map(extraUrl =>
+        fetch(`${API_URL}/properties/${propData.id}/images`, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ image: extraUrl }),
+        }).catch(() => { /* silencieux — images extra non bloquantes */ })
+      ));
 
       clearFormStorage();
       toast("Annonce enregistrée — approuvée dans les délais de 24h !");
@@ -1644,18 +1642,39 @@ export const CreateListingForm = ({ editId = null }) => {
       if (formData.vue_mer)       equip.push("vue sur mer");
       if (formData.vue_montagne)  equip.push("vue sur montagne");
       if (formData.vue_foret)     equip.push("vue sur la forêt");
-      if (formData.jardin)        equip.push("jardin privatif");
-      if (formData.terrasse)      equip.push("terrasse");
+      if (formData.jardin)        equip.push(formData.surface_jardin ? `jardin privatif de ${formData.surface_jardin} m²` : "jardin privatif");
+      if (formData.terrasse)      equip.push(formData.surface_terrasse ? `terrasse de ${formData.surface_terrasse} m²` : "terrasse");
       if (formData.balcon)        equip.push("balcon");
+      if (formData.piscine)       equip.push("piscine");
       if (formData.ascenseur)     equip.push("ascenseur");
-      if (formData.garage)        equip.push("garage");
+      if (formData.garage)        equip.push(formData.nb_places_garage > 1 ? `garage (${formData.nb_places_garage} places)` : "garage");
       if (formData.parking)       equip.push("place de parking");
       if (formData.meuble)        equip.push("mobilier inclus");
       if (formData.cuisine_equipee) equip.push("cuisine entièrement équipée");
       if (formData.climatisation) equip.push("climatisation");
+      if (formData.chauffage_centrale) equip.push("chauffage central");
+      if (formData.cheminee)      equip.push("cheminée");
+      if (formData.double_vitrage) equip.push("double vitrage");
+      if (formData.porte_blindee) equip.push("porte blindée");
+      if (formData.securite)      equip.push("système de sécurité");
+      if (formData.concierge)     equip.push("concierge");
+      if (formData.gardien)       equip.push("gardien");
+      if (formData.internet || formData.fibre_optique) equip.push("internet / fibre optique");
       if (formData.cellier)       equip.push("cellier");
       if (equip.length > 0) {
         desc += `Parmi ses atouts, ce bien bénéficie de : ${equip.join(", ")}.\n\n`;
+      }
+
+      // -- Paragraphe 4b : détails selon la catégorie --
+      if (formData.categorie === "location" && formData.duree_type) {
+        const dureeFr = { mensuelle:"à la location mensuelle", annuelle:"à la location annuelle", trimestrielle:"à la location trimestrielle" }[formData.duree_type];
+        if (dureeFr) desc += `Ce bien est proposé ${dureeFr}.\n\n`;
+      }
+      if (formData.categorie === "vacances" && formData.capacite_accueil) {
+        desc += `Idéal pour un séjour, il peut accueillir jusqu'à ${formData.capacite_accueil} personne${formData.capacite_accueil>1?"s":""}.\n\n`;
+      }
+      if (formData.colocation && formData.places_totales) {
+        desc += `Proposé en colocation, ce logement dispose de ${formData.places_totales} place${formData.places_totales>1?"s":""}.\n\n`;
       }
 
       // -- Paragraphe 5 : terrain spécifique --
@@ -1675,6 +1694,22 @@ export const CreateListingForm = ({ editId = null }) => {
         desc += `Affiché au prix de ${Number(formData.prix).toLocaleString("fr-TN")} ${formData.devise || "TND"}, `;
       }
       desc += "ce bien constitue une opportunité à saisir. N'hésitez pas à nous contacter pour obtenir plus d'informations ou convenir d'une visite.";
+
+      // -- Détection des informations manquantes : prévenir l'utilisateur --
+      const manquants = [];
+      if (!formData.superficie)                                  manquants.push("la superficie");
+      if (formData.type_bien !== "terrain" && !(formData.nb_pieces > 0))    manquants.push("le nombre de pièces");
+      if (formData.type_bien !== "terrain" && !(formData.nb_chambres > 0))  manquants.push("le nombre de chambres");
+      if (!formData.etat_bien && formData.type_bien !== "terrain") manquants.push("l'état du bien");
+      if (!locStr)                                               manquants.push("la localisation (gouvernorat / délégation)");
+      if (!formData.prix)                                        manquants.push("le prix");
+      if (equip.length === 0 && formData.type_bien !== "terrain") manquants.push("les équipements (étape 1)");
+
+      if (manquants.length > 0) {
+        toast(`Description générée. Complétez pour l'enrichir : ${manquants.join(", ")}.`);
+      } else {
+        toast("Description générée à partir de toutes vos informations !");
+      }
 
       setFormData(prev => ({ ...prev, description: desc.trim() }));
       setIsAILoading(false);
@@ -3528,13 +3563,13 @@ export const CreateListingForm = ({ editId = null }) => {
                       </div>
                     </div>
                     {formData.accompagnement && (
-                      <div style={{marginTop:10,padding:"9px 13px",background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:8,fontSize:12,color:"#1e40af",display:"flex",alignItems:"flex-start",gap:7}}>
+                      <div style={{margin:"10px 16px 0",padding:"9px 13px",background:"#eff6ff",border:"1px solid #bfdbfe",borderRadius:8,fontSize:12,color:"#1e40af",display:"flex",alignItems:"flex-start",gap:7}}>
                         <span style={{fontSize:15,flexShrink:0}}>ℹ️</span>
                         <span>Vous pouvez toujours modifier ce choix depuis la page <strong>Mes annonces</strong> après publication.</span>
                       </div>
                     )}
                     {formData.accompagnement && (
-                      <div style={{marginTop:14}}>
+                      <div style={{margin:"14px 16px 16px"}}>
                         <label className="ca-label" style={{marginBottom:6, display:"block"}}>
                           Choisir une agence
                         </label>
@@ -4952,10 +4987,16 @@ export const CreateListingForm = ({ editId = null }) => {
             .ca-loc-layout { grid-template-columns: 1fr; }
             .ca-loc-map { min-height: 320px; }
             .ca-feat-big-grid { grid-template-columns: repeat(3, 1fr) !important; gap: 6px !important; align-items: start !important; }
-            .ca-feat-big { aspect-ratio: 1 !important; padding: 6px !important; gap: 8px !important; min-height: 0 !important; justify-content: center !important; border-radius: 10px !important; }
+            /* Le cadre de l'icône doit garder EXACTEMENT la même taille pour tous,
+               même quand un panneau "extra" (garage : places, jardin : surface) s'affiche.
+               On fige le bouton en carré et on empêche le flex-wrap de l'étirer. */
+            .ca-feat-big { aspect-ratio: 1 !important; width: 100% !important; flex: 0 0 auto !important; padding: 6px !important; gap: 8px !important; min-height: 0 !important; justify-content: center !important; border-radius: 10px !important; }
             .ca-feat-big__ico svg { width: 26px !important; height: 26px !important; }
             .ca-feat-big__label { font-size: 10.5px !important; line-height: 1.2 !important; }
             .ca-feat-big-wrap { gap: 4px !important; align-self: start !important; }
+            /* Panneau extra compact, rendu sous le carré sans l'agrandir */
+            .ca-feat-big-extra { padding: 5px 7px !important; }
+            .ca-feat-big-extra__label { font-size: 9.5px !important; margin-bottom: 3px !important; }
             .ca-feats-section-title { font-size: 10px !important; margin-top: 12px !important; margin-bottom: 6px !important; padding-top: 10px !important; letter-spacing: .4px !important; }
             .ca-feats-section-title:first-child { margin-top: 4px !important; }
           }
