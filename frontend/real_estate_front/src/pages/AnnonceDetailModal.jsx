@@ -1624,10 +1624,20 @@ function BigMap({lat,lng}){
       mapRef.current=map;leafletRef.current=L;
       L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{attribution:"© OpenStreetMap © CARTO",maxZoom:19}).addTo(map);
       const icon=L.divIcon({className:"",html:PIN_SVG_HTML,iconSize:[36,48],iconAnchor:[18,48]});
-      L.marker([lat,lng],{icon,interactive:false}).addTo(map);
+      let marker=L.marker([lat,lng],{icon,interactive:false,zIndexOffset:1000}).addTo(map);
+      // Filet de sécurité : marqueur vectoriel natif (rendu SVG interne de Leaflet,
+      // sans dépendance à un divIcon HTML) — garantit un point visible même si le
+      // pin personnalisé venait à ne pas s'afficher.
+      L.circleMarker([lat,lng],{radius:9,color:"#fff",weight:3,fillColor:"#6366f1",fillOpacity:1,interactive:false}).addTo(map);
       setTimeout(()=>{
         map.invalidateSize();
         map.setView([lat,lng],15); // re-centre après le vrai calcul de taille du conteneur
+        // Recrée le marqueur : si le conteneur avait une taille non définitive à
+        // l'initialisation, sa position pixel calculée pouvait être invalide/hors
+        // cadre. On repart d'un état garanti propre plutôt que de compter sur le
+        // repositionnement automatique de Leaflet.
+        try{marker.remove();}catch{}
+        marker=L.marker([lat,lng],{icon,interactive:false,zIndexOffset:1000}).addTo(map);
         const b=map.getBounds();
         fetchPOIs(`${b.getSouth().toFixed(6)},${b.getWest().toFixed(6)},${b.getNorth().toFixed(6)},${b.getEast().toFixed(6)}`);
       },150);
@@ -1677,29 +1687,32 @@ function BigMap({lat,lng}){
           ))}
         </div>}
 
-        {/* Mobile: bouton dropdown compact + M'y rendre côte à côte */}
-        {poiEnabled && <div className="bm-poi-mobile" style={{display:"none",position:"relative",alignItems:"center",gap:6,flex:1}}>
-          <button onClick={()=>setShowPoiMenu(v=>!v)} style={{display:"flex",alignItems:"center",gap:4,padding:"5px 10px",borderRadius:20,border:"1px solid #e2e8f0",background:"#fff",cursor:"pointer",fontFamily:"inherit",fontSize:11,fontWeight:700,color:"#374151"}}>
-            Lieux {showPoiMenu?"▲":"▼"}
-          </button>
+        {/* Mobile: bouton dropdown Lieux (uniquement si POI activés) */}
+        <div className="bm-poi-mobile" style={{display:"none",position:"relative",alignItems:"center",gap:6,flex:1}}>
+          {poiEnabled && <>
+            <button onClick={()=>setShowPoiMenu(v=>!v)} style={{display:"flex",alignItems:"center",gap:4,padding:"5px 10px",borderRadius:20,border:"1px solid #e2e8f0",background:"#fff",cursor:"pointer",fontFamily:"inherit",fontSize:11,fontWeight:700,color:"#374151"}}>
+              Lieux {showPoiMenu?"▲":"▼"}
+            </button>
+            {showPoiMenu&&(
+              <div style={{position:"absolute",top:"calc(100% + 6px)",left:0,zIndex:1500,background:"#fff",border:"1px solid #e2e8f0",borderRadius:12,boxShadow:"0 4px 16px rgba(0,0,0,.18)",overflow:"hidden",minWidth:200}}>
+                {POI_ITEMS.map(({key,show,set,color,svg,label,data})=>(
+                  <button key={key} onClick={()=>{set(v=>!v);}} disabled={livePOIs.loading}
+                    style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"9px 14px",border:"none",borderBottom:"1px solid #f1f5f9",background:show?`${color}12`:"#fff",cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:700,color:show?color:"#374151",textAlign:"left"}}>
+                    <span style={{width:22,height:22,borderRadius:"50%",background:color,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                      <BmPoiSvg path={svg}/>
+                    </span>
+                    {label}
+                    {livePOIs.fetched&&<span style={{marginLeft:"auto",fontSize:11,color:"#94a3b8",fontWeight:600}}>{data.length}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>}
+          {/* M'y rendre : toujours visible sur mobile, indépendant des POI */}
           <a href={navLink} target="_blank" rel="noopener noreferrer" style={{display:"inline-flex",alignItems:"center",gap:4,padding:"5px 10px",borderRadius:20,textDecoration:"none",background:"#6366f1",color:"#fff",fontSize:11,fontWeight:700,whiteSpace:"nowrap",marginLeft:"auto"}}>
             <Navigation size={11} strokeWidth={2.5}/> M'y rendre
           </a>
-          {showPoiMenu&&(
-            <div style={{position:"absolute",top:"calc(100% + 6px)",left:0,zIndex:1500,background:"#fff",border:"1px solid #e2e8f0",borderRadius:12,boxShadow:"0 4px 16px rgba(0,0,0,.18)",overflow:"hidden",minWidth:200}}>
-              {POI_ITEMS.map(({key,show,set,color,svg,label,data})=>(
-                <button key={key} onClick={()=>{set(v=>!v);}} disabled={livePOIs.loading}
-                  style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"9px 14px",border:"none",borderBottom:"1px solid #f1f5f9",background:show?`${color}12`:"#fff",cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:700,color:show?color:"#374151",textAlign:"left"}}>
-                  <span style={{width:22,height:22,borderRadius:"50%",background:color,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                    <BmPoiSvg path={svg}/>
-                  </span>
-                  {label}
-                  {livePOIs.fetched&&<span style={{marginLeft:"auto",fontSize:11,color:"#94a3b8",fontWeight:600}}>{data.length}</span>}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>}
+        </div>
 
         {/* Desktop: M'y rendre dans le header */}
         <a className="bm-nav-desktop" href={navLink} target="_blank" rel="noopener noreferrer" style={{display:"inline-flex",alignItems:"center",gap:7,padding:"8px 18px",borderRadius:20,textDecoration:"none",background:"#6366f1",color:"#fff",fontSize:13,fontWeight:700,boxShadow:"0 2px 8px rgba(99,102,241,.3)",whiteSpace:"nowrap"}}>
