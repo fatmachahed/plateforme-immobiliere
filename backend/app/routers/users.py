@@ -722,22 +722,26 @@ async def upload_avatar(
     if ext not in ("jpg", "jpeg", "png", "webp", "gif"):
         raise HTTPException(status_code=400, detail="Format non supporté")
 
-    # Compression + redimensionnement : un avatar ne doit peser que quelques dizaines de Ko.
-    # Sans ça, une photo de 4-5 Mo est stockée en base64 dans la BDD et renvoyée à chaque
-    # login (réponse de plusieurs Mo → connexion très lente).
+    # Stockage sur disque (comme les images d'annonces) plutôt qu'en base64 dans la BDD.
+    # L'avatar est compressé/redimensionné en WebP puis servi via une URL /uploads/…,
+    # ce qui rend les réponses de login légères et l'affichage instantané + mis en cache.
+    avatar_dir = os.path.join(os.path.dirname(__file__), "..", "..", "uploads", "avatars")
+    os.makedirs(avatar_dir, exist_ok=True)
     try:
         from app.utils.image_processing import compress_image
-        buffer = compress_image(io.BytesIO(contents), max_width=400, quality=75)
-        compressed = buffer.getvalue()
-        b64 = base64.b64encode(compressed).decode()
-        data_url = f"data:image/jpeg;base64,{b64}"
+        buffer = compress_image(io.BytesIO(contents), max_width=400, quality=80)
+        data = buffer.getvalue()
+        out_ext = "jpg"
     except Exception:
-        # Repli : si la compression échoue, on stocke l'original
-        b64 = base64.b64encode(contents).decode()
-        data_url = f"data:image/{ext};base64,{b64}"
+        data = contents
+        out_ext = ext
+    filename = f"{uuid.uuid4()}.{out_ext}"
+    with open(os.path.join(avatar_dir, filename), "wb") as f:
+        f.write(data)
+    url = f"/uploads/avatars/{filename}"
 
-    crud.update_user(db, current_user.id, {"profile_picture": data_url})
-    return {"profile_picture": data_url}
+    crud.update_user(db, current_user.id, {"profile_picture": url})
+    return {"profile_picture": url}
 
 
 # ===============================

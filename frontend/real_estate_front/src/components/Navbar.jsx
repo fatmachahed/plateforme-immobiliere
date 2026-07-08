@@ -6,7 +6,7 @@ import {
   Home, Key, Umbrella, Phone, PlusCircle, Bell, Users, AlertTriangle, Building2,
   HelpCircle, Info, Mail, Wrench, Facebook, Instagram, Youtube, CreditCard
 } from "lucide-react";
-import API_URL from "../config";
+import API_URL, { imgUrl } from "../config";
 import { useLanguage } from "../contexts/LanguageContext";
 import Logo from "./Logo";
 
@@ -261,7 +261,7 @@ export default function Navbar() {
                 onClick={() => setProfileOpen(!profileOpen)}
               >
                 {user?.profile_picture
-                  ? <img src={user.profile_picture} alt="profil" />
+                  ? <img src={imgUrl(user.profile_picture)} alt="profil" />
                   : <User size={17} />
                 }
                 <ChevronDown size={13} style={{ transform: profileOpen ? "rotate(180deg)" : "none", transition: "transform .2s" }} />
@@ -411,7 +411,7 @@ export default function Navbar() {
                 <button className="lz-mob-row lz-mob-row--profile" onClick={() => setMobAccOpen(v => !v)}>
                   <span className="lz-mob-row__left">
                     {user?.profile_picture
-                      ? <img src={user.profile_picture} alt="profil" style={{width:22,height:22,borderRadius:"50%",objectFit:"cover",flexShrink:0}}/>
+                      ? <img src={imgUrl(user.profile_picture)} alt="profil" style={{width:22,height:22,borderRadius:"50%",objectFit:"cover",flexShrink:0}}/>
                       : <User size={17}/>
                     }
                     {" "}{user.username}

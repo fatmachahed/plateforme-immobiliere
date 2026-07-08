@@ -2,6 +2,17 @@
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 export default API_URL;
 
+/**
+ * Résout l'URL d'affichage d'une image.
+ * - URL absolue (http), data:base64 ou blob: → renvoyée telle quelle
+ * - chemin relatif (/uploads/…) → préfixé par l'origine de l'API
+ */
+export function imgUrl(path) {
+  if (!path) return "";
+  if (path.startsWith("http") || path.startsWith("data:") || path.startsWith("blob:")) return path;
+  return `${API_URL}${path.startsWith("/") ? "" : "/"}${path}`;
+}
+
 /** Normalise l'affichage de la devise */
 export function fmtDevise(devise) {
   if (!devise) return "TND";

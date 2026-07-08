@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
-import API_URL from "../config";
+import API_URL, { imgUrl } from "../config";
 import {
   Users, Plus, Trash2, X, Eye, EyeOff, User, Mail,
   Phone, RefreshCw, Copy, CheckCircle, AlertCircle,
@@ -152,7 +152,7 @@ export default function AgenceAgents() {
                             <div className="aa-agent-name">
                               <div className="aa-avatar">
                                 {a.profile_picture
-                                  ? <img src={a.profile_picture} alt=""/>
+                                  ? <img src={imgUrl(a.profile_picture)} alt=""/>
                                   : <span>{(a.username||"?")[0].toUpperCase()}</span>
                                 }
                               </div>

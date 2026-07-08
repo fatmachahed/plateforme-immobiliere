@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
-import API_URL, { fmtDevise, fmtPriceApprox } from "../config";
+import API_URL, { fmtDevise, fmtPriceApprox, imgUrl } from "../config";
 import heroBannerImg from "../assets/hero-compte.png";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
@@ -775,7 +775,7 @@ export default function Compte() {
           <div>
             <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:8}}>
               <div style={{width:56,height:56,borderRadius:"50%",overflow:"hidden",border:"3px solid rgba(255,255,255,.3)",background:"#4f46e5",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,fontWeight:800,color:"#fff",flexShrink:0}}>
-                {avatarPreview?<img src={avatarPreview} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:initials}
+                {avatarPreview?<img src={imgUrl(avatarPreview)} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:initials}
               </div>
               <div>
                 <h1 style={{color:"#fff",fontSize:22,fontWeight:800,margin:0,lineHeight:1.2}}>{profile.username}</h1>
@@ -799,7 +799,7 @@ export default function Compte() {
           {/* User mini */}
           <div style={{textAlign:"center",padding:"0 8px 22px",borderBottom:"1px solid #f1f5f9",marginBottom:8}}>
             <div style={{width:84,height:84,borderRadius:"50%",overflow:"hidden",margin:"0 auto 14px",border:"3px solid #e5e7eb",background:"#eef2ff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,fontWeight:800,color:"#4f46e5"}}>
-              {avatarPreview?<img src={avatarPreview} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:initials}
+              {avatarPreview?<img src={imgUrl(avatarPreview)} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:initials}
             </div>
             <div style={{fontWeight:800,fontSize:16,color:"#0f172a",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{profile.username}</div>
             <div style={{fontSize:12.5,color:"#94a3b8",marginTop:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{profile.email}</div>
@@ -1163,7 +1163,7 @@ export default function Compte() {
                   {/* Grande image quand renseignée */}
                   {avatarPreview&&(
                     <div style={{width:"100%",maxWidth:220,aspectRatio:"1/1",borderRadius:16,overflow:"hidden",border:"3px solid #e0e7ff",flexShrink:0,background:"#f8faff"}}>
-                      <img src={avatarPreview} alt="Avatar" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                      <img src={imgUrl(avatarPreview)} alt="Avatar" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
                     </div>
                   )}
 
@@ -1634,7 +1634,7 @@ export default function Compte() {
                             <td style={{padding:"14px 16px",verticalAlign:"middle"}}>
                               <div style={{display:"flex",alignItems:"center",gap:10}}>
                                 <div style={{width:36,height:36,borderRadius:"50%",background:"#e0e7ff",display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0}}>
-                                  {a.profile_picture?<img src={a.profile_picture} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:14,fontWeight:700,color:"#6366f1"}}>{(a.username||"?")[0].toUpperCase()}</span>}
+                                  {a.profile_picture?<img src={imgUrl(a.profile_picture)} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:<span style={{fontSize:14,fontWeight:700,color:"#6366f1"}}>{(a.username||"?")[0].toUpperCase()}</span>}
                                 </div>
                                 <div>
                                   <div style={{fontWeight:700,color:"#0f172a"}}>{a.nom&&a.prenom?`${a.prenom} ${a.nom}`:a.username}</div>
