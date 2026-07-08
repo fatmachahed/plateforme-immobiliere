@@ -3,7 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional
-import base64, uuid, os, secrets, json, re, asyncio
+import base64, uuid, os, secrets, json, re, asyncio, io
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor
 from sqlalchemy import text
@@ -722,8 +722,19 @@ async def upload_avatar(
     if ext not in ("jpg", "jpeg", "png", "webp", "gif"):
         raise HTTPException(status_code=400, detail="Format non supporté")
 
-    b64 = base64.b64encode(contents).decode()
-    data_url = f"data:image/{ext};base64,{b64}"
+    # Compression + redimensionnement : un avatar ne doit peser que quelques dizaines de Ko.
+    # Sans ça, une photo de 4-5 Mo est stockée en base64 dans la BDD et renvoyée à chaque
+    # login (réponse de plusieurs Mo → connexion très lente).
+    try:
+        from app.utils.image_processing import compress_image
+        buffer = compress_image(io.BytesIO(contents), max_width=400, quality=75)
+        compressed = buffer.getvalue()
+        b64 = base64.b64encode(compressed).decode()
+        data_url = f"data:image/jpeg;base64,{b64}"
+    except Exception:
+        # Repli : si la compression échoue, on stocke l'original
+        b64 = base64.b64encode(contents).decode()
+        data_url = f"data:image/{ext};base64,{b64}"
 
     crud.update_user(db, current_user.id, {"profile_picture": data_url})
     return {"profile_picture": data_url}
