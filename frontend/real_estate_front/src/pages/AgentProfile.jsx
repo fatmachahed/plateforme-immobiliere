@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useLocation, Link } from "react-router-dom";
+import { useParams, useLocation, useNavigate, Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import API_URL, { fmtDevise } from "../config";
@@ -212,6 +212,7 @@ const SECTEUR_META = {
 export default function AgentProfile() {
   const { id }      = useParams();
   const location    = useLocation();
+  const navigate    = useNavigate();
   const isPromoteur = location.pathname.startsWith("/promoteur/");
   const [agent, setAgent]     = useState(null);
   const [loading, setLoading] = useState(true);
@@ -433,7 +434,11 @@ export default function AgentProfile() {
               )}
               <div className="ap-hero-btns" style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
                 {isPartenaire && (
-                  <button type="button" onClick={()=>{ setCSent(false); setShowContact(true); }}
+                  <button type="button" onClick={()=>{
+                      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+                      if (!token) { navigate(`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`); return; }
+                      setCSent(false); setShowContact(true);
+                    }}
                     style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"9px 18px", borderRadius:10, fontSize:13.5, fontWeight:700, border:"none", cursor:"pointer", fontFamily:"inherit", background:accentColor, color:"#fff" }}>
                     <Mail size={15}/> Contacter {secteurMeta?.label || "le prestataire"}
                   </button>

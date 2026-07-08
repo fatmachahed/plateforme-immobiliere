@@ -3,13 +3,14 @@ import API_URL, { fmtDevise, fmtPriceApprox, imgUrl } from "../config";
 import heroBannerImg from "../assets/hero-compte.png";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import Logo from "../components/Logo";
 import AlerteFiltersModal, { EMPTY_FORM } from "../components/AlerteFiltersModal";
 import {
   User, Home, Heart, LogOut, Edit, Camera, Phone, Mail,
   Save, X, Building2, MapPin, FileText, Briefcase, Users,
   Eye, EyeOff, Edit2, Trash2, CheckCircle, Clock, XCircle, ArrowRight,
   Upload, Plus, Search, TrendingUp, Bell, Sparkles, Zap, Maximize, Bed, Bath,
-  Copy, RefreshCw, Pencil
+  Copy, RefreshCw, Pencil, Star
 } from "lucide-react";
 import { useToast } from "../components/Toast";
 import AnnonceDetailModal from "./AnnonceDetailModal";
@@ -73,6 +74,12 @@ export default function Compte() {
   const [interventionsLoaded, setInterventionsLoaded] = useState(false);
   const [interventionsLoading,setInterventionsLoading]= useState(false);
   const [updatingIntervId,    setUpdatingIntervId]    = useState(null);
+
+  /* ── Noter les services reçus (tout utilisateur ayant contacté un prestataire) ── */
+  const [toRate,        setToRate]        = useState([]);
+  const [toRateLoaded,  setToRateLoaded]  = useState(false);
+  const [toRateLoading, setToRateLoading] = useState(false);
+  const [ratingId,      setRatingId]      = useState(null); // id de la demande en cours de notation (envoi)
 
   /* ── Équipe (agence only) ── */
   const [agents,      setAgents]      = useState([]);
@@ -286,6 +293,29 @@ export default function Compte() {
       .catch(()=>setInterventionsLoaded(true));
   }, []);
 
+  /* ── Eager load "à noter" count for badge (tous les utilisateurs) ── */
+  useEffect(() => {
+    if (!token || toRateLoaded) return;
+    fetch(`${API_URL}/users/interventions/to-rate`, { headers:{Authorization:`Bearer ${token}`} })
+      .then(r=>r.ok?r.json():[]).then(d=>{ setToRate(Array.isArray(d)?d:[]); setToRateLoaded(true); })
+      .catch(()=>setToRateLoaded(true));
+  }, []);
+
+  async function submitRating(demandeId, note) {
+    setRatingId(demandeId);
+    try {
+      const r = await fetch(`${API_URL}/users/interventions/${demandeId}/rate`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ note }),
+      });
+      if (!r.ok) throw new Error();
+      setToRate(prev => prev.filter(x => x.id !== demandeId));
+      toast("Merci pour votre avis !");
+    } catch { toast("Erreur lors de l'envoi de votre note.", "error"); }
+    finally { setRatingId(null); }
+  }
+
   /* ── Load tab data on demand ── */
   useEffect(() => {
     if (!token) return;
@@ -324,6 +354,12 @@ export default function Compte() {
       fetch(`${API_URL}/users/me/favoris`, { headers:{Authorization:`Bearer ${token}`} })
         .then(r=>r.ok?r.json():[]).then(d=>{ setFavoris(Array.isArray(d)?d:[]); setFavLoaded(true); })
         .catch(()=>setFavLoaded(true)).finally(()=>setFavLoading(false));
+    }
+    if (tab === "noter" && !toRateLoaded) {
+      setToRateLoading(true);
+      fetch(`${API_URL}/users/interventions/to-rate`, { headers:{Authorization:`Bearer ${token}`} })
+        .then(r=>r.ok?r.json():[]).then(d=>{ setToRate(Array.isArray(d)?d:[]); setToRateLoaded(true); })
+        .catch(()=>setToRateLoaded(true)).finally(()=>setToRateLoading(false));
     }
   }, [tab, alertesLoaded]);
 
@@ -660,10 +696,27 @@ export default function Compte() {
       });
       if (!r.ok) throw new Error();
       setInterventions(prev => prev.map(i => i.id === id ? { ...i, status } : i));
-      toast(status === "realisee" ? "Intervention marquée comme réalisée !" : "Intervention remise en attente.");
+      toast(status === "realisee" ? "Intervention marquée comme réalisée ! Le client va être invité à noter votre service." : "Intervention remise en attente.");
     } catch { toast("Erreur lors de la mise à jour.", "error"); }
     finally { setUpdatingIntervId(null); }
   }
+
+  async function deleteIntervention(id) {
+    setUpdatingIntervId(id);
+    try {
+      const r = await fetch(`${API_URL}/users/interventions/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) throw new Error();
+      setInterventions(prev => prev.filter(i => i.id !== id));
+      toast("Demande supprimée.");
+    } catch { toast("Erreur lors de la suppression.", "error"); }
+    finally { setUpdatingIntervId(null); }
+  }
+
+  /* ── Popup de confirmation "Marquer réalisée" / "Annuler" (interventions) ── */
+  const [intervConfirm, setIntervConfirm] = useState(null); // { id, action: "realisee" | "annuler" }
 
   /* ── Load agents (lazy, agence only) ── */
   useEffect(() => {
@@ -797,6 +850,7 @@ export default function Compte() {
     { key:"contacts",  icon:<Bell size={19}/>,   label:"Demandes reçues", badge: contactsLoaded ? unreadCount : 0 },
     { key:"alertes",   icon:<Bell size={19}/>,   label:"Mes alertes", badge: alertesLoaded ? alertesCount : 0 },
     { key:"favoris",   icon:<Heart size={19}/>,  label:"Mes favoris" },
+    { key:"noter",     icon:<Star size={19}/>,   label:"Noter les services", badge: toRateLoaded ? toRate.length : 0 },
     ...(storedUser?.role==="partenaire"?[{key:"interventions",icon:<Briefcase size={19}/>,label:"Mes interventions", badge: interventionsLoaded ? pendingInterventions : 0}]:[]),
     ...(storedUser?.role==="agence"?[{key:"equipe",icon:<Users size={19}/>,label:"Mon équipe"}]:[]),
     ...(storedUser?.role==="agence"?[{key:"onboarding_agence",icon:<FileText size={19}/>,label:"Convention agence",onbInfo:_onbInfo(_onbAgence)}]:[]),
@@ -1640,6 +1694,63 @@ export default function Compte() {
               )}
             </div>
           )}
+          {/* ═══════ NOTER LES SERVICES REÇUS (tous rôles) ═══════ */}
+          {tab==="noter" && (
+            <div>
+              <div style={{...card,padding:"22px 24px",marginBottom:16}}>
+                <h2 style={{fontSize:17,fontWeight:800,color:"#0f172a",margin:0}}>Noter les services reçus</h2>
+                <p style={{fontSize:12.5,color:"#94a3b8",margin:"3px 0 0"}}>Donnez votre avis sur les prestataires dont vous avez bénéficié du service.</p>
+              </div>
+
+              {toRateLoading ? (
+                <div style={{...card,padding:"40px",textAlign:"center",color:"#94a3b8"}}>Chargement…</div>
+              ) : toRate.length === 0 ? (
+                <div style={{...card,padding:"48px 24px",textAlign:"center"}}>
+                  <Star size={40} color="#cbd5e1" style={{margin:"0 auto 14px"}}/>
+                  <p style={{fontSize:15,fontWeight:700,color:"#475569",margin:"0 0 4px"}}>Rien à noter pour le moment</p>
+                  <p style={{fontSize:13,color:"#94a3b8",margin:0}}>Quand un prestataire marque votre intervention comme réalisée, elle apparaît ici.</p>
+                </div>
+              ) : (
+                <div style={{display:"flex",flexDirection:"column",gap:16}}>
+                  {toRate.map(it => {
+                    const nomComplet = [it.prestataire_prenom, it.prestataire_nom].filter(Boolean).join(" ") || it.prestataire_nom;
+                    return (
+                      <div key={it.id} style={{...card,padding:"24px"}}>
+                        <p style={{fontSize:14.5,color:"#374151",lineHeight:1.7,margin:"0 0 18px",textAlign:"center"}}>
+                          Vous venez de bénéficier du service de <strong style={{color:"#0f172a"}}>{it.role_label}</strong>{" "}
+                          <strong style={{color:"#0f172a"}}>{nomComplet}</strong>. Nous souhaitons savoir votre avis sur le service qu'il vous a rendu.
+                        </p>
+                        <div style={{display:"flex",justifyContent:"center",gap:12,flexWrap:"wrap"}}>
+                          {[
+                            {emoji:"😞",label:"Très insatisfait",val:1},
+                            {emoji:"😕",label:"Insatisfait",val:2},
+                            {emoji:"😐",label:"Neutre",val:3},
+                            {emoji:"😊",label:"Satisfait",val:4},
+                            {emoji:"😄",label:"Très satisfait",val:5},
+                          ].map(({emoji,label,val}) => (
+                            <button key={val} type="button" disabled={ratingId===it.id}
+                              onClick={()=>submitRating(it.id, val)} title={label}
+                              style={{
+                                background:"#fff", border:"2px solid #e5e7eb", borderRadius:14, padding:"14px 18px",
+                                cursor:ratingId===it.id?"default":"pointer", opacity:ratingId===it.id?.5:1,
+                                transition:"all .22s cubic-bezier(.34,1.56,.64,1)",
+                                display:"flex", flexDirection:"column", alignItems:"center", gap:6, minWidth:80,
+                              }}
+                              onMouseEnter={e=>{ if(ratingId!==it.id){ e.currentTarget.style.background="#eef2ff"; e.currentTarget.style.borderColor="#6366f1"; e.currentTarget.style.transform="scale(1.08)"; } }}
+                              onMouseLeave={e=>{ e.currentTarget.style.background="#fff"; e.currentTarget.style.borderColor="#e5e7eb"; e.currentTarget.style.transform="scale(1)"; }}
+                            >
+                              <span style={{fontSize:32}}>{emoji}</span>
+                              <span style={{fontSize:11,color:"#94a3b8",fontWeight:700,lineHeight:1.2,textAlign:"center"}}>{label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
           {/* ═══════ MES INTERVENTIONS (partenaire only) ═══════ */}
           {tab==="interventions" && storedUser?.role==="partenaire" && (
             <div>
@@ -1683,12 +1794,22 @@ export default function Compte() {
                               {i.created_at && <span style={{fontSize:11,color:"#94a3b8",marginTop:2}}>{new Date(i.created_at).toLocaleDateString("fr-TN",{day:"numeric",month:"long",year:"numeric"})}</span>}
                             </div>
                           </div>
-                          <button
-                            onClick={()=>setInterventionStatus(i.id, done?"en_attente":"realisee")}
-                            disabled={updatingIntervId===i.id}
-                            style={{flexShrink:0,padding:"9px 16px",borderRadius:10,border:done?"1.5px solid #e2e8f0":"none",background:done?"#f8fafc":"#16a34a",color:done?"#64748b":"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit",display:"inline-flex",alignItems:"center",gap:7}}>
-                            {done ? <><X size={14}/> Annuler</> : <><CheckCircle size={14}/> Marquer réalisée</>}
-                          </button>
+                          {!done && (
+                            <div style={{flexShrink:0,display:"flex",gap:8,flexWrap:"wrap"}}>
+                              <button
+                                onClick={()=>setIntervConfirm({id:i.id, action:"annuler", nom:i.client_nom})}
+                                disabled={updatingIntervId===i.id}
+                                style={{padding:"9px 14px",borderRadius:10,border:"1.5px solid #e2e8f0",background:"#f8fafc",color:"#64748b",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit",display:"inline-flex",alignItems:"center",gap:7}}>
+                                <X size={14}/> Annuler
+                              </button>
+                              <button
+                                onClick={()=>setIntervConfirm({id:i.id, action:"realisee", nom:i.client_nom})}
+                                disabled={updatingIntervId===i.id}
+                                style={{padding:"9px 16px",borderRadius:10,border:"none",background:"#16a34a",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit",display:"inline-flex",alignItems:"center",gap:7}}>
+                                <CheckCircle size={14}/> Marquer réalisée
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -2458,6 +2579,46 @@ export default function Compte() {
           </div>
         </div>
       )}
+
+      {/* ── Popup confirmation : marquer réalisée / annuler une intervention ── */}
+      {intervConfirm && (()=>{
+        const isRealisee = intervConfirm.action === "realisee";
+        return (
+          <div style={{position:"fixed",inset:0,zIndex:99999,background:"rgba(15,23,42,0.6)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}
+            onClick={()=>setIntervConfirm(null)}>
+            <div style={{background:"#fff",borderRadius:18,maxWidth:420,width:"100%",padding:"28px 26px",boxShadow:"0 20px 60px rgba(0,0,0,.25)",textAlign:"center"}}
+              onClick={e=>e.stopPropagation()}>
+              <div style={{display:"flex",justifyContent:"center",marginBottom:18}}><Logo height={30}/></div>
+              <div style={{width:56,height:56,borderRadius:"50%",background:isRealisee?"#f0fdf4":"#fef2f2",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 16px"}}>
+                {isRealisee ? <CheckCircle size={26} color="#16a34a"/> : <X size={26} color="#ef4444"/>}
+              </div>
+              <h3 style={{fontSize:17,fontWeight:800,color:"#0f172a",margin:"0 0 10px"}}>
+                {isRealisee ? "Marquer l'intervention comme réalisée ?" : "Annuler cette demande ?"}
+              </h3>
+              <p style={{fontSize:13.5,color:"#64748b",lineHeight:1.7,margin:"0 0 24px"}}>
+                {isRealisee
+                  ? <>En appuyant sur ce bouton, vous confirmez que vous avez rendu service à <strong style={{color:"#374151"}}>{intervConfirm.nom}</strong>. Suite à cette action, une demande va être envoyée à la personne concernée pour noter votre service.</>
+                  : <>En appuyant sur ce bouton d'annulation, vous confirmez que <strong style={{color:"#374151"}}>{intervConfirm.nom}</strong> n'est pas intéressé(e) et que vous n'avez plus besoin de ce contact. La demande sera supprimée et vous n'aurez plus ses coordonnées.</>
+                }
+              </p>
+              <div style={{display:"flex",gap:10}}>
+                <button onClick={()=>setIntervConfirm(null)} style={{flex:1,padding:"12px",borderRadius:11,border:"1.5px solid #e2e8f0",background:"#f8fafc",color:"#374151",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>
+                  Retour
+                </button>
+                <button onClick={async ()=>{
+                    const {id, action} = intervConfirm;
+                    setIntervConfirm(null);
+                    if (action === "realisee") await setInterventionStatus(id, "realisee");
+                    else await deleteIntervention(id);
+                  }}
+                  style={{flex:1,padding:"12px",borderRadius:11,border:"none",background:isRealisee?"#16a34a":"#ef4444",color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>
+                  {isRealisee ? "Confirmer" : "Confirmer l'annulation"}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Popup comparateur ── */}
       {showCmpPopup && (()=>{

@@ -1236,3 +1236,136 @@ def update_intervention_status(
         "status": d.status,
         "nombre_interventions": current_user.nombre_interventions or 0,
     }
+
+
+@router.delete("/interventions/{demande_id}")
+def delete_intervention(
+    demande_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Le prestataire supprime définitivement une demande (erreur, plus intéressé, etc.).
+    Si la demande avait déjà été marquée réalisée, on décrémente le compteur et on supprime
+    l'avis client associé s'il existe, pour garder les statistiques cohérentes."""
+    d = db.query(models.DemandeIntervention).filter(
+        models.DemandeIntervention.id == demande_id
+    ).first()
+    if not d:
+        raise HTTPException(404, "Demande introuvable.")
+    if d.prestataire_id != current_user.id:
+        raise HTTPException(403, "Action non autorisée.")
+
+    if d.status == "realisee":
+        current_user.nombre_interventions = max(0, (current_user.nombre_interventions or 0) - 1)
+        reaction = db.query(models.PrestataireReaction).filter(
+            models.PrestataireReaction.demande_id == demande_id
+        ).first()
+        if reaction:
+            db.delete(reaction)
+            from sqlalchemy import func
+            stats = db.query(
+                func.avg(models.PrestataireReaction.note).label("avg"),
+                func.count(models.PrestataireReaction.id).label("cnt")
+            ).filter(models.PrestataireReaction.prestataire_id == current_user.id,
+                      models.PrestataireReaction.id != reaction.id).first()
+            current_user.note_prestataire = round(float(stats.avg), 2) if stats.avg else None
+            current_user.nombre_avis = stats.cnt or 0
+
+    db.delete(d)
+    db.commit()
+    return {"message": "Demande supprimée.", "nombre_interventions": current_user.nombre_interventions or 0}
+
+
+# ===============================
+# NOTATION DES SERVICES REÇUS (client ayant bénéficié d'une intervention réalisée)
+# ===============================
+@router.get("/interventions/to-rate")
+def interventions_to_rate(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Liste des interventions réalisées, bénéficiées par l'utilisateur connecté,
+    et pas encore notées."""
+    deja_notees = {
+        r.demande_id for r in db.query(models.PrestataireReaction.demande_id).filter(
+            models.PrestataireReaction.client_user_id == current_user.id
+        ).all()
+    }
+    demandes = db.query(models.DemandeIntervention).filter(
+        models.DemandeIntervention.client_user_id == current_user.id,
+        models.DemandeIntervention.status == "realisee",
+    ).order_by(models.DemandeIntervention.created_at.desc()).all()
+
+    result = []
+    for d in demandes:
+        if d.id in deja_notees:
+            continue
+        presta = d.prestataire
+        if not presta:
+            continue
+        result.append({
+            "id":               d.id,
+            "prestataire_id":   presta.id,
+            "prestataire_nom":  presta.nom_entreprise or presta.nom or presta.username,
+            "prestataire_prenom": presta.prenom,
+            "role_label":       presta.metier_artisan or ({
+                "banques":"votre conseiller bancaire", "assurances":"votre assureur",
+                "notaires_avocats":"votre notaire/avocat", "architectes":"votre architecte",
+                "artisans":"votre artisan",
+            }.get(presta.secteur_partenaire, "ce prestataire")),
+            "created_at":       d.created_at.isoformat() if d.created_at else None,
+        })
+    return result
+
+
+@router.post("/interventions/{demande_id}/rate")
+def rate_intervention(
+    demande_id: int,
+    body: dict,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Le client note le service reçu (1 à 5). Recalcule la moyenne du prestataire
+    exactement comme pour les notes d'annonces (AVG/COUNT sur les avis)."""
+    note = body.get("note")
+    if note not in (1, 2, 3, 4, 5):
+        raise HTTPException(400, "Note invalide (1 à 5 attendu).")
+
+    d = db.query(models.DemandeIntervention).filter(
+        models.DemandeIntervention.id == demande_id
+    ).first()
+    if not d:
+        raise HTTPException(404, "Demande introuvable.")
+    if d.client_user_id != current_user.id:
+        raise HTTPException(403, "Action non autorisée.")
+    if d.status != "realisee":
+        raise HTTPException(400, "Cette intervention n'est pas encore marquée comme réalisée.")
+
+    presta = db.query(models.User).filter(models.User.id == d.prestataire_id).first()
+    if not presta:
+        raise HTTPException(404, "Prestataire introuvable.")
+
+    existing = db.query(models.PrestataireReaction).filter(
+        models.PrestataireReaction.demande_id == demande_id
+    ).first()
+    if existing:
+        existing.note = note
+    else:
+        db.add(models.PrestataireReaction(
+            prestataire_id = presta.id,
+            demande_id     = demande_id,
+            client_user_id = current_user.id,
+            note           = note,
+        ))
+    db.flush()
+
+    from sqlalchemy import func
+    stats = db.query(
+        func.avg(models.PrestataireReaction.note).label("avg"),
+        func.count(models.PrestataireReaction.id).label("cnt")
+    ).filter(models.PrestataireReaction.prestataire_id == presta.id).first()
+    presta.note_prestataire = round(float(stats.avg), 2) if stats.avg else None
+    presta.nombre_avis      = stats.cnt or 0
+    db.commit()
+
+    return {"message": "Merci pour votre avis !", "note_prestataire": presta.note_prestataire, "nombre_avis": presta.nombre_avis}

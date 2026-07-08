@@ -36,7 +36,8 @@ class User(Base):
     secteur_partenaire = Column(String, nullable=True)
     metier_artisan     = Column(String, nullable=True)
     # Qualification des prestataires / partenaires / artisans
-    note_prestataire     = Column(Float,   nullable=True)   # note /5 attribuée au prestataire
+    note_prestataire     = Column(Float,   nullable=True)   # note /5 attribuée au prestataire (moyenne)
+    nombre_avis          = Column(Integer, default=0, nullable=True)  # nb d'avis ayant servi au calcul de la moyenne
     nombre_interventions = Column(Integer, default=0, nullable=True)  # nb d'interventions réalisées
     is_verified        = Column(Boolean, default=False, nullable=True)
     email_verify_token = Column(String, nullable=True)
@@ -452,3 +453,19 @@ class DemandeIntervention(Base):
     created_at       = Column(DateTime, default=datetime.utcnow)
 
     prestataire = relationship("User", foreign_keys=[prestataire_id])
+
+
+# ----------------------------------------
+# Notes des prestataires (par les clients ayant bénéficié d'une intervention réalisée)
+# ----------------------------------------
+class PrestataireReaction(Base):
+    __tablename__ = "prestataire_reactions"
+    id             = Column(Integer, primary_key=True, index=True)
+    prestataire_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    demande_id     = Column(Integer, ForeignKey("demandes_intervention.id", ondelete="CASCADE"), nullable=False, unique=True)
+    client_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    note           = Column(Integer, nullable=False)  # 1 à 5
+    created_at     = Column(DateTime, default=datetime.utcnow)
+
+    prestataire = relationship("User", foreign_keys=[prestataire_id])
+    demande     = relationship("DemandeIntervention", foreign_keys=[demande_id])
