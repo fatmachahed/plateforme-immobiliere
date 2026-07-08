@@ -359,7 +359,12 @@ export default function QuiSommesNous() {
           .qsn-hero { min-height: 320px; }
         }
         @media (max-width: 860px) {
-          .qsn-free__grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .qsn-free__grid { grid-template-columns: repeat(2, 1fr) !important; gap: 12px !important; }
+          .qsn-free-card { box-sizing: border-box !important; min-width: 0 !important; padding: 16px 14px !important; }
+          .qsn-free-card__head { gap: 8px !important; }
+          .qsn-free-card__check { padding: 5px !important; }
+          .qsn-free-card__label { font-size: 13.5px !important; min-width: 0 !important; }
+          .qsn-free-card__desc { font-size: 12px !important; }
           .qsn-section { padding: 36px 0 !important; }
           .qsn-section__head { margin-bottom: 24px !important; }
           .qsn-value-card__head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }

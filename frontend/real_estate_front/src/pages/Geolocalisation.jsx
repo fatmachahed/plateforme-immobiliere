@@ -134,6 +134,25 @@ export default function Geolocalisation() {
     <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'Poppins',system-ui,sans-serif" }}>
       <Navbar />
 
+      {/* Ajustements mobile uniquement — le desktop conserve ses styles inline */}
+      <style>{`
+        @media (max-width: 640px) {
+          /* Cartes "change tout" : icône + titre sur la même ligne, description pleine largeur */
+          .geo-av-card {
+            display: grid !important;
+            grid-template-columns: auto 1fr;
+            column-gap: 12px;
+            align-items: center;
+          }
+          .geo-av-card .geo-av-ico { margin-bottom: 0 !important; grid-column: 1; grid-row: 1; }
+          .geo-av-card .geo-av-title { margin: 0 !important; grid-column: 2; grid-row: 1; align-self: center; }
+          .geo-av-card .geo-av-desc { grid-column: 1 / -1; grid-row: 2; margin-top: 12px !important; }
+
+          /* Section "Faut-il géolocaliser" : les deux cartes empilées verticalement */
+          .geo-decision-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
+
       {/* ── Fil d'Ariane ── */}
       <div style={{ background: "#f8fafc", borderBottom: "1px solid #e5e7eb", padding: "10px 24px" }}>
         <div style={{ maxWidth: 860, margin: "0 auto", display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#64748b" }}>
@@ -237,7 +256,7 @@ export default function Geolocalisation() {
         </h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(260px,1fr))", gap: 20 }}>
           {AVANTAGES.map((a, i) => (
-            <div key={i} style={{
+            <div key={i} className="geo-av-card" style={{
               background: "#fff", border: "1.5px solid #e5e7eb", borderRadius: 16,
               padding: "24px 22px", boxShadow: "0 2px 10px rgba(0,0,0,.05)",
               transition: "transform .2s, box-shadow .2s",
@@ -245,14 +264,14 @@ export default function Geolocalisation() {
               onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = "0 8px 28px rgba(0,0,0,.1)"; }}
               onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 2px 10px rgba(0,0,0,.05)"; }}
             >
-              <div style={{
+              <div className="geo-av-ico" style={{
                 width: 44, height: 44, borderRadius: 10,
                 background: "#eef2ff", color: "#6366f1",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 marginBottom: 14,
               }}>{a.icon}</div>
-              <h3 style={{ fontSize: 14.5, fontWeight: 700, color: "#0f172a", margin: "0 0 8px" }}>{a.title}</h3>
-              <p style={{ fontSize: 13.5, color: "#64748b", lineHeight: 1.7, margin: 0 }}>{a.desc}</p>
+              <h3 className="geo-av-title" style={{ fontSize: 14.5, fontWeight: 700, color: "#0f172a", margin: "0 0 8px" }}>{a.title}</h3>
+              <p className="geo-av-desc" style={{ fontSize: 13.5, color: "#64748b", lineHeight: 1.7, margin: 0 }}>{a.desc}</p>
             </div>
           ))}
         </div>
@@ -333,7 +352,7 @@ export default function Geolocalisation() {
         <h2 style={{ fontSize: "clamp(22px,3.5vw,32px)", fontWeight: 800, color: "#0f172a", margin: "0 0 28px", lineHeight: 1.2 }}>
           Faut-il géolocaliser tous ses biens ?
         </h2>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+        <div className="geo-decision-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
 
           {/* Pour */}
           <div style={{
