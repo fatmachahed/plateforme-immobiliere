@@ -13,6 +13,10 @@ import {
   Copy, RefreshCw, Pencil, Star
 } from "lucide-react";
 import { useToast } from "../components/Toast";
+import {
+  useCompareMeta, useCompareShowPopup,
+  toggleCompare as toggleCompareStore, removeFromCompare as removeFromCompareStore,
+} from "../utils/compareStore";
 import AnnonceDetailModal from "./AnnonceDetailModal";
 import AgenceOnboarding from "./AgenceOnboarding";
 import PromoteurOnboarding from "./PromoteurOnboarding";
@@ -214,24 +218,14 @@ export default function Compte() {
 
   /* ──────── FAVORIS ──────── */
   const [favoris,    setFavoris]    = useState([]);
-  const [compareIds, setCompareIds] = useState(() => { try { return JSON.parse(localStorage.getItem("localizi_compare")||"[]"); } catch { return []; } });
+  const compareMeta = useCompareMeta();
+  const compareIds  = compareMeta.map(m => String(m.id));
   const [showCmpPopup, setShowCmpPopup] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
   const [favLoaded,  setFavLoaded]  = useState(false);
 
-  /* ── Sync compareIds with localStorage ── */
-  useEffect(() => {
-    const sync = () => { try { setCompareIds(JSON.parse(localStorage.getItem("localizi_compare")||"[]")); } catch { setCompareIds([]); } };
-    window.addEventListener("compare-updated", sync);
-    return () => window.removeEventListener("compare-updated", sync);
-  }, []);
-
-  /* ── Compare popup trigger ── */
-  useEffect(() => {
-    const h = () => setShowCmpPopup(true);
-    window.addEventListener("compare-show-popup", h);
-    return () => window.removeEventListener("compare-show-popup", h);
-  }, []);
+  /* ── Compare popup trigger (déclenché depuis n'importe quelle interface) ── */
+  useCompareShowPopup(() => setShowCmpPopup(true));
 
   /* ── Load full profile from API and sync localStorage + local states ── */
   useEffect(() => {
@@ -1682,7 +1676,7 @@ export default function Compte() {
                             </div>
                             <div style={{display:"flex",gap:5,flexShrink:0}}>
                               <Link to={`/annonce/${f.id}`} onClick={e=>e.stopPropagation()} className="fav-btn fav-btn--view">Voir <ArrowRight size={12}/></Link>
-                              <button className={`fav-btn fav-btn--compare${inCompare?" fav-btn--compare-active":""}`} onClick={e=>{e.stopPropagation();const cur=(()=>{try{return JSON.parse(localStorage.getItem("localizi_compare")||"[]");}catch{return[];}})();const rid=String(f.id);if(cur.includes(rid)){const next=cur.filter(i=>i!==rid);localStorage.setItem("localizi_compare",JSON.stringify(next));window.dispatchEvent(new Event("compare-updated"));}else if(cur.length>=4){alert("Maximum 4 annonces.");}else{const next=[...cur,rid];localStorage.setItem("localizi_compare",JSON.stringify(next));const meta=(()=>{try{return JSON.parse(localStorage.getItem("localizi_compare_meta")||"[]");}catch{return[];}})();localStorage.setItem("localizi_compare_meta",JSON.stringify([...meta,{id:f.id,titre:f.titre,prix:f.prix,devise:f.devise,image:imgSrc,gouvernorat:f.gouvernorat}]));window.dispatchEvent(new Event("compare-updated"));if(next.length>=2)window.dispatchEvent(new CustomEvent("compare-show-popup"));}}} title={inCompare?"Retirer de la comparaison":"Comparer"}>⇄</button>
+                              <button className={`fav-btn fav-btn--compare${inCompare?" fav-btn--compare-active":""}`} onClick={e=>{e.stopPropagation();const result=toggleCompareStore({id:f.id,titre:f.titre,prix:f.prix,devise:f.devise,image:imgSrc,gouvernorat:f.gouvernorat});if(result.maxReached)toast("Maximum 4 annonces.","error");}} title={inCompare?"Retirer de la comparaison":"Comparer"}>⇄</button>
                               <button className="fav-btn fav-btn--del" onClick={e=>{e.stopPropagation();handleRemoveFav(f.id);}} title="Retirer des favoris"><Trash2 size={13}/></button>
                             </div>
                           </div>
@@ -2622,7 +2616,7 @@ export default function Compte() {
 
       {/* ── Popup comparateur ── */}
       {showCmpPopup && (()=>{
-        const meta=(()=>{try{return JSON.parse(localStorage.getItem("localizi_compare_meta")||"[]");}catch{return[];}})();
+        const meta = compareMeta;
         return(
           <div style={{position:"fixed",inset:0,zIndex:99999,background:"rgba(15,23,42,0.65)",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={()=>setShowCmpPopup(false)}>
             <div style={{background:"#fff",borderRadius:20,maxWidth:520,width:"100%",padding:"32px 28px",boxShadow:"0 30px 80px rgba(0,0,0,.28)",position:"relative",animation:"fadeInCmp .2s ease"}} onClick={e=>e.stopPropagation()}>
@@ -2640,7 +2634,7 @@ export default function Compte() {
                         <div style={{fontSize:14,fontWeight:700,color:"#0f172a",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{d.titre||`Annonce #${id}`}</div>
                         <div style={{fontSize:12,color:"#64748b",marginTop:3}}>{d.gouvernorat&&<span>📍 {d.gouvernorat}</span>}{d.prix&&<span style={{marginLeft:8,fontWeight:700,color:"#4f46e5"}}>{Number(d.prix).toLocaleString("fr-TN")} {fmtDevise(d.devise)}</span>}</div>
                       </div>
-                      <button onClick={()=>{const next=compareIds.filter(i=>i!==id);localStorage.setItem("localizi_compare",JSON.stringify(next));const nextMeta=meta.filter(m=>String(m.id)!==String(id));localStorage.setItem("localizi_compare_meta",JSON.stringify(nextMeta));window.dispatchEvent(new Event("compare-updated"));}} style={{background:"none",border:"1.5px solid #e5e7eb",borderRadius:"50%",width:28,height:28,cursor:"pointer",color:"#94a3b8",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>×</button>
+                      <button onClick={()=>removeFromCompareStore(id)} style={{background:"none",border:"1.5px solid #e5e7eb",borderRadius:"50%",width:28,height:28,cursor:"pointer",color:"#94a3b8",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>×</button>
                     </div>
                   );
                 })}

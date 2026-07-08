@@ -5,6 +5,11 @@ import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useToast } from "../components/Toast";
 import { useFeatureFlags } from "../hooks/useFeatureFlags";
 import {
+  getCompareIds, useIsInCompare, useCompareMeta, useCompareCount,
+  toggleCompare as toggleCompareStore, removeFromCompare as removeFromCompareStore,
+  clearCompare as clearCompareStore,
+} from "../utils/compareStore";
+import {
   Search, ChevronLeft, ChevronRight, Bed, Bath, Maximize,
   MapPin, Heart, X, SlidersHorizontal, Star, School, Moon,
   ChevronDown, Loader2, LayoutList, Map as MapIcon, Save,
@@ -397,9 +402,7 @@ function PriceEvalBar({ prixM2, govStats }) {
   );
 }
 
-/* --- Comparateur helpers --- */
-function getCompare() { try { return JSON.parse(localStorage.getItem("localizi_compare")||"[]"); } catch { return []; } }
-function setCompare(arr) { localStorage.setItem("localizi_compare", JSON.stringify(arr)); window.dispatchEvent(new Event("compare-updated")); }
+/* --- Comparateur : logique centralisée dans utils/compareStore.js --- */
 
 /* --- Carte de bien --- */
 function PropCard({ p, active, onHover, onClick, govMarketStats, compact }) {
@@ -408,41 +411,18 @@ function PropCard({ p, active, onHover, onClick, govMarketStats, compact }) {
   const realId   = p._realId || p.id?.toString().replace("api_","");
   const toast    = useToast();
 
-  /* -- Comparateur -- */
-  const [inCompare, setInCompare] = React.useState(() => getCompare().includes(realId));
-  React.useEffect(() => {
-    const handler = () => setInCompare(getCompare().includes(realId));
-    window.addEventListener("compare-updated", handler);
-    return () => window.removeEventListener("compare-updated", handler);
-  }, [realId]);
-  const toggleCompare = (e) => {
+  /* -- Comparateur (état centralisé, partagé avec toutes les interfaces) -- */
+  const inCompare = useIsInCompare(realId);
+  const toggleCompareClick = (e) => {
     e.stopPropagation();
-    const cur = getCompare();
-    if (inCompare) {
-      setCompare(cur.filter(id => id !== realId));
-      try {
-        const cd = JSON.parse(localStorage.getItem("localizi_cdata")||"{}");
-        delete cd[String(realId)];
-        localStorage.setItem("localizi_cdata", JSON.stringify(cd));
-      } catch {}
-    } else if (cur.length >= 4) {
-      alert("Maximum 4 annonces dans le comparateur.");
-    } else {
-      try {
-        const cd = JSON.parse(localStorage.getItem("localizi_cdata")||"{}");
-        cd[String(realId)] = {
-          titre: p.titre,
-          prix: p.prix,
-          devise: p.devise,
-          image: (p.images||[])[0]||"",
-          location: p.delegation || p.gouvernorat || "",
-          categorie: p.categorie,
-        };
-        localStorage.setItem("localizi_cdata", JSON.stringify(cd));
-      } catch {}
-      setCompare([...cur, realId]);
-      toast("Ajouté au comparateur", "success");
-    }
+    const result = toggleCompareStore({
+      id: realId, titre: p.titre, prix: p.prix, devise: p.devise,
+      image: (p.images||[])[0]||"", gouvernorat: p.gouvernorat, delegation: p.delegation,
+      categorie: p.categorie,
+    });
+    if (result.maxReached) toast("Maximum 4 annonces dans le comparateur.", "error");
+    else if (result.added) toast("Ajouté au comparateur", "success");
+    else toast("Retiré du comparateur.");
   };
 
   /* -- Favoris -- */
@@ -577,7 +557,7 @@ function PropCard({ p, active, onHover, onClick, govMarketStats, compact }) {
           {p.categorie === "vacances" && p.duree_valeur && p.duree_type && <span><Moon size={11}/> {p.duree_valeur} {p.duree_type === "nuit" ? "nuit(s) min" : p.duree_type === "semaine" ? "sem. min" : p.duree_type === "mois" ? "mois min" : "an min"}</span>}
         </div>
         <button
-          onClick={toggleCompare}
+          onClick={toggleCompareClick}
           title={inCompare ? "Retirer du comparateur" : "Ajouter au comparateur"}
           style={{
             marginTop:8, width:"100%", padding:"5px 0",
@@ -2323,15 +2303,8 @@ const FEAT_KEY_TO_LABEL = {
 /* --- Popup comparateur (s'affiche quand on ajoute un bien) --- */
 function ComparePopup({ onClose }) {
   const navigate = useNavigate();
-  const [ids, setIds] = React.useState(getCompare);
-  const getCdata = () => { try { return JSON.parse(localStorage.getItem("localizi_cdata")||"{}"); } catch { return {}; } };
-  const [cdata, setCdata] = React.useState(getCdata);
-
-  React.useEffect(() => {
-    const h = () => { setIds(getCompare()); setCdata(getCdata()); };
-    window.addEventListener("compare-updated", h);
-    return () => window.removeEventListener("compare-updated", h);
-  }, []);
+  const meta = useCompareMeta();
+  const ids = meta.map(m => String(m.id));
 
   const catColors = { vente:"#166534", location:"#1e40af", vacances:"#854d0e" };
   const catLabels = { vente:"Achat", location:"Location", vacances:"Vacances" };
@@ -2367,9 +2340,10 @@ function ComparePopup({ onClose }) {
         <div style={{height:1,background:"#f1f5f9",margin:"20px 0"}}/>
 
         <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:24,maxHeight:320,overflowY:"auto"}}>
-          {ids.map((id, idx) => {
-            const d = cdata[String(id)] || {};
+          {meta.map((d) => {
+            const id = String(d.id);
             const catColor = catColors[d.categorie] || "#4f46e5";
+            const location = d.delegation || d.gouvernorat || "";
             return (
               <div key={id} style={{
                 display:"flex", alignItems:"center", gap:14,
@@ -2394,7 +2368,7 @@ function ComparePopup({ onClose }) {
                     {d.titre || `Annonce #${id}`}
                   </div>
                   <div style={{fontSize:12,color:"#64748b",marginTop:3,display:"flex",gap:10,flexWrap:"wrap"}}>
-                    {d.location && <span style={{display:"inline-flex",alignItems:"center",gap:3}}><MapPin size={11} strokeWidth={2} style={{color:"#94a3b8",flexShrink:0}}/>{d.location}</span>}
+                    {location && <span style={{display:"inline-flex",alignItems:"center",gap:3}}><MapPin size={11} strokeWidth={2} style={{color:"#94a3b8",flexShrink:0}}/>{location}</span>}
                     {d.prix && (
                       <span style={{fontWeight:700,color:catColor}}>
                         {Number(d.prix).toLocaleString("fr-TN")} {fmtDevise(d.devise)}
@@ -2402,14 +2376,7 @@ function ComparePopup({ onClose }) {
                     )}
                   </div>
                 </div>
-                <button onClick={() => {
-                  setCompare(getCompare().filter(i => i !== id));
-                  try {
-                    const cd = JSON.parse(localStorage.getItem("localizi_cdata")||"{}");
-                    delete cd[String(id)];
-                    localStorage.setItem("localizi_cdata", JSON.stringify(cd));
-                  } catch {}
-                }} style={{
+                <button onClick={() => removeFromCompareStore(id)} style={{
                   background:"none", border:"1.5px solid #e5e7eb", borderRadius:"50%",
                   width:28, height:28, cursor:"pointer", color:"#94a3b8",
                   display:"flex", alignItems:"center", justifyContent:"center",
@@ -2609,12 +2576,8 @@ function HoverCard({ pin, sharedHoverTimer, onOpen, onLeave }) {
 /* --- Bandeau comparateur flottant --- */
 function CompareBar() {
   const navigate = useNavigate();
-  const [ids, setIds] = React.useState(getCompare);
-  React.useEffect(() => {
-    const handler = () => setIds(getCompare());
-    window.addEventListener("compare-updated", handler);
-    return () => window.removeEventListener("compare-updated", handler);
-  }, []);
+  const meta = useCompareMeta();
+  const ids = meta.map(m => String(m.id));
   if (ids.length === 0) return null;
   return (
     <div style={{
@@ -2634,11 +2597,7 @@ function CompareBar() {
         }}>
         Comparer ?
       </button>
-      <button onClick={() => {
-          setCompare([]);
-          try { localStorage.removeItem("localizi_compare_meta"); } catch {}
-          try { localStorage.removeItem("localizi_cdata"); } catch {}
-        }}
+      <button onClick={clearCompareStore}
         style={{
           padding:"5px 10px", borderRadius:8, border:"1px solid rgba(255,255,255,.2)",
           background:"transparent", color:"rgba(255,255,255,.7)", fontWeight:600,
@@ -2652,7 +2611,7 @@ function CompareBar() {
 
 /* ─── Popup Comparateur inline (sans navigation) ─── */
 function ComparateurPopup({ onClose }) {
-  const ids = getCompare();
+  const ids = getCompareIds();
   const [annonces, setAnnonces] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
 
@@ -2664,10 +2623,9 @@ function ComparateurPopup({ onClose }) {
   }, []); // eslint-disable-line
 
   function removeOne(id) {
-    const arr = getCompare().filter(x => String(x) !== String(id));
-    setCompare(arr);
+    const newCount = removeFromCompareStore(id);
     setAnnonces(prev => prev.filter(a => String(a.id) !== String(id)));
-    if (arr.length === 0) onClose();
+    if (newCount === 0) onClose();
   }
 
   const ROWS = [
@@ -2935,7 +2893,7 @@ export default function CartePage() {
   const [sortDir,      setSortDir]      = useState(() => { try { return sessionStorage.getItem("lz_carte_sortdir")  || "asc"; } catch { return "asc"; } });
   const [showSortMenu, setShowSortMenu] = useState(false);
   const sortBtnRef = useRef(null);
-  const [compareCount,    setCompareCount]    = useState(() => getCompare().length);
+  const compareCount = useCompareCount();
   const [showCompareMenu, setShowCompareMenu] = useState(false);
   const [showComparePop,  setShowComparePop]  = useState(false);
   const compareBtnRef = useRef(null);
@@ -3127,13 +3085,6 @@ export default function CartePage() {
   useEffect(() => {
     sessionStorage.setItem("localizi_carte_listmode", listMode ? "1" : "0");
   }, [listMode]);
-
-  /* Sync compare count */
-  useEffect(() => {
-    const h = () => setCompareCount(getCompare().length);
-    window.addEventListener("compare-updated", h);
-    return () => window.removeEventListener("compare-updated", h);
-  }, []);
 
   /* Persist sort */
   useEffect(() => {
@@ -3499,7 +3450,7 @@ export default function CartePage() {
                     <GitCompare size={14} color="#6366f1"/> Voir le comparateur
                   </button>
                   <div style={{borderTop:"1px solid #f1f5f9",margin:"4px 0"}}/>
-                  <button onClick={()=>{ setCompare([]); try{localStorage.removeItem("localizi_cdata");}catch{} setShowCompareMenu(false); }}
+                  <button onClick={()=>{ clearCompareStore(); setShowCompareMenu(false); }}
                     style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"10px 14px",border:"none",background:"transparent",color:"#ef4444",fontSize:13,fontWeight:600,cursor:"pointer"}}>
                     <X size={14}/> Supprimer la sélection
                   </button>

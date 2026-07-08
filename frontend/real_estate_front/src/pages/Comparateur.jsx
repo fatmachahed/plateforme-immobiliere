@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import API_URL from "../config";
 import Navbar from "../components/Navbar";
+import { getCompareIds, removeFromCompare } from "../utils/compareStore";
 import {
   X, ArrowLeft, Check,
   Fence, Sun, Flower2, Droplets, ParkingCircle, ArrowUpDown, Car, Package, Sofa,
@@ -22,9 +23,6 @@ const WashingMachineIco = ({ size = 16, strokeWidth = 1.5 }) => (
     <path d="M15 6h2"/>
   </svg>
 );
-
-function getCompare() { try { return JSON.parse(localStorage.getItem("localizi_compare")||"[]"); } catch { return []; } }
-function setCompare(arr) { localStorage.setItem("localizi_compare", JSON.stringify(arr)); window.dispatchEvent(new Event("compare-updated")); }
 
 const ROWS = [
   // ── Identité ──
@@ -114,8 +112,8 @@ export default function Comparateur() {
   }, [params.toString()]);
 
   function remove(id) {
-    const arr = getCompare().filter(x => String(x) !== String(id));
-    setCompare(arr);
+    removeFromCompare(id);
+    const arr = getCompareIds();
     navigate(arr.length ? `/comparateur?ids=${arr.join(",")}` : "/comparateur");
   }
 

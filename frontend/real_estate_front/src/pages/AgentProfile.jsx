@@ -3,6 +3,7 @@ import { useParams, useLocation, useNavigate, Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import API_URL, { fmtDevise } from "../config";
+import { useIsInCompare, toggleCompare as toggleCompareStore } from "../utils/compareStore";
 import {
   MapPin, Phone, Mail, Building2, Bed, Bath, Maximize,
   ArrowLeft, Heart, ChevronLeft, ChevronRight, Users, Car, Moon, Star,
@@ -114,28 +115,16 @@ function PropCard({ a }) {
     } catch { setIsFav(wasOn); }
   };
 
-  /* Comparateur */
-  const getCompare = () => { try { return JSON.parse(localStorage.getItem("localizi_compare")||"[]"); } catch { return []; } };
-  const [inCompare, setInCompare] = useState(() => getCompare().includes(realId));
-  useEffect(() => {
-    const h = () => setInCompare(getCompare().includes(realId));
-    window.addEventListener("compare-updated", h);
-    return () => window.removeEventListener("compare-updated", h);
-  }, [realId]);
+  /* Comparateur (état centralisé, partagé avec toutes les interfaces) */
+  const inCompare = useIsInCompare(realId);
   const toggleCompare = (e) => {
     e.stopPropagation();
-    const cur = getCompare();
-    if (inCompare) {
-      const next = cur.filter(id => id !== realId);
-      localStorage.setItem("localizi_compare", JSON.stringify(next));
-      window.dispatchEvent(new Event("compare-updated"));
-    } else if (cur.length >= 4) {
-      alert("Maximum 4 annonces dans le comparateur.");
-    } else {
-      localStorage.setItem("localizi_compare", JSON.stringify([...cur, realId]));
-      window.dispatchEvent(new Event("compare-updated"));
-    }
-    setInCompare(!inCompare);
+    const result = toggleCompareStore({
+      id: realId, titre: a.titre, prix: a.prix, devise: a.devise,
+      image: images?.[0] || null, gouvernorat: a.gouvernorat, delegation: a.delegation,
+      categorie: a.categorie,
+    });
+    if (result.maxReached) alert("Maximum 4 annonces dans le comparateur.");
   };
 
   return (

@@ -1,6 +1,11 @@
 ﻿import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom";
 import API_URL, { fmtDevise, fmtPriceApprox } from '../config';
+import {
+  getCompareIds, useIsInCompare, useCompareMeta, useCompareShowPopup,
+  toggleCompare as toggleCompareStore, removeFromCompare as removeFromCompareStore,
+  clearCompare as clearCompareStore,
+} from "../utils/compareStore";
 
 function fmtM2(prix, area) {
   if (!area || area <= 0 || !prix || prix <= 0) return null;
@@ -269,9 +274,7 @@ export default function AnnonceDetail() {
   const [showWhatsapp, setShowWhatsapp] = useState(false);
   const [isFavori,   setIsFavori]   = useState(false);
   const [favLoading, setFavLoading] = useState(false);
-  const [isInCompare, setIsInCompare] = useState(false);
   const [comparePopup, setComparePopup] = useState(false);
-  const [compareItems, setCompareItems] = useState([]);
   const [nearby,    setNearby]    = useState([]);
   const [translated, setTranslated] = useState("");
   const [translating, setTranslating] = useState(false);
@@ -356,27 +359,10 @@ export default function AnnonceDetail() {
       .catch(() => {});
   }, [prop, id]);
 
-  /* Sync comparateur state */
-  useEffect(() => {
-    const sync = () => {
-      try {
-        const cur  = JSON.parse(localStorage.getItem("localizi_compare")||"[]");
-        const meta = JSON.parse(localStorage.getItem("localizi_compare_meta")||"[]");
-        const seen = new Set();
-        const cleanMeta = meta.filter(m => { const k = String(m.id); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 4);
-        const cleanIds  = cleanMeta.map(m => String(m.id));
-        if (cleanMeta.length !== meta.length || cleanIds.join() !== cur.join()) {
-          localStorage.setItem("localizi_compare", JSON.stringify(cleanIds));
-          localStorage.setItem("localizi_compare_meta", JSON.stringify(cleanMeta));
-        }
-        setIsInCompare(cleanIds.includes(String(id)));
-        setCompareItems(cleanMeta);
-      } catch { setIsInCompare(false); }
-    };
-    sync();
-    window.addEventListener("compare-updated", sync);
-    return () => window.removeEventListener("compare-updated", sync);
-  }, [id]);
+  /* Comparateur : état centralisé (utils/compareStore.js), partagé avec toutes les interfaces */
+  const isInCompare  = useIsInCompare(id);
+  const compareItems = useCompareMeta();
+  useCompareShowPopup(() => setComparePopup(true));
 
   /* Check if already saved */
   useEffect(() => {
@@ -522,17 +508,8 @@ export default function AnnonceDetail() {
                     </div>
                   </div>
                   <button onClick={() => {
-                    const rid = String(item.id);
-                    const cur = (() => { try { return JSON.parse(localStorage.getItem("localizi_compare")||"[]"); } catch { return []; } })();
-                    const meta = (() => { try { return JSON.parse(localStorage.getItem("localizi_compare_meta")||"[]"); } catch { return []; } })();
-                    const nextIds = cur.filter(i => i !== rid);
-                    const nextMeta = meta.filter(m => String(m.id) !== rid);
-                    localStorage.setItem("localizi_compare", JSON.stringify(nextIds));
-                    localStorage.setItem("localizi_compare_meta", JSON.stringify(nextMeta));
-                    setCompareItems(nextMeta);
-                    window.dispatchEvent(new Event("compare-updated"));
-                    if (String(prop.id) === rid) setIsInCompare(false);
-                    if (nextMeta.length < 2) setComparePopup(false);
+                    const remaining = removeFromCompareStore(item.id);
+                    if (remaining < 2) setComparePopup(false);
                   }} style={{
                     background:"#fee2e2", border:"none", cursor:"pointer", borderRadius:8,
                     width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center",
@@ -543,18 +520,11 @@ export default function AnnonceDetail() {
             </div>
             {/* Footer buttons */}
             <div style={{display:"flex",gap:10,padding:"16px 0 24px",borderTop:"1px solid #f1f5f9",marginTop:4,flexShrink:0}}>
-              <button onClick={() => {
-                localStorage.removeItem("localizi_compare");
-                localStorage.removeItem("localizi_compare_meta");
-                setCompareItems([]);
-                setComparePopup(false);
-                setIsInCompare(false);
-                window.dispatchEvent(new Event("compare-updated"));
-              }} style={{
+              <button onClick={() => { clearCompareStore(); setComparePopup(false); }} style={{
                 flex:1, background:"#f1f5f9", color:"#64748b", border:"none", cursor:"pointer",
                 borderRadius:12, padding:"11px 16px", fontSize:13, fontWeight:700, fontFamily:"inherit",
               }}>Vider</button>
-              <button onClick={() => { setComparePopup(false); const ids = (() => { try { return JSON.parse(localStorage.getItem("localizi_compare")||"[]"); } catch { return []; } })(); navigate(`/comparateur${ids.length ? `?ids=${ids.join(",")}` : ""}`); }} style={{
+              <button onClick={() => { setComparePopup(false); const ids = getCompareIds(); navigate(`/comparateur${ids.length ? `?ids=${ids.join(",")}` : ""}`); }} style={{
                 flex:2, background:"linear-gradient(135deg,#6366f1,#8b5cf6)", color:"#fff", border:"none",
                 cursor:"pointer", borderRadius:12, padding:"11px 16px", fontSize:14, fontWeight:800,
                 fontFamily:"inherit", boxShadow:"0 4px 14px rgba(99,102,241,.3)",
@@ -584,39 +554,12 @@ export default function AnnonceDetail() {
             {isFavori ? "Sauvegardé" : "Sauvegarder"}
           </button>
           <button className={`ad-action${isInCompare ? " ad-action--liked" : ""}`} onClick={() => {
-            const cur = (() => { try { return JSON.parse(localStorage.getItem("localizi_compare")||"[]"); } catch { return []; } })();
-            const meta = (() => { try { return JSON.parse(localStorage.getItem("localizi_compare_meta")||"[]"); } catch { return []; } })();
-            const rid = String(prop.id);
-            let nextIds;
-            if (cur.includes(rid)) {
-              nextIds = cur.filter(i => i !== rid);
-              localStorage.setItem("localizi_compare", JSON.stringify(nextIds));
-              localStorage.setItem("localizi_compare_meta", JSON.stringify(meta.filter(m => String(m.id) !== rid)));
-              setIsInCompare(false);
-              window.dispatchEvent(new Event("compare-updated"));
-              toast("Retiré du comparateur.");
-            } else if (cur.length >= 4) {
-              const updatedMetaMax = (() => { try { return JSON.parse(localStorage.getItem("localizi_compare_meta")||"[]"); } catch { return []; } })();
-              setCompareItems(updatedMetaMax);
-              setComparePopup(true);
-              toast("Maximum 4 annonces. Retirez-en une pour ajouter celle-ci.", "error");
-              return;
-            } else {
-              nextIds = [...cur, rid];
-              const newMeta = [...meta.filter(m => String(m.id) !== rid), {
-                id: prop.id, titre: prop.titre,
-                prix: prop.prix, devise: prop.devise,
-                image: prop.images?.[0] || null,
-                gouvernorat: prop.gouvernorat, delegation: prop.delegation,
-              }];
-              localStorage.setItem("localizi_compare", JSON.stringify(nextIds));
-              localStorage.setItem("localizi_compare_meta", JSON.stringify(newMeta));
-              setIsInCompare(true);
-              window.dispatchEvent(new Event("compare-updated"));
-            }
-            const updatedMeta = (() => { try { return JSON.parse(localStorage.getItem("localizi_compare_meta")||"[]"); } catch { return []; } })();
-            setCompareItems(updatedMeta);
-            if (updatedMeta.length >= 2) setComparePopup(true);
+            const result = toggleCompareStore({
+              id: prop.id, titre: prop.titre, prix: prop.prix, devise: prop.devise,
+              image: prop.images?.[0] || null, gouvernorat: prop.gouvernorat, delegation: prop.delegation,
+            });
+            if (result.maxReached) { toast("Maximum 4 annonces. Retirez-en une pour ajouter celle-ci.", "error"); return; }
+            toast(result.added ? "Ajouté au comparateur !" : "Retiré du comparateur.");
           }}>
             <GitCompare size={15}/> {isInCompare ? "Dans le comparateur" : "Comparer"}
           </button>
