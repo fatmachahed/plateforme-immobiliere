@@ -528,7 +528,10 @@ async function compressImageForUpload(file, maxDim = 1920, quality = 0.82) {
     if (!file || !file.type || !file.type.startsWith("image/")) return file;
     let width, height, drawSource, bmp = null;
     try {
-      bmp = await createImageBitmap(file);
+      // imageOrientation:"from-image" applique la rotation EXIF (sinon photos
+      // prises en portrait/paysage apparaissent tournées ou inversées)
+      try { bmp = await createImageBitmap(file, { imageOrientation: "from-image" }); }
+      catch { bmp = await createImageBitmap(file); }
       width = bmp.width; height = bmp.height; drawSource = bmp;
     } catch {
       const url = URL.createObjectURL(file);
@@ -3374,8 +3377,7 @@ export const CreateListingForm = ({ editId = null }) => {
                         {existingImageUrls.map((url, idx) => {
                           const isMain = mainIsExisting && idx === mainExistingIdx;
                           return (
-                            <div key={url} className={`ca-img-uni-card${isMain ? " ca-img-uni-card--main" : ""}`}
-                              style={{border: isMain ? "2px solid #6366f1" : "2px solid #e5e7eb"}}>
+                            <div key={url} className={`ca-img-uni-card${isMain ? " ca-img-uni-card--main" : ""}`}>
                               <img src={url} alt={`Photo ${idx+1}`}
                                 style={{width:"100%",height:"100%",objectFit:"cover"}}
                                 onError={e => { e.currentTarget.style.display="none"; }}/>
