@@ -18,9 +18,6 @@ export default function Register() {
   const [sousRole,          setSousRole]          = useState("");
   const [secteurPartenaire, setSecteurPartenaire] = useState("");
   const [metierArtisan,     setMetierArtisan]     = useState("");
-  const [nomPartenaire,     setNomPartenaire]     = useState("");
-  const [prenomPartenaire,  setPrenomPartenaire]  = useState("");
-  const [telPartenaire,     setTelPartenaire]     = useState("");
   const [particulierIntent, setParticulierIntent] = useState("achete");
   const [particulierProfil, setParticulierProfil] = useState("");
   const [showGooglePopup,   setShowGooglePopup]   = useState(false);
@@ -90,15 +87,6 @@ export default function Register() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setEmailError("Adresse e-mail invalide — exemple : nom@domaine.com"); return; }
     setEmailError("");
     if (role === "professionnel" && !sousRole) { setError("Veuillez sélectionner votre type de professionnel."); return; }
-    if (sousRole === "partenaire") {
-      if (!secteurPartenaire) { setError("Veuillez sélectionner votre secteur d'activité."); return; }
-      if (secteurPartenaire === "artisans" && !metierArtisan) { setError("Veuillez sélectionner votre métier."); return; }
-      if (!["banques","assurances"].includes(secteurPartenaire)) {
-        if (!nomPartenaire.trim())    { setError("Veuillez saisir votre nom."); return; }
-        if (!prenomPartenaire.trim()) { setError("Veuillez saisir votre prénom."); return; }
-      }
-      if (!telPartenaire.trim()) { setError("Veuillez saisir votre numéro de téléphone."); return; }
-    }
     setStep(2);
   };
 
@@ -115,9 +103,6 @@ export default function Register() {
           role: role==="professionnel" ? sousRole : role,
           secteur_partenaire: sousRole==="partenaire" ? secteurPartenaire : null,
           metier_artisan: (sousRole==="partenaire" && secteurPartenaire==="artisans") ? metierArtisan || null : null,
-          nom:    (sousRole==="partenaire" && !["banques","assurances"].includes(secteurPartenaire)) ? (nomPartenaire || null) : null,
-          prenom: (sousRole==="partenaire" && !["banques","assurances"].includes(secteurPartenaire)) ? (prenomPartenaire || null) : null,
-          phone_number: sousRole==="partenaire" ? (telPartenaire || null) : null,
           objectif: role==="particulier" ? particulierIntent : null,
         }),
       });
@@ -432,31 +417,6 @@ export default function Register() {
                               <option value="Serrurier / Métallier">Serrurier / Métallier</option>
                               <option value="Autre">Autre</option>
                             </select>
-                          </div>
-                        )}
-
-                        {/* Nom + prénom — pour tous les secteurs SAUF banques et assurances */}
-                        {secteurPartenaire && !["banques","assurances"].includes(secteurPartenaire) && (
-                          <div style={{marginTop:10, display:"grid", gridTemplateColumns:"1fr 1fr", gap:8}}>
-                            <div>
-                              <label className="sp-label" style={{marginBottom:6,display:"block"}}>Nom <span style={{color:"#ef4444"}}>*</span></label>
-                              <input type="text" className="sp-input" placeholder="Nom" value={nomPartenaire}
-                                onChange={e=>setNomPartenaire(e.target.value)} disabled={loading}/>
-                            </div>
-                            <div>
-                              <label className="sp-label" style={{marginBottom:6,display:"block"}}>Prénom <span style={{color:"#ef4444"}}>*</span></label>
-                              <input type="text" className="sp-input" placeholder="Prénom" value={prenomPartenaire}
-                                onChange={e=>setPrenomPartenaire(e.target.value)} disabled={loading}/>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Téléphone — pour tous les partenaires / prestataires */}
-                        {secteurPartenaire && (
-                          <div style={{marginTop:10}}>
-                            <label className="sp-label" style={{marginBottom:6,display:"block"}}>Téléphone <span style={{color:"#ef4444"}}>*</span></label>
-                            <input type="tel" className="sp-input" placeholder="Ex : 22 345 678" value={telPartenaire}
-                              onChange={e=>setTelPartenaire(e.target.value)} disabled={loading}/>
                           </div>
                         )}
                       </div>

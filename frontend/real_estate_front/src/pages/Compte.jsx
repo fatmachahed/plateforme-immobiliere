@@ -468,7 +468,7 @@ export default function Compte() {
     }
     setProSaving(true);
     try {
-      const res = await fetch(`${API_URL}/users/me`,{method:"PUT",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({matricule_fiscal:proFields.matricule_fiscal||null,registre_commerce:proFields.registre_commerce||null,adresse:proFields.adresse||null,gouvernorat:proFields.gouvernorat||null,localite:proFields.delegation||null,metier_artisan:proFields.metier_artisan||null})});
+      const res = await fetch(`${API_URL}/users/me`,{method:"PUT",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({nom:profile.nom||null,prenom:profile.prenom||null,matricule_fiscal:proFields.matricule_fiscal||null,registre_commerce:proFields.registre_commerce||null,adresse:proFields.adresse||null,gouvernorat:proFields.gouvernorat||null,localite:proFields.delegation||null,metier_artisan:proFields.metier_artisan||null})});
       if(!res.ok) throw new Error();
       const updated = await res.json();
       // Save agency reference if agence role
@@ -1043,6 +1043,10 @@ export default function Compte() {
                     </>}
                     {/* ── Partenaire : secteur verrouillé + métier si artisan ── */}
                     {storedUser?.role==="partenaire"&&<>
+                      {!["banques","assurances"].includes(storedUser?.secteur_partenaire)&&<>
+                        <F label="Nom"><input style={inp(proEditing)} value={profile.nom} readOnly={!proEditing} placeholder={proEditing?"Votre nom":"—"} onChange={e=>setProfile(p=>({...p,nom:e.target.value}))}/></F>
+                        <F label="Prénom"><input style={inp(proEditing)} value={profile.prenom} readOnly={!proEditing} placeholder={proEditing?"Votre prénom":"—"} onChange={e=>setProfile(p=>({...p,prenom:e.target.value}))}/></F>
+                      </>}
                       <div style={{display:"contents"}}>
                         <F label="Secteur d'activité" full={storedUser?.secteur_partenaire!=="artisans"}>
                           <input
