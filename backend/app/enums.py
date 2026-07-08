@@ -16,10 +16,10 @@ class CategorieEnum(str, enum.Enum):
 
 class TypeBienEnum(str, enum.Enum):
     # NOTE: PostgreSQL migration needed:
-    #   ALTER TYPE typebienum ADD VALUE 'villa_maison';
-    #   ALTER TYPE typebienum ADD VALUE 'immobiliers_divers';
-    #   ALTER TYPE typebienum ADD VALUE 'depot_stockage';
-    #   ALTER TYPE typebienum ADD VALUE 'batiment_industriel';
+    #   ALTER TYPE typebienenum ADD VALUE 'villa_maison';
+    #   ALTER TYPE typebienenum ADD VALUE 'immobiliers_divers';
+    #   ALTER TYPE typebienenum ADD VALUE 'depot_stockage';
+    #   ALTER TYPE typebienenum ADD VALUE 'batiment_industriel';
     #   (bord_eau and maison kept in DB for backward compat, but new entries use villa_maison/immobiliers_divers)
     appartement = "appartement"
     villa = "villa"
