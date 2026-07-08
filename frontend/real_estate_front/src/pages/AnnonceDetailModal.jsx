@@ -483,7 +483,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
             )}
             {isOwner && (
               <Link to={`/modifier_annonce/${prop.id}`} className="det-action" style={{textDecoration:"none"}}>
-                <Edit size={15}/> Modifier
+                <Edit size={15}/><span className="det-action-txt"> Modifier</span>
               </Link>
             )}
             <button className={`det-action${isFavori?" det-action--liked":""}`} onClick={handleToggleFavori} disabled={favLoading}>
