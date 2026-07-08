@@ -1583,21 +1583,37 @@ function BigMap({lat,lng}){
       }).setView([lat,lng],15);
       mapRef.current=map;leafletRef.current=L;
       L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{attribution:"© OpenStreetMap © CARTO",maxZoom:19}).addTo(map);
-      const icon=L.divIcon({className:"",html:PIN_SVG_HTML,iconSize:[36,48],iconAnchor:[18,48]});
-      let marker=L.marker([lat,lng],{icon,interactive:false,zIndexOffset:1000}).addTo(map);
-      // Filet de sécurité : marqueur vectoriel natif (rendu SVG interne de Leaflet,
-      // sans dépendance à un divIcon HTML) — garantit un point visible même si le
-      // pin personnalisé venait à ne pas s'afficher.
-      L.circleMarker([lat,lng],{radius:9,color:"#fff",weight:3,fillColor:"#6366f1",fillOpacity:1,interactive:false}).addTo(map);
+
+      /* Pin en forme de goutte (style Google Maps) dessiné en vecteur natif
+         Leaflet (polygone + cercle via le moteur SVG interne), et non en
+         divIcon/HTML : dans ce contexte précis, les icônes HTML personnalisées
+         ne s'affichaient pas de façon fiable, alors que les calques vectoriels
+         (utilisés ailleurs pour les zones de la carte) fonctionnent toujours. */
+      let pinLayers=[];
+      function drawPin(){
+        pinLayers.forEach(l=>{try{l.remove();}catch{}});
+        pinLayers=[];
+        const tip=map.latLngToContainerPoint([lat,lng]);
+        const px2ll=(dx,dy)=>map.containerPointToLatLng([tip.x+dx,tip.y+dy]);
+        const R=12, C={x:0,y:-28}; // centre de la tête, à 28px au-dessus de la pointe
+        const phi=Math.acos(R/28)*180/Math.PI; // ~64.6°
+        const outline=[[0,0]]; // pointe = position exacte du bien
+        const steps=28;
+        for(let i=0;i<=steps;i++){
+          const a=(90-phi) - (i/steps)*(360-2*phi); // balaie le grand arc en passant par le haut
+          const rad=a*Math.PI/180;
+          outline.push([C.x+R*Math.cos(rad), C.y+R*Math.sin(rad)]);
+        }
+        outline.push([0,0]);
+        const latlngs=outline.map(([dx,dy])=>px2ll(dx,dy));
+        pinLayers.push(L.polygon(latlngs,{stroke:true,color:"#fff",weight:2,fillColor:"#6366f1",fillOpacity:1,interactive:false,pane:"markerPane"}).addTo(map));
+        pinLayers.push(L.circleMarker(px2ll(C.x,C.y),{radius:5,weight:0,fillColor:"#fff",fillOpacity:1,interactive:false,pane:"markerPane"}).addTo(map));
+      }
+      drawPin();
       setTimeout(()=>{
         map.invalidateSize();
         map.setView([lat,lng],15); // re-centre après le vrai calcul de taille du conteneur
-        // Recrée le marqueur : si le conteneur avait une taille non définitive à
-        // l'initialisation, sa position pixel calculée pouvait être invalide/hors
-        // cadre. On repart d'un état garanti propre plutôt que de compter sur le
-        // repositionnement automatique de Leaflet.
-        try{marker.remove();}catch{}
-        marker=L.marker([lat,lng],{icon,interactive:false,zIndexOffset:1000}).addTo(map);
+        drawPin(); // redessine avec la position pixel définitive
         const b=map.getBounds();
         fetchPOIs(`${b.getSouth().toFixed(6)},${b.getWest().toFixed(6)},${b.getNorth().toFixed(6)},${b.getEast().toFixed(6)}`);
       },150);
