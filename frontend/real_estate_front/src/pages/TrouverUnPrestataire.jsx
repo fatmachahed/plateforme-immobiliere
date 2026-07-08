@@ -103,16 +103,16 @@ function PartenaireCard({ p }) {
             {[p.gouvernorat, p.localite].filter(Boolean).join(" · ")}
           </div>
         )}
-        {(p.note != null || p.nombre_missions > 0) && (
+        {(p.note != null || p.nombre_interventions > 0) && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 12, fontSize: 12, marginTop: 2 }}>
             {p.note != null && (
               <span style={{ display: "inline-flex", alignItems: "center", gap: 3, color: "#f59e0b", fontWeight: 700 }}>
                 <Star size={13} fill="#f59e0b" color="#f59e0b" /> {Number(p.note).toFixed(1)}/5
               </span>
             )}
-            {p.nombre_missions > 0 && (
+            {p.nombre_interventions > 0 && (
               <span style={{ display: "inline-flex", alignItems: "center", gap: 3, color: "#0f172a", fontWeight: 600 }}>
-                <Briefcase size={12} color="#6366f1" /> {p.nombre_missions} mission{p.nombre_missions > 1 ? "s" : ""}
+                <Briefcase size={12} color="#6366f1" /> {p.nombre_interventions} intervention{p.nombre_interventions > 1 ? "s" : ""}
               </span>
             )}
           </div>

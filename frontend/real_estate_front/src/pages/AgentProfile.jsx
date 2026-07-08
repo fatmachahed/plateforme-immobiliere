@@ -370,8 +370,8 @@ export default function AgentProfile() {
                     <div style={{ fontSize:11.5, color:"#b45309", marginTop:5, fontWeight:600 }}>note /5</div>
                   </div>
                   <div style={{ flex:1, background:"#f8fafc", border:"1px solid #e2e8f0", borderRadius:14, padding:"18px 16px", textAlign:"center", minWidth:84 }}>
-                    <div style={{ fontSize:30, fontWeight:900, color:accentColor, lineHeight:1 }}>{agent.nombre_missions || 0}</div>
-                    <div style={{ fontSize:11.5, color:"#94a3b8", marginTop:5, fontWeight:600 }}>mission{(agent.nombre_missions || 0) !== 1 ? "s" : ""}</div>
+                    <div style={{ fontSize:30, fontWeight:900, color:accentColor, lineHeight:1 }}>{agent.nombre_interventions || 0}</div>
+                    <div style={{ fontSize:11.5, color:"#94a3b8", marginTop:5, fontWeight:600 }}>intervention{(agent.nombre_interventions || 0) !== 1 ? "s" : ""}</div>
                   </div>
                 </>
               )}

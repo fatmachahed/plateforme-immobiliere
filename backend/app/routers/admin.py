@@ -238,8 +238,8 @@ class UserUpdate(BaseModel):
     username: Optional[str] = None
     email:    Optional[str] = None
     role:     Optional[str] = None
-    note_prestataire: Optional[float] = None
-    nombre_missions:  Optional[int]   = None
+    note_prestataire:     Optional[float] = None
+    nombre_interventions: Optional[int]   = None
 
 @router.put("/users/{user_id}")
 def update_user(
@@ -260,8 +260,8 @@ def update_user(
             raise HTTPException(400, f"Rôle invalide : {body.role}")
     if body.note_prestataire is not None:
         u.note_prestataire = body.note_prestataire
-    if body.nombre_missions is not None:
-        u.nombre_missions = body.nombre_missions
+    if body.nombre_interventions is not None:
+        u.nombre_interventions = body.nombre_interventions
     db.commit()
     db.refresh(u)
     return {"id": u.id, "username": u.username, "email": u.email, "role": u.role.value if hasattr(u.role,"value") else str(u.role)}

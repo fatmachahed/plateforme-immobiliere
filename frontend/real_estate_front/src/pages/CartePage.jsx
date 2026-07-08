@@ -859,11 +859,11 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
             <div style="font-size:14px;font-weight:800;color:#0f172a;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${pin.titre || "Bien immobilier"}</div>
             <div style="font-size:19px;font-weight:900;color:#0f172a;margin-bottom:8px;">${(pin.prix||0).toLocaleString("fr-TN")} <span style="font-size:12px;font-weight:600;color:#64748b;">${dev}</span></div>
             <div style="display:flex;gap:12px;font-size:12px;color:#475569;margin-bottom:6px;flex-wrap:wrap;">
-              ${pin.area ? `<span>&#9634; ${pin.area} m&sup2;</span>` : ""}
-              ${pin.beds != null ? `<span>&#128716; ${pin.beds} ch.</span>` : ""}
-              ${pin.baths != null ? `<span>&#128703; ${pin.baths}</span>` : ""}
+              ${pin.area ? `<span style="display:inline-flex;align-items:center;gap:4px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>${pin.area} m&sup2;</span>` : ""}
+              ${pin.beds != null ? `<span style="display:inline-flex;align-items:center;gap:4px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>${pin.beds} ch.</span>` : ""}
+              ${pin.baths != null ? `<span style="display:inline-flex;align-items:center;gap:4px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6 6.5 3.5a1.5 1.5 0 0 0-1-.5C4.7 3 4 3.7 4 4.5V17a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><line x1="10" y1="5" x2="8" y2="7"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="7" y1="19" x2="7" y2="21"/><line x1="17" y1="19" x2="17" y2="21"/></svg>${pin.baths} sdb</span>` : ""}
             </div>
-            ${pin.delegation ? `<div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">&#128205; ${pin.delegation}${pin.gouvernorat ? ` &middot; ${pin.gouvernorat}` : ""}</div>` : ""}
+            ${pin.delegation ? `<div style="display:flex;align-items:center;gap:4px;font-size:11px;color:#94a3b8;margin-bottom:4px;"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>${pin.delegation}${pin.gouvernorat ? ` &middot; ${pin.gouvernorat}` : ""}</div>` : ""}
             <div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:6px;padding-top:6px;border-top:1px solid #f1f5f9;font-size:13px;font-weight:800;color:${bg2};">Voir d&eacute;tails &#8594;</div>
             ${count > 1 ? `<div style="display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px solid #f1f5f9;">
               <button onclick="event.stopPropagation();window._stPrev_${group[0].id}()" style="padding:6px 14px;border:1.5px solid #e5e7eb;border-radius:4px;background:#f8fafc;cursor:pointer;font-size:13px;font-weight:700;color:#374151;font-family:inherit;">&#8592; Pr&eacute;c&eacute;dent</button>
@@ -1096,9 +1096,16 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
     return ()=>{ live=false; if(mapRef.current){mapRef.current.remove();mapRef.current=null;} };
   }, []); // eslint-disable-line
 
-  /* redessiner pins */
+  /* redessiner pins — uniquement quand le contenu change réellement.
+     Sans ce garde, un simple déplacement de carte (ex. autoPan à l'ouverture d'un
+     popup) émet de nouvelles bounds → le parent recalcule `properties` (nouvelle
+     référence) → les pins sont reconstruits et le popup ouvert disparaît (clignotement). */
+  const lastDrawSigRef = useRef("");
   useEffect(() => {
     if (!mapRef.current) return;
+    const sig = properties.map(p => `${p.id}@${p.lat},${p.lng}`).join("|") + "#" + activeId;
+    if (sig === lastDrawSigRef.current) return;
+    lastDrawSigRef.current = sig;
     import("leaflet").then(({default:L}) => drawPins(L, mapRef.current, properties, activeId));
   }, [properties, activeId, drawPins]);
 

@@ -36,8 +36,8 @@ class User(Base):
     secteur_partenaire = Column(String, nullable=True)
     metier_artisan     = Column(String, nullable=True)
     # Qualification des prestataires / partenaires / artisans
-    note_prestataire   = Column(Float,   nullable=True)   # note /5 attribuée au prestataire
-    nombre_missions    = Column(Integer, default=0, nullable=True)  # nb de missions / affaires réalisées
+    note_prestataire     = Column(Float,   nullable=True)   # note /5 attribuée au prestataire
+    nombre_interventions = Column(Integer, default=0, nullable=True)  # nb d'interventions réalisées
     is_verified        = Column(Boolean, default=False, nullable=True)
     email_verify_token = Column(String, nullable=True)
     profil_user        = Column(String, nullable=True)   # etudiant | parent | couple

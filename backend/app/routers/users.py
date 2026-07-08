@@ -1085,8 +1085,8 @@ def list_public_partenaires(db: Session = Depends(get_db)):
             "localite":         u.localite,
             "secteur":          u.secteur_partenaire,
             "metier_artisan":   u.metier_artisan,
-            "note":             getattr(u, "note_prestataire", None),
-            "nombre_missions":  getattr(u, "nombre_missions", None) or 0,
+            "note":                getattr(u, "note_prestataire", None),
+            "nombre_interventions": getattr(u, "nombre_interventions", None) or 0,
         })
     return result
 
@@ -1144,8 +1144,8 @@ def get_agent_public_profile(user_id: int, db: Session = Depends(get_db)):
         "role":               role_val,
         "secteur_partenaire": getattr(user, "secteur_partenaire", None),
         "metier_artisan":     getattr(user, "metier_artisan", None),
-        "note":               getattr(user, "note_prestataire", None),
-        "nombre_missions":    getattr(user, "nombre_missions", None) or 0,
+        "note":                 getattr(user, "note_prestataire", None),
+        "nombre_interventions": getattr(user, "nombre_interventions", None) or 0,
         "annonces":           annonces_list,
         "nb_annonces":        len(annonces_list),
     }
