@@ -1152,3 +1152,87 @@ def get_agent_public_profile(user_id: int, db: Session = Depends(get_db)):
         "nb_annonces":        len(annonces_list),
     }
 
+
+
+# ===============================
+# DEMANDES D'INTERVENTION (prestataires / partenaires)
+# ===============================
+@router.post("/interventions")
+def create_intervention(body: dict, db: Session = Depends(get_db)):
+    """Un client envoie une demande d'intervention à un prestataire."""
+    prestataire_id = body.get("prestataire_id")
+    presta = db.query(models.User).filter(models.User.id == prestataire_id).first()
+    if not presta:
+        raise HTTPException(404, "Prestataire introuvable.")
+    nom = (body.get("client_nom") or "").strip()
+    tel = (body.get("client_telephone") or "").strip()
+    if not nom:
+        raise HTTPException(400, "Votre nom est requis.")
+    if not tel and not (body.get("client_email") or "").strip():
+        raise HTTPException(400, "Un téléphone ou un email est requis pour vous recontacter.")
+    d = models.DemandeIntervention(
+        prestataire_id   = prestataire_id,
+        client_user_id   = body.get("client_user_id"),
+        client_nom       = nom,
+        client_email     = (body.get("client_email") or "").strip() or None,
+        client_telephone = tel or None,
+        message          = (body.get("message") or "").strip() or None,
+        status           = "en_attente",
+    )
+    db.add(d)
+    db.commit()
+    return {"message": "Votre demande a été envoyée au prestataire. Il vous recontactera avec vos coordonnées."}
+
+
+@router.get("/interventions/mine")
+def my_interventions(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Le prestataire connecté récupère ses demandes d'intervention reçues."""
+    demandes = db.query(models.DemandeIntervention).filter(
+        models.DemandeIntervention.prestataire_id == current_user.id
+    ).order_by(models.DemandeIntervention.created_at.desc()).all()
+    return [{
+        "id":               d.id,
+        "client_nom":       d.client_nom,
+        "client_email":     d.client_email,
+        "client_telephone": d.client_telephone,
+        "message":          d.message,
+        "status":           d.status,
+        "created_at":       d.created_at.isoformat() if d.created_at else None,
+    } for d in demandes]
+
+
+@router.patch("/interventions/{demande_id}/status")
+def update_intervention_status(
+    demande_id: int,
+    body: dict,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Le prestataire marque une demande comme réalisée / en attente.
+    Le nombre d'interventions est incrémenté/décrémenté automatiquement."""
+    d = db.query(models.DemandeIntervention).filter(
+        models.DemandeIntervention.id == demande_id
+    ).first()
+    if not d:
+        raise HTTPException(404, "Demande introuvable.")
+    if d.prestataire_id != current_user.id:
+        raise HTTPException(403, "Action non autorisée.")
+    new_status = body.get("status")
+    if new_status not in ("en_attente", "realisee"):
+        raise HTTPException(400, "Statut invalide.")
+    old = d.status
+    if old != new_status:
+        if new_status == "realisee" and old != "realisee":
+            current_user.nombre_interventions = (current_user.nombre_interventions or 0) + 1
+        elif new_status == "en_attente" and old == "realisee":
+            current_user.nombre_interventions = max(0, (current_user.nombre_interventions or 0) - 1)
+        d.status = new_status
+        db.commit()
+    return {
+        "id": d.id,
+        "status": d.status,
+        "nombre_interventions": current_user.nombre_interventions or 0,
+    }

@@ -215,6 +215,30 @@ export default function AgentProfile() {
   const isPromoteur = location.pathname.startsWith("/promoteur/");
   const [agent, setAgent]     = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showContact, setShowContact] = useState(false);
+  const [cSending, setCSending] = useState(false);
+  const [cSent, setCSent]       = useState(false);
+  const [cForm, setCForm] = useState(() => {
+    let u = null; try { u = JSON.parse(localStorage.getItem("user")); } catch {}
+    return { nom: u?.username || "", email: u?.email || "", telephone: u?.phone_number || "", message: "" };
+  });
+
+  const submitContact = async () => {
+    if (!cForm.nom.trim() || (!cForm.telephone.trim() && !cForm.email.trim())) return;
+    setCSending(true);
+    let u = null; try { u = JSON.parse(localStorage.getItem("user")); } catch {}
+    try {
+      const res = await fetch(`${API_URL}/users/interventions`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prestataire_id: Number(id), client_user_id: u?.id || null,
+          client_nom: cForm.nom.trim(), client_email: cForm.email.trim(),
+          client_telephone: cForm.telephone.trim(), message: cForm.message.trim(),
+        }),
+      });
+      if (res.ok) setCSent(true);
+    } catch { /* silencieux */ } finally { setCSending(false); }
+  };
 
   useEffect(() => {
     fetch(`${API_URL}/users/${id}/public-profile`)
@@ -292,6 +316,66 @@ export default function AgentProfile() {
 
       <Navbar/>
 
+      {/* ── Modal : contacter le prestataire (envoi d'une demande d'intervention) ── */}
+      {showContact && (
+        <div onClick={()=>setShowContact(false)}
+          style={{ position:"fixed", inset:0, background:"rgba(15,23,42,.55)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:"16px" }}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{ background:"#fff", borderRadius:18, width:"100%", maxWidth:440, padding:"26px 26px 24px", boxShadow:"0 20px 60px rgba(0,0,0,.3)", maxHeight:"90vh", overflowY:"auto" }}>
+            {cSent ? (
+              <div style={{ textAlign:"center", padding:"14px 0" }}>
+                <div style={{ width:64, height:64, borderRadius:"50%", background:"#f0fdf4", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 16px" }}>
+                  <Star size={30} fill="#16a34a" color="#16a34a"/>
+                </div>
+                <h3 style={{ fontSize:19, fontWeight:800, color:"#0f172a", margin:"0 0 8px" }}>Demande envoyée !</h3>
+                <p style={{ fontSize:14, color:"#64748b", lineHeight:1.6, margin:"0 0 20px" }}>
+                  {agent.nom} a reçu votre demande avec vos coordonnées et vous recontactera prochainement.
+                </p>
+                <button onClick={()=>setShowContact(false)}
+                  style={{ width:"100%", padding:"12px", borderRadius:11, border:"none", background:accentColor, color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"inherit" }}>
+                  Fermer
+                </button>
+              </div>
+            ) : (
+              <>
+                <h3 style={{ fontSize:19, fontWeight:800, color:"#0f172a", margin:"0 0 4px" }}>Contacter {agent.nom}</h3>
+                <p style={{ fontSize:13, color:"#64748b", margin:"0 0 18px", lineHeight:1.5 }}>
+                  Laissez vos coordonnées : le prestataire les recevra et vous recontactera pour votre intervention.
+                </p>
+                <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                  <div>
+                    <label style={{ fontSize:12.5, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>Votre nom *</label>
+                    <input value={cForm.nom} onChange={e=>setCForm(f=>({...f,nom:e.target.value}))} placeholder="Nom et prénom"
+                      style={{ width:"100%", padding:"11px 13px", border:"1.5px solid #e2e8f0", borderRadius:10, fontSize:14, fontFamily:"inherit", outline:"none", boxSizing:"border-box" }}/>
+                  </div>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                    <div>
+                      <label style={{ fontSize:12.5, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>Téléphone *</label>
+                      <input value={cForm.telephone} onChange={e=>setCForm(f=>({...f,telephone:e.target.value}))} placeholder="22 345 678"
+                        style={{ width:"100%", padding:"11px 13px", border:"1.5px solid #e2e8f0", borderRadius:10, fontSize:14, fontFamily:"inherit", outline:"none", boxSizing:"border-box" }}/>
+                    </div>
+                    <div>
+                      <label style={{ fontSize:12.5, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>Email</label>
+                      <input value={cForm.email} onChange={e=>setCForm(f=>({...f,email:e.target.value}))} placeholder="vous@exemple.com"
+                        style={{ width:"100%", padding:"11px 13px", border:"1.5px solid #e2e8f0", borderRadius:10, fontSize:14, fontFamily:"inherit", outline:"none", boxSizing:"border-box" }}/>
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize:12.5, fontWeight:700, color:"#374151", display:"block", marginBottom:5 }}>Votre besoin</label>
+                    <textarea value={cForm.message} onChange={e=>setCForm(f=>({...f,message:e.target.value}))} rows={3} placeholder="Décrivez brièvement l'intervention souhaitée…"
+                      style={{ width:"100%", padding:"11px 13px", border:"1.5px solid #e2e8f0", borderRadius:10, fontSize:14, fontFamily:"inherit", outline:"none", boxSizing:"border-box", resize:"vertical" }}/>
+                  </div>
+                  <button onClick={submitContact} disabled={cSending || !cForm.nom.trim() || (!cForm.telephone.trim() && !cForm.email.trim())}
+                    style={{ width:"100%", padding:"13px", borderRadius:11, border:"none", background:accentColor, color:"#fff", fontWeight:700, fontSize:15, cursor:"pointer", fontFamily:"inherit", opacity:(cSending||!cForm.nom.trim()||(!cForm.telephone.trim()&&!cForm.email.trim()))?.5:1 }}>
+                    {cSending ? "Envoi…" : "Envoyer ma demande"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── HERO BANNER ── */}
       <div style={{ position:"relative", height:300, overflow:"hidden" }}>
         <div style={{ width:"100%", height:"100%", background:"linear-gradient(135deg,#0f172a 0%,#1e3a5f 60%,#0f172a 100%)" }}/>
@@ -348,8 +432,14 @@ export default function AgentProfile() {
                 </div>
               )}
               <div className="ap-hero-btns" style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
+                {isPartenaire && (
+                  <button type="button" onClick={()=>{ setCSent(false); setShowContact(true); }}
+                    style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"9px 18px", borderRadius:10, fontSize:13.5, fontWeight:700, border:"none", cursor:"pointer", fontFamily:"inherit", background:accentColor, color:"#fff" }}>
+                    <Mail size={15}/> Contacter {secteurMeta?.label || "le prestataire"}
+                  </button>
+                )}
                 {agent.telephone && (
-                  <a href={`tel:${agent.telephone}`} style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"9px 16px", borderRadius:10, fontSize:13.5, fontWeight:700, textDecoration:"none", background:accentColor, color:"#fff" }}>
+                  <a href={`tel:${agent.telephone}`} style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"9px 16px", borderRadius:10, fontSize:13.5, fontWeight:700, textDecoration:"none", background: isPartenaire ? "#f1f5f9" : accentColor, color: isPartenaire ? "#0f172a" : "#fff", border: isPartenaire ? "1px solid #e2e8f0" : "none" }}>
                     <Phone size={15}/> {agent.telephone}
                   </a>
                 )}

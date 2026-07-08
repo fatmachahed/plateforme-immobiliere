@@ -295,10 +295,19 @@ export default function AdminDashboard() {
   async function saveUserEdit() {
     if (!userEditModal) return;
     try {
+      const payload = {
+        username: userEditForm.username,
+        email:    userEditForm.email,
+        role:     userEditForm.role,
+      };
+      if (userEditModal.role === "partenaire") {
+        payload.note_prestataire     = userEditForm.note_prestataire === "" ? null : Number(userEditForm.note_prestataire);
+        payload.nombre_interventions = userEditForm.nombre_interventions === "" ? null : parseInt(userEditForm.nombre_interventions, 10);
+      }
       const res = await authFetch(`/admin/users/${userEditModal.id}`, {
         method:"PUT",
         headers:{"Content-Type":"application/json"},
-        body: JSON.stringify(userEditForm),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         const data = await res.json();
@@ -1188,7 +1197,7 @@ export default function AdminDashboard() {
                         <td>
                           <div style={{display:"flex",gap:5,alignItems:"center"}}>
                             {/* Modifier */}
-                            <button title="Modifier" onClick={() => { setUserEditForm({username:u.username,email:u.email,role:u.role}); setUserEditModal(u); }}
+                            <button title="Modifier" onClick={() => { setUserEditForm({username:u.username,email:u.email,role:u.role,note_prestataire:u.note_prestataire ?? "",nombre_interventions:u.nombre_interventions ?? ""}); setUserEditModal(u); }}
                               style={{display:"flex",alignItems:"center",justifyContent:"center",width:30,height:30,borderRadius:6,border:"1px solid #e2e8f0",background:"#fff",cursor:"pointer",color:"#374151"}}>
                               <Pencil size={13}/>
                             </button>
@@ -1240,11 +1249,33 @@ export default function AdminDashboard() {
                   <select value={userEditForm.role} onChange={e=>setUserEditForm(f=>({...f,role:e.target.value}))}
                     style={{width:"100%",padding:"9px 12px",borderRadius:8,border:"1px solid #e2e8f0",fontSize:13,fontFamily:"inherit",boxSizing:"border-box"}}>
                     <option value="particulier">Particulier</option>
+                    <option value="agent">Agent</option>
                     <option value="agence">Agence / Agent</option>
                     <option value="promoteur">Promoteur</option>
+                    <option value="partenaire">Partenaire / Prestataire</option>
                     <option value="admin">Admin</option>
                   </select>
                 </div>
+                {userEditModal.role === "partenaire" && (
+                  <div style={{marginBottom:20,padding:"14px",background:"#faf5ff",border:"1px solid #e9d5ff",borderRadius:10}}>
+                    <p style={{fontSize:12,fontWeight:700,color:"#7c3aed",margin:"0 0 12px"}}>Qualification prestataire</p>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                      <div>
+                        <label style={{fontSize:12,fontWeight:600,color:"#374151",display:"block",marginBottom:5}}>Note /5</label>
+                        <input type="number" step="0.1" min="0" max="5" value={userEditForm.note_prestataire}
+                          onChange={e=>setUserEditForm(f=>({...f,note_prestataire:e.target.value}))} placeholder="ex : 4.5"
+                          style={{width:"100%",padding:"9px 12px",borderRadius:8,border:"1px solid #e2e8f0",fontSize:13,fontFamily:"inherit",boxSizing:"border-box"}}/>
+                      </div>
+                      <div>
+                        <label style={{fontSize:12,fontWeight:600,color:"#374151",display:"block",marginBottom:5}}>Interventions</label>
+                        <input type="number" min="0" value={userEditForm.nombre_interventions}
+                          onChange={e=>setUserEditForm(f=>({...f,nombre_interventions:e.target.value}))} placeholder="ex : 12"
+                          style={{width:"100%",padding:"9px 12px",borderRadius:8,border:"1px solid #e2e8f0",fontSize:13,fontFamily:"inherit",boxSizing:"border-box"}}/>
+                      </div>
+                    </div>
+                    <p style={{fontSize:11,color:"#a78bfa",margin:"8px 0 0",lineHeight:1.4}}>Par défaut, le nombre d'interventions est incrémenté automatiquement quand le prestataire marque une demande « réalisée ». Vous pouvez le corriger ici.</p>
+                  </div>
+                )}
                 <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
                   <button onClick={()=>setUserEditModal(null)} style={{padding:"9px 18px",borderRadius:8,border:"1px solid #e2e8f0",background:"#fff",cursor:"pointer",fontSize:13,fontWeight:600}}>Annuler</button>
                   <button onClick={saveUserEdit} style={{padding:"9px 18px",borderRadius:8,border:"none",background:"#6366f1",color:"#fff",cursor:"pointer",fontSize:13,fontWeight:700}}>Enregistrer</button>

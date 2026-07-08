@@ -434,3 +434,21 @@ class ContactMessage(Base):
     sujet      = Column(String, nullable=True)
     message    = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# ----------------------------------------
+# Demandes d'intervention (prestataires / partenaires)
+# ----------------------------------------
+class DemandeIntervention(Base):
+    __tablename__ = "demandes_intervention"
+    id               = Column(Integer, primary_key=True, index=True)
+    prestataire_id   = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    client_user_id   = Column(Integer, ForeignKey("users.id"), nullable=True)  # si le client est connecté
+    client_nom       = Column(String, nullable=True)
+    client_email     = Column(String, nullable=True)
+    client_telephone = Column(String, nullable=True)
+    message          = Column(String, nullable=True)
+    status           = Column(String, default="en_attente")  # en_attente | realisee
+    created_at       = Column(DateTime, default=datetime.utcnow)
+
+    prestataire = relationship("User", foreign_keys=[prestataire_id])

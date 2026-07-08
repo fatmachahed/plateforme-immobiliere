@@ -209,6 +209,8 @@ def list_users(
             "email":      u.email,
             "role":       u.role.value if hasattr(u.role, "value") else str(u.role),
             "is_blocked": bool(u.is_blocked),
+            "note_prestataire":     getattr(u, "note_prestataire", None),
+            "nombre_interventions": getattr(u, "nombre_interventions", None) or 0,
             "nb_annonces": db.query(func.count(models.Annonce.id))
                             .filter(models.Annonce.utilisateur_id == u.id).scalar() or 0,
         }

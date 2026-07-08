@@ -68,6 +68,12 @@ export default function Compte() {
   const tab = searchParams.get("tab") || "profil";
   const setTab = (t) => setSearchParams({ tab: t }, { replace: false });
 
+  /* ── Interventions (partenaire only) ── */
+  const [interventions,       setInterventions]       = useState([]);
+  const [interventionsLoaded, setInterventionsLoaded] = useState(false);
+  const [interventionsLoading,setInterventionsLoading]= useState(false);
+  const [updatingIntervId,    setUpdatingIntervId]    = useState(null);
+
   /* ── Équipe (agence only) ── */
   const [agents,      setAgents]      = useState([]);
   const [agentLoading,setAgentLoading]= useState(false);
@@ -625,6 +631,32 @@ export default function Compte() {
     try{await fetch(`${API_URL}/users/me/favoris/${id}`,{method:"DELETE",headers:{Authorization:`Bearer ${token}`}}); setFavoris(prev=>prev.filter(f=>f.id!==id)); toast("Retiré des favoris.");}catch{toast("Erreur.","error");}
   };
 
+  /* ── Load interventions (lazy, partenaire only) ── */
+  useEffect(() => {
+    if (tab !== "interventions" || interventionsLoaded || storedUser?.role !== "partenaire") return;
+    setInterventionsLoading(true);
+    fetch(`${API_URL}/users/interventions/mine`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : [])
+      .then(d => { setInterventions(Array.isArray(d) ? d : []); setInterventionsLoaded(true); })
+      .catch(() => {})
+      .finally(() => setInterventionsLoading(false));
+  }, [tab]); // eslint-disable-line
+
+  async function setInterventionStatus(id, status) {
+    setUpdatingIntervId(id);
+    try {
+      const r = await fetch(`${API_URL}/users/interventions/${id}/status`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!r.ok) throw new Error();
+      setInterventions(prev => prev.map(i => i.id === id ? { ...i, status } : i));
+      toast(status === "realisee" ? "Intervention marquée comme réalisée !" : "Intervention remise en attente.");
+    } catch { toast("Erreur lors de la mise à jour.", "error"); }
+    finally { setUpdatingIntervId(null); }
+  }
+
   /* ── Load agents (lazy, agence only) ── */
   useEffect(() => {
     if (tab !== "equipe" || agentLoaded || storedUser?.role !== "agence") return;
@@ -756,6 +788,7 @@ export default function Compte() {
     { key:"contacts",  icon:<Bell size={19}/>,   label:"Demandes reçues", badge: contactsLoaded ? unreadCount : 0 },
     { key:"alertes",   icon:<Bell size={19}/>,   label:"Mes alertes", badge: alertesLoaded ? alertesCount : 0 },
     { key:"favoris",   icon:<Heart size={19}/>,  label:"Mes favoris" },
+    ...(storedUser?.role==="partenaire"?[{key:"interventions",icon:<Briefcase size={19}/>,label:"Mes interventions"}]:[]),
     ...(storedUser?.role==="agence"?[{key:"equipe",icon:<Users size={19}/>,label:"Mon équipe"}]:[]),
     ...(storedUser?.role==="agence"?[{key:"onboarding_agence",icon:<FileText size={19}/>,label:"Convention agence",onbInfo:_onbInfo(_onbAgence)}]:[]),
     ...(storedUser?.role==="promoteur"?[{key:"onboarding_promoteur",icon:<FileText size={19}/>,label:"Convention promoteur",onbInfo:_onbInfo(_onbProm)}]:[]),
@@ -1590,6 +1623,63 @@ export default function Compte() {
                               <button className="fav-btn fav-btn--del" onClick={e=>{e.stopPropagation();handleRemoveFav(f.id);}} title="Retirer des favoris"><Trash2 size={13}/></button>
                             </div>
                           </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+          {/* ═══════ MES INTERVENTIONS (partenaire only) ═══════ */}
+          {tab==="interventions" && storedUser?.role==="partenaire" && (
+            <div>
+              <div style={{...card,padding:"22px 24px",marginBottom:16,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
+                <div>
+                  <h2 style={{fontSize:17,fontWeight:800,color:"#0f172a",margin:0}}>Mes interventions</h2>
+                  <p style={{fontSize:12.5,color:"#94a3b8",margin:"3px 0 0"}}>Demandes reçues de clients. Marquez-les « réalisée » pour incrémenter votre compteur.</p>
+                </div>
+                <div style={{textAlign:"center",background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:12,padding:"12px 20px"}}>
+                  <div style={{fontSize:26,fontWeight:900,color:"#6366f1",lineHeight:1}}>{interventions.filter(i=>i.status==="realisee").length}</div>
+                  <div style={{fontSize:11,color:"#94a3b8",fontWeight:600,marginTop:3}}>réalisée{interventions.filter(i=>i.status==="realisee").length!==1?"s":""}</div>
+                </div>
+              </div>
+
+              {interventionsLoading ? (
+                <div style={{...card,padding:"40px",textAlign:"center",color:"#94a3b8"}}>Chargement…</div>
+              ) : interventions.length === 0 ? (
+                <div style={{...card,padding:"48px 24px",textAlign:"center"}}>
+                  <Briefcase size={40} color="#cbd5e1" style={{margin:"0 auto 14px"}}/>
+                  <p style={{fontSize:15,fontWeight:700,color:"#475569",margin:"0 0 4px"}}>Aucune demande pour le moment</p>
+                  <p style={{fontSize:13,color:"#94a3b8",margin:0}}>Les demandes des clients qui vous contactent apparaîtront ici.</p>
+                </div>
+              ) : (
+                <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                  {interventions.map(i => {
+                    const done = i.status === "realisee";
+                    return (
+                      <div key={i.id} style={{...card,padding:"18px 20px",borderLeft:`4px solid ${done?"#16a34a":"#f59e0b"}`}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12,flexWrap:"wrap"}}>
+                          <div style={{minWidth:0,flex:1}}>
+                            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,flexWrap:"wrap"}}>
+                              <span style={{fontSize:15,fontWeight:800,color:"#0f172a"}}>{i.client_nom}</span>
+                              <span style={{fontSize:10.5,fontWeight:700,padding:"2px 9px",borderRadius:20,background:done?"#f0fdf4":"#fffbeb",color:done?"#16a34a":"#b45309",border:`1px solid ${done?"#bbf7d0":"#fde68a"}`}}>
+                                {done?"Réalisée":"En attente"}
+                              </span>
+                            </div>
+                            <div style={{display:"flex",flexDirection:"column",gap:4,fontSize:13,color:"#475569"}}>
+                              {i.client_telephone && <a href={`tel:${i.client_telephone}`} style={{display:"inline-flex",alignItems:"center",gap:7,color:"#374151",textDecoration:"none"}}><Phone size={13} style={{color:"#6366f1"}}/> {i.client_telephone}</a>}
+                              {i.client_email && <a href={`mailto:${i.client_email}`} style={{display:"inline-flex",alignItems:"center",gap:7,color:"#6366f1",textDecoration:"none"}}><Mail size={13}/> {i.client_email}</a>}
+                              {i.message && <div style={{marginTop:4,padding:"8px 12px",background:"#f8fafc",borderRadius:8,color:"#64748b",fontSize:12.5,lineHeight:1.5}}>{i.message}</div>}
+                              {i.created_at && <span style={{fontSize:11,color:"#94a3b8",marginTop:2}}>{new Date(i.created_at).toLocaleDateString("fr-TN",{day:"numeric",month:"long",year:"numeric"})}</span>}
+                            </div>
+                          </div>
+                          <button
+                            onClick={()=>setInterventionStatus(i.id, done?"en_attente":"realisee")}
+                            disabled={updatingIntervId===i.id}
+                            style={{flexShrink:0,padding:"9px 16px",borderRadius:10,border:done?"1.5px solid #e2e8f0":"none",background:done?"#f8fafc":"#16a34a",color:done?"#64748b":"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit",display:"inline-flex",alignItems:"center",gap:7}}>
+                            {done ? <><X size={14}/> Annuler</> : <><CheckCircle size={14}/> Marquer réalisée</>}
+                          </button>
                         </div>
                       </div>
                     );
