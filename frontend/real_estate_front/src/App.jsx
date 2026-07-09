@@ -138,9 +138,10 @@ function App() {
           {/* 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
+        {/* Doit rester DANS <Router> : ComparateurPopup utilise <Link> (contexte routeur) */}
+        {showComparateur && <ComparateurPopup onClose={() => setShowComparateur(false)} />}
       </Router>
       <CookieBanner />
-      {showComparateur && <ComparateurPopup onClose={() => setShowComparateur(false)} />}
     </ToastProvider>
     </LanguageProvider>
   );
