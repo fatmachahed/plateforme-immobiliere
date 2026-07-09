@@ -221,6 +221,13 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
   const navigate = useNavigate();
   const toast    = useToast();
 
+  /* Le parent (ex: CartePage) réutilise la même instance de la modale et se
+     contente de changer la prop annonceId (ex: clic sur "Annonces similaires").
+     Sans ce useEffect, activeId reste bloqué sur l'annonce initiale car
+     useState() n'est initialisé qu'au tout premier montage — les clics sur
+     les annonces similaires/proches semblaient alors ne rien faire. */
+  React.useEffect(() => { setActiveId(String(annonceId)); }, [annonceId]);
+
   const [prop,           setProp]           = useState(null);
   const [rawData,        setRawData]        = useState(null);
   const [samePointList,  setSamePointList]  = useState([]);
