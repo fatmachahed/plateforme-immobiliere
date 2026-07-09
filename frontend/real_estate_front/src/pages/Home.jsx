@@ -657,6 +657,18 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ── CTA PUBLIER UNE ANNONCE ── */}
+      <section className="hp-publish-cta">
+        <div className="hp-publish-cta__bg-pattern" aria-hidden="true" />
+        <div className="container hp-publish-cta__inner">
+          <h2 className="hp-publish-cta__title">Vous voulez vendre ou louer ?</h2>
+          <p className="hp-publish-cta__sub">Publiez votre annonce rapidement et commencez à recevoir des appels.</p>
+          <Link to="/creer_annonce" className="hp-publish-cta__btn">
+            Publiez votre annonce <ArrowRight size={18}/>
+          </Link>
+        </div>
+      </section>
+
       {/* ── STATS ANIMÉES ── */}
       <section ref={statsRef} className="hp-stats-section">
         <div className="hp-stats-section__bg-pattern" aria-hidden="true" />
@@ -1641,6 +1653,46 @@ export default function HomePage() {
         }
 
         /* ── STATS SECTION ── */
+        .hp-publish-cta {
+          background: #0b0f1e;
+          padding: 88px 0;
+          position: relative;
+          overflow: hidden;
+          text-align: center;
+        }
+        .hp-publish-cta__bg-pattern {
+          position: absolute; inset: 0; z-index: 0;
+          background:
+            radial-gradient(ellipse 70% 70% at 50% 0%, rgba(99,102,241,.22) 0%, transparent 60%),
+            radial-gradient(ellipse 50% 50% at 85% 100%, rgba(139,92,246,.14) 0%, transparent 55%);
+        }
+        .hp-publish-cta__inner { position: relative; z-index: 1; max-width: 640px; margin: 0 auto; }
+        .hp-publish-cta__title {
+          color: #fff; font-size: clamp(28px, 4vw, 42px); font-weight: 900;
+          line-height: 1.2; letter-spacing: -.02em; margin: 0 0 16px;
+        }
+        .hp-publish-cta__sub {
+          color: rgba(255,255,255,.7); font-size: clamp(15px, 2vw, 17px);
+          line-height: 1.6; margin: 0 0 32px;
+        }
+        .hp-publish-cta__btn {
+          display: inline-flex; align-items: center; gap: 10px;
+          background: linear-gradient(135deg, #6366f1, #8b5cf6);
+          color: #fff; font-weight: 800; font-size: 16px;
+          padding: 16px 36px; border-radius: 14px; text-decoration: none;
+          box-shadow: 0 8px 28px rgba(99,102,241,.4);
+          transition: transform .18s ease, box-shadow .18s ease;
+        }
+        .hp-publish-cta__btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 12px 36px rgba(99,102,241,.5);
+        }
+        @media (max-width: 640px) {
+          .hp-publish-cta { padding: 56px 0; }
+          .hp-publish-cta__inner { padding: 0 20px; }
+          .hp-publish-cta__btn { width: 100%; justify-content: center; padding: 15px 24px; }
+        }
+
         .hp-stats-section {
           background: #0b0f1e;
           padding: 100px 0 108px;
