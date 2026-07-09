@@ -13,6 +13,7 @@ import ReactDOM from "react-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import AnnonceModal from "../components/AnnonceModal";
+import PublierAnnonceBtn from "../components/PublierAnnonceBtn";
 
 /* ── Static demo data (remplace par API calls) ── */
 const RECENT_PROPS = [
@@ -663,9 +664,9 @@ export default function HomePage() {
         <div className="container hp-publish-cta__inner">
           <h2 className="hp-publish-cta__title">Vous voulez vendre ou louer ?</h2>
           <p className="hp-publish-cta__sub">Publiez votre annonce rapidement et commencez à recevoir des appels.</p>
-          <Link to="/creer_annonce" className="hp-publish-cta__btn">
+          <PublierAnnonceBtn className="hp-publish-cta__btn">
             Publiez votre annonce <ArrowRight size={18}/>
-          </Link>
+          </PublierAnnonceBtn>
         </div>
       </section>
 
