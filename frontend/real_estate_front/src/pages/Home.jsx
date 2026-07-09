@@ -555,11 +555,15 @@ export default function HomePage() {
   const handleSearch = async (e) => {
     e.preventDefault();
     if (selectedGov) {
-      // Select gouvernorat explicite → pas besoin de détection
+      // Select gouvernorat explicite → pas besoin de détection par texte,
+      // mais il faut quand même résoudre le govId : la carte ne charge les
+      // annonces/points de la zone que si govId est présent (sinon la
+      // délimitation de zone s'affiche mais la liste des biens reste vide).
       const params = new URLSearchParams();
       params.set("categorie", activeTab);
       params.set("gouvernorat", selectedGov);
-      // pas de q : on ne remplit que le select gouvernorat
+      const match = apiGouvernorats.find(g => g.label === selectedGov);
+      if (match) params.set("govId", match.value);
       window.location.href = `/carte?${params.toString()}`;
     } else if (query.trim()) {
       const params = await buildLocParams(query.trim(), activeTab);
@@ -658,18 +662,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── CTA PUBLIER UNE ANNONCE ── */}
-      <section className="hp-publish-cta">
-        <div className="hp-publish-cta__bg-pattern" aria-hidden="true" />
-        <div className="container hp-publish-cta__inner">
-          <h2 className="hp-publish-cta__title">Vous voulez vendre ou louer ?</h2>
-          <p className="hp-publish-cta__sub">Publiez votre annonce rapidement et commencez à recevoir des appels.</p>
-          <PublierAnnonceBtn className="hp-publish-cta__btn">
-            Publiez votre annonce <ArrowRight size={18}/>
-          </PublierAnnonceBtn>
-        </div>
-      </section>
-
       {/* ── STATS ANIMÉES ── */}
       <section ref={statsRef} className="hp-stats-section">
         <div className="hp-stats-section__bg-pattern" aria-hidden="true" />
@@ -726,6 +718,18 @@ export default function HomePage() {
               Voir toutes les annonces <ArrowRight size={17} />
             </Link>
           </div>
+        </div>
+      </section>
+
+      {/* ── CTA PUBLIER UNE ANNONCE ── */}
+      <section className="hp-publish-cta">
+        <div className="hp-publish-cta__bg-pattern" aria-hidden="true" />
+        <div className="container hp-publish-cta__inner">
+          <h2 className="hp-publish-cta__title">Vous voulez vendre ou louer ?</h2>
+          <p className="hp-publish-cta__sub">Publiez votre annonce rapidement et commencez à recevoir des appels.</p>
+          <PublierAnnonceBtn className="hp-publish-cta__btn">
+            Publiez votre annonce <ArrowRight size={18}/>
+          </PublierAnnonceBtn>
         </div>
       </section>
 
