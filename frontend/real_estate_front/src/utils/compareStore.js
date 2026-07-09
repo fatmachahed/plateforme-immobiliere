@@ -149,10 +149,22 @@ export function useCompareCount() {
   return count;
 }
 
-/** Hook : écoute l'ouverture du popup "2 biens ajoutés" déclenché depuis n'importe quelle page. */
+/** Hook : écoute l'ouverture du popup comparateur, déclenchée depuis n'importe quelle page
+ *  (soit automatiquement dès 2 biens, soit manuellement via openComparateurPopup()). */
 export function useCompareShowPopup(onShow) {
   useEffect(() => {
     window.addEventListener(EVT_SHOW_POPUP, onShow);
     return () => window.removeEventListener(EVT_SHOW_POPUP, onShow);
   }, [onShow]);
+}
+
+/**
+ * Ouvre manuellement le popup comparateur (bouton "Comparer" / "Voir le
+ * comparateur" / icône du bandeau, etc.). Le comparateur est TOUJOURS une
+ * popup superposée à la page courante — jamais une navigation vers une page
+ * séparée. La popup elle-même est montée une seule fois, globalement, dans
+ * App.jsx, donc ce déclencheur fonctionne depuis n'importe quelle page.
+ */
+export function openComparateurPopup() {
+  window.dispatchEvent(new CustomEvent(EVT_SHOW_POPUP));
 }

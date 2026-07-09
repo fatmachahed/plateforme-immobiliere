@@ -14,8 +14,7 @@ import {
 } from "lucide-react";
 import { useToast } from "../components/Toast";
 import {
-  useCompareMeta, useCompareShowPopup,
-  toggleCompare as toggleCompareStore, removeFromCompare as removeFromCompareStore,
+  useCompareMeta, toggleCompare as toggleCompareStore,
 } from "../utils/compareStore";
 import AnnonceDetailModal from "./AnnonceDetailModal";
 import AgenceOnboarding from "./AgenceOnboarding";
@@ -220,12 +219,8 @@ export default function Compte() {
   const [favoris,    setFavoris]    = useState([]);
   const compareMeta = useCompareMeta();
   const compareIds  = compareMeta.map(m => String(m.id));
-  const [showCmpPopup, setShowCmpPopup] = useState(false);
   const [favLoading, setFavLoading] = useState(false);
   const [favLoaded,  setFavLoaded]  = useState(false);
-
-  /* ── Compare popup trigger (déclenché depuis n'importe quelle interface) ── */
-  useCompareShowPopup(() => setShowCmpPopup(true));
 
   /* ── Load full profile from API and sync localStorage + local states ── */
   useEffect(() => {
@@ -2614,39 +2609,9 @@ export default function Compte() {
         );
       })()}
 
-      {/* ── Popup comparateur ── */}
-      {showCmpPopup && (()=>{
-        const meta = compareMeta;
-        return(
-          <div style={{position:"fixed",inset:0,zIndex:99999,background:"rgba(15,23,42,0.65)",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}} onClick={()=>setShowCmpPopup(false)}>
-            <div style={{background:"#fff",borderRadius:20,maxWidth:520,width:"100%",padding:"32px 28px",boxShadow:"0 30px 80px rgba(0,0,0,.28)",position:"relative",animation:"fadeInCmp .2s ease"}} onClick={e=>e.stopPropagation()}>
-              <button onClick={()=>setShowCmpPopup(false)} style={{position:"absolute",top:14,right:14,background:"#f1f5f9",border:"none",borderRadius:"50%",width:32,height:32,cursor:"pointer",color:"#64748b",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>×</button>
-              <div style={{fontSize:17,fontWeight:800,color:"#0f172a",marginBottom:4}}>Sélection pour comparaison</div>
-              <div style={{fontSize:12.5,color:"#94a3b8",marginBottom:20}}>{compareIds.length} bien{compareIds.length>1?"s":""} sélectionné{compareIds.length>1?"s":""} · max 4</div>
-              <div style={{height:1,background:"#f1f5f9",marginBottom:16}}/>
-              <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:24,maxHeight:280,overflowY:"auto"}}>
-                {compareIds.map(id=>{
-                  const d=meta.find(m=>String(m.id)===String(id))||{};
-                  return(
-                    <div key={id} style={{display:"flex",alignItems:"center",gap:14,padding:"12px 14px",borderRadius:12,background:"#f8fafc",border:"1.5px solid #e5e7eb"}}>
-                      {d.image?<img src={d.image} style={{width:56,height:44,objectFit:"cover",borderRadius:8,flexShrink:0}} onError={e=>{e.target.style.display="none";}}/>:<div style={{width:56,height:44,borderRadius:8,background:"#e5e7eb",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>🏠</div>}
-                      <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontSize:14,fontWeight:700,color:"#0f172a",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{d.titre||`Annonce #${id}`}</div>
-                        <div style={{fontSize:12,color:"#64748b",marginTop:3}}>{d.gouvernorat&&<span>📍 {d.gouvernorat}</span>}{d.prix&&<span style={{marginLeft:8,fontWeight:700,color:"#4f46e5"}}>{Number(d.prix).toLocaleString("fr-TN")} {fmtDevise(d.devise)}</span>}</div>
-                      </div>
-                      <button onClick={()=>removeFromCompareStore(id)} style={{background:"none",border:"1.5px solid #e5e7eb",borderRadius:"50%",width:28,height:28,cursor:"pointer",color:"#94a3b8",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>×</button>
-                    </div>
-                  );
-                })}
-              </div>
-              <div style={{display:"flex",gap:12}}>
-                <button onClick={()=>setShowCmpPopup(false)} style={{flex:1,padding:"12px",borderRadius:10,border:"1.5px solid #e5e7eb",background:"#f8fafc",color:"#374151",fontWeight:700,cursor:"pointer",fontSize:14,fontFamily:"inherit"}}>Continuer</button>
-                <button onClick={()=>{setShowCmpPopup(false);navigate(`/comparateur?ids=${compareIds.join(",")}`);}} style={{flex:2,padding:"12px",borderRadius:10,border:"none",background:"linear-gradient(135deg,#4f46e5,#7c3aed)",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14,fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>Aller au comparateur →</button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      {/* Le comparateur (aperçu + tableau complet) est désormais une popup
+          globale unique, montée dans App.jsx — se déclenche automatiquement
+          dès 2 biens ajoutés, quelle que soit la page. */}
     </div>
   );
 }

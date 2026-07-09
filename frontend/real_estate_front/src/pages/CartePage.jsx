@@ -7,7 +7,7 @@ import { useFeatureFlags } from "../hooks/useFeatureFlags";
 import {
   getCompareIds, useIsInCompare, useCompareMeta, useCompareCount,
   toggleCompare as toggleCompareStore, removeFromCompare as removeFromCompareStore,
-  clearCompare as clearCompareStore,
+  clearCompare as clearCompareStore, openComparateurPopup,
 } from "../utils/compareStore";
 import {
   Search, ChevronLeft, ChevronRight, Bed, Bath, Maximize,
@@ -2300,123 +2300,6 @@ const FEAT_KEY_TO_LABEL = {
   fibre_optique:"Fibre optique",
 };
 
-/* --- Popup comparateur (s'affiche quand on ajoute un bien) --- */
-function ComparePopup({ onClose }) {
-  const navigate = useNavigate();
-  const meta = useCompareMeta();
-  const ids = meta.map(m => String(m.id));
-
-  const catColors = { vente:"#166534", location:"#1e40af", vacances:"#854d0e" };
-  const catLabels = { vente:"Achat", location:"Location", vacances:"Vacances" };
-
-  return (
-    <div style={{
-      position:"fixed", inset:0, zIndex:99999,
-      background:"rgba(15,23,42,0.6)", backdropFilter:"blur(8px)",
-      display:"flex", alignItems:"center", justifyContent:"center",
-      padding:"20px", animation:"fadeIn .2s ease",
-    }} onClick={onClose}>
-      <div style={{
-        background:"#fff", borderRadius:20, maxWidth:560, width:"100%",
-        padding:"32px 28px", boxShadow:"0 30px 80px rgba(0,0,0,.25)",
-        position:"relative", fontFamily:"'Inter',system-ui,sans-serif",
-      }} onClick={e => e.stopPropagation()}>
-        <button onClick={onClose} style={{
-          position:"absolute", top:14, right:14,
-          background:"#f1f5f9", border:"none", borderRadius:"50%",
-          width:32, height:32, cursor:"pointer", color:"#64748b",
-          display:"flex", alignItems:"center", justifyContent:"center",
-          fontSize:20, fontWeight:400, lineHeight:1,
-        }}>×</button>
-
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4}}>
-          <Logo variant="color" height={32} to={null} />
-          <div>
-            <div style={{fontSize:17,fontWeight:800,color:"#0f172a"}}>Sélection pour comparaison</div>
-            <div style={{fontSize:12.5,color:"#94a3b8"}}>{ids.length} bien{ids.length>1?"s":""} sélectionné{ids.length>1?"s":""} � max 4</div>
-          </div>
-        </div>
-
-        <div style={{height:1,background:"#f1f5f9",margin:"20px 0"}}/>
-
-        <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:24,maxHeight:320,overflowY:"auto"}}>
-          {meta.map((d) => {
-            const id = String(d.id);
-            const catColor = catColors[d.categorie] || "#4f46e5";
-            const location = d.delegation || d.gouvernorat || "";
-            return (
-              <div key={id} style={{
-                display:"flex", alignItems:"center", gap:14,
-                padding:"13px 14px", borderRadius:12,
-                background:"#f8fafc", border:"1.5px solid #e5e7eb",
-                position:"relative",
-              }}>
-                <div style={{
-                  width:10, height:10, borderRadius:"50%", flexShrink:0,
-                  background:catColor, boxShadow:`0 0 0 3px ${catColor}22`,
-                }}/>
-                {d.image ? (
-                  <img src={d.image} style={{
-                    width:60, height:46, objectFit:"cover",
-                    borderRadius:8, flexShrink:0, background:"#e5e7eb",
-                  }} onError={e => { e.target.style.display="none"; }} />
-                ) : (
-                  <div style={{width:60,height:46,borderRadius:8,background:"#e5e7eb",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>??</div>
-                )}
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:14,fontWeight:700,color:"#0f172a",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                    {d.titre || `Annonce #${id}`}
-                  </div>
-                  <div style={{fontSize:12,color:"#64748b",marginTop:3,display:"flex",gap:10,flexWrap:"wrap"}}>
-                    {location && <span style={{display:"inline-flex",alignItems:"center",gap:3}}><MapPin size={11} strokeWidth={2} style={{color:"#94a3b8",flexShrink:0}}/>{location}</span>}
-                    {d.prix && (
-                      <span style={{fontWeight:700,color:catColor}}>
-                        {Number(d.prix).toLocaleString("fr-TN")} {fmtDevise(d.devise)}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <button onClick={() => removeFromCompareStore(id)} style={{
-                  background:"none", border:"1.5px solid #e5e7eb", borderRadius:"50%",
-                  width:28, height:28, cursor:"pointer", color:"#94a3b8",
-                  display:"flex", alignItems:"center", justifyContent:"center",
-                  fontSize:16, flexShrink:0, transition:"all .15s",
-                }}>×</button>
-              </div>
-            );
-          })}
-        </div>
-
-        {ids.length === 0 ? (
-          <div style={{textAlign:"center",color:"#94a3b8",fontSize:14,paddingBottom:8}}>
-            Sélectionnez des biens depuis la carte pour les comparer.
-          </div>
-        ) : (
-          <div style={{display:"flex",gap:12}}>
-            <button onClick={onClose} style={{
-              flex:1, padding:"12px", borderRadius:10,
-              border:"1.5px solid #e5e7eb", background:"#f8fafc",
-              color:"#374151", fontWeight:700, cursor:"pointer",
-              fontSize:14, fontFamily:"inherit",
-            }}>
-              Annuler
-            </button>
-            <button onClick={() => { onClose(); navigate(`/comparateur?ids=${ids.join(",")}`); }} style={{
-              flex:2, padding:"12px", borderRadius:10,
-              border:"none", background:"linear-gradient(135deg,#4f46e5,#7c3aed)",
-              color:"#fff", fontWeight:700, cursor:"pointer",
-              fontSize:14, fontFamily:"inherit",
-              display:"flex", alignItems:"center", justifyContent:"center", gap:8,
-            }}>
-              Aller au comparateur ?
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 /* --- Hover card avec carousel (pin simple au clic) --- */
 function HoverCard({ pin, sharedHoverTimer, onOpen, onLeave }) {
   const images = (pin.images && pin.images.length > 0) ? pin.images : [];
@@ -2575,7 +2458,6 @@ function HoverCard({ pin, sharedHoverTimer, onOpen, onLeave }) {
 
 /* --- Bandeau comparateur flottant --- */
 function CompareBar() {
-  const navigate = useNavigate();
   const meta = useCompareMeta();
   const ids = meta.map(m => String(m.id));
   if (ids.length === 0) return null;
@@ -2589,7 +2471,7 @@ function CompareBar() {
       whiteSpace:"nowrap", flexShrink:0,
     }}>
       <span style={{fontWeight:700}}>{ids.length} bien{ids.length>1?"s":""} sélectionné{ids.length>1?"s":""}</span>
-      <button onClick={() => navigate(`/comparateur?ids=${ids.join(",")}`)}
+      <button onClick={openComparateurPopup}
         style={{
           padding:"5px 14px", borderRadius:8, border:"none",
           background:"#6366f1", color:"#fff", fontWeight:700, cursor:"pointer",
@@ -2609,113 +2491,9 @@ function CompareBar() {
   );
 }
 
-/* ─── Popup Comparateur inline (sans navigation) ─── */
-function ComparateurPopup({ onClose }) {
-  const ids = getCompareIds();
-  const [annonces, setAnnonces] = React.useState([]);
-  const [loading, setLoading] = React.useState(true);
-
-  React.useEffect(() => {
-    if (!ids.length) { setLoading(false); return; }
-    Promise.all(ids.map(id =>
-      fetch(`${API_URL}/annonces/${id}/detail`).then(r => r.ok ? r.json() : null).catch(() => null)
-    )).then(res => { setAnnonces(res.filter(Boolean)); setLoading(false); });
-  }, []); // eslint-disable-line
-
-  function removeOne(id) {
-    const newCount = removeFromCompareStore(id);
-    setAnnonces(prev => prev.filter(a => String(a.id) !== String(id)));
-    if (newCount === 0) onClose();
-  }
-
-  const ROWS = [
-    { label:"Prix",        key:"prix" },
-    { label:"Superficie",  key:"superficie" },
-    { label:"Chambres",    key:"nb_chambres" },
-    { label:"Salles de bain", key:"nb_salles_bain" },
-    { label:"Pièces",      key:"nb_pieces" },
-    { label:"Étage",       key:"etage" },
-    { label:"État",        key:"etat" },
-    { label:"Gouvernorat", key:"gouvernorat" },
-    { label:"Délégation",  key:"delegation" },
-  ];
-  const val = (a, k) => {
-    const v = a[k] ?? a.caractere_general?.[k] ?? a.caracteristique_interieure?.[k];
-    if (v == null || v === "") return "—";
-    if (k === "prix") return `${Number(v).toLocaleString("fr-TN")} ${a.devise || "TND"}`;
-    if (k === "superficie") return `${v} m²`;
-    return String(v);
-  };
-
-  return ReactDOM.createPortal(
-    <div style={{position:"fixed",inset:0,background:"rgba(10,12,20,.65)",zIndex:99990,display:"flex",alignItems:"flex-end",justifyContent:"center",padding:"0"}}
-      onClick={onClose}>
-      <div style={{
-        background:"#fff", borderRadius:"20px 20px 0 0", width:"100%", maxWidth:900,
-        maxHeight:"90vh", display:"flex", flexDirection:"column",
-        boxShadow:"0 -12px 50px rgba(0,0,0,.25)", overflow:"hidden",
-      }} onClick={e=>e.stopPropagation()}>
-        {/* Header */}
-        <div style={{display:"flex",alignItems:"center",gap:10,padding:"16px 20px",borderBottom:"1px solid #f1f5f9",flexShrink:0}}>
-          <GitCompare size={18} color="#6366f1"/>
-          <span style={{fontWeight:800,fontSize:16,color:"#0f172a",flex:1}}>Comparateur</span>
-          <span style={{fontSize:13,color:"#64748b",fontWeight:500}}>{annonces.length} annonce{annonces.length!==1?"s":""}</span>
-          <button onClick={onClose} style={{background:"#f1f5f9",border:"none",borderRadius:8,padding:"5px 10px",cursor:"pointer",display:"flex",alignItems:"center",gap:4,fontWeight:600,fontSize:13,color:"#475569"}}>
-            <X size={14}/> Fermer
-          </button>
-        </div>
-
-        {/* Corps */}
-        <div style={{overflowY:"auto",flex:1,padding:"16px 20px 24px"}}>
-          {loading ? (
-            <div style={{padding:40,textAlign:"center",color:"#94a3b8"}}>Chargement…</div>
-          ) : annonces.length === 0 ? (
-            <div style={{padding:40,textAlign:"center",color:"#94a3b8"}}>Aucune annonce à comparer.</div>
-          ) : (
-            <div style={{overflowX:"auto"}}>
-              <table style={{width:"100%",borderCollapse:"collapse",minWidth:annonces.length*220}}>
-                <thead>
-                  <tr>
-                    <th style={{textAlign:"left",padding:"10px 14px",borderBottom:"2px solid #f1f5f9",color:"#94a3b8",fontSize:12,fontWeight:700,width:110}}>Critère</th>
-                    {annonces.map(a => (
-                      <th key={a.id} style={{padding:"10px 14px",borderBottom:"2px solid #f1f5f9",minWidth:200,verticalAlign:"top"}}>
-                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:6,marginBottom:6}}>
-                          <Link to={`/carte?annonce=${a.id}`} onClick={onClose}
-                            style={{fontWeight:700,color:"#0f172a",fontSize:13,textDecoration:"none",lineHeight:1.3}}>
-                            {a.titre||`Annonce #${a.id}`}
-                          </Link>
-                          <button onClick={()=>removeOne(a.id)} style={{background:"#fee2e2",border:"none",borderRadius:6,padding:4,cursor:"pointer",color:"#dc2626",flexShrink:0}}>
-                            <X size={12}/>
-                          </button>
-                        </div>
-                        {(a.image_principale||a.image) && (
-                          <img src={(a.image_principale||a.image).startsWith("http")?(a.image_principale||a.image):`${API_URL}${a.image_principale||a.image}`}
-                            alt="" style={{width:"100%",height:100,objectFit:"cover",borderRadius:8}}/>
-                        )}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {ROWS.map((row, i) => (
-                    <tr key={row.key} style={{background: i%2===0?"#f8fafc":"#fff"}}>
-                      <td style={{padding:"9px 14px",fontSize:12,fontWeight:700,color:"#64748b",whiteSpace:"nowrap"}}>{row.label}</td>
-                      {annonces.map(a => {
-                        const v = val(a, row.key);
-                        return <td key={a.id} style={{padding:"9px 14px",fontSize:13,color: v==="—"?"#cbd5e1":"#0f172a",fontWeight: v==="—"?400:600,textAlign:"center"}}>{v}</td>;
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
-}
+/* Le comparateur complet est désormais un composant partagé (voir
+   components/ComparateurPopup.jsx), monté une seule fois globalement
+   dans App.jsx — plus de définition locale ici pour éviter la duplication. */
 
 export default function CartePage() {
   const navigate                   = useNavigate();
@@ -2895,7 +2673,6 @@ export default function CartePage() {
   const sortBtnRef = useRef(null);
   const compareCount = useCompareCount();
   const [showCompareMenu, setShowCompareMenu] = useState(false);
-  const [showComparePop,  setShowComparePop]  = useState(false);
   const compareBtnRef = useRef(null);
   const [listPage,         setListPage]         = useState(1);
   const [listLoading,      setListLoading]      = useState(false);
@@ -3424,8 +3201,8 @@ export default function CartePage() {
           <CompareBar />
         </div>
 
-        {/* Icône comparateur — mobile only, dès 2 annonces */}
-        {compareCount >= 2 && (
+        {/* Icône comparateur — mobile only, dès 1 annonce */}
+        {compareCount >= 1 && (
           <div className="cp-filtersum cp-compare-mob" style={{position:"relative"}}>
             <button
               ref={compareBtnRef}
@@ -3445,7 +3222,7 @@ export default function CartePage() {
                   background:"#fff", border:"1.5px solid #e2e8f0", borderRadius:12,
                   boxShadow:"0 8px 28px rgba(0,0,0,.14)", padding:"6px 0", minWidth:200,
                 }}>
-                  <button onClick={()=>{ setShowComparePop(true); setShowCompareMenu(false); }}
+                  <button onClick={()=>{ openComparateurPopup(); setShowCompareMenu(false); }}
                     style={{display:"flex",alignItems:"center",gap:8,width:"100%",padding:"10px 14px",border:"none",background:"transparent",color:"#374151",fontSize:13,fontWeight:600,cursor:"pointer"}}>
                     <GitCompare size={14} color="#6366f1"/> Voir le comparateur
                   </button>
@@ -3968,8 +3745,7 @@ export default function CartePage() {
       {/* -- Modal annonce -- */}
       {modalId && <AnnonceDetailModal annonceId={modalId} onClose={() => setModalId(null)} />}
 
-      {/* -- Popup comparateur inline -- */}
-      {showComparePop && <ComparateurPopup onClose={() => setShowComparePop(false)} />}
+      {/* Le comparateur est désormais une popup globale montée dans App.jsx */}
 
       {/* -- Popup : minimum 3 critères -- */}
       {showMinFiltersModal && ReactDOM.createPortal(

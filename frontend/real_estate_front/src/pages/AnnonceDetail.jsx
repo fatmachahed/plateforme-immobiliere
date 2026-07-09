@@ -2,9 +2,7 @@
 import ReactDOM from "react-dom";
 import API_URL, { fmtDevise, fmtPriceApprox } from '../config';
 import {
-  getCompareIds, useIsInCompare, useCompareMeta, useCompareShowPopup,
-  toggleCompare as toggleCompareStore, removeFromCompare as removeFromCompareStore,
-  clearCompare as clearCompareStore,
+  useIsInCompare, toggleCompare as toggleCompareStore,
 } from "../utils/compareStore";
 
 function fmtM2(prix, area) {
@@ -274,7 +272,6 @@ export default function AnnonceDetail() {
   const [showWhatsapp, setShowWhatsapp] = useState(false);
   const [isFavori,   setIsFavori]   = useState(false);
   const [favLoading, setFavLoading] = useState(false);
-  const [comparePopup, setComparePopup] = useState(false);
   const [nearby,    setNearby]    = useState([]);
   const [translated, setTranslated] = useState("");
   const [translating, setTranslating] = useState(false);
@@ -361,8 +358,6 @@ export default function AnnonceDetail() {
 
   /* Comparateur : état centralisé (utils/compareStore.js), partagé avec toutes les interfaces */
   const isInCompare  = useIsInCompare(id);
-  const compareItems = useCompareMeta();
-  useCompareShowPopup(() => setComparePopup(true));
 
   /* Check if already saved */
   useEffect(() => {
@@ -460,79 +455,9 @@ export default function AnnonceDetail() {
     <div className="ad-root">
       <Navbar />
 
-      {/* -- Comparateur popup -- */}
-      {comparePopup && (
-        <div style={{
-          position:"fixed", inset:0, zIndex:9999,
-          background:"rgba(15,23,42,.55)", backdropFilter:"blur(4px)",
-          display:"flex", alignItems:"center", justifyContent:"center", padding:24,
-        }} onClick={() => setComparePopup(false)}>
-          <div style={{
-            background:"#fff", borderRadius:20, padding:"28px 28px 0",
-            maxWidth:560, width:"100%", maxHeight:"85vh",
-            display:"flex", flexDirection:"column", boxShadow:"0 24px 64px rgba(0,0,0,.18)",
-          }} onClick={e => e.stopPropagation()}>
-            {/* Header */}
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20,flexShrink:0}}>
-              <div style={{display:"flex",alignItems:"center",gap:10}}>
-                <Logo variant="color" height={28} to={null} />
-                <div>
-                  <div style={{fontSize:17,fontWeight:800,color:"#0f172a"}}>Comparateur</div>
-                  <div style={{fontSize:12,color:"#94a3b8",marginTop:2}}>{compareItems.length} annonce{compareItems.length>1?"s":""} sélectionnée{compareItems.length>1?"s":""}</div>
-                </div>
-              </div>
-              <button onClick={() => setComparePopup(false)} style={{
-                background:"#f1f5f9", border:"none", cursor:"pointer", borderRadius:10,
-                width:34, height:34, display:"flex", alignItems:"center", justifyContent:"center",
-                fontSize:18, color:"#64748b", fontFamily:"inherit",
-              }}><X size={18} strokeWidth={2.5}/></button>
-            </div>
-            {/* List — scrollable */}
-            <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",gap:10,paddingBottom:4}}>
-              {compareItems.map(item => (
-                <div key={item.id} style={{
-                  display:"flex", alignItems:"center", gap:12,
-                  background:"#f8fafc", borderRadius:14, padding:"10px 12px",
-                  border:"1px solid #e2e8f0",
-                }}>
-                  {item.image ? (
-                    <img src={item.image} alt="" style={{width:64,height:52,objectFit:"cover",borderRadius:10,flexShrink:0}}/>
-                  ) : (
-                    <div style={{width:64,height:52,background:"#e2e8f0",borderRadius:10,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}><svg width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='#94a3b8' strokeWidth='1.8' strokeLinecap='round' strokeLinejoin='round'><path d='M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'/><polyline points='9 22 9 12 15 12 15 22'/></svg></div>
-                  )}
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:13,fontWeight:700,color:"#0f172a",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{item.titre}</div>
-                    <div style={{fontSize:12,color:"#64748b",marginTop:2}}>{item.gouvernorat}{item.delegation ? `, ${item.delegation}` : ""}</div>
-                    <div style={{fontSize:14,fontWeight:800,color:"#6366f1",marginTop:3}}>
-                      {Number(item.prix).toLocaleString("fr-TN")} <span style={{fontSize:11,fontWeight:500,color:"#94a3b8"}}>{fmtDevise(item.devise)}</span>
-                    </div>
-                  </div>
-                  <button onClick={() => {
-                    const remaining = removeFromCompareStore(item.id);
-                    if (remaining < 2) setComparePopup(false);
-                  }} style={{
-                    background:"#fee2e2", border:"none", cursor:"pointer", borderRadius:8,
-                    width:30, height:30, display:"flex", alignItems:"center", justifyContent:"center",
-                    color:"#ef4444", fontSize:16, flexShrink:0,
-                  }} title="Retirer"><X size={14} strokeWidth={2.5}/></button>
-                </div>
-              ))}
-            </div>
-            {/* Footer buttons */}
-            <div style={{display:"flex",gap:10,padding:"16px 0 24px",borderTop:"1px solid #f1f5f9",marginTop:4,flexShrink:0}}>
-              <button onClick={() => { clearCompareStore(); setComparePopup(false); }} style={{
-                flex:1, background:"#f1f5f9", color:"#64748b", border:"none", cursor:"pointer",
-                borderRadius:12, padding:"11px 16px", fontSize:13, fontWeight:700, fontFamily:"inherit",
-              }}>Vider</button>
-              <button onClick={() => { setComparePopup(false); const ids = getCompareIds(); navigate(`/comparateur${ids.length ? `?ids=${ids.join(",")}` : ""}`); }} style={{
-                flex:2, background:"linear-gradient(135deg,#6366f1,#8b5cf6)", color:"#fff", border:"none",
-                cursor:"pointer", borderRadius:12, padding:"11px 16px", fontSize:14, fontWeight:800,
-                fontFamily:"inherit", boxShadow:"0 4px 14px rgba(99,102,241,.3)",
-              }}>Aller au comparateur →</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Le comparateur (aperçu + tableau complet) est désormais une popup
+          globale unique, montée dans App.jsx — se déclenche automatiquement
+          dès 2 biens ajoutés, quelle que soit la page. */}
 
       {/* Top bar */}
       <div className="ad-topbar">

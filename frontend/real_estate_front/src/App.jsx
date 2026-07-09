@@ -1,8 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import { BrowserRouter as Router, Route, Routes, Navigate, useParams } from "react-router-dom";
 import "leaflet/dist/leaflet.css";
 import { ToastProvider } from "./components/Toast";
 import CookieBanner    from "./components/CookieBanner";
+import ComparateurPopup from "./components/ComparateurPopup";
+import { useCompareShowPopup } from "./utils/compareStore";
 import { LanguageProvider } from "./contexts/LanguageContext";
 
 /* Pages */
@@ -67,6 +69,13 @@ function VoirAnnonceAlert() {
 }
 
 function App() {
+  /* Comparateur : popup unique montée globalement, ouvrable depuis n'importe
+     quelle page (voir utils/compareStore.js — openComparateurPopup / le
+     déclenchement automatique dès 2 biens ajoutés). Jamais de navigation
+     vers une page séparée. */
+  const [showComparateur, setShowComparateur] = useState(false);
+  useCompareShowPopup(() => setShowComparateur(true));
+
   return (
     <LanguageProvider>
     <ToastProvider>
@@ -131,6 +140,7 @@ function App() {
         </Routes>
       </Router>
       <CookieBanner />
+      {showComparateur && <ComparateurPopup onClose={() => setShowComparateur(false)} />}
     </ToastProvider>
     </LanguageProvider>
   );
