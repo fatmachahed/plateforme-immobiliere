@@ -3305,6 +3305,7 @@ export default function CartePage() {
               title={sortField ? `Tri : ${sortField === "prix" ? "Prix" : "Surface"} ${sortDir === "asc" ? "croissant" : "décroissant"}` : "Trier"}
             >
               {!sortField && <ArrowUpDown size={14}/>}
+              {!sortField && <span className="cp-filtersum__label">Trier</span>}
               {sortField && sortDir === "asc"  && <ChevronUp size={14}/>}
               {sortField && sortDir === "desc" && <ChevronDown size={14}/>}
               {sortField && <span className="cp-filtersum__badge">1</span>}

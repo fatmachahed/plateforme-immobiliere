@@ -1564,7 +1564,7 @@ function BigMap({lat,lng}){
           const R=12, C={x:0,y:-28}; // centre de la tête, à 28px au-dessus de la pointe
           const phi=Math.acos(R/28)*180/Math.PI; // ~64.6°
           const outline=[[0,0]]; // pointe = position exacte du bien
-          const steps=28;
+          const steps=64; // beaucoup de segments pour un arc parfaitement lisse (rond, pas facetté)
           for(let i=0;i<=steps;i++){
             const a=(90-phi) - (i/steps)*(360-2*phi); // balaie le grand arc en passant par le haut
             const rad=a*Math.PI/180;
