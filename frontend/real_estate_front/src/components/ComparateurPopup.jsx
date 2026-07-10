@@ -279,9 +279,10 @@ function FullView({ onBack, onClose }) {
           <span style={{fontWeight:800,fontSize:16,color:"#0f172a",flex:1}}>Comparateur d'annonces</span>
           <span style={{fontSize:13,color:"#64748b",fontWeight:500}}>{annonces.length} bien{annonces.length!==1?"s":""}</span>
           <button onClick={onClose} style={{background:"#f1f5f9",border:"none",borderRadius:8,padding:"6px 10px",cursor:"pointer",display:"flex",alignItems:"center",gap:4,fontWeight:600,fontSize:13,color:"#475569"}}>
-            <X size={14}/> Fermer
+            <X size={14}/> <span className="cmp-close-txt">Fermer</span>
           </button>
         </div>
+        <style>{`@media (max-width:640px){.cmp-close-txt{display:none}}`}</style>
         {/* Corps — scrollable vertical + horizontal */}
         <div style={{flex:1,overflow:"auto",WebkitOverflowScrolling:"touch"}}>
           {loading ? (

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { AlertTriangle, X } from "lucide-react";
 import Logo from "./Logo";
@@ -14,11 +15,18 @@ export default function PublierAnnonceBtn({ children, className, style, as: Tag 
 
   return (
     <>
-      <Tag {...rest} className={className} style={style} onClick={handleClick} href="#" to="#">
+      <Tag
+        {...rest}
+        type={Tag === "button" ? "button" : undefined}
+        href={Tag === "a" ? "#" : undefined}
+        className={className}
+        style={style}
+        onClick={handleClick}
+      >
         {children}
       </Tag>
 
-      {open && (
+      {open && createPortal(
         <div
           onClick={() => setOpen(false)}
           style={{
@@ -92,7 +100,7 @@ export default function PublierAnnonceBtn({ children, className, style, as: Tag 
                 Annuler
               </button>
               <button
-                onClick={() => { setOpen(false); navigate("/creer_annonce"); }}
+                onClick={() => { setOpen(false); window.scrollTo({top:0,behavior:"instant"}); navigate("/creer_annonce"); }}
                 style={{
                   flex:1, padding:"10px 8px", borderRadius:10,
                   border:"none", background:"#0f172a", color:"#fff",
@@ -104,7 +112,8 @@ export default function PublierAnnonceBtn({ children, className, style, as: Tag 
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

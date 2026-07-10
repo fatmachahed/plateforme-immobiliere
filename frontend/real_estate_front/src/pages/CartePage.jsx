@@ -2565,9 +2565,17 @@ export default function CartePage() {
       .catch(() => {});
   }, [filters.govId]);
 
-  /* -- Sync URL params ? filters (navigation externe / retour navigateur) -- */
+  /* -- Sync URL params ? filters (navigation externe / retour navigateur) --
+     Ne s'applique que si l'URL contient réellement des filtres : sinon on
+     écraserait les filtres restaurés depuis sessionStorage (retour sur /carte
+     sans query string doit conserver les filtres de la session). */
   useEffect(() => {
-    setFilters({ ...INIT_F, ...readFiltersFromUrl(searchParams) });
+    const fromUrl = readFiltersFromUrl(searchParams);
+    const hasUrlFilters = Object.values(fromUrl).some(v =>
+      Array.isArray(v) ? v.length > 0 : v !== ""
+    );
+    if (!hasUrlFilters) return;
+    setFilters({ ...INIT_F, ...fromUrl });
     setListPage(1); // reset pagination on filter change
   }, [searchParams, readFiltersFromUrl]);
 

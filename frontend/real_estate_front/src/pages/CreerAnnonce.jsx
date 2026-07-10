@@ -1205,7 +1205,7 @@ export const CreateListingForm = ({ editId = null }) => {
       /* Pièces / chambres / SDB obligatoires pour les types qui affichent ces compteurs */
       if (formData.type_bien && !["terrain","garage_parking","immeuble","depot_stockage","batiment_industriel"].includes(formData.type_bien)) {
         if (!formData.nb_pieces    || formData.nb_pieces    < 1) errors.nb_pieces    = true;
-        if (!formData.nb_chambres  || formData.nb_chambres  < 1) errors.nb_chambres  = true;
+        if (formData.type_bien !== "local_commercial" && (!formData.nb_chambres || formData.nb_chambres < 1)) errors.nb_chambres = true;
         if (!formData.nb_salles_bain || formData.nb_salles_bain < 1) errors.nb_salles_bain = true;
       }
       /* Colocation : au moins 1 place disponible */
@@ -1743,7 +1743,7 @@ export const CreateListingForm = ({ editId = null }) => {
       const manquants = [];
       if (!formData.superficie)                                  manquants.push("la superficie");
       if (formData.type_bien !== "terrain" && !(formData.nb_pieces > 0))    manquants.push("le nombre de pièces");
-      if (formData.type_bien !== "terrain" && !(formData.nb_chambres > 0))  manquants.push("le nombre de chambres");
+      if (!["terrain","local_commercial"].includes(formData.type_bien) && !(formData.nb_chambres > 0))  manquants.push("le nombre de chambres");
       if (!formData.etat_bien && formData.type_bien !== "terrain") manquants.push("l'état du bien");
       if (!locStr)                                               manquants.push("la localisation (gouvernorat / délégation)");
       if (!formData.prix)                                        manquants.push("le prix");
@@ -2306,7 +2306,7 @@ export const CreateListingForm = ({ editId = null }) => {
                           ].map(c => (
                             <div key={c.field} className={`ca-counter${validationErrors[c.field] ? " ca-counter--err" : ""}`}>
                               <span className="ca-counter__label" style={validationErrors[c.field] ? {color:"#ef4444"} : {}}>
-                                {c.label} <span style={{color:"#ef4444",fontWeight:700}}>*</span>
+                                {c.label} {!(c.field==="nb_chambres" && formData.type_bien==="local_commercial") && <span style={{color:"#ef4444",fontWeight:700}}>*</span>}
                               </span>
                               <div className="ca-counter__ctrl">
                                 <button type="button" className="ca-counter__btn" onClick={() => decrementValue(c.field)}><Minus size={14}/></button>
