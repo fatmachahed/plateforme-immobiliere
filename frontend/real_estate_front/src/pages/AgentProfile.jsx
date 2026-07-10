@@ -20,6 +20,40 @@ function fmtFull(n) {
   return Number(n).toLocaleString("fr-TN");
 }
 
+/* ─── Évaluation prix — même logique que CartePage.jsx (barre de 5 segments) ─── */
+const EVAL_LEVELS = [
+  { key:"none",  label:"Aucune évaluation", segs:0, color:"#d1d5db" },
+  { key:"high3", label:"Prix très élevé",   segs:1, color:"#dc2626" },
+  { key:"high2", label:"Prix élevé",        segs:2, color:"#f59e0b" },
+  { key:"fair",  label:"Prix équitable",    segs:3, color:"#3b82f6" },
+  { key:"good",  label:"Bon prix",          segs:4, color:"#16a34a" },
+  { key:"great", label:"Très bon prix",     segs:5, color:"#15803d" },
+];
+function getEvalLevel(prixM2, govAvg, count) {
+  if (!count || !govAvg || !prixM2 || govAvg <= 0) return EVAL_LEVELS[0];
+  const r = prixM2 / govAvg;
+  if (r >= 1.30) return EVAL_LEVELS[1];
+  if (r >= 1.10) return EVAL_LEVELS[2];
+  if (r >= 0.90) return EVAL_LEVELS[3];
+  if (r >= 0.70) return EVAL_LEVELS[4];
+  return EVAL_LEVELS[5];
+}
+function PriceEvalBar({ prixM2, govStats }) {
+  const gs = govStats || null;
+  const ev = getEvalLevel(prixM2, gs?.avg_prix_m2, gs?.count);
+  const isNone = ev.key === "none";
+  return (
+    <div className="peb">
+      <span className="peb__label" style={{ color: isNone ? "#9ca3af" : ev.color }}>{ev.label}</span>
+      <div className="peb__bar">
+        {Array.from({ length: 5 }, (_, i) => (
+          <span key={i} className="peb__seg" style={{ background: i < ev.segs ? ev.color : "#e2e8f0" }}/>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Carousel identique à CartePage ─── */
 const arrowBtn = (s) => ({
   position:"absolute", top:"50%", transform:"translateY(-50%)", [s]:8,
@@ -85,7 +119,7 @@ function Carousel({ images, h = 190 }) {
 }
 
 /* ─── Carte annonce — même style que PropCard de CartePage ─── */
-function PropCard({ a }) {
+function PropCard({ a, govMarketStats }) {
   const realId = String(a.id);
   const images = a.image ? [resolveUrl(a.image)] : ["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400&q=75"];
   const cat    = a.categorie || "vente";
@@ -161,13 +195,11 @@ function PropCard({ a }) {
             <Heart size={14} fill={isFav ? "#ef4444" : "none"}/>
           </button>
         </div>
-        {/* Évaluation prix — "Aucune évaluation" si pas de données */}
-        <div className="peb">
-          <span className="peb__label" style={{ color:"#9ca3af" }}>Aucune évaluation</span>
-          <div className="peb__bar">
-            {Array.from({length:5}).map((_,i) => <span key={i} className="peb__seg" style={{background:"#e2e8f0"}}/>)}
-          </div>
-        </div>
+        {/* Évaluation prix — même logique que la carte principale */}
+        <PriceEvalBar
+          prixM2={(a.prix > 0 && a.superficie > 0) ? a.prix / a.superficie : null}
+          govStats={govMarketStats?.[a.gouvernorat] || null}
+        />
         <p className="pc__loc"><MapPin size={10}/> {[a.delegation, a.gouvernorat].filter(Boolean).join(" · ")}</p>
         <div className="pc__specs">
           {a.nb_pieces   != null && <span><Building2 size={11}/> {a.nb_pieces} p.</span>}
@@ -204,6 +236,7 @@ export default function AgentProfile() {
   const navigate    = useNavigate();
   const isPromoteur = location.pathname.startsWith("/promoteur/");
   const [agent, setAgent]     = useState(null);
+  const [govMarketStats, setGovMarketStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [showContact, setShowContact] = useState(false);
   const [cSending, setCSending] = useState(false);
@@ -229,6 +262,13 @@ export default function AgentProfile() {
       if (res.ok) setCSent(true);
     } catch { /* silencieux */ } finally { setCSending(false); }
   };
+
+  useEffect(() => {
+    fetch(`${API_URL}/annonces/market-stats`)
+      .then(r => r.ok ? r.json() : {})
+      .then(setGovMarketStats)
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch(`${API_URL}/users/${id}/public-profile`)
@@ -497,7 +537,7 @@ export default function AgentProfile() {
           </div>
         ) : (
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))", gap:20, marginBottom:60 }}>
-            {agent.annonces.map(a => <PropCard key={a.id} a={a}/>)}
+            {agent.annonces.map(a => <PropCard key={a.id} a={a} govMarketStats={govMarketStats}/>)}
           </div>
         )}
       </div>

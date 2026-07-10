@@ -15,6 +15,31 @@ router = APIRouter(
 get_db = database.get_db
 
 # ===============================
+# STATS MARCHÉ (prix moyen/m² par gouvernorat, vente uniquement)
+# ===============================
+@router.get("/market-stats")
+def get_market_stats(db: Session = Depends(get_db)):
+    """Prix moyen au m² par gouvernorat (annonces de vente approuvées), pour la barre d'évaluation prix."""
+    from sqlalchemy import func
+    rows = (
+        db.query(
+            models.Gouvernorat.nom.label("gouvernorat"),
+            func.avg(models.Annonce.prix / models.Annonce.superficie).label("avg_prix_m2"),
+            func.count(models.Annonce.id).label("count"),
+        )
+        .join(models.Gouvernorat, models.Gouvernorat.id == models.Annonce.gouvernorat_id)
+        .filter(
+            models.Annonce.status == "approuvee",
+            models.Annonce.categorie == "vente",
+            models.Annonce.prix > 0,
+            models.Annonce.superficie > 0,
+        )
+        .group_by(models.Gouvernorat.nom)
+        .all()
+    )
+    return {r.gouvernorat: {"avg_prix_m2": float(r.avg_prix_m2), "count": r.count} for r in rows}
+
+# ===============================
 # HISTORIQUE ADRESSES (utilisateur connecté)
 # ===============================
 @router.get("/my-addresses")
