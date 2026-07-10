@@ -1562,10 +1562,6 @@ function BigMap({lat,lng}){
       function drawPin(){
         pinLayers.forEach(l=>{try{l.remove();}catch{}});
         pinLayers=[];
-        // Filet de sécurité : un point plein garanti visible, dessiné en premier,
-        // directement à la position exacte. Si la forme goutte ci-dessous échoue
-        // pour une raison quelconque, ce point reste affiché.
-        pinLayers.push(L.circleMarker([lat,lng],{radius:9,color:"#fff",weight:3,fillColor:"#6366f1",fillOpacity:1,interactive:false}).addTo(map));
         try{
           const tip=map.latLngToContainerPoint([lat,lng]);
           const px2ll=(dx,dy)=>map.containerPointToLatLng([tip.x+dx,tip.y+dy]);
@@ -1581,7 +1577,10 @@ function BigMap({lat,lng}){
           pinLayers.push(L.polygon(latlngs,{stroke:false,fillColor:"#6366f1",fillOpacity:1,interactive:false}).addTo(map));
           pinLayers.push(L.circleMarker(px2ll(C.x,C.y),{radius:R,color:"#fff",weight:2,fillColor:"#6366f1",fillOpacity:1,interactive:false}).addTo(map));
           pinLayers.push(L.circleMarker(px2ll(C.x,C.y),{radius:5,weight:0,fillColor:"#fff",fillOpacity:1,interactive:false}).addTo(map));
-        }catch{ /* le filet de sécurité ci-dessus reste affiché */ }
+        }catch{
+          // Filet de sécurité : uniquement si la forme goutte ci-dessus échoue.
+          pinLayers.push(L.circleMarker([lat,lng],{radius:9,color:"#fff",weight:3,fillColor:"#6366f1",fillOpacity:1,interactive:false}).addTo(map));
+        }
       }
       drawPin();
       setTimeout(()=>{
