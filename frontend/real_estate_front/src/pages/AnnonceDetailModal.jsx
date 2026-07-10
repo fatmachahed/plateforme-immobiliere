@@ -1573,8 +1573,8 @@ function BigMap({lat,lng}){
           const latlngs=[[0,0],tan1,tan2].map(([dx,dy])=>px2ll(dx,dy));
           // Pointe : triangle plein, sans bordure, dessiné d'abord (sous la tête).
           pinLayers.push(L.polygon(latlngs,{stroke:false,fillColor:"#6366f1",fillOpacity:1,interactive:false}).addTo(map));
-          // Tête : un seul vrai cercle SVG (toujours parfaitement rond), avec liseré blanc.
-          pinLayers.push(L.circleMarker(px2ll(C.x,C.y),{radius:R,color:"#fff",weight:2.5,fillColor:"#6366f1",fillOpacity:1,interactive:false}).addTo(map));
+          // Tête : un seul vrai cercle SVG (toujours parfaitement rond), sans bordure.
+          pinLayers.push(L.circleMarker(px2ll(C.x,C.y),{radius:R,stroke:false,fillColor:"#6366f1",fillOpacity:1,interactive:false}).addTo(map));
           pinLayers.push(L.circleMarker(px2ll(C.x,C.y),{radius:5,weight:0,fillColor:"#fff",fillOpacity:1,interactive:false}).addTo(map));
         }catch{
           // Filet de sécurité : uniquement si la forme goutte ci-dessus échoue.
