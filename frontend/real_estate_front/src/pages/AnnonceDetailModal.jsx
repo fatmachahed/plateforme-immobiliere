@@ -876,7 +876,6 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
                           <td style={{padding:"10px 14px",maxWidth:240}}>
                             <div style={{display:"flex",alignItems:"center",gap:6,minWidth:0}}>
                               <span style={{fontWeight:isActive?800:600,color:isActive?"#4f46e5":"#0f172a",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",flex:1,minWidth:0}}>{a.titre}</span>
-                              {isActive && <span style={{flexShrink:0,fontSize:10,fontWeight:700,background:"#6366f1",color:"#fff",padding:"2px 7px",borderRadius:4,whiteSpace:"nowrap"}}>En cours</span>}
                             </div>
                           </td>
                           <td className="adm-sp-col-hide" style={{padding:"10px 14px",color:"#475569",whiteSpace:"nowrap"}}>{typeFr[a.type_bien] || a.type_bien}</td>
@@ -889,9 +888,9 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
                           <td style={{padding:"10px 14px",fontWeight:700,color:"#0f172a",whiteSpace:"nowrap",fontSize:12}}>
                             {a.prix ? `${Number(a.prix).toLocaleString("fr-TN")} ${a.devise || "TND"}` : "—"}
                           </td>
-                          <td style={{padding:"10px 10px"}}>
+                          <td className="adm-sp-view-cell" style={{padding:"10px 10px",whiteSpace:"nowrap"}}>
                             {!isActive && (
-                              <span style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:12,fontWeight:700,color:"#6366f1",background:"#eef2ff",padding:"4px 10px",borderRadius:20}}>
+                              <span style={{display:"inline-flex",alignItems:"center",flexWrap:"nowrap",whiteSpace:"nowrap",gap:4,fontSize:12,fontWeight:700,color:"#6366f1",background:"#eef2ff",padding:"4px 10px",borderRadius:20}}>
                                 Voir <ChevronRight size={12}/>
                               </span>
                             )}
@@ -1447,6 +1446,8 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
             .adm-sp-img-cell { padding:4px 8px 4px 10px !important; }
             .adm-sp-img-cell img { width:68px !important; height:52px !important; min-width:68px !important; object-fit:cover !important; border-radius:8px !important; display:block !important; }
             .adm-sp-img-cell > div { width:68px !important; height:52px !important; min-width:68px !important; border-radius:8px !important; }
+            .adm-sp-view-cell { min-width:64px !important; white-space:nowrap !important; }
+            .adm-sp-view-cell span { white-space:nowrap !important; flex-shrink:0 !important; }
             /* Specs (Chambres / Sdb / m²) : format carré, texte réduit */
             .det-specs { gap:6px !important; }
             .det-spec { padding:8px 6px !important; border-radius:8px !important; margin-right:0 !important; aspect-ratio:1; display:flex; flex-direction:column; align-items:center; justify-content:center; }
@@ -1569,17 +1570,16 @@ function BigMap({lat,lng}){
           const tip=map.latLngToContainerPoint([lat,lng]);
           const px2ll=(dx,dy)=>map.containerPointToLatLng([tip.x+dx,tip.y+dy]);
           const R=12, C={x:0,y:-28}; // centre de la tête, à 28px au-dessus de la pointe
-          const phi=Math.acos(R/28)*180/Math.PI; // ~64.6°
-          const outline=[[0,0]]; // pointe = position exacte du bien
-          const steps=64; // beaucoup de segments pour un arc parfaitement lisse (rond, pas facetté)
-          for(let i=0;i<=steps;i++){
-            const a=(90-phi) - (i/steps)*(360-2*phi); // balaie le grand arc en passant par le haut
-            const rad=a*Math.PI/180;
-            outline.push([C.x+R*Math.cos(rad), C.y+R*Math.sin(rad)]);
-          }
-          outline.push([0,0]);
-          const latlngs=outline.map(([dx,dy])=>px2ll(dx,dy));
-          pinLayers.push(L.polygon(latlngs,{stroke:true,color:"#fff",weight:2,fillColor:"#6366f1",fillOpacity:1,interactive:false}).addTo(map));
+          const phi=Math.acos(R/28)*180/Math.PI; // ~64.6° — tangentes pointe → cercle
+          /* Pointe = petit triangle (2 points tangents + la pointe), tête = vrai cercle SVG
+             (toujours parfaitement rond, contrairement à un polygone qui l'approxime par
+             des segments et peut paraître facetté/hexagonal selon le zoom). */
+          const rad1=(90-phi)*Math.PI/180, rad2=(90+phi)*Math.PI/180;
+          const tan1=[C.x+R*Math.cos(rad1), C.y+R*Math.sin(rad1)];
+          const tan2=[C.x+R*Math.cos(rad2), C.y+R*Math.sin(rad2)];
+          const latlngs=[[0,0],tan1,tan2].map(([dx,dy])=>px2ll(dx,dy));
+          pinLayers.push(L.polygon(latlngs,{stroke:false,fillColor:"#6366f1",fillOpacity:1,interactive:false}).addTo(map));
+          pinLayers.push(L.circleMarker(px2ll(C.x,C.y),{radius:R,color:"#fff",weight:2,fillColor:"#6366f1",fillOpacity:1,interactive:false}).addTo(map));
           pinLayers.push(L.circleMarker(px2ll(C.x,C.y),{radius:5,weight:0,fillColor:"#fff",fillOpacity:1,interactive:false}).addTo(map));
         }catch{ /* le filet de sécurité ci-dessus reste affiché */ }
       }
