@@ -1553,40 +1553,27 @@ function BigMap({lat,lng}){
       mapRef.current=map;leafletRef.current=L;
       L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{attribution:"© OpenStreetMap © CARTO",maxZoom:19}).addTo(map);
 
-      /* Pin en forme de goutte (style Google Maps) dessiné en vecteur natif
-         Leaflet (polygone + cercle via le moteur SVG interne), et non en
-         divIcon/HTML : dans ce contexte précis, les icônes HTML personnalisées
-         ne s'affichaient pas de façon fiable, alors que les calques vectoriels
-         (utilisés ailleurs pour les zones de la carte) fonctionnent toujours. */
-      let pinLayers=[];
+      /* Pin unique en forme de goutte (style Google Maps), une seule icône
+         SVG propre positionnée exactement sur le bien — pointe alignée sur
+         [lat,lng] via un divIcon ancré en bas-centre. */
+      const pinIcon=L.divIcon({
+        className:"adm-map-pin",
+        html:`<svg width="34" height="46" viewBox="0 0 34 46" xmlns="http://www.w3.org/2000/svg">
+          <path d="M17 45C17 45 32 27.5 32 17C32 8.16 25.28 1 17 1C8.72 1 2 8.16 2 17C2 27.5 17 45 17 45Z" fill="#6366f1" stroke="#fff" stroke-width="2.5"/>
+          <circle cx="17" cy="17" r="7" fill="#fff"/>
+        </svg>`,
+        iconSize:[34,46], iconAnchor:[17,45],
+      });
+      let pinMarker=null;
       function drawPin(){
-        pinLayers.forEach(l=>{try{l.remove();}catch{}});
-        pinLayers=[];
-        try{
-          const tip=map.latLngToContainerPoint([lat,lng]);
-          const px2ll=(dx,dy)=>map.containerPointToLatLng([tip.x+dx,tip.y+dy]);
-          const R=12, C={x:0,y:-28}; // centre de la tête, à 28px au-dessus de la pointe
-          const phi=Math.acos(R/28)*180/Math.PI; // ~64.6° — tangentes pointe → cercle
-          /* Pointe = petit triangle (2 points tangents + la pointe), tête = vrai cercle SVG
-             (toujours parfaitement rond, contrairement à un polygone qui l'approxime par
-             des segments et peut paraître facetté/hexagonal selon le zoom). */
-          const rad1=(90-phi)*Math.PI/180, rad2=(90+phi)*Math.PI/180;
-          const tan1=[C.x+R*Math.cos(rad1), C.y+R*Math.sin(rad1)];
-          const tan2=[C.x+R*Math.cos(rad2), C.y+R*Math.sin(rad2)];
-          const latlngs=[[0,0],tan1,tan2].map(([dx,dy])=>px2ll(dx,dy));
-          pinLayers.push(L.polygon(latlngs,{stroke:false,fillColor:"#6366f1",fillOpacity:1,interactive:false}).addTo(map));
-          pinLayers.push(L.circleMarker(px2ll(C.x,C.y),{radius:R,color:"#fff",weight:2,fillColor:"#6366f1",fillOpacity:1,interactive:false}).addTo(map));
-          pinLayers.push(L.circleMarker(px2ll(C.x,C.y),{radius:5,weight:0,fillColor:"#fff",fillOpacity:1,interactive:false}).addTo(map));
-        }catch{
-          // Filet de sécurité : uniquement si la forme goutte ci-dessus échoue.
-          pinLayers.push(L.circleMarker([lat,lng],{radius:9,color:"#fff",weight:3,fillColor:"#6366f1",fillOpacity:1,interactive:false}).addTo(map));
-        }
+        if(pinMarker){try{pinMarker.remove();}catch{}}
+        pinMarker=L.marker([lat,lng],{icon:pinIcon,interactive:false}).addTo(map);
       }
       drawPin();
       setTimeout(()=>{
         map.invalidateSize();
         map.setView([lat,lng],15); // re-centre après le vrai calcul de taille du conteneur
-        drawPin(); // redessine avec la position pixel définitive
+        drawPin(); // redessine après le vrai calcul de taille du conteneur
         const b=map.getBounds();
         fetchPOIs(`${b.getSouth().toFixed(6)},${b.getWest().toFixed(6)},${b.getNorth().toFixed(6)},${b.getEast().toFixed(6)}`);
       },150);
