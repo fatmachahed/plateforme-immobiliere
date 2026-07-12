@@ -170,12 +170,14 @@ def health():
 # 5a. Sitemap XML dynamique — pages statiques + toutes les annonces approuvées,
 # indispensable pour que Google indexe les fiches (chaque annonce a désormais
 # sa propre page réelle sur /annonce/{id}, voir AnnonceDetail.jsx côté front).
+from fastapi import Depends as _Depends
 from fastapi.responses import Response as _XmlResponse
 from sqlalchemy.orm import Session as _Session
 from app.database import get_db as _get_db_sitemap
+from app import models as _models_sitemap
 
 @app.get("/sitemap.xml", tags=["SEO"])
-def sitemap(db: _Session = Depends(_get_db_sitemap)):
+def sitemap(db: _Session = _Depends(_get_db_sitemap)):
     base = "https://www.localizi.tn"
     static_paths = [
         "", "carte", "vendre", "trouver-un-agent", "trouver-un-promoteur",
@@ -183,9 +185,9 @@ def sitemap(db: _Session = Depends(_get_db_sitemap)):
         "contact", "abonnements",
     ]
     urls = [f"{base}/{p}" if p else base for p in static_paths]
-    annonces = db.query(models.Annonce.id, models.Annonce.date_mise_a_jour).filter(
-        models.Annonce.status == "approuvee",
-        models.Annonce.anonyme == False,
+    annonces = db.query(_models_sitemap.Annonce.id, _models_sitemap.Annonce.date_mise_a_jour).filter(
+        _models_sitemap.Annonce.status == "approuvee",
+        _models_sitemap.Annonce.anonyme == False,
     ).all()
     body = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
     for u in urls:
