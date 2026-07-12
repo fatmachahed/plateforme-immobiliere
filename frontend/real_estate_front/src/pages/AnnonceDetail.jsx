@@ -27,6 +27,7 @@ import {
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import Logo from "../components/Logo";
+import Seo from "../components/Seo";
 import { useToast } from "../components/Toast";
 import { useLanguage } from "../contexts/LanguageContext";
 
@@ -451,8 +452,32 @@ export default function AnnonceDetail() {
 
   const isOwner = userData && prop.utilisateur_id && userData.id === prop.utilisateur_id;
 
+  const seoTitle = `${prop.titre} – ${prop.location}${prop.prix ? ` – ${Number(prop.prix).toLocaleString("fr-TN")} ${prop.devise||"TND"}` : ""}`;
+  const seoDesc = (prop.description || "").slice(0, 155) ||
+    `${prop.type||"Bien"} ${prop.categorie? prop.categorie.toLowerCase():""} à ${prop.location}, ${prop.area?`${prop.area} m²`:""} sur Localizi.tn.`;
+
   return (
     <div className="ad-root">
+      <Seo
+        title={seoTitle}
+        description={seoDesc}
+        path={`/annonce/${prop.id}`}
+        image={images[0]}
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "Product",
+          name: prop.titre,
+          description: seoDesc,
+          image: images,
+          offers: {
+            "@type": "Offer",
+            price: prop.prix || undefined,
+            priceCurrency: prop.devise || "TND",
+            availability: "https://schema.org/InStock",
+          },
+          address: { "@type": "PostalAddress", addressLocality: prop.location, addressCountry: "TN" },
+        }}
+      />
       <Navbar />
 
       {/* Le comparateur (aperçu + tableau complet) est désormais une popup

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { BrowserRouter as Router, Route, Routes, Navigate, useParams } from "react-router-dom";
+import { HelmetProvider } from "react-helmet-async";
 import "leaflet/dist/leaflet.css";
 import { ToastProvider } from "./components/Toast";
 import CookieBanner    from "./components/CookieBanner";
@@ -49,11 +50,6 @@ import TrouverUnPrestataire     from "./pages/TrouverUnPrestataire";
 import Geolocalisation          from "./pages/Geolocalisation";
 import NotFound                 from "./pages/NotFound";
 
-function AnnonceRedirect() {
-  const { id } = useParams();
-  return <Navigate to={`/carte?annonce=${id}`} replace />;
-}
-
 /* Lien email alerte : déconnecte silencieusement puis recharge la page carte en mode invité */
 function VoirAnnonceAlert() {
   const { id } = useParams();
@@ -76,6 +72,7 @@ function App() {
   useCompareShowPopup(() => setShowComparateur(true));
 
   return (
+    <HelmetProvider>
     <LanguageProvider>
     <ToastProvider>
       <Router>
@@ -88,7 +85,7 @@ function App() {
           {/* Recherche / annonces */}
           <Route path="/recherche_annonce"       element={<RechercheAnnonce />} />
           <Route path="/recherche_annonce_carte" element={<CartePage />} />
-          <Route path="/annonce/:id"             element={<AnnonceRedirect />} />
+          <Route path="/annonce/:id"             element={<AnnonceDetail />} />
           <Route path="/voir-annonce/:id"        element={<VoirAnnonceAlert />} />
           <Route path="/creer_annonce"           element={<CreerAnnonce />} />
           <Route path="/modifier_annonce/:id"    element={<EditAnnonce />} />
@@ -143,6 +140,7 @@ function App() {
       <CookieBanner />
     </ToastProvider>
     </LanguageProvider>
+    </HelmetProvider>
   );
 }
 

@@ -14,6 +14,7 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import AnnonceModal from "../components/AnnonceModal";
 import PublierAnnonceBtn from "../components/PublierAnnonceBtn";
+import Seo from "../components/Seo";
 
 /* ── Static demo data (remplace par API calls) ── */
 const RECENT_PROPS = [
@@ -575,6 +576,11 @@ export default function HomePage() {
 
   return (
     <div className="hp">
+      <Seo
+        title="Immobilier en Tunisie – Achat, Location, Vacances"
+        description="Localizi.tn : trouvez et publiez des appartements, villas, terrains et locaux commerciaux à vendre ou à louer partout en Tunisie. Recherche par carte, gouvernorat et quartier."
+        path="/"
+      />
       <Navbar />
 
       {/* ── HERO ── */}

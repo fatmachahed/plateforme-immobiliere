@@ -20,6 +20,7 @@ import {
   Layers, GitCompare, ChevronUp
 } from "lucide-react";
 import Navbar from "../components/Navbar";
+import Seo from "../components/Seo";
 import Logo from "../components/Logo";
 import useLocalisation from "../hooks/useLocalisation";
 import { getDelegations } from "../api/localisation.api";
@@ -3147,8 +3148,17 @@ export default function CartePage() {
   const visSurfaceCount  = _liveSurfaces.length  > 0 ? _liveSurfaces.filter(_inBounds).length  : _staticSurfaces.length;
   const visHospitalCount = _liveHosp.length      > 0 ? _liveHosp.filter(_inBounds).length      : _staticHosp.length;
 
+  const seoParts = [
+    filters.type ? (TYPE_LBL[filters.type] || ucFirst(filters.type)) : "Annonces immobilières",
+    filters.categorie === "location" ? "à louer" : filters.categorie === "vacances" ? "vacances" : filters.type ? "à vendre" : null,
+    filters.delNom || filters.govNom ? `à ${filters.delNom || filters.govNom}` : "en Tunisie",
+  ].filter(Boolean);
+  const seoTitle = seoParts.join(" ");
+  const seoDesc = `Consultez les ${seoTitle.toLowerCase()} sur la carte interactive de Localizi.tn : filtres par prix, superficie, quartier et gouvernorat.`;
+
   return (
     <div className={`cp-root${listMode ? "" : " cp-root--carte"}`}>
+      <Seo title={seoTitle} description={seoDesc} path="/carte" />
       <Navbar />
 
       <div

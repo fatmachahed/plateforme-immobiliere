@@ -167,6 +167,39 @@ app.include_router(auth_google.router, tags=["Auth"])
 def health():
     return {"status": "ok"}
 
+# 5a. Sitemap XML dynamique — pages statiques + toutes les annonces approuvées,
+# indispensable pour que Google indexe les fiches (chaque annonce a désormais
+# sa propre page réelle sur /annonce/{id}, voir AnnonceDetail.jsx côté front).
+from fastapi.responses import Response as _XmlResponse
+from sqlalchemy.orm import Session as _Session
+from app.database import get_db as _get_db_sitemap
+
+@app.get("/sitemap.xml", tags=["SEO"])
+def sitemap(db: _Session = Depends(_get_db_sitemap)):
+    base = "https://www.localizi.tn"
+    static_paths = [
+        "", "carte", "vendre", "trouver-un-agent", "trouver-un-promoteur",
+        "trouver-un-prestataire", "comment-ca-marche", "apropos", "faq",
+        "contact", "abonnements",
+    ]
+    urls = [f"{base}/{p}" if p else base for p in static_paths]
+    annonces = db.query(models.Annonce.id, models.Annonce.date_mise_a_jour).filter(
+        models.Annonce.status == "approuvee",
+        models.Annonce.anonyme == False,
+    ).all()
+    body = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    for u in urls:
+        body.append(f"<url><loc>{u}</loc><changefreq>weekly</changefreq></url>")
+    for a_id, updated in annonces:
+        lastmod = updated.strftime("%Y-%m-%d") if updated else ""
+        body.append(
+            f"<url><loc>{base}/annonce/{a_id}</loc>"
+            + (f"<lastmod>{lastmod}</lastmod>" if lastmod else "")
+            + "<changefreq>daily</changefreq></url>"
+        )
+    body.append("</urlset>")
+    return _XmlResponse(content="".join(body), media_type="application/xml")
+
 # 6. Route formulaire de contact (POST /contact)
 from fastapi import Depends
 from sqlalchemy.orm import Session
