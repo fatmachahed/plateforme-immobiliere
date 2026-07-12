@@ -4,6 +4,7 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import API_URL, { fmtDevise } from "../config";
 import { useIsInCompare, toggleCompare as toggleCompareStore } from "../utils/compareStore";
+import { getEvalLevel, statsKey } from "../utils/priceEval";
 import {
   MapPin, Phone, Mail, Building2, Bed, Bath, Maximize,
   ArrowLeft, Heart, ChevronLeft, ChevronRight, Users, Car, Moon, Star,
@@ -20,32 +21,8 @@ function fmtFull(n) {
   return Number(n).toLocaleString("fr-TN");
 }
 
-/* ─── Évaluation prix — même logique que CartePage.jsx (barre de 5 segments) ─── */
-const EVAL_LEVELS = [
-  { key:"none",  label:"Aucune évaluation", segs:0, color:"#d1d5db" },
-  { key:"high3", label:"Prix très élevé",   segs:1, color:"#dc2626" },
-  { key:"high2", label:"Prix élevé",        segs:2, color:"#f59e0b" },
-  { key:"fair",  label:"Prix équitable",    segs:3, color:"#3b82f6" },
-  { key:"good",  label:"Bon prix",          segs:4, color:"#16a34a" },
-  { key:"great", label:"Très bon prix",     segs:5, color:"#15803d" },
-];
-const EVAL_MIN_SAMPLE = 3; // en dessous, la moyenne n'est pas assez fiable
-function getEvalLevel(prixM2, govAvg, count) {
-  if (!count || count < EVAL_MIN_SAMPLE || !govAvg || !prixM2 || govAvg <= 0) return EVAL_LEVELS[0];
-  const r = prixM2 / govAvg;
-  if (r >= 1.30) return EVAL_LEVELS[1];
-  if (r >= 1.10) return EVAL_LEVELS[2];
-  if (r >= 0.90) return EVAL_LEVELS[3];
-  if (r >= 0.70) return EVAL_LEVELS[4];
-  return EVAL_LEVELS[5];
-}
-/* Doit rester cohérente avec la clé retournée par GET /annonces/market-stats
-   (backend) : gouvernorat + catégorie + (durée pour les vacances | état neuf/ancien). */
-function statsKey(a) {
-  const etatGroup = (a.etat_bien === "nouveau" || a.etat_bien === "cours_construction") ? "neuf" : "ancien";
-  if (a.categorie === "vacances") return `${a.gouvernorat}|vacances|${a.duree_type || "nuit"}`;
-  return `${a.gouvernorat}|${a.categorie}|${etatGroup}`;
-}
+/* ─── Évaluation prix — logique partagée dans utils/priceEval.js
+   (cohérente avec CartePage.jsx et CreerAnnonce.jsx) ─── */
 function PriceEvalBar({ prixM2, govStats }) {
   const gs = govStats || null;
   const ev = getEvalLevel(prixM2, gs?.avg_prix_m2, gs?.count);

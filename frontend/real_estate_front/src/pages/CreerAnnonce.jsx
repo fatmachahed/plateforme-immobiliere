@@ -19,6 +19,7 @@ import Logo from "../components/Logo";
 import AIDescriptionModal from '../components/AIDescriptionModal';
 import useLocalisation from "../hooks/useLocalisation";
 import { useToast } from "../components/Toast";
+import { getEvalLevel, buildMarketStats, statsKey } from "../utils/priceEval";
 import "leaflet/dist/leaflet.css";
 
 /* ── Normalisation légère (correspondance GADM ↔ API) ── */
@@ -380,31 +381,16 @@ const STEPS = [
   { id: 5, label: "Prévisualisation",        icon: Eye },
 ];
 
-/* -- Barre évaluation prix ----------------------------------- */
-const CA_EVAL_LEVELS = [
-  { key:"none",  label:"Aucune évaluation", segs:0, color:"#d1d5db" },
-  { key:"high3", label:"Prix très élevé",   segs:1, color:"#dc2626" },
-  { key:"high2", label:"Prix élevé",        segs:2, color:"#f59e0b" },
-  { key:"fair",  label:"Prix équitable",    segs:3, color:"#3b82f6" },
-  { key:"good",  label:"Bon prix",          segs:4, color:"#16a34a" },
-  { key:"great", label:"Très bon prix",     segs:5, color:"#15803d" },
-];
+/* -- Barre évaluation prix -----------------------------------
+   Logique (segmentation catégorie/durée/état + seuil d'échantillon)
+   centralisée dans utils/priceEval.js, partagée avec CartePage.jsx et
+   AgentProfile.jsx. */
 const CA_EVAL_TOTAL = 5;
-
-function getCaEvalLevel(prixM2, govAvg, count) {
-  if (!count || !govAvg || !prixM2 || govAvg <= 0) return CA_EVAL_LEVELS[0];
-  const r = prixM2 / govAvg;
-  if (r >= 1.30) return CA_EVAL_LEVELS[1];
-  if (r >= 1.10) return CA_EVAL_LEVELS[2];
-  if (r >= 0.90) return CA_EVAL_LEVELS[3];
-  if (r >= 0.70) return CA_EVAL_LEVELS[4];
-  return CA_EVAL_LEVELS[5];
-}
 
 function CaPriceEvalBar({ prixM2, govStats, devise }) {
   const gs  = govStats || { sum: 0, count: 0 };
   const avg = gs.count > 0 ? gs.sum / gs.count : 0;
-  const ev  = getCaEvalLevel(prixM2, avg, gs.count);
+  const ev  = getEvalLevel(prixM2, avg, gs.count);
   const isNone = ev.key === "none";
 
   return (
@@ -842,21 +828,15 @@ export const CreateListingForm = ({ editId = null }) => {
     }
   }, [formData.categorie]);
 
-  /* -- Fetch stats prix/m² depuis les annonces publiques -- */
+  /* -- Fetch stats prix/m² depuis les annonces publiques --
+     Segmentées par gouvernorat + catégorie + durée(vacances)/état, voir
+     utils/priceEval.js — cohérent avec CartePage.jsx et AgentProfile.jsx. */
   useEffect(() => {
     fetch(`${API_URL}/annonces/public?limit=500`)
       .then(r => r.json())
       .then(data => {
         if (!Array.isArray(data)) return;
-        const stats = {};
-        data.forEach(a => {
-          if (!a.prix || !a.superficie || a.superficie <= 0 || !a.gouvernorat) return;
-          const k = a.gouvernorat;
-          if (!stats[k]) stats[k] = { sum: 0, count: 0 };
-          stats[k].sum   += a.prix / a.superficie;
-          stats[k].count += 1;
-        });
-        setMarketStats(stats);
+        setMarketStats(buildMarketStats(data));
       })
       .catch(() => {});
   }, []);
@@ -3303,7 +3283,13 @@ export const CreateListingForm = ({ editId = null }) => {
                         const prixM2n  = (prixNum > 0 && surfNum > 0) ? prixNum / surfNum : null;
                         const govLabel = gouvernorats.find(g => g.value === hierarchy.gouvernorat)?.label || "";
                         if (!govLabel || !prixM2n) return null;
-                        const govStats = marketStats[govLabel] || { sum: 0, count: 0 };
+                        const key = statsKey({
+                          gouvernorat: govLabel,
+                          categorie:   formData.categorie,
+                          etat_bien:   formData.etat_bien,
+                          duree_type:  formData.duree_type,
+                        });
+                        const govStats = marketStats[key] || { sum: 0, count: 0 };
                         return (
                           <CaPriceEvalBar
                             prixM2={prixM2n}

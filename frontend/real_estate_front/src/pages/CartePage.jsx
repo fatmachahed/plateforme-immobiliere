@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Seo from "../components/Seo";
+import { getEvalLevel, statsKey, buildMarketStats } from "../utils/priceEval";
 import Logo from "../components/Logo";
 import useLocalisation from "../hooks/useLocalisation";
 import { getDelegations } from "../api/localisation.api";
@@ -360,39 +361,11 @@ const arrowBtn = (s) => ({
 });
 
 /* -------------------------------------------------------------
-   ÉVALUATION DU PRIX � barre de 5 segments colorés
+   ÉVALUATION DU PRIX — barre de 5 segments colorés
+   Logique partagée dans utils/priceEval.js (cohérente avec
+   AgentProfile.jsx et CreerAnnonce.jsx).
 ------------------------------------------------------------- */
-const EVAL_LEVELS = [
-  { key:"none",  label:"Aucune évaluation", segs:0, color:"#d1d5db" },
-  { key:"high3", label:"Prix très élevé",   segs:1, color:"#dc2626" },
-  { key:"high2", label:"Prix élevé",        segs:2, color:"#f59e0b" },
-  { key:"fair",  label:"Prix équitable",    segs:3, color:"#3b82f6" },
-  { key:"good",  label:"Bon prix",          segs:4, color:"#16a34a" },
-  { key:"great", label:"Très bon prix",     segs:5, color:"#15803d" },
-];
 const EVAL_TOTAL = 5;
-const EVAL_MIN_SAMPLE = 3; // en dessous, la moyenne n'est pas assez fiable (peut n'être que le bien lui-même)
-
-function getEvalLevel(prixM2, govAvg, count) {
-  if (!count || count < EVAL_MIN_SAMPLE || !govAvg || !prixM2 || govAvg <= 0) return EVAL_LEVELS[0];
-  const r = prixM2 / govAvg;
-  if (r >= 1.30) return EVAL_LEVELS[1];
-  if (r >= 1.10) return EVAL_LEVELS[2];
-  if (r >= 0.90) return EVAL_LEVELS[3];
-  if (r >= 0.70) return EVAL_LEVELS[4];
-  return EVAL_LEVELS[5];
-}
-
-/* Clé de segmentation des stats de marché : gouvernorat + catégorie
-   (vente/location/vacances — pas comparables entre elles) + durée de
-   location pour les vacances (nuitée/semaine/mois/an) + regroupement
-   état du bien (neuf/en construction vs bon état/à rénover) pour les
-   biens vendus ou loués. */
-function statsKey(p) {
-  const etatGroup = (p.etat === "nouveau" || p.etat === "cours_construction") ? "neuf" : "ancien";
-  if (p.categorie === "vacances") return `${p.gouvernorat}|vacances|${p.duree_type || "nuit"}`;
-  return `${p.gouvernorat}|${p.categorie}|${etatGroup}`;
-}
 
 function PriceEvalBar({ prixM2, govStats }) {
   const gs  = govStats || { sum: 0, count: 0 };
@@ -2976,17 +2949,7 @@ export default function CartePage() {
      pas à un neuf). Recalculé automatiquement à chaque changement des
      annonces chargées (allProperties), donc à jour en temps réel dès
      qu'une nouvelle annonce apparaît sur la carte. */
-  const govMarketStats = React.useMemo(() => {
-    const stats = {};
-    allProperties.forEach(p => {
-      if (!p.gouvernorat || !p.categorie || !p.prix || !p.area || p.area <= 0) return;
-      const key = statsKey(p);
-      if (!stats[key]) stats[key] = { sum: 0, count: 0 };
-      stats[key].sum   += p.prix / p.area;
-      stats[key].count += 1;
-    });
-    return stats;
-  }, [allProperties]);
+  const govMarketStats = React.useMemo(() => buildMarketStats(allProperties), [allProperties]);
 
   /* Filtrage complet (carte + liste) */
   const results = allProperties
