@@ -166,6 +166,8 @@ export default function AdminDashboard() {
   /* Agences state */
   const [agencies,      setAgencies]       = useState([]);
   const [agencySearch,  setAgencySearch]   = useState("");
+  const [agencyRefEditId, setAgencyRefEditId] = useState(null);
+  const [agencyRefText,   setAgencyRefText]   = useState("");
   const [agencyModal,   setAgencyModal]    = useState(false);
   /* Liste unifiée des professionnels (agences + inscrits) pour accompagnements */
   const [professionals, setProfessionals]  = useState([]);
@@ -413,6 +415,24 @@ export default function AdminDashboard() {
         toast(!active ? "Abonnement activé." : "Abonnement suspendu.");
       }
     } catch {}
+  }
+
+  async function saveAgencyReference(id, ref) {
+    try {
+      const res = await authFetch(`/admin/agencies/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ reference: ref }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAgencies(prev => prev.map(a => a.id === id ? { ...a, reference: data.reference } : a));
+        setAgencyRefEditId(null);
+        toast("Référence mise à jour.");
+      } else {
+        const err = await res.json().catch(()=>({}));
+        toast(err.detail || "Erreur lors de la mise à jour.", "error");
+      }
+    } catch { toast("Erreur réseau.", "error"); }
   }
 
   async function saveAgencyNote(id) {
@@ -1378,9 +1398,21 @@ export default function AdminDashboard() {
                               <span><Mail size={11}/> {ag.email}</span>
                               {ag.telephone && <span><Phone size={11}/> {ag.telephone}</span>}
                               {ag.matricule && <span>Mat. {ag.matricule}</span>}
-                              {ag.reference && (
-                                <span style={{fontWeight:600,color:"#6366f1",background:"#eef2ff",borderRadius:4,padding:"1px 6px",fontFamily:"monospace"}}>
-                                  #{ag.reference}
+                              {agencyRefEditId === ag.id ? (
+                                <span style={{display:"inline-flex",alignItems:"center",gap:4}} onClick={e=>e.stopPropagation()}>
+                                  <input autoFocus value={agencyRefText}
+                                    onChange={e=>setAgencyRefText(e.target.value.toUpperCase().slice(0,6))}
+                                    style={{width:64,fontSize:12,fontWeight:700,fontFamily:"monospace",border:"1.5px solid #6366f1",borderRadius:4,padding:"1px 5px",outline:"none"}}/>
+                                  <button onClick={()=>saveAgencyReference(ag.id, agencyRefText)}
+                                    style={{background:"#6366f1",border:"none",borderRadius:4,color:"#fff",cursor:"pointer",padding:"2px 5px"}}><Check size={11}/></button>
+                                  <button onClick={()=>setAgencyRefEditId(null)}
+                                    style={{background:"#f1f5f9",border:"none",borderRadius:4,color:"#64748b",cursor:"pointer",padding:"2px 5px"}}><X size={11}/></button>
+                                </span>
+                              ) : (
+                                <span style={{fontWeight:600,color:"#6366f1",background:"#eef2ff",borderRadius:4,padding:"1px 6px",fontFamily:"monospace",cursor:"pointer"}}
+                                  title="Modifier la référence"
+                                  onClick={e=>{e.stopPropagation();setAgencyRefEditId(ag.id);setAgencyRefText(ag.reference||"");}}>
+                                  #{ag.reference || "—"} <Edit3 size={10} style={{marginLeft:2,verticalAlign:"-1px"}}/>
                                 </span>
                               )}
                               {ag.created_at && (

@@ -9,12 +9,29 @@ from app import models, database
 from app.utils.auth import get_current_admin
 from app.enums import RoleEnum
 from app.email_utils import notify_saved_searches_for_annonce, send_email, LOGO_IMG_HTML
-import json as _json, os as _os
+import json as _json, os as _os, re as _re
 
 _pwd = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=10)
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 get_db = database.get_db
+
+
+def _make_agency_reference(db: Session, nom: str) -> str:
+    """Référence courte à 3 lettres (ex. AGC), dérivée du nom de l'agence.
+    Sert de préfixe pour la référence des annonces (AGC + numéro séquentiel,
+    ex. AGC01) — elle ne doit donc contenir aucun chiffre."""
+    letters = _re.sub(r"[^A-Za-z]", "", nom or "").upper()
+    base = (letters[:3] or "AGC").ljust(3, "X")
+    candidate = base
+    idx = 1
+    while db.query(models.Agency).filter(models.Agency.reference == candidate).first():
+        candidate = (base[:2] + chr(ord("A") + (idx - 1) % 26))
+        idx += 1
+        if idx > 26:
+            candidate = base  # cas extrême, laissé à corriger manuellement par l'admin
+            break
+    return candidate
 
 
 # ── Stats globales ──────────────────────────────────────────
@@ -305,6 +322,7 @@ class AgencyUpdate(BaseModel):
     note_admin: Optional[str] = None
     frais_mensuel: Optional[float] = None
     abonnement_expire_at: Optional[str] = None
+    reference: Optional[str] = None
 
 
 # ── GET /admin/agencies ─────────────────────────────────────
@@ -378,9 +396,9 @@ def create_agency(
     db.commit()
     db.refresh(agency)
 
-    # Générer la référence unique basée sur l'ID (courte : AGC + 2 chiffres,
-    # pour que la référence des annonces reste lisible, ex. AGC0101 au lieu de AGC000101)
-    agency.reference = f"AGC{str(agency.id).zfill(2)}"
+    # Référence courte à 3 lettres (ex. AGC), dérivée du nom — pas de chiffres,
+    # pour que la référence des annonces reste "AGC01" et non "AGC000101".
+    agency.reference = _make_agency_reference(db, agency.nom)
     db.commit()
     db.refresh(agency)
 
@@ -423,6 +441,14 @@ def update_agency(
             ag.abonnement_expire_at = datetime.fromisoformat(body.abonnement_expire_at)
         except Exception:
             pass
+    if body.reference is not None:
+        ref = _re.sub(r"[^A-Za-z]", "", body.reference).upper()
+        if not ref:
+            raise HTTPException(400, "La référence doit contenir au moins une lettre.")
+        existing = db.query(models.Agency).filter(models.Agency.reference == ref, models.Agency.id != agency_id).first()
+        if existing:
+            raise HTTPException(400, f"La référence '{ref}' est déjà utilisée par une autre agence.")
+        ag.reference = ref
     db.commit()
     db.refresh(ag)
     return {
@@ -430,6 +456,7 @@ def update_agency(
         "abonnement_actif": ag.abonnement_actif,
         "note_admin":       ag.note_admin,
         "frais_mensuel":    ag.frais_mensuel,
+        "reference":        ag.reference,
     }
 
 
