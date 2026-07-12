@@ -168,6 +168,8 @@ export default function AdminDashboard() {
   const [agencySearch,  setAgencySearch]   = useState("");
   const [agencyRefEditId, setAgencyRefEditId] = useState(null);
   const [agencyRefText,   setAgencyRefText]   = useState("");
+  const [annonceRefEditId, setAnnonceRefEditId] = useState(null);
+  const [annonceRefText,   setAnnonceRefText]   = useState("");
   const [agencyModal,   setAgencyModal]    = useState(false);
   /* Liste unifiée des professionnels (agences + inscrits) pour accompagnements */
   const [professionals, setProfessionals]  = useState([]);
@@ -427,6 +429,24 @@ export default function AdminDashboard() {
         const data = await res.json();
         setAgencies(prev => prev.map(a => a.id === id ? { ...a, reference: data.reference } : a));
         setAgencyRefEditId(null);
+        toast("Référence mise à jour.");
+      } else {
+        const err = await res.json().catch(()=>({}));
+        toast(err.detail || "Erreur lors de la mise à jour.", "error");
+      }
+    } catch { toast("Erreur réseau.", "error"); }
+  }
+
+  async function saveAnnonceReference(id, ref) {
+    try {
+      const res = await authFetch(`/admin/annonces/${id}/reference`, {
+        method: "PATCH",
+        body: JSON.stringify({ reference: ref }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAnnonces(prev => prev.map(a => a.id === id ? { ...a, reference: data.reference } : a));
+        setAnnonceRefEditId(null);
         toast("Référence mise à jour.");
       } else {
         const err = await res.json().catch(()=>({}));
@@ -790,9 +810,21 @@ export default function AdminDashboard() {
                           <td>
                             <p className="adm-table__title">{a.titre}</p>
                             <span className="adm-table__id">#{a.id}</span>
-                            {a.reference && (
-                              <span style={{marginLeft:6,fontSize:11,fontWeight:700,color:"#6366f1",background:"#eef2ff",borderRadius:4,padding:"1px 6px",fontFamily:"monospace"}}>
-                                {a.reference}
+                            {annonceRefEditId === a.id ? (
+                              <span style={{marginLeft:6,display:"inline-flex",alignItems:"center",gap:4}} onClick={e=>e.stopPropagation()}>
+                                <input autoFocus value={annonceRefText}
+                                  onChange={e=>setAnnonceRefText(e.target.value.toUpperCase().slice(0,12))}
+                                  style={{width:84,fontSize:11,fontWeight:700,fontFamily:"monospace",border:"1.5px solid #6366f1",borderRadius:4,padding:"1px 5px",outline:"none"}}/>
+                                <button onClick={()=>saveAnnonceReference(a.id, annonceRefText)}
+                                  style={{background:"#6366f1",border:"none",borderRadius:4,color:"#fff",cursor:"pointer",padding:"2px 5px"}}><Check size={10}/></button>
+                                <button onClick={()=>setAnnonceRefEditId(null)}
+                                  style={{background:"#f1f5f9",border:"none",borderRadius:4,color:"#64748b",cursor:"pointer",padding:"2px 5px"}}><X size={10}/></button>
+                              </span>
+                            ) : (
+                              <span style={{marginLeft:6,fontSize:11,fontWeight:700,color:"#6366f1",background:"#eef2ff",borderRadius:4,padding:"1px 6px",fontFamily:"monospace",cursor:"pointer"}}
+                                title="Modifier la référence"
+                                onClick={e=>{e.stopPropagation();setAnnonceRefEditId(a.id);setAnnonceRefText(a.reference||"");}}>
+                                {a.reference || "—"} <Edit3 size={9} style={{marginLeft:2,verticalAlign:"-1px"}}/>
                               </span>
                             )}
                           </td>

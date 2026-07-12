@@ -130,6 +130,32 @@ def list_annonces(
     return result
 
 
+# ── Corriger la référence d'une annonce ─────────────────────
+class AnnonceReferenceUpdate(BaseModel):
+    reference: str
+
+@router.patch("/annonces/{annonce_id}/reference")
+def update_annonce_reference(
+    annonce_id: int,
+    body: AnnonceReferenceUpdate,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_admin),
+):
+    a = db.query(models.Annonce).filter(models.Annonce.id == annonce_id).first()
+    if not a:
+        raise HTTPException(404, "Annonce non trouvée")
+    ref = _re.sub(r"[^A-Za-z0-9]", "", body.reference).upper()
+    if not ref:
+        raise HTTPException(400, "La référence ne peut pas être vide.")
+    conflict = db.query(models.Annonce).filter(models.Annonce.reference == ref, models.Annonce.id != annonce_id).first()
+    if conflict:
+        raise HTTPException(400, f"La référence '{ref}' est déjà utilisée par une autre annonce.")
+    a.reference = ref
+    db.commit()
+    db.refresh(a)
+    return {"id": a.id, "reference": a.reference}
+
+
 # ── Changer le statut d'une annonce ─────────────────────────
 class StatusUpdate(BaseModel):
     status:   str
