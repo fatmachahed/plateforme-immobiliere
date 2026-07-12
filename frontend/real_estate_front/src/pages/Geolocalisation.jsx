@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import Seo from "../components/Seo";
 import {
   MapPin, Eye, TrendingUp, Users, Star, Globe, ChevronDown, ChevronUp,
   CheckCircle, AlertCircle, ArrowRight, Search, Smartphone, Building2, ChevronRight
@@ -132,6 +133,20 @@ function FAQItem({ q, a }) {
 export default function Geolocalisation() {
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'Poppins',system-ui,sans-serif" }}>
+      <Seo
+        title="Immobilier géolocalisé en Tunisie : pourquoi ça change tout"
+        description="Une annonce immobilière géolocalisée génère 5 fois plus de contacts qu'une annonce classique. Découvrez pourquoi la géolocalisation est incontournable pour vendre ou louer en Tunisie, et comment Localizi.tn l'utilise."
+        path="/faq/geolocalisation-immobilier"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: FAQS.map(f => ({
+            "@type": "Question",
+            name: f.q,
+            acceptedAnswer: { "@type": "Answer", text: f.a },
+          })),
+        }}
+      />
       <Navbar />
 
       {/* Ajustements mobile uniquement — le desktop conserve ses styles inline */}

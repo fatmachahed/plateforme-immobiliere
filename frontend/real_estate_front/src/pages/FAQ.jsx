@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import Seo from "../components/Seo";
 import { ChevronDown, ChevronUp, HelpCircle, MapPin, ArrowRight } from "lucide-react";
 
 const FAQS = [
@@ -175,6 +176,20 @@ function FAQItem({ q, a }) {
 export default function FAQ() {
   return (
     <div style={{minHeight:"100vh", background:"#f8fafc", fontFamily:"'Poppins',system-ui,sans-serif"}}>
+      <Seo
+        title="FAQ — Questions fréquentes sur l'immobilier en Tunisie"
+        description="Toutes les réponses sur Localizi.tn : créer un compte, publier une annonce, rechercher un bien immobilier par carte, alertes, agences et promoteurs en Tunisie."
+        path="/faq"
+        jsonLd={{
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: FAQS.flatMap(g => g.items).map(f => ({
+            "@type": "Question",
+            name: f.q,
+            acceptedAnswer: { "@type": "Answer", text: f.a },
+          })),
+        }}
+      />
       <Navbar />
 
       {/* Hero */}
