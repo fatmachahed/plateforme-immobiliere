@@ -15,29 +15,47 @@ router = APIRouter(
 get_db = database.get_db
 
 # ===============================
-# STATS MARCHÉ (prix moyen/m² par gouvernorat, vente uniquement)
+# STATS MARCHÉ (prix moyen/m² par gouvernorat), pour la barre d'évaluation prix
 # ===============================
 @router.get("/market-stats")
 def get_market_stats(db: Session = Depends(get_db)):
-    """Prix moyen au m² par gouvernorat (annonces de vente approuvées), pour la barre d'évaluation prix."""
-    from sqlalchemy import func
+    """Prix moyen au m² par gouvernorat, SEGMENTÉ par catégorie (vente/location/
+    vacances — un loyer ne se compare pas à un prix de vente), par durée de
+    location pour les vacances (nuitée/semaine/mois/an), et par état du bien
+    (neuf/en construction vs bon état/à rénover). Clé retournée :
+    "{gouvernorat}|{categorie}|{etat_ou_duree}" — voir statsKey() côté front
+    (CartePage.jsx) qui doit rester cohérente avec ce regroupement."""
+    from sqlalchemy import func, case
+    etat_group = case(
+        (models.Annonce.etat_bien.in_(["nouveau", "cours_construction"]), "neuf"),
+        else_="ancien",
+    )
+    sous_cle = case(
+        (models.Annonce.categorie == "vacances", func.coalesce(models.Annonce.duree_type, "nuit")),
+        else_=etat_group,
+    )
     rows = (
         db.query(
             models.Gouvernorat.nom.label("gouvernorat"),
+            models.Annonce.categorie.label("categorie"),
+            sous_cle.label("sous_cle"),
             func.avg(models.Annonce.prix / models.Annonce.superficie).label("avg_prix_m2"),
             func.count(models.Annonce.id).label("count"),
         )
         .join(models.Gouvernorat, models.Gouvernorat.id == models.Annonce.gouvernorat_id)
         .filter(
             models.Annonce.status == "approuvee",
-            models.Annonce.categorie == "vente",
             models.Annonce.prix > 0,
             models.Annonce.superficie > 0,
         )
-        .group_by(models.Gouvernorat.nom)
+        .group_by(models.Gouvernorat.nom, models.Annonce.categorie, sous_cle)
         .all()
     )
-    return {r.gouvernorat: {"avg_prix_m2": float(r.avg_prix_m2), "count": r.count} for r in rows}
+    cat_val = lambda c: c.value if hasattr(c, "value") else str(c)
+    return {
+        f"{r.gouvernorat}|{cat_val(r.categorie)}|{r.sous_cle}": {"avg_prix_m2": float(r.avg_prix_m2), "count": r.count}
+        for r in rows
+    }
 
 # ===============================
 # HISTORIQUE ADRESSES (utilisateur connecté)

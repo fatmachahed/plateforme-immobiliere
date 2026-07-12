@@ -29,14 +29,22 @@ const EVAL_LEVELS = [
   { key:"good",  label:"Bon prix",          segs:4, color:"#16a34a" },
   { key:"great", label:"Très bon prix",     segs:5, color:"#15803d" },
 ];
+const EVAL_MIN_SAMPLE = 3; // en dessous, la moyenne n'est pas assez fiable
 function getEvalLevel(prixM2, govAvg, count) {
-  if (!count || !govAvg || !prixM2 || govAvg <= 0) return EVAL_LEVELS[0];
+  if (!count || count < EVAL_MIN_SAMPLE || !govAvg || !prixM2 || govAvg <= 0) return EVAL_LEVELS[0];
   const r = prixM2 / govAvg;
   if (r >= 1.30) return EVAL_LEVELS[1];
   if (r >= 1.10) return EVAL_LEVELS[2];
   if (r >= 0.90) return EVAL_LEVELS[3];
   if (r >= 0.70) return EVAL_LEVELS[4];
   return EVAL_LEVELS[5];
+}
+/* Doit rester cohérente avec la clé retournée par GET /annonces/market-stats
+   (backend) : gouvernorat + catégorie + (durée pour les vacances | état neuf/ancien). */
+function statsKey(a) {
+  const etatGroup = (a.etat_bien === "nouveau" || a.etat_bien === "cours_construction") ? "neuf" : "ancien";
+  if (a.categorie === "vacances") return `${a.gouvernorat}|vacances|${a.duree_type || "nuit"}`;
+  return `${a.gouvernorat}|${a.categorie}|${etatGroup}`;
 }
 function PriceEvalBar({ prixM2, govStats }) {
   const gs = govStats || null;
@@ -198,7 +206,7 @@ function PropCard({ a, govMarketStats }) {
         {/* Évaluation prix — même logique que la carte principale */}
         <PriceEvalBar
           prixM2={(a.prix > 0 && a.superficie > 0) ? a.prix / a.superficie : null}
-          govStats={govMarketStats?.[a.gouvernorat] || null}
+          govStats={govMarketStats?.[statsKey(a)] || null}
         />
         <p className="pc__loc"><MapPin size={10}/> {[a.delegation, a.gouvernorat].filter(Boolean).join(" · ")}</p>
         <div className="pc__specs">

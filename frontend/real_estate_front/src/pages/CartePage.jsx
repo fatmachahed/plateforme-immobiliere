@@ -371,15 +371,27 @@ const EVAL_LEVELS = [
   { key:"great", label:"Très bon prix",     segs:5, color:"#15803d" },
 ];
 const EVAL_TOTAL = 5;
+const EVAL_MIN_SAMPLE = 3; // en dessous, la moyenne n'est pas assez fiable (peut n'être que le bien lui-même)
 
 function getEvalLevel(prixM2, govAvg, count) {
-  if (!count || !govAvg || !prixM2 || govAvg <= 0) return EVAL_LEVELS[0];
+  if (!count || count < EVAL_MIN_SAMPLE || !govAvg || !prixM2 || govAvg <= 0) return EVAL_LEVELS[0];
   const r = prixM2 / govAvg;
   if (r >= 1.30) return EVAL_LEVELS[1];
   if (r >= 1.10) return EVAL_LEVELS[2];
   if (r >= 0.90) return EVAL_LEVELS[3];
   if (r >= 0.70) return EVAL_LEVELS[4];
   return EVAL_LEVELS[5];
+}
+
+/* Clé de segmentation des stats de marché : gouvernorat + catégorie
+   (vente/location/vacances — pas comparables entre elles) + durée de
+   location pour les vacances (nuitée/semaine/mois/an) + regroupement
+   état du bien (neuf/en construction vs bon état/à rénover) pour les
+   biens vendus ou loués. */
+function statsKey(p) {
+  const etatGroup = (p.etat === "nouveau" || p.etat === "cours_construction") ? "neuf" : "ancien";
+  if (p.categorie === "vacances") return `${p.gouvernorat}|vacances|${p.duree_type || "nuit"}`;
+  return `${p.gouvernorat}|${p.categorie}|${etatGroup}`;
 }
 
 function PriceEvalBar({ prixM2, govStats }) {
@@ -408,7 +420,7 @@ function PriceEvalBar({ prixM2, govStats }) {
 /* --- Carte de bien --- */
 function PropCard({ p, active, onHover, onClick, govMarketStats, compact }) {
   const prixM2   = (p.prix > 0 && p.area > 0) ? p.prix / p.area : null;
-  const govStats = govMarketStats?.[p.gouvernorat] || null;
+  const govStats = govMarketStats?.[statsKey(p)] || null;
   const realId   = p._realId || p.id?.toString().replace("api_","");
   const toast    = useToast();
 
@@ -2956,14 +2968,22 @@ export default function CartePage() {
     return { query: parts.join(", ") + ", Tunisie", zoom };
   }, [filters.govNom, filters.delNom, filters.locNom]);
 
-  /* Stats march� : prix moyen/m� par gouvernorat (vente uniquement) */
+  /* Stats marché : prix moyen/m² par gouvernorat, SEGMENTÉ par catégorie
+     (vente / location / vacances — un loyer ne se compare pas à un prix de
+     vente), par durée de location pour les vacances (nuitée/semaine/mois/an,
+     des échelles de prix totalement différentes), et par état du bien
+     (neuf/en construction vs bon état/à rénover — un ancien ne se compare
+     pas à un neuf). Recalculé automatiquement à chaque changement des
+     annonces chargées (allProperties), donc à jour en temps réel dès
+     qu'une nouvelle annonce apparaît sur la carte. */
   const govMarketStats = React.useMemo(() => {
     const stats = {};
     allProperties.forEach(p => {
-      if (p.categorie !== "vente" || !p.gouvernorat || !p.prix || !p.area || p.area <= 0) return;
-      if (!stats[p.gouvernorat]) stats[p.gouvernorat] = { sum: 0, count: 0 };
-      stats[p.gouvernorat].sum   += p.prix / p.area;
-      stats[p.gouvernorat].count += 1;
+      if (!p.gouvernorat || !p.categorie || !p.prix || !p.area || p.area <= 0) return;
+      const key = statsKey(p);
+      if (!stats[key]) stats[key] = { sum: 0, count: 0 };
+      stats[key].sum   += p.prix / p.area;
+      stats[key].count += 1;
     });
     return stats;
   }, [allProperties]);

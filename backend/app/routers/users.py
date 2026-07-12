@@ -1125,6 +1125,8 @@ def get_agent_public_profile(user_id: int, db: Session = Depends(get_db)):
             "superficie":    float(a.superficie) if a.superficie else None,
             "nb_pieces":     a.nb_pieces,
             "nb_chambres":   a.nb_chambres,
+            "etat_bien":     a.etat_bien.value  if hasattr(a.etat_bien,  "value") else a.etat_bien,
+            "duree_type":    a.duree_type,
             "gouvernorat":   gov,
             "delegation":    del_,
             "image":         prop.image_principale if prop else None,
