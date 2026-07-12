@@ -165,6 +165,7 @@ export default function AdminDashboard() {
 
   /* Agences state */
   const [agencies,      setAgencies]       = useState([]);
+  const [agencySearch,  setAgencySearch]   = useState("");
   const [agencyModal,   setAgencyModal]    = useState(false);
   /* Liste unifiée des professionnels (agences + inscrits) pour accompagnements */
   const [professionals, setProfessionals]  = useState([]);
@@ -564,6 +565,16 @@ export default function AdminDashboard() {
     return { ag, agAnnonces, approved, pending, avgPrix };
   }, [agencyViewId, agencies, allAnnonces]);
 
+  const filteredAgencies = useMemo(() => {
+    const q = agencySearch.trim().toLowerCase();
+    if (!q) return agencies;
+    return agencies.filter(ag =>
+      (ag.reference||"").toLowerCase().includes(q) ||
+      (ag.nom||"").toLowerCase().includes(q) ||
+      (ag.email||"").toLowerCase().includes(q)
+    );
+  }, [agencies, agencySearch]);
+
   const hasAnyFilter = zoneFilter.gouvernorat || zoneFilter.delegation || zoneFilter.localite || freqFrom || freqTo;
 
   const STAT_CARDS = stats ? [
@@ -582,7 +593,8 @@ export default function AdminDashboard() {
         if (
           !a.titre?.toLowerCase().includes(q) &&
           !a.user_name?.toLowerCase().includes(q) &&
-          !a.user_email?.toLowerCase().includes(q)
+          !a.user_email?.toLowerCase().includes(q) &&
+          !a.reference?.toLowerCase().includes(q)
         ) return false;
       }
       if (aFiltreType && a.type_bien !== aFiltreType) return false;
@@ -692,7 +704,7 @@ export default function AdminDashboard() {
               {/* ─── Filtres avancés ─── */}
               <div style={{display:"flex",flexWrap:"wrap",gap:10,margin:"12px 0 4px",alignItems:"center"}}>
                 <input
-                  type="text" placeholder="🔍 Propriétaire / titre…"
+                  type="text" placeholder="🔍 Propriétaire / titre / référence…"
                   value={aSearch} onChange={e=>setASearch(e.target.value)}
                   style={{border:"1.5px solid #e2e8f0",borderRadius:8,padding:"7px 12px",fontSize:13,fontFamily:"inherit",minWidth:200,outline:"none"}}
                 />
@@ -758,6 +770,11 @@ export default function AdminDashboard() {
                           <td>
                             <p className="adm-table__title">{a.titre}</p>
                             <span className="adm-table__id">#{a.id}</span>
+                            {a.reference && (
+                              <span style={{marginLeft:6,fontSize:11,fontWeight:700,color:"#6366f1",background:"#eef2ff",borderRadius:4,padding:"1px 6px",fontFamily:"monospace"}}>
+                                {a.reference}
+                              </span>
+                            )}
                           </td>
                           <td>
                             <p className="adm-table__user">{a.user_name}</p>
@@ -1322,6 +1339,14 @@ export default function AdminDashboard() {
                 </button>
               </div>
 
+              <div style={{margin:"12px 0"}}>
+                <input
+                  type="text" placeholder="🔍 Rechercher par référence, nom ou email…"
+                  value={agencySearch} onChange={e=>setAgencySearch(e.target.value)}
+                  style={{border:"1.5px solid #e2e8f0",borderRadius:8,padding:"7px 12px",fontSize:13,fontFamily:"inherit",minWidth:280,outline:"none"}}
+                />
+              </div>
+
               <div className="adm-agency-plan">
                 <div className="adm-agency-plan__ico"><Building size={22}/></div>
                 <div>
@@ -1336,9 +1361,11 @@ export default function AdminDashboard() {
 
               {agencies.length === 0 ? (
                 <div className="adm-empty"><Building size={40}/><p>Aucun compte agence créé.</p></div>
+              ) : filteredAgencies.length === 0 ? (
+                <div className="adm-empty"><Building size={40}/><p>Aucune agence ne correspond à cette recherche.</p></div>
               ) : (
                 <div className="adm-agency-list">
-                  {agencies.map(ag => (
+                  {filteredAgencies.map(ag => (
                     <div key={ag.id} className={`adm-agency-card${ag.abonnement_actif ? "" : " adm-agency-card--suspended"}`}>
                       <div className="adm-agency-card__main">
                         <div className="adm-agency-card__left">

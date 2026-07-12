@@ -15,7 +15,6 @@ import AnnonceDetail    from "./pages/AnnonceDetail";
 import RechercheAnnonce from "./pages/RechercheAnnonce";
 import CreerAnnonce     from "./pages/CreerAnnonce";
 import Compte           from "./pages/Compte";
-import Dashboard        from "./pages/Dashboard";
 import Login            from "./pages/Login";
 import Register         from "./pages/Register";
 import VerifyEmail      from "./pages/VerifyEmail";
@@ -99,7 +98,7 @@ function App() {
 
           {/* Compte */}
           <Route path="/compte"    element={<Compte />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Navigate to="/compte?tab=annonces&statut=approuvee" replace />} />
           <Route path="/favoris"   element={<Favoris />} />
           <Route path="/login"            element={<Login />} />
           <Route path="/register"         element={<Register />} />

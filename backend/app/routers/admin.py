@@ -80,6 +80,7 @@ def list_annonces(
         prop = a.property
         result.append({
             "id":           a.id,
+            "reference":    a.reference,
             "titre":        a.titre,
             "categorie":    a.categorie.value if hasattr(a.categorie, "value") else str(a.categorie),
             "type_bien":    a.type_bien.value  if hasattr(a.type_bien,  "value") else str(a.type_bien),
@@ -377,8 +378,9 @@ def create_agency(
     db.commit()
     db.refresh(agency)
 
-    # Générer la référence unique basée sur l'ID
-    agency.reference = f"AGC{str(agency.id).zfill(4)}"
+    # Générer la référence unique basée sur l'ID (courte : AGC + 2 chiffres,
+    # pour que la référence des annonces reste lisible, ex. AGC0101 au lieu de AGC000101)
+    agency.reference = f"AGC{str(agency.id).zfill(2)}"
     db.commit()
     db.refresh(agency)
 

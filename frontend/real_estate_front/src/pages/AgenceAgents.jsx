@@ -91,7 +91,7 @@ export default function AgenceAgents() {
         <div className="aa-body">
           {/* ── Sidebar ── */}
           <aside className="aa-sidebar">
-            <Link to="/dashboard" className="aa-nav-item">
+            <Link to="/compte?tab=annonces" className="aa-nav-item">
               <Home size={17}/> Mes annonces
             </Link>
             <Link to="/favoris" className="aa-nav-item">
