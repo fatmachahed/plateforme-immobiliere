@@ -1,5 +1,6 @@
 ﻿import React, { useState } from "react";
 import Layout from "../components/Layout";
+import Seo from "../components/Seo";
 import {
   MapPin, Mail, Clock, Send, MessageSquare,
   Facebook, Instagram, Youtube, ArrowRight, CheckCircle2
@@ -75,6 +76,11 @@ export default function Contact() {
 
   return (
     <Layout>
+      <Seo
+        title="Nous contacter"
+        description="Une question sur Localizi.tn ? Contactez notre équipe par email, téléphone ou WhatsApp."
+        path="/contact"
+      />
       <div className="ct-page">
 
         {/* ── Hero ── */}

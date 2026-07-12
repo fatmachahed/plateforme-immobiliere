@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import Seo from "../components/Seo";
 import API_URL from "../config";
 import { Search, MapPin, Phone, Mail, ChevronRight, Wrench, Landmark, Shield, Scale, Ruler, Star, Briefcase } from "lucide-react";
 
@@ -203,6 +204,11 @@ export default function TrouverUnPrestataire() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'Poppins',system-ui,sans-serif" }}>
+      <Seo
+        title="Trouver un prestataire immobilier en Tunisie"
+        description="Banques, assurances, notaires, architectes, artisans : trouvez un prestataire de confiance pour votre projet immobilier en Tunisie sur Localizi.tn."
+        path="/trouver-un-prestataire"
+      />
       <Navbar />
 
       {/* Hero */}

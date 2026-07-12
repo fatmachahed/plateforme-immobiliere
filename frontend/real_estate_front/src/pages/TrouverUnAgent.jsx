@@ -2,6 +2,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import Seo from "../components/Seo";
 import API_URL, { fmtDevise } from "../config";
 import { Search, MapPin, Phone, Mail, Building2, Users, ChevronRight, Star } from "lucide-react";
 
@@ -209,6 +210,11 @@ export default function TrouverUnAgent() {
 
   return (
     <div style={{minHeight:"100vh", background:"#f8fafc", fontFamily:"'Poppins',system-ui,sans-serif"}}>
+      <Seo
+        title="Trouver un agent ou une agence immobilière en Tunisie"
+        description="Annuaire des agents et agences immobilières partenaires de Localizi.tn partout en Tunisie : contactez un professionnel pour vendre, acheter ou louer."
+        path="/trouver-un-agent"
+      />
       <Navbar />
 
       {/* Hero */}

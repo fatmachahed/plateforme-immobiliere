@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import Seo from "../components/Seo";
 import API_URL from "../config";
 import { Search, MapPin, Phone, Mail, Building2, ChevronRight, Star } from "lucide-react";
 
@@ -127,6 +128,11 @@ export default function TrouverUnPromoteur() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'Poppins',system-ui,sans-serif" }}>
+      <Seo
+        title="Trouver un promoteur immobilier en Tunisie"
+        description="Découvrez les promoteurs immobiliers partenaires de Localizi.tn et leurs projets neufs partout en Tunisie."
+        path="/trouver-un-promoteur"
+      />
       <Navbar />
 
       {/* Hero */}

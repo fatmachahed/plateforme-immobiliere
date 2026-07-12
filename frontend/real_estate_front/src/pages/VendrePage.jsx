@@ -5,6 +5,7 @@ import { Users, Home, ChevronRight, CheckCircle2, Tag, AlertTriangle, X } from "
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import Logo from "../components/Logo";
+import Seo from "../components/Seo";
 
 export default function VendrePage() {
   const navigate = useNavigate();
@@ -12,6 +13,11 @@ export default function VendrePage() {
 
   return (
     <>
+      <Seo
+        title="Vendre ou louer votre bien en Tunisie"
+        description="Publiez gratuitement votre annonce immobilière sur Localizi.tn : vendez ou louez votre appartement, villa, terrain ou local commercial rapidement, avec géolocalisation sur carte."
+        path="/vendre"
+      />
       <Navbar />
       <main style={{ minHeight: "100vh", background: "linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)" }}>
 

@@ -1,6 +1,7 @@
 ﻿import React from "react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import Seo from "../components/Seo";
 import { Link } from "react-router-dom";
 import { Handshake, Building2, BarChart2, Users, CheckCircle, Mail, Phone } from "lucide-react";
 
@@ -49,6 +50,11 @@ const AVANTAGES = [
 export default function Partenaires() {
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'Poppins',system-ui,sans-serif" }}>
+      <Seo
+        title="Nos partenaires"
+        description="Banques, assurances et professionnels partenaires de Localizi.tn pour accompagner votre projet immobilier en Tunisie."
+        path="/partenaires"
+      />
       <Navbar />
 
       {/* Hero */}

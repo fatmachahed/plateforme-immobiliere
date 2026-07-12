@@ -1,6 +1,7 @@
 // pages/Apropos.jsx
 import React from "react";
 import Layout from "../components/Layout";
+import Seo from "../components/Seo";
 import { Home, Users, Award, TrendingUp, Shield, Zap, Heart, Target } from "lucide-react";
 
 export default function Apropos() {
@@ -27,6 +28,11 @@ export default function Apropos() {
 
   return (
     <Layout>
+      <Seo
+        title="À propos de Localizi.tn"
+        description="Localizi.tn est la plateforme immobilière géolocalisée de référence en Tunisie : découvrez notre mission, nos valeurs et notre équipe."
+        path="/apropos"
+      />
       <div className="apropos-page">
         {/* Hero Section */}
         <section className="apropos-hero">

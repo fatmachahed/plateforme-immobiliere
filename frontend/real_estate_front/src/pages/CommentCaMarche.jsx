@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import PublierAnnonceBtn from "../components/PublierAnnonceBtn";
 import Footer from "../components/Footer";
+import Seo from "../components/Seo";
 import {
   Search, MapPin, Heart, Bell, PlusCircle, CheckCircle, Eye, MessageSquare,
   Users, ArrowRight, ArrowDown, Home, UserPlus, Camera, Clock, BarChart2,
@@ -150,6 +151,11 @@ export default function CommentCaMarche() {
 
   return (
     <div style={{minHeight:"100vh", background:"#f8fafc", fontFamily:"'Poppins',system-ui,sans-serif"}}>
+      <Seo
+        title="Comment ça marche ?"
+        description="Découvrez comment publier une annonce, rechercher un bien par carte géolocalisée et recevoir des alertes personnalisées sur Localizi.tn."
+        path="/comment-ca-marche"
+      />
       <Navbar/>
 
       {/* Hero */}

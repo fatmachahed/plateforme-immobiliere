@@ -1,5 +1,6 @@
 import React from "react";
 import Layout from "../components/Layout";
+import Seo from "../components/Seo";
 import { MapPin, Users, Target, Heart, TrendingUp, Shield, CheckCircle, Gift } from "lucide-react";
 
 const VALUES = [
@@ -43,6 +44,11 @@ const STATS = [
 export default function QuiSommesNous() {
   return (
     <Layout>
+      <Seo
+        title="Qui sommes-nous ?"
+        description="Localizi.tn, la plateforme immobilière 100% gratuite et géolocalisée qui couvre les 24 gouvernorats de Tunisie. Découvrez notre mission et nos valeurs."
+        path="/qui-sommes-nous"
+      />
       <div className="qsn">
 
         {/* ── Hero ── */}
