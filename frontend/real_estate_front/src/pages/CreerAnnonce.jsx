@@ -734,18 +734,21 @@ export const CreateListingForm = ({ editId = null }) => {
   /* Numéro d'affichage unifié : la principale est toujours n°1, peu importe
      dans quel groupe (existantes / nouvelles) elle se trouve. */
   function getDisplayOrder() {
-    const mainItem = mainIsExisting
+    /* Garde-fou : si la principale pointait vers une image existante qui a
+       depuis été supprimée, retomber sur la 1ère image disponible. */
+    const mainIsExistingSafe = mainIsExisting && mainExistingIdx < existingImageUrls.length;
+    const mainItem = mainIsExistingSafe
       ? { kind:"existing", idx: mainExistingIdx }
-      : { kind:"new", idx: formData.mainImageIndex };
+      : (!mainIsExisting && formData.mainImageIndex < formData.allImages.length)
+        ? { kind:"new", idx: formData.mainImageIndex }
+        : existingImageUrls.length > 0
+          ? { kind:"existing", idx: 0 }
+          : { kind:"new", idx: 0 };
     const rest = [
-      ...existingImageUrls.map((_, i) => ({ kind:"existing", idx:i })).filter(x => !(mainIsExisting && x.idx === mainExistingIdx)),
-      ...formData.allImages.map((_, i) => ({ kind:"new", idx:i })).filter(x => !(!mainIsExisting && x.idx === formData.mainImageIndex)),
+      ...existingImageUrls.map((_, i) => ({ kind:"existing", idx:i })).filter(x => !(mainItem.kind==="existing" && x.idx === mainItem.idx)),
+      ...formData.allImages.map((_, i) => ({ kind:"new", idx:i })).filter(x => !(mainItem.kind==="new" && x.idx === mainItem.idx)),
     ];
     return [mainItem, ...rest];
-  }
-  function orderNumberFor(kind, idx) {
-    const pos = getDisplayOrder().findIndex(x => x.kind === kind && x.idx === idx);
-    return pos === -1 ? "" : pos + 1;
   }
   /* -- Agences pour dropdown accompagnement -- */
   const [agences, setAgences] = useState([]);
@@ -3506,22 +3509,78 @@ export const CreateListingForm = ({ editId = null }) => {
                   )}
 
                   <div className="ca-img-unified-grid" style={{marginBottom: (existingImageUrls.length + formData.allImages.length) > 0 ? 20 : 0}}>
-                        {existingImageUrls.map((url, idx) => {
-                          const isMain = mainIsExisting && idx === mainExistingIdx;
-                          const orderNum = orderNumberFor("existing", idx);
+                        {getDisplayOrder().map((entry, pos) => {
+                          const orderNum = pos + 1;
+                          const isMain = pos === 0;
+                          if (entry.kind === "existing") {
+                            const idx = entry.idx;
+                            const url = existingImageUrls[idx];
+                            if (url === undefined) return null;
+                            return (
+                              <div key={`existing-${url}`}
+                                className={`ca-img-uni-card${isMain ? " ca-img-uni-card--main" : ""}${dragKind==="existing"&&dragIdx===idx ? " ca-img-uni-card--dragging" : ""}`}
+                                draggable
+                                onDragStart={() => { setDragKind("existing"); setDragIdx(idx); }}
+                                onDragOver={e => e.preventDefault()}
+                                onDrop={e => { e.preventDefault(); if (dragKind==="existing" && dragIdx!==null) reorderExisting(dragIdx, idx); setDragKind(null); setDragIdx(null); }}
+                                onDragEnd={() => { setDragKind(null); setDragIdx(null); }}
+                              >
+                                <span className={`ca-img-order-badge${isMain ? " ca-img-order-badge--main" : ""}`} title="Ordre d'affichage">{orderNum}</span>
+                                <img src={url} alt={`Photo ${orderNum}`} draggable={false}
+                                  style={{width:"100%",height:"100%",objectFit:"cover"}}
+                                  onError={e => { e.currentTarget.style.display="none"; }}/>
+                                {isMain && (
+                                  <div className="ca-img-main-badge"><Star size={11} fill="#fff" style={{marginRight:3}}/> Principale</div>
+                                )}
+                                <div className="ca-img-overlay">
+                                  <button type="button"
+                                    className={`ca-img-btn ca-img-btn--heart${isMain ? " ca-img-btn--heart-on" : ""}`}
+                                    title={isMain ? "Image principale ★" : "Définir comme principale"}
+                                    onClick={() => setMainExisting(idx)}>
+                                    <Star size={15} fill={isMain ? "#fff" : "none"}/>
+                                  </button>
+                                  <button type="button" className="ca-img-btn ca-img-btn--eye"
+                                    onClick={() => window.open(url, "_blank")}>
+                                    <Eye size={15}/>
+                                  </button>
+                                  <button type="button" className="ca-img-btn ca-img-btn--del"
+                                    title="Supprimer cette photo"
+                                    onClick={async () => {
+                                      const token = localStorage.getItem("token");
+                                      if (editPropertyIdState) {
+                                        try {
+                                          const relUrl = url.startsWith(API_URL) ? url.slice(API_URL.length) : url;
+                                          await fetch(`${API_URL}/properties/${editPropertyIdState}/images`, {
+                                            method: "DELETE",
+                                            headers: { Authorization:`Bearer ${token}`, "Content-Type":"application/json" },
+                                            body: JSON.stringify({ image: relUrl }),
+                                          });
+                                        } catch { /* silencieux */ }
+                                      }
+                                      const newUrls = existingImageUrls.filter(u => u !== url);
+                                      setExistingImageUrls(newUrls);
+                                      if (mainExistingIdx >= newUrls.length) setMainExistingIdx(0);
+                                    }}>
+                                    <Trash2 size={15}/>
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          }
+                          const index = entry.idx;
+                          const file = formData.allImages[index];
+                          if (!file) return null;
                           return (
-                            <div key={url}
-                              className={`ca-img-uni-card${isMain ? " ca-img-uni-card--main" : ""}${dragKind==="existing"&&dragIdx===idx ? " ca-img-uni-card--dragging" : ""}`}
+                            <div key={`new-${index}`}
+                              className={`ca-img-uni-card${isMain ? " ca-img-uni-card--main" : ""}${dragKind==="new"&&dragIdx===index ? " ca-img-uni-card--dragging" : ""}`}
                               draggable
-                              onDragStart={() => { setDragKind("existing"); setDragIdx(idx); }}
+                              onDragStart={() => { setDragKind("new"); setDragIdx(index); }}
                               onDragOver={e => e.preventDefault()}
-                              onDrop={e => { e.preventDefault(); if (dragKind==="existing" && dragIdx!==null) reorderExisting(dragIdx, idx); setDragKind(null); setDragIdx(null); }}
+                              onDrop={e => { e.preventDefault(); if (dragKind==="new" && dragIdx!==null) reorderNew(dragIdx, index); setDragKind(null); setDragIdx(null); }}
                               onDragEnd={() => { setDragKind(null); setDragIdx(null); }}
                             >
-                              <span className={`ca-img-order-badge${orderNum===1 ? " ca-img-order-badge--main" : ""}`} title="Ordre d'affichage">{orderNum}</span>
-                              <img src={url} alt={`Photo ${idx+1}`} draggable={false}
-                                style={{width:"100%",height:"100%",objectFit:"cover"}}
-                                onError={e => { e.currentTarget.style.display="none"; }}/>
+                              <span className={`ca-img-order-badge${isMain ? " ca-img-order-badge--main" : ""}`} title="Ordre d'affichage">{orderNum}</span>
+                              <img src={URL.createObjectURL(file)} alt={`Image ${orderNum}`} draggable={false}/>
                               {isMain && (
                                 <div className="ca-img-main-badge"><Star size={11} fill="#fff" style={{marginRight:3}}/> Principale</div>
                               )}
@@ -3529,30 +3588,24 @@ export const CreateListingForm = ({ editId = null }) => {
                                 <button type="button"
                                   className={`ca-img-btn ca-img-btn--heart${isMain ? " ca-img-btn--heart-on" : ""}`}
                                   title={isMain ? "Image principale ★" : "Définir comme principale"}
-                                  onClick={() => setMainExisting(idx)}>
+                                  onClick={() => setMainNew(index)}>
                                   <Star size={15} fill={isMain ? "#fff" : "none"}/>
                                 </button>
                                 <button type="button" className="ca-img-btn ca-img-btn--eye"
-                                  onClick={() => window.open(url, "_blank")}>
+                                  onClick={() => window.open(URL.createObjectURL(file), "_blank")}>
                                   <Eye size={15}/>
                                 </button>
                                 <button type="button" className="ca-img-btn ca-img-btn--del"
-                                  title="Supprimer cette photo"
-                                  onClick={async () => {
-                                    const token = localStorage.getItem("token");
-                                    if (editPropertyIdState) {
-                                      try {
-                                        const relUrl = url.startsWith(API_URL) ? url.slice(API_URL.length) : url;
-                                        await fetch(`${API_URL}/properties/${editPropertyIdState}/images`, {
-                                          method: "DELETE",
-                                          headers: { Authorization:`Bearer ${token}`, "Content-Type":"application/json" },
-                                          body: JSON.stringify({ image: relUrl }),
-                                        });
-                                      } catch { /* silencieux */ }
-                                    }
-                                    const newUrls = existingImageUrls.filter(u => u !== url);
-                                    setExistingImageUrls(newUrls);
-                                    if (mainExistingIdx >= newUrls.length) setMainExistingIdx(0);
+                                  onClick={() => {
+                                    const newImages = formData.allImages.filter((_, i) => i !== index);
+                                    const newMain = formData.mainImageIndex >= newImages.length
+                                      ? Math.max(0, newImages.length - 1)
+                                      : formData.mainImageIndex === index
+                                        ? 0
+                                        : formData.mainImageIndex > index
+                                          ? formData.mainImageIndex - 1
+                                          : formData.mainImageIndex;
+                                    setFormData(prev => ({ ...prev, allImages: newImages, mainImageIndex: newMain }));
                                   }}>
                                   <Trash2 size={15}/>
                                 </button>
@@ -3560,52 +3613,6 @@ export const CreateListingForm = ({ editId = null }) => {
                             </div>
                           );
                         })}
-                    {formData.allImages.map((file, index) => {
-                      const isMain = (!mainIsExisting || existingImageUrls.length === 0) && index === formData.mainImageIndex;
-                      const orderNum = orderNumberFor("new", index);
-                      return (
-                        <div key={index}
-                          className={`ca-img-uni-card${isMain ? " ca-img-uni-card--main" : ""}${dragKind==="new"&&dragIdx===index ? " ca-img-uni-card--dragging" : ""}`}
-                          draggable
-                          onDragStart={() => { setDragKind("new"); setDragIdx(index); }}
-                          onDragOver={e => e.preventDefault()}
-                          onDrop={e => { e.preventDefault(); if (dragKind==="new" && dragIdx!==null) reorderNew(dragIdx, index); setDragKind(null); setDragIdx(null); }}
-                          onDragEnd={() => { setDragKind(null); setDragIdx(null); }}
-                        >
-                          <span className={`ca-img-order-badge${orderNum===1 ? " ca-img-order-badge--main" : ""}`} title="Ordre d'affichage">{orderNum}</span>
-                          <img src={URL.createObjectURL(file)} alt={`Image ${index + 1}`} draggable={false}/>
-                          {isMain && (
-                            <div className="ca-img-main-badge"><Star size={11} fill="#fff" style={{marginRight:3}}/> Principale</div>
-                          )}
-                          <div className="ca-img-overlay">
-                            <button type="button"
-                              className={`ca-img-btn ca-img-btn--heart${isMain ? " ca-img-btn--heart-on" : ""}`}
-                              title={isMain ? "Image principale ★" : "Définir comme principale"}
-                              onClick={() => setMainNew(index)}>
-                              <Star size={15} fill={isMain ? "#fff" : "none"}/>
-                            </button>
-                            <button type="button" className="ca-img-btn ca-img-btn--eye"
-                              onClick={() => window.open(URL.createObjectURL(file), "_blank")}>
-                              <Eye size={15}/>
-                            </button>
-                            <button type="button" className="ca-img-btn ca-img-btn--del"
-                              onClick={() => {
-                                const newImages = formData.allImages.filter((_, i) => i !== index);
-                                const newMain = formData.mainImageIndex >= newImages.length
-                                  ? Math.max(0, newImages.length - 1)
-                                  : formData.mainImageIndex === index
-                                    ? 0
-                                    : formData.mainImageIndex > index
-                                      ? formData.mainImageIndex - 1
-                                      : formData.mainImageIndex;
-                                setFormData(prev => ({ ...prev, allImages: newImages, mainImageIndex: newMain }));
-                              }}>
-                              <Trash2 size={15}/>
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
 
                     {/* Slot d'ajout supplémentaire si la grille est déjà partiellement remplie */}
                     {(existingImageUrls.length + formData.allImages.length) > 0 && (existingImageUrls.length + formData.allImages.length) < 10 && (
