@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useLocation, useNavigate, Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import AnnonceDetailModal from "./AnnonceDetailModal";
 import API_URL, { fmtDevise } from "../config";
 import { useIsInCompare, toggleCompare as toggleCompareStore } from "../utils/compareStore";
 import { getEvalLevel, statsKey } from "../utils/priceEval";
@@ -104,7 +105,7 @@ function Carousel({ images, h = 190 }) {
 }
 
 /* ─── Carte annonce — même style que PropCard de CartePage ─── */
-function PropCard({ a, govMarketStats }) {
+function PropCard({ a, govMarketStats, onOpen }) {
   const realId = String(a.id);
   const images = a.image ? [resolveUrl(a.image)] : ["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400&q=75"];
   const cat    = a.categorie || "vente";
@@ -147,7 +148,7 @@ function PropCard({ a, govMarketStats }) {
   };
 
   return (
-    <div className="pc" onClick={() => window.open(`/annonce/${realId}`, "_blank")}
+    <div className="pc" onClick={() => onOpen(realId)}
       onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-1px)";e.currentTarget.style.boxShadow="0 6px 20px rgba(0,0,0,.12)";e.currentTarget.style.borderColor="#94a3b8";}}
       onMouseLeave={e=>{e.currentTarget.style.transform="";e.currentTarget.style.boxShadow="";e.currentTarget.style.borderColor="";}}
     >
@@ -222,6 +223,7 @@ export default function AgentProfile() {
   const isPromoteur = location.pathname.startsWith("/promoteur/");
   const [agent, setAgent]     = useState(null);
   const [govMarketStats, setGovMarketStats] = useState({});
+  const [previewAnnonceId, setPreviewAnnonceId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showContact, setShowContact] = useState(false);
   const [cSending, setCSending] = useState(false);
@@ -522,12 +524,16 @@ export default function AgentProfile() {
           </div>
         ) : (
           <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))", gap:20, marginBottom:60 }}>
-            {agent.annonces.map(a => <PropCard key={a.id} a={a} govMarketStats={govMarketStats}/>)}
+            {agent.annonces.map(a => <PropCard key={a.id} a={a} govMarketStats={govMarketStats} onOpen={setPreviewAnnonceId}/>)}
           </div>
         )}
       </div>
 
       <Footer/>
+
+      {previewAnnonceId && (
+        <AnnonceDetailModal annonceId={previewAnnonceId} onClose={() => setPreviewAnnonceId(null)} />
+      )}
     </div>
   );
 }
