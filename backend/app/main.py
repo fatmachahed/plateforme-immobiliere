@@ -177,17 +177,13 @@ app.include_router(auth_google.router, tags=["Auth"])
 def health():
     return {"status": "ok"}
 
-# 5a. Sitemap XML dynamique — pages statiques + toutes les annonces approuvées,
-# indispensable pour que Google indexe les fiches (chaque annonce a désormais
-# sa propre page réelle sur /annonce/{id}, voir AnnonceDetail.jsx côté front).
-from fastapi import Depends as _Depends
+# 5a. Sitemap XML dynamique — pages statiques uniquement. Les fiches annonce
+# individuelles (/annonce/{id}) redirigent vers une popup sur /carte (pas de
+# contenu propre indexable), donc ne sont plus listées ici.
 from fastapi.responses import Response as _XmlResponse
-from sqlalchemy.orm import Session as _Session
-from app.database import get_db as _get_db_sitemap
-from app import models as _models_sitemap
 
 @app.get("/sitemap.xml", tags=["SEO"])
-def sitemap(db: _Session = _Depends(_get_db_sitemap)):
+def sitemap():
     base = "https://www.localizi.tn"
     static_paths = [
         "", "carte", "vendre", "trouver-un-agent", "trouver-un-promoteur",
@@ -195,20 +191,9 @@ def sitemap(db: _Session = _Depends(_get_db_sitemap)):
         "contact", "abonnements",
     ]
     urls = [f"{base}/{p}" if p else base for p in static_paths]
-    annonces = db.query(_models_sitemap.Annonce.id, _models_sitemap.Annonce.date_mise_a_jour).filter(
-        _models_sitemap.Annonce.status == "approuvee",
-        _models_sitemap.Annonce.anonyme == False,
-    ).all()
     body = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
     for u in urls:
         body.append(f"<url><loc>{u}</loc><changefreq>weekly</changefreq></url>")
-    for a_id, updated in annonces:
-        lastmod = updated.strftime("%Y-%m-%d") if updated else ""
-        body.append(
-            f"<url><loc>{base}/annonce/{a_id}</loc>"
-            + (f"<lastmod>{lastmod}</lastmod>" if lastmod else "")
-            + "<changefreq>daily</changefreq></url>"
-        )
     body.append("</urlset>")
     return _XmlResponse(content="".join(body), media_type="application/xml")
 

@@ -12,7 +12,6 @@ import { LanguageProvider } from "./contexts/LanguageContext";
 import Home             from "./pages/Home";
 import CartePage        from "./pages/CartePage";
 import Abonnements      from "./pages/Abonnements";
-import AnnonceDetail    from "./pages/AnnonceDetail";
 import RechercheAnnonce from "./pages/RechercheAnnonce";
 import CreerAnnonce     from "./pages/CreerAnnonce";
 import Compte           from "./pages/Compte";
@@ -50,6 +49,14 @@ import TrouverUnPrestataire     from "./pages/TrouverUnPrestataire";
 import Geolocalisation          from "./pages/Geolocalisation";
 import NotFound                 from "./pages/NotFound";
 
+/* Lien d'annonce partagé : ouvre la popup de détail par-dessus la carte
+   principale (comportement précédent, restauré après un bug de page blanche
+   sur la version "page complète" de /annonce/:id). */
+function AnnonceRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/carte?annonce=${id}`} replace />;
+}
+
 /* Lien email alerte : déconnecte silencieusement puis recharge la page carte en mode invité */
 function VoirAnnonceAlert() {
   const { id } = useParams();
@@ -85,7 +92,7 @@ function App() {
           {/* Recherche / annonces */}
           <Route path="/recherche_annonce"       element={<RechercheAnnonce />} />
           <Route path="/recherche_annonce_carte" element={<CartePage />} />
-          <Route path="/annonce/:id"             element={<AnnonceDetail />} />
+          <Route path="/annonce/:id"             element={<AnnonceRedirect />} />
           <Route path="/voir-annonce/:id"        element={<VoirAnnonceAlert />} />
           <Route path="/creer_annonce"           element={<CreerAnnonce />} />
           <Route path="/modifier_annonce/:id"    element={<EditAnnonce />} />
