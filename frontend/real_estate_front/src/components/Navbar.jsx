@@ -4,7 +4,7 @@ import {
   Search, Menu, X, User, LogIn, UserPlus, LogOut,
   LayoutDashboard, Zap, ChevronDown, ChevronRight, Map, Heart, Globe,
   Home, Key, Umbrella, Phone, PlusCircle, Bell, Users, AlertTriangle, Building2,
-  HelpCircle, Info, Mail, Wrench, Facebook, Instagram, Youtube, CreditCard, Briefcase, Star, TrendingUp
+  HelpCircle, Info, Mail, Wrench, Facebook, Instagram, Youtube, Linkedin, CreditCard, Briefcase, Star, TrendingUp
 } from "lucide-react";
 import API_URL, { imgUrl } from "../config";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -527,6 +527,7 @@ export default function Navbar() {
               <div className="lz-mob-socials__row">
                 <a href="https://www.facebook.com/profile.php?id=61591506505563" target="_blank" rel="noopener noreferrer" className="lz-mob-social-icon" aria-label="Facebook"><Facebook size={17}/></a>
                 <a href="https://www.instagram.com/localizi.tn/" target="_blank" rel="noopener noreferrer" className="lz-mob-social-icon" aria-label="Instagram"><Instagram size={17}/></a>
+                <a href="https://www.linkedin.com/company/135936129/admin/dashboard/" target="_blank" rel="noopener noreferrer" className="lz-mob-social-icon" aria-label="LinkedIn"><Linkedin size={17}/></a>
                 <a href="#" className="lz-mob-social-icon" aria-label="WhatsApp"><WhatsAppIcon size={17}/></a>
                 <a href="#" className="lz-mob-social-icon" aria-label="TikTok"><TikTokIcon size={17}/></a>
                 <a href="https://www.youtube.com/@localizi" target="_blank" rel="noopener noreferrer" className="lz-mob-social-icon" aria-label="YouTube"><Youtube size={17}/></a>

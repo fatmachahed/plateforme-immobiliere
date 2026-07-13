@@ -228,19 +228,32 @@ export default function AgencyStatsDashboard() {
         )}
       </div>
 
-      {/* Graphe par type de bien (empilé vente/location/vacances) */}
+      {/* Graphe par type de bien (empilé vente/location/vacances), avec
+          exploration : cliquer sur une barre affiche le détail vente/
+          location/vacances de ce type, triées par ordre décroissant —
+          même comportement que le graphe géographique ci-dessus. */}
       <div style={{background:"#fff", border:"1px solid #e5e7eb", borderRadius:16, padding:"18px 20px"}}>
-        <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:12, flexWrap:"wrap"}}>
+        <div style={{display:"flex", alignItems:"center", gap:8, marginBottom:4, flexWrap:"wrap"}}>
           <Home size={16} color="#6366f1"/>
           <h3 style={{fontSize:14.5, fontWeight:800, color:"#0f172a", margin:0}}>Contacts par type de bien</h3>
         </div>
+        {selectedType && (
+          <div style={{display:"flex", alignItems:"center", gap:6, fontSize:12, color:"#64748b", marginBottom:10, flexWrap:"wrap"}}>
+            <button onClick={() => setSelectedType(null)}
+              style={{background:"none", border:"none", cursor:"pointer", color:"#6366f1", fontWeight:700, padding:0, fontFamily:"inherit", display:"flex", alignItems:"center", gap:3}}>
+              <ChevronLeft size={13}/> Tous les types
+            </button>
+            <span>/</span>
+            <span style={{color:"#0f172a", fontWeight:700}}>{selectedType}</span>
+          </div>
+        )}
         {typeChartData.length === 0 ? (
           <div style={{padding:30, textAlign:"center", color:"#94a3b8", fontSize:13}}>Aucun contact sur cette période.</div>
-        ) : (
+        ) : !selectedType ? (
           <>
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={typeChartData} margin={{top:4, right:8, left:-16, bottom:4}}
-                onClick={(e) => e?.activeLabel && setSelectedType(prev => prev === e.activeLabel ? null : e.activeLabel)}>
+                onClick={(e) => e?.activeLabel && setSelectedType(e.activeLabel)}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/>
                 <XAxis dataKey="label" tick={{fontSize:11}} interval={0} angle={-25} textAnchor="end" height={60}/>
                 <YAxis tick={{fontSize:11}} allowDecimals={false}/>
@@ -254,23 +267,26 @@ export default function AgencyStatsDashboard() {
             <p style={{fontSize:11.5, color:"#94a3b8", marginTop:8, marginBottom:0}}>
               Cliquez sur une barre pour voir le détail vente / location / vacances de ce type de bien.
             </p>
-            {selectedType && (() => {
-              const row = typeChartData.find(t => t.label === selectedType);
-              if (!row) return null;
-              return (
-                <div style={{marginTop:12, padding:"12px 14px", background:"#f8fafc", borderRadius:10, display:"flex", gap:18, flexWrap:"wrap"}}>
-                  <strong style={{color:"#0f172a", fontSize:13}}>{selectedType} :</strong>
-                  {["vente","location","vacances"].map(c => (
-                    <span key={c} style={{fontSize:12.5, color:CAT_COLOR[c], fontWeight:700, display:"flex", alignItems:"center", gap:5}}>
-                      <span style={{width:9, height:9, borderRadius:3, background:CAT_COLOR[c], display:"inline-block"}}/>
-                      {CAT_LABEL[c]} : {row[c] || 0}
-                    </span>
-                  ))}
-                </div>
-              );
-            })()}
           </>
-        )}
+        ) : (() => {
+          const row = typeChartData.find(t => t.label === selectedType);
+          const detailData = ["vente", "location", "vacances"]
+            .map(c => ({ categorie: c, label: CAT_LABEL[c], count: row?.[c] || 0 }))
+            .sort((a, b) => b.count - a.count);
+          return (
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={detailData} margin={{top:4, right:8, left:-16, bottom:4}}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/>
+                <XAxis dataKey="label" tick={{fontSize:11}}/>
+                <YAxis tick={{fontSize:11}} allowDecimals={false}/>
+                <Tooltip cursor={{fill:"#f8fafc"}}/>
+                <Bar dataKey="count" name="Contacts" radius={[6,6,0,0]}>
+                  {detailData.map((d, i) => <Cell key={i} fill={CAT_COLOR[d.categorie]}/>)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          );
+        })()}
       </div>
     </div>
   );

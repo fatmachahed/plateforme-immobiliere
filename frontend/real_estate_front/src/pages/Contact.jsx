@@ -3,7 +3,7 @@ import Layout from "../components/Layout";
 import Seo from "../components/Seo";
 import {
   MapPin, Mail, Clock, Send, MessageSquare,
-  Facebook, Instagram, Youtube, ArrowRight, CheckCircle2
+  Facebook, Instagram, Youtube, Linkedin, ArrowRight, CheckCircle2
 } from "lucide-react";
 import API_URL from "../config";
 
@@ -71,6 +71,7 @@ export default function Contact() {
   const socials = [
     { icon: <Facebook size={16} strokeWidth={1.5}/>, label: "Facebook", href: "https://www.facebook.com/profile.php?id=61591506505563" },
     { icon: <Instagram size={16} strokeWidth={1.5}/>, label: "Instagram", href: "https://www.instagram.com/localizi.tn/" },
+    { icon: <Linkedin size={16} strokeWidth={1.5}/>, label: "LinkedIn", href: "https://www.linkedin.com/company/135936129/admin/dashboard/" },
     { icon: <Youtube size={16} strokeWidth={1.5}/>, label: "YouTube", href: "#" },
   ];
 

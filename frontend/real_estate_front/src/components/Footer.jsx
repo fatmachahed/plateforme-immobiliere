@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { MapPin, Mail, Facebook, Instagram, Phone } from "lucide-react";
+import { MapPin, Mail, Facebook, Instagram, Linkedin, Phone } from "lucide-react";
 import Logo from "./Logo";
 import PublierAnnonceBtn from "./PublierAnnonceBtn";
 
@@ -42,6 +42,7 @@ export default function Footer() {
             <div className="lz-footer__social">
               <a href="https://www.facebook.com/profile.php?id=61591506505563" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><Facebook size={18} /></a>
               <a href="https://www.instagram.com/localizi.tn/" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><Instagram size={18} /></a>
+              <a href="https://www.linkedin.com/company/135936129/admin/dashboard/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn"><Linkedin size={18} /></a>
               <a href="#" aria-label="WhatsApp Business"><WhatsAppIcon size={18} /></a>
               <a href="#" aria-label="TikTok"><TikTokIcon size={18} /></a>
               <a href="#" aria-label="YouTube"><YouTubeIcon size={18} /></a>
