@@ -150,6 +150,124 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds
 
 
 # ===============================
+# TABLEAU DE BORD STATISTIQUES (agences)
+# ===============================
+def _parse_stats_dates(date_from: Optional[str], date_to: Optional[str]):
+    d_from = None
+    d_to = None
+    try:
+        if date_from: d_from = datetime.fromisoformat(date_from)
+    except ValueError: pass
+    try:
+        if date_to: d_to = datetime.fromisoformat(date_to) + timedelta(days=1)  # inclusif
+    except ValueError: pass
+    return d_from, d_to
+
+@router.get("/me/agency-stats")
+def get_agency_stats(
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Statistiques du tableau de bord agence : totaux, contacts par canal,
+    et contacts par type de bien (empilé par catégorie vente/location/vacances)."""
+    d_from, d_to = _parse_stats_dates(date_from, date_to)
+
+    annonces_q = db.query(models.Annonce).filter(models.Annonce.utilisateur_id == current_user.id)
+    nb_annonces = annonces_q.count()
+    nb_vues = db.query(func.coalesce(func.sum(models.Annonce.views_count), 0)).filter(
+        models.Annonce.utilisateur_id == current_user.id
+    ).scalar() or 0
+
+    clicks_q = (
+        db.query(models.ContactClick)
+        .join(models.Annonce, models.Annonce.id == models.ContactClick.annonce_id)
+        .filter(models.Annonce.utilisateur_id == current_user.id)
+    )
+    if d_from: clicks_q = clicks_q.filter(models.ContactClick.created_at >= d_from)
+    if d_to:   clicks_q = clicks_q.filter(models.ContactClick.created_at < d_to)
+
+    par_canal = {"telephone": 0, "whatsapp": 0, "email": 0}
+    for canal, count in (
+        clicks_q.with_entities(models.ContactClick.canal, func.count(models.ContactClick.id))
+        .group_by(models.ContactClick.canal).all()
+    ):
+        if canal in par_canal: par_canal[canal] = count
+    nb_contacts = sum(par_canal.values())
+    taux_conversion = round((nb_contacts / nb_vues) * 100, 1) if nb_vues > 0 else 0.0
+
+    # Contacts par type de bien, empilé par catégorie (vente/location/vacances)
+    type_rows = (
+        db.query(
+            models.Annonce.type_bien,
+            models.Annonce.categorie,
+            func.count(models.ContactClick.id).label("count"),
+        )
+        .join(models.ContactClick, models.ContactClick.annonce_id == models.Annonce.id)
+        .filter(models.Annonce.utilisateur_id == current_user.id)
+    )
+    if d_from: type_rows = type_rows.filter(models.ContactClick.created_at >= d_from)
+    if d_to:   type_rows = type_rows.filter(models.ContactClick.created_at < d_to)
+    type_rows = type_rows.group_by(models.Annonce.type_bien, models.Annonce.categorie).all()
+
+    par_type = {}
+    for type_bien, categorie, count in type_rows:
+        tb = type_bien.value if hasattr(type_bien, "value") else str(type_bien)
+        cat = categorie.value if hasattr(categorie, "value") else str(categorie)
+        par_type.setdefault(tb, {"vente": 0, "location": 0, "vacances": 0})
+        if cat in par_type[tb]: par_type[tb][cat] = count
+
+    return {
+        "nb_annonces": nb_annonces,
+        "nb_vues": int(nb_vues),
+        "nb_contacts": nb_contacts,
+        "taux_conversion": taux_conversion,
+        "contacts_par_canal": par_canal,
+        "contacts_par_type": [{"type_bien": tb, **counts} for tb, counts in par_type.items()],
+    }
+
+
+@router.get("/me/agency-stats/geo")
+def get_agency_stats_geo(
+    level: str = "gouvernorat",  # gouvernorat | delegation | localite
+    parent_id: Optional[int] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Contacts groupés par zone géographique, pour le graphe avec exploration
+    (gouvernorat -> délégation -> localité)."""
+    if level not in ("gouvernorat", "delegation", "localite"):
+        raise HTTPException(400, "level invalide")
+    d_from, d_to = _parse_stats_dates(date_from, date_to)
+
+    if level == "gouvernorat":
+        geo_model, geo_id_col, geo_nom = models.Gouvernorat, models.Annonce.gouvernorat_id, models.Gouvernorat.nom
+    elif level == "delegation":
+        geo_model, geo_id_col, geo_nom = models.Delegation, models.Annonce.delegation_id, models.Delegation.nom
+    else:
+        geo_model, geo_id_col, geo_nom = models.Localite, models.Annonce.localite_id, models.Localite.nom
+
+    q = (
+        db.query(geo_id_col.label("zone_id"), geo_nom.label("nom"), func.count(models.ContactClick.id).label("count"))
+        .join(models.ContactClick, models.ContactClick.annonce_id == models.Annonce.id)
+        .join(geo_model, geo_model.id == geo_id_col)
+        .filter(models.Annonce.utilisateur_id == current_user.id)
+    )
+    if level == "delegation":
+        q = q.filter(models.Annonce.gouvernorat_id == parent_id)
+    elif level == "localite":
+        q = q.filter(models.Annonce.delegation_id == parent_id)
+    if d_from: q = q.filter(models.ContactClick.created_at >= d_from)
+    if d_to:   q = q.filter(models.ContactClick.created_at < d_to)
+    q = q.group_by(geo_id_col, geo_nom).order_by(func.count(models.ContactClick.id).desc())
+
+    return [{"id": r.zone_id, "nom": r.nom, "count": r.count} for r in q.all()]
+
+
+# ===============================
 # CHECK USERNAME AVAILABILITY
 # ===============================
 @router.get("/check-username")

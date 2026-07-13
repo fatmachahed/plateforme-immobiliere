@@ -58,6 +58,21 @@ def get_market_stats(db: Session = Depends(get_db)):
     }
 
 # ===============================
+# SUIVI DES CLICS DE CONTACT (téléphone / whatsapp / email)
+# Alimente le tableau de bord statistiques des agences (voir routers/users.py)
+# ===============================
+@router.post("/{annonce_id}/contact-click")
+def track_contact_click(annonce_id: int, body: dict, db: Session = Depends(get_db)):
+    canal = body.get("canal")
+    if canal not in ("telephone", "whatsapp", "email"):
+        raise HTTPException(400, "Canal invalide")
+    if not db.query(models.Annonce.id).filter(models.Annonce.id == annonce_id).first():
+        raise HTTPException(404, "Annonce non trouvée")
+    db.add(models.ContactClick(annonce_id=annonce_id, canal=canal))
+    db.commit()
+    return {"ok": True}
+
+# ===============================
 # HISTORIQUE ADRESSES (utilisateur connecté)
 # ===============================
 @router.get("/my-addresses")

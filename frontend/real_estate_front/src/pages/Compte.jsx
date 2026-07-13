@@ -20,6 +20,7 @@ import AnnonceDetailModal from "./AnnonceDetailModal";
 import AgenceOnboarding from "./AgenceOnboarding";
 import PromoteurOnboarding from "./PromoteurOnboarding";
 import PublierAnnonceBtn from "../components/PublierAnnonceBtn";
+import AgencyStatsDashboard from "../components/AgencyStatsDashboard";
 
 /* ── helpers ── */
 const TYPE_FR = {
@@ -841,6 +842,7 @@ export default function Compte() {
     { key:"favoris",   icon:<Heart size={19}/>,  label:"Mes favoris" },
     { key:"noter",     icon:<Star size={19}/>,   label:"Noter les services", badge: toRateLoaded ? toRate.length : 0 },
     ...(storedUser?.role==="partenaire"?[{key:"interventions",icon:<Briefcase size={19}/>,label:"Mes interventions", badge: interventionsLoaded ? pendingInterventions : 0}]:[]),
+    ...(storedUser?.role==="agence"?[{key:"statistiques",icon:<TrendingUp size={19}/>,label:"Statistiques"}]:[]),
     ...(storedUser?.role==="agence"?[{key:"equipe",icon:<Users size={19}/>,label:"Mon équipe"}]:[]),
     ...(storedUser?.role==="agence"?[{key:"onboarding_agence",icon:<FileText size={19}/>,label:"Convention agence",onbInfo:_onbInfo(_onbAgence)}]:[]),
     ...(storedUser?.role==="promoteur"?[{key:"onboarding_promoteur",icon:<FileText size={19}/>,label:"Convention promoteur",onbInfo:_onbInfo(_onbProm)}]:[]),
@@ -1805,6 +1807,20 @@ export default function Compte() {
                   })}
                 </div>
               )}
+            </div>
+          )}
+          {/* ═══════ STATISTIQUES (agence only) ═══════ */}
+          {tab==="statistiques" && storedUser?.role==="agence" && (
+            <div>
+              <div style={{...card, padding:"22px 26px"}}>
+                <h2 style={{...cardTitle, display:"flex", alignItems:"center", gap:8, marginBottom:4}}>
+                  <TrendingUp size={17} style={{color:"#6366f1"}}/>Statistiques
+                </h2>
+                <p style={{fontSize:12.5, color:"#94a3b8", marginBottom:20}}>
+                  Vue d'ensemble des performances de vos annonces : vues, contacts reçus et zones les plus actives.
+                </p>
+                <AgencyStatsDashboard/>
+              </div>
             </div>
           )}
           {/* ═══════ MON ÉQUIPE (agence only) ═══════ */}

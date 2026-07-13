@@ -228,6 +228,18 @@ class AnnonceReaction(Base):
     annonce = relationship("Annonce", back_populates="reactions")
 
 
+class ContactClick(Base):
+    """Trace un clic 'voir le numéro' / WhatsApp / e-mail sur une annonce,
+    pour le tableau de bord statistiques des agences."""
+    __tablename__ = "contact_clicks"
+    id          = Column(Integer, primary_key=True, index=True)
+    annonce_id  = Column(Integer, ForeignKey("annonces.id", ondelete="CASCADE"), nullable=False)
+    canal       = Column(String(20), nullable=False)  # telephone | whatsapp | email
+    created_at  = Column(DateTime, default=datetime.utcnow)
+
+    annonce = relationship("Annonce")
+
+
 # ----------------------------------------
 # Chambres colocation
 # ----------------------------------------

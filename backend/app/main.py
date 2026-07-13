@@ -149,6 +149,16 @@ with engine.connect() as conn:
         "ALTER TABLE caractere_general ADD COLUMN IF NOT EXISTS nb_places_garage INTEGER;",
         # Ordre d'affichage des photos (glisser-déposer côté création/édition d'annonce)
         "ALTER TABLE property_images ADD COLUMN IF NOT EXISTS ordre INTEGER DEFAULT 0;",
+        # Suivi des clics de contact (téléphone/whatsapp/email) — tableau de bord agence
+        """
+        CREATE TABLE IF NOT EXISTS contact_clicks (
+            id SERIAL PRIMARY KEY,
+            annonce_id INTEGER REFERENCES annonces(id) ON DELETE CASCADE,
+            canal VARCHAR(20) NOT NULL,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_contact_clicks_annonce_id ON contact_clicks (annonce_id);",
     ]
     for sql in migrations:
         try:
