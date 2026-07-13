@@ -731,6 +731,22 @@ export const CreateListingForm = ({ editId = null }) => {
     });
     setMainIsExisting(false);
   }
+  /* Déposer une photo glissée sur l'emplacement visuel `targetPos` (0 = tout
+     devant). Le rendu suit l'ordre d'affichage (getDisplayOrder), qui peut
+     différer de l'ordre brut des tableaux — donc déposer sur le 1er
+     emplacement doit TOUJOURS promouvoir la photo glissée en principale,
+     exactement comme le bouton ★, quel que soit son groupe d'origine. */
+  function handleDropAt(targetPos, targetEntry) {
+    if (dragKind === null || dragIdx === null) return;
+    if (targetPos === 0) {
+      if (dragKind === "existing") setMainExisting(dragIdx);
+      else setMainNew(dragIdx);
+    } else if (targetEntry.kind === dragKind) {
+      if (dragKind === "existing") reorderExisting(dragIdx, targetEntry.idx);
+      else reorderNew(dragIdx, targetEntry.idx);
+    }
+    setDragKind(null); setDragIdx(null);
+  }
   /* Numéro d'affichage unifié : la principale est toujours n°1, peu importe
      dans quel groupe (existantes / nouvelles) elle se trouve. */
   function getDisplayOrder() {
@@ -3522,7 +3538,7 @@ export const CreateListingForm = ({ editId = null }) => {
                                 draggable
                                 onDragStart={() => { setDragKind("existing"); setDragIdx(idx); }}
                                 onDragOver={e => e.preventDefault()}
-                                onDrop={e => { e.preventDefault(); if (dragKind==="existing" && dragIdx!==null) reorderExisting(dragIdx, idx); setDragKind(null); setDragIdx(null); }}
+                                onDrop={e => { e.preventDefault(); handleDropAt(pos, entry); }}
                                 onDragEnd={() => { setDragKind(null); setDragIdx(null); }}
                               >
                                 <span className={`ca-img-order-badge${isMain ? " ca-img-order-badge--main" : ""}`} title="Ordre d'affichage">{orderNum}</span>
@@ -3576,7 +3592,7 @@ export const CreateListingForm = ({ editId = null }) => {
                               draggable
                               onDragStart={() => { setDragKind("new"); setDragIdx(index); }}
                               onDragOver={e => e.preventDefault()}
-                              onDrop={e => { e.preventDefault(); if (dragKind==="new" && dragIdx!==null) reorderNew(dragIdx, index); setDragKind(null); setDragIdx(null); }}
+                              onDrop={e => { e.preventDefault(); handleDropAt(pos, entry); }}
                               onDragEnd={() => { setDragKind(null); setDragIdx(null); }}
                             >
                               <span className={`ca-img-order-badge${isMain ? " ca-img-order-badge--main" : ""}`} title="Ordre d'affichage">{orderNum}</span>
