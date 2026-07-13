@@ -676,6 +676,33 @@ export const CreateListingForm = ({ editId = null }) => {
   const [mainExistingIdx,    setMainExistingIdx]    = useState(0);
   /* true = l'image principale est une image existante ; false = une nouvelle image ajoutée */
   const [mainIsExisting,     setMainIsExisting]     = useState(true);
+  /* -- Réordonnancement des photos par glisser-déposer -- */
+  const [dragExistingIdx, setDragExistingIdx] = useState(null);
+  const [dragNewIdx,      setDragNewIdx]      = useState(null);
+  const [dropOverKey,     setDropOverKey]     = useState(null);
+  function reorderExisting(fromIdx, toIdx) {
+    if (fromIdx === toIdx) return;
+    setExistingImageUrls(prev => {
+      const mainUrl = prev[mainExistingIdx];
+      const arr = [...prev];
+      const [moved] = arr.splice(fromIdx, 1);
+      arr.splice(toIdx, 0, moved);
+      const newMainIdx = arr.indexOf(mainUrl);
+      if (newMainIdx !== -1) setMainExistingIdx(newMainIdx);
+      return arr;
+    });
+  }
+  function reorderNew(fromIdx, toIdx) {
+    if (fromIdx === toIdx) return;
+    setFormData(prev => {
+      const mainFile = prev.allImages[prev.mainImageIndex];
+      const arr = [...prev.allImages];
+      const [moved] = arr.splice(fromIdx, 1);
+      arr.splice(toIdx, 0, moved);
+      const newMainIdx = arr.indexOf(mainFile);
+      return { ...prev, allImages: arr, mainImageIndex: newMainIdx !== -1 ? newMainIdx : prev.mainImageIndex };
+    });
+  }
   /* -- Agences pour dropdown accompagnement -- */
   const [agences, setAgences] = useState([]);
   const [agenceChoisie, setAgenceChoisie] = useState("");
@@ -1482,7 +1509,7 @@ export const CreateListingForm = ({ editId = null }) => {
                 await fetch(`${API_URL}/properties/${editPropertyIdState}/images`, {
                   method: "POST",
                   headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-                  body: JSON.stringify({ image: imgData.url }),
+                  body: JSON.stringify({ image: imgData.url, ordre: existingImageUrls.length + i }),
                 });
                 return { i, url: imgData.url };
               } catch { toast(`Image ${i + 1} : erreur lors de l'upload`, "error"); return null; }
@@ -1514,6 +1541,16 @@ export const CreateListingForm = ({ editId = null }) => {
             headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
             body: JSON.stringify(propPayload),
           });
+
+          /* Sauvegarder l'ordre d'affichage choisi (glisser-déposer) des photos existantes */
+          if (existingImageUrls.length > 0) {
+            const relUrls = existingImageUrls.map(u => u.startsWith(API_URL) ? u.slice(API_URL.length) : u);
+            await fetch(`${API_URL}/properties/${editPropertyIdState}/images/order`, {
+              method: "PUT",
+              headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ images: relUrls }),
+            }).catch(() => { /* non bloquant */ });
+          }
         }
 
         toast("Annonce mise à jour !");
@@ -1593,11 +1630,11 @@ export const CreateListingForm = ({ editId = null }) => {
       const propData = propRes.ok ? await propRes.json().catch(()=>({})) : {};
 
       /* -- 3b. Ajouter les images supplémentaires (en parallèle) -- */
-      await Promise.all(uploadedExtraUrls.map(extraUrl =>
+      await Promise.all(uploadedExtraUrls.map((extraUrl, idx) =>
         fetch(`${API_URL}/properties/${propData.id}/images`, {
           method: "POST",
           headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ image: extraUrl }),
+          body: JSON.stringify({ image: extraUrl, ordre: idx + 1 }),
         }).catch(() => { /* silencieux — images extra non bloquantes */ })
       ));
 
@@ -3368,6 +3405,7 @@ export const CreateListingForm = ({ editId = null }) => {
 
                   <p className="ca-tip" style={{marginBottom:12}}>
                     Glissez-déposez vos photos ou cliquez pour les ajouter. Cliquez sur ★ pour définir l'image principale.
+                    Faites glisser une photo sur une autre pour changer l'ordre d'affichage (numéro en haut à droite).
                   </p>
                   {/* -- Images existantes (edit mode) -- */}
                   {editId && existingImageUrls.length > 0 && (
@@ -3379,8 +3417,18 @@ export const CreateListingForm = ({ editId = null }) => {
                       <div className="ca-img-unified-grid">
                         {existingImageUrls.map((url, idx) => {
                           const isMain = mainIsExisting && idx === mainExistingIdx;
+                          const dropKey = `ex-${idx}`;
                           return (
-                            <div key={url} className={`ca-img-uni-card${isMain ? " ca-img-uni-card--main" : ""}`}>
+                            <div key={url}
+                              className={`ca-img-uni-card${isMain ? " ca-img-uni-card--main" : ""}${dragExistingIdx===idx ? " ca-img-uni-card--dragging" : ""}${dropOverKey===dropKey ? " ca-img-uni-card--drop-over" : ""}`}
+                              draggable
+                              onDragStart={() => setDragExistingIdx(idx)}
+                              onDragOver={e => { e.preventDefault(); setDropOverKey(dropKey); }}
+                              onDragLeave={() => setDropOverKey(k => k===dropKey ? null : k)}
+                              onDrop={e => { e.preventDefault(); if (dragExistingIdx!==null) reorderExisting(dragExistingIdx, idx); setDragExistingIdx(null); setDropOverKey(null); }}
+                              onDragEnd={() => { setDragExistingIdx(null); setDropOverKey(null); }}
+                            >
+                              <span className="ca-img-order-badge" title="Ordre d'affichage">{idx+1}</span>
                               <img src={url} alt={`Photo ${idx+1}`}
                                 style={{width:"100%",height:"100%",objectFit:"cover"}}
                                 onError={e => { e.currentTarget.style.display="none"; }}/>
@@ -3463,8 +3511,18 @@ export const CreateListingForm = ({ editId = null }) => {
                   <div className="ca-img-unified-grid" style={{marginTop: formData.allImages.length > 0 ? 16 : 0}}>
                     {formData.allImages.map((file, index) => {
                       const isMain = (!mainIsExisting || existingImageUrls.length === 0) && index === formData.mainImageIndex;
+                      const dropKey = `new-${index}`;
                       return (
-                        <div key={index} className={`ca-img-uni-card${isMain ? " ca-img-uni-card--main" : ""}`}>
+                        <div key={index}
+                          className={`ca-img-uni-card${isMain ? " ca-img-uni-card--main" : ""}${dragNewIdx===index ? " ca-img-uni-card--dragging" : ""}${dropOverKey===dropKey ? " ca-img-uni-card--drop-over" : ""}`}
+                          draggable
+                          onDragStart={() => setDragNewIdx(index)}
+                          onDragOver={e => { e.preventDefault(); setDropOverKey(dropKey); }}
+                          onDragLeave={() => setDropOverKey(k => k===dropKey ? null : k)}
+                          onDrop={e => { e.preventDefault(); if (dragNewIdx!==null) reorderNew(dragNewIdx, index); setDragNewIdx(null); setDropOverKey(null); }}
+                          onDragEnd={() => { setDragNewIdx(null); setDropOverKey(null); }}
+                        >
+                          <span className="ca-img-order-badge" title="Ordre d'affichage">{existingImageUrls.length + index + 1}</span>
                           <img src={URL.createObjectURL(file)} alt={`Image ${index + 1}`}/>
                           {isMain && (
                             <div className="ca-img-main-badge"><Star size={11} fill="#fff" style={{marginRight:3}}/> Principale</div>
@@ -5142,6 +5200,17 @@ export const CreateListingForm = ({ editId = null }) => {
           }
           .ca-img-uni-card .ca-img-overlay { opacity: 0; }
           .ca-img-uni-card:hover .ca-img-overlay { opacity: 1; }
+          .ca-img-order-badge {
+            position: absolute; top: 7px; right: 7px; z-index: 2;
+            width: 22px; height: 22px; border-radius: 50%;
+            background: rgba(15,23,42,.72); color: #fff;
+            font-size: 11.5px; font-weight: 700;
+            display: flex; align-items: center; justify-content: center;
+            pointer-events: none;
+          }
+          .ca-img-uni-card[draggable="true"] { cursor: grab; }
+          .ca-img-uni-card--dragging { opacity: .4; }
+          .ca-img-uni-card--drop-over { border-color: #6366f1 !important; }
           .ca-img-btn--heart { background: rgba(255,255,255,.85); color: #92400e; }
           .ca-img-btn--heart:hover { background: #f59e0b; color: #fff; }
           .ca-img-btn--heart-on { background: #f59e0b !important; color: #fff !important; }

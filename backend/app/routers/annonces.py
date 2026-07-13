@@ -428,7 +428,7 @@ def get_annonce_detail(annonce_id: int, db: Session = Depends(get_db)):
     if prop:
         if prop.image_principale:
             images.append(prop.image_principale)
-        for img in prop.images:
+        for img in sorted(prop.images, key=lambda x: (x.ordre or 0, x.id)):
             if img.image and img.image != prop.image_principale:
                 images.append(img.image)
 

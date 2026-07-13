@@ -1,12 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from typing import Optional
 from app import schemas, crud, database, models
 from app.utils.auth import get_current_user
 
 
 class AddImagePayload(BaseModel):
     image: str
+    ordre: Optional[int] = None
+
+class ReorderImagesPayload(BaseModel):
+    images: list[str]  # URLs (relatives ou absolues) dans l'ordre d'affichage voulu
 
 router = APIRouter(
     prefix="/properties",
@@ -96,7 +101,40 @@ def add_property_image(
     role_val = current_user.role.value if hasattr(current_user.role, "value") else current_user.role
     if annonce and annonce.utilisateur_id != current_user.id and role_val != "admin":
         raise HTTPException(status_code=403, detail="Action interdite")
-    return crud.create_property_image(db, {"property_id": property_id, "image": payload.image})
+    data = {"property_id": property_id, "image": payload.image}
+    if payload.ordre is not None:
+        data["ordre"] = payload.ordre
+    return crud.create_property_image(db, data)
+
+
+# ===============================
+# REORDER IMAGES (glisser-déposer à la création/édition)
+# ===============================
+@router.put("/{property_id}/images/order")
+def reorder_property_images(
+    property_id: int,
+    payload: ReorderImagesPayload,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    prop = crud.get_property(db, property_id)
+    if not prop:
+        raise HTTPException(status_code=404, detail="Property not found")
+    annonce = db.query(models.Annonce).filter(models.Annonce.id == prop.annonce_id).first()
+    role_val = current_user.role.value if hasattr(current_user.role, "value") else current_user.role
+    if annonce and annonce.utilisateur_id != current_user.id and role_val != "admin":
+        raise HTTPException(status_code=403, detail="Action interdite")
+    rows = db.query(models.PropertyImage).filter(models.PropertyImage.property_id == property_id).all()
+    by_image = {}
+    for r in rows:
+        by_image.setdefault(r.image, r)
+    for idx, url in enumerate(payload.images):
+        # Accepte URL absolue ou relative (préfixe API retiré côté front avant l'appel)
+        row = by_image.get(url)
+        if row:
+            row.ordre = idx
+    db.commit()
+    return {"detail": "Ordre mis à jour"}
 
 # ===============================
 # REMOVE IMAGE FROM PROPERTY (by URL)

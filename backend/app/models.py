@@ -342,6 +342,7 @@ class PropertyImage(Base):
     property_id = Column(Integer, ForeignKey("properties.id"))
     property = relationship("Property", back_populates="images")
     image = Column(String)
+    ordre = Column(Integer, default=0)  # ordre d'affichage choisi par l'utilisateur (glisser-déposer)
 
 
 # ----------------------------------------

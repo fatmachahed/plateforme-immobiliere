@@ -147,6 +147,8 @@ with engine.connect() as conn:
         "ALTER TABLE caractere_general ADD COLUMN IF NOT EXISTS surface_terrasse FLOAT;",
         "ALTER TABLE caractere_general ADD COLUMN IF NOT EXISTS surface_piscine FLOAT;",
         "ALTER TABLE caractere_general ADD COLUMN IF NOT EXISTS nb_places_garage INTEGER;",
+        # Ordre d'affichage des photos (glisser-déposer côté création/édition d'annonce)
+        "ALTER TABLE property_images ADD COLUMN IF NOT EXISTS ordre INTEGER DEFAULT 0;",
     ]
     for sql in migrations:
         try:
