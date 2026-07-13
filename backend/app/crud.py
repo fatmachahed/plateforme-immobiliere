@@ -124,6 +124,12 @@ def _extract_caract(data: dict) -> tuple:
         "internet":"internet","tv":"tv",
     }
     cg  = {k: data.pop(k, False) for k in CARACT_GEN}
+    # Superficies/quantités associées à certaines caractéristiques (persistées
+    # en base, plutôt que seulement injectées dans le texte de description).
+    cg["surface_jardin"]    = data.pop("surface_jardin", None)
+    cg["surface_terrasse"]  = data.pop("surface_terrasse", None)
+    cg["surface_piscine"]   = data.pop("surface_piscine", None)
+    cg["nb_places_garage"]  = data.pop("nb_places_garage", None)
     ci  = {mv: data.pop(sk, False) for sk, mv in CARACT_INT_MAP.items()}
     ml  = data.pop("machine_laver", False)
     ceq = data.pop("cuisine_equipee", False)

@@ -139,6 +139,14 @@ with engine.connect() as conn:
             value TEXT NOT NULL
         );
         """,
+        # Superficies jardin/terrasse/piscine + nb places garage : persistées en
+        # champs structurés (avant, seulement injectées dans le texte de
+        # description générée, donc perdues si l'utilisateur écrivait sa propre
+        # description).
+        "ALTER TABLE caractere_general ADD COLUMN IF NOT EXISTS surface_jardin FLOAT;",
+        "ALTER TABLE caractere_general ADD COLUMN IF NOT EXISTS surface_terrasse FLOAT;",
+        "ALTER TABLE caractere_general ADD COLUMN IF NOT EXISTS surface_piscine FLOAT;",
+        "ALTER TABLE caractere_general ADD COLUMN IF NOT EXISTS nb_places_garage INTEGER;",
     ]
     for sql in migrations:
         try:

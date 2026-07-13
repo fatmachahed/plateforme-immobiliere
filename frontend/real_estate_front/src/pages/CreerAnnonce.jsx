@@ -422,6 +422,17 @@ function CaPriceEvalBar({ prixM2, govStats, devise }) {
 /* -- Helper: build prefill formData from detail API response -- */
 function buildPrefill(a) {
   const feat = a.features || [];
+  /* Les features renvoyées par le backend peuvent contenir un suffixe
+     "(30 m²)" / "(2 places)" pour jardin/terrasse/piscine/garage — matcher
+     par préfixe et en extraire la valeur numérique pour restaurer les champs
+     surface et nb_places_garage en mode édition. */
+  const featHas = (label) => feat.some(f => f === label || f.startsWith(label + " ("));
+  const featExtraNum = (label) => {
+    const f = feat.find(f => f.startsWith(label + " ("));
+    if (!f) return "";
+    const m = f.match(/([\d.]+)/);
+    return m ? m[1] : "";
+  };
   return {
     colocation:        a.colocation || false,
     profil_coloc:      a.profil_coloc || "tous",
@@ -457,24 +468,25 @@ function buildPrefill(a) {
     mainImageIndex:    0,
     age_bien:          "",
     orientation:       "",
-    surface_jardin:    "",
-    surface_terrasse:  "",
-    nb_places_garage:  1,
+    surface_jardin:    featExtraNum("Jardin"),
+    surface_terrasse:  featExtraNum("Terrasse"),
+    surface_piscine:   featExtraNum("Piscine"),
+    nb_places_garage:  Number(featExtraNum("Garage")) || 1,
     duree_type:        "",
     duree_valeur:      "",
     standing:          a.standing || "",
     accompagnement:    a.accompagnement || false,
     anonyme:           a.anonyme || false,
-    jardin:            feat.includes("Jardin"),
-    terrasse:          feat.includes("Terrasse"),
+    jardin:            featHas("Jardin"),
+    terrasse:          featHas("Terrasse"),
     balcon:            feat.includes("Balcon"),
     parking:           feat.includes("Parking"),
-    garage:            feat.includes("Garage"),
+    garage:            featHas("Garage"),
     ascenseur:         feat.includes("Ascenseur"),
     vue_mer:           feat.includes("Vue sur mer"),
     vue_montagne:      feat.includes("Vue sur montagne"),
     vue_foret:         feat.includes("Vue sur forêt"),
-    piscine:           feat.includes("Piscine"),
+    piscine:           featHas("Piscine"),
     concierge:         feat.includes("Concierge"),
     cellier:           feat.includes("Cellier"),
     meuble:            feat.includes("Meublé"),
@@ -629,7 +641,7 @@ export const CreateListingForm = ({ editId = null }) => {
     relie_onas: false, salon_americain: false, fibre_optique: false, cheminee: false,
     double_vitrage: false, porte_blindee: false, securite: false, internet: false,
     machine_laver: false, tv: false, animaux_admis: false,
-    age_bien: "", surface_jardin: "", surface_terrasse: "", nb_places_garage: 1,
+    age_bien: "", surface_jardin: "", surface_terrasse: "", surface_piscine: "", nb_places_garage: 1,
     gouvernorat: "", delegation: "", localite: "",
     address: "Tunis, Tunisie", latitude: "36.8065", longitude: "10.1815",
     titre: "", superficie: "", prix: "", devise: "TND", description: "",
@@ -1399,15 +1411,19 @@ export const CreateListingForm = ({ editId = null }) => {
         pas_de_porte:              formData.type_bien === "local_commercial" ? (formData.pas_de_porte || null) : null,
         /* -- Caractéristiques générales -- */
         jardin:            formData.jardin      || false,
+        surface_jardin:    formData.jardin   && formData.surface_jardin   ? Number(formData.surface_jardin)   : null,
         terrasse:          formData.terrasse    || false,
+        surface_terrasse:  formData.terrasse && formData.surface_terrasse ? Number(formData.surface_terrasse) : null,
         balcon:            formData.balcon      || false,
         parking:           formData.parking     || false,
         garage:            formData.garage      || false,
+        nb_places_garage:  formData.garage   ? (Number(formData.nb_places_garage) || 1) : null,
         ascenseur:         formData.ascenseur   || false,
         vue_mer:           formData.vue_mer     || false,
         vue_montagne:      formData.vue_montagne|| false,
         vue_foret:         formData.vue_foret   || false,
         piscine:           formData.piscine     || false,
+        surface_piscine:   formData.piscine  && formData.surface_piscine  ? Number(formData.surface_piscine)  : null,
         concierge:         formData.concierge   || false,
         cellier:           formData.cellier     || false,
         meuble:            formData.meuble      || false,
@@ -1669,7 +1685,7 @@ export const CreateListingForm = ({ editId = null }) => {
       if (formData.jardin)        equip.push(formData.surface_jardin ? `jardin privatif de ${formData.surface_jardin} m²` : "jardin privatif");
       if (formData.terrasse)      equip.push(formData.surface_terrasse ? `terrasse de ${formData.surface_terrasse} m²` : "terrasse");
       if (formData.balcon)        equip.push("balcon");
-      if (formData.piscine)       equip.push("piscine");
+      if (formData.piscine)       equip.push(formData.surface_piscine ? `piscine de ${formData.surface_piscine} m²` : "piscine");
       if (formData.ascenseur)     equip.push("ascenseur");
       if (formData.garage)        equip.push(formData.nb_places_garage > 1 ? `garage (${formData.nb_places_garage} places)` : "garage");
       if (formData.parking)       equip.push("place de parking");
@@ -1879,7 +1895,7 @@ export const CreateListingForm = ({ editId = null }) => {
     { key:"jardin",        Ico:Fence,       label:"Jardin",            color:"#22c55e", extra:"surface_jardin" },
     { key:"terrasse",      Ico:Sun,         label:"Terrasse",          color:"#f59e0b", extra:"surface_terrasse" },
     { key:"balcon",        Ico:Flower2,     label:"Balcon",            color:"#f43f5e" },
-    { key:"piscine",       Ico:Droplets,    label:"Piscine",           color:"#06b6d4" },
+    { key:"piscine",       Ico:Droplets,    label:"Piscine",           color:"#06b6d4", extra:"surface_piscine" },
     { key:"parking",       Ico:ParkingCircle,label:"Parking",          color:"#0284c7" },
   ];
 

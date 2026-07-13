@@ -396,8 +396,17 @@ def get_annonce_detail(annonce_id: int, db: Session = Depends(get_db)):
         "relie_onas":"Relié ONAS","animaux_admis":"Animaux admis",
     }
     if a.caractere_general:
+        cg = a.caractere_general
         for k, label in feat_labels.items():
-            if getattr(a.caractere_general, k, False):
+            if getattr(cg, k, False):
+                if k == "jardin" and cg.surface_jardin:
+                    label = f"{label} ({cg.surface_jardin:g} m²)"
+                elif k == "terrasse" and cg.surface_terrasse:
+                    label = f"{label} ({cg.surface_terrasse:g} m²)"
+                elif k == "piscine" and cg.surface_piscine:
+                    label = f"{label} ({cg.surface_piscine:g} m²)"
+                elif k == "garage" and cg.nb_places_garage and cg.nb_places_garage > 1:
+                    label = f"{label} ({cg.nb_places_garage} places)"
                 features.append(label)
     ci_labels = {
         "salon_americain":"Salon américain","fibre_optique":"Fibre optique",

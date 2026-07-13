@@ -141,15 +141,19 @@ class AnnonceCreate(AnnonceBase):
     chambres_coloc:   Optional[List[ChambreColocationCreate]] = []
     # ── Caractéristiques générales ──
     jardin: Optional[bool] = False
+    surface_jardin: Optional[float] = None
     terrasse: Optional[bool] = False
+    surface_terrasse: Optional[float] = None
     balcon: Optional[bool] = False
     parking: Optional[bool] = False
     garage: Optional[bool] = False
+    nb_places_garage: Optional[int] = None
     ascenseur: Optional[bool] = False
     vue_mer: Optional[bool] = False
     vue_montagne: Optional[bool] = False
     vue_foret: Optional[bool] = False
     piscine: Optional[bool] = False
+    surface_piscine: Optional[float] = None
     concierge: Optional[bool] = False
     cellier: Optional[bool] = False
     meuble: Optional[bool] = False
@@ -218,15 +222,19 @@ class AnnonceUpdate(BaseModel):
     chambres_coloc:  Optional[List[ChambreColocationCreate]] = None
     # ── Caractéristiques (même liste que AnnonceCreate) ──
     jardin: Optional[bool] = None
+    surface_jardin: Optional[float] = None
     terrasse: Optional[bool] = None
+    surface_terrasse: Optional[float] = None
     balcon: Optional[bool] = None
     parking: Optional[bool] = None
     garage: Optional[bool] = None
+    nb_places_garage: Optional[int] = None
     ascenseur: Optional[bool] = None
     vue_mer: Optional[bool] = None
     vue_montagne: Optional[bool] = None
     vue_foret: Optional[bool] = None
     piscine: Optional[bool] = None
+    surface_piscine: Optional[float] = None
     concierge: Optional[bool] = None
     cellier: Optional[bool] = None
     meuble: Optional[bool] = None
