@@ -1959,7 +1959,7 @@ export const CreateListingForm = ({ editId = null }) => {
                       {done ? <Check size={13} strokeWidth={3}/> : <span>{s.id}</span>}
                     </div>
                     <span className="ca-step__label">{s.label}</span>
-                    {(done || (editId && !active)) && <span className="ca-step__back-ico">?</span>}
+                    {(done || (editId && !active)) && <ChevronLeft size={13} className="ca-step__back-ico"/>}
                   </div>
                 );
               })}
