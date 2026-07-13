@@ -33,12 +33,15 @@ export default function SignalerProbleme() {
 
   useEffect(() => {
     const s = location.state;
-    if (!s) return;
-    if (s.lienAnnonce) setLienAnnonce(s.lienAnnonce);
-    if (s.type)        setType(s.type);
-    if (s.nom)         setNom(s.nom);
-    if (s.email)       setEmail(s.email);
-    if (s.reference)   setDescription(`Référence annonce : ${s.reference}\n\n`);
+    if (s?.lienAnnonce) setLienAnnonce(s.lienAnnonce);
+    if (s?.type)        setType(s.type);
+    if (s?.reference)   setDescription(`Référence annonce : ${s.reference}\n\n`);
+
+    /* Pré-remplir nom/email depuis le compte connecté, sauf si déjà fournis
+       via location.state (ex. bouton "Signaler" depuis une annonce). */
+    const storedUser = (() => { try { return JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user")); } catch { return null; } })();
+    setNom(s?.nom || storedUser?.nom || storedUser?.username || "");
+    setEmail(s?.email || storedUser?.email || "");
   }, []);
 
   const handleImage = (e) => {
