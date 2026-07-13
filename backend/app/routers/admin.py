@@ -254,6 +254,9 @@ def list_users(
             "phone_number": u.phone_number,
             "role":       u.role.value if hasattr(u.role, "value") else str(u.role),
             "is_blocked": bool(u.is_blocked),
+            "is_verified": bool(u.is_verified),
+            "created_at": u.created_at.isoformat() if u.created_at else None,
+            "updated_at": u.updated_at.isoformat() if u.updated_at else None,
             "note_prestataire":     getattr(u, "note_prestataire", None),
             "nombre_interventions": getattr(u, "nombre_interventions", None) or 0,
             "nb_annonces": db.query(func.count(models.Annonce.id))

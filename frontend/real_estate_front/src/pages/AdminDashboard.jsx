@@ -136,6 +136,7 @@ export default function AdminDashboard() {
   const [userEditForm, setUserEditForm] = useState({username:"",email:"",phone_number:"",role:""});
   const [userSearchNom,  setUserSearchNom]  = useState("");
   const [userSearchEmail,setUserSearchEmail]= useState("");
+  const [userSearchPhone,setUserSearchPhone]= useState("");
   const [userFilterRole, setUserFilterRole] = useState("");
   const [userSortAnnonces,setUserSortAnnonces]= useState(""); // "" | "asc" | "desc"
   const [filter,       setFilter]      = useState("en_attente");
@@ -1167,6 +1168,7 @@ export default function AdminDashboard() {
                 let filtered = users
                   .filter(u => !userSearchNom  || (u.username||"").toLowerCase().includes(userSearchNom.toLowerCase()))
                   .filter(u => !userSearchEmail|| (u.email||"").toLowerCase().includes(userSearchEmail.toLowerCase()))
+                  .filter(u => !userSearchPhone|| (u.phone_number||"").toLowerCase().includes(userSearchPhone.toLowerCase()))
                   .filter(u => !userFilterRole || u.role === userFilterRole);
                 if (userSortAnnonces === "desc") filtered = [...filtered].sort((a,b)=>b.nb_annonces-a.nb_annonces);
                 if (userSortAnnonces === "asc")  filtered = [...filtered].sort((a,b)=>a.nb_annonces-b.nb_annonces);
@@ -1190,7 +1192,14 @@ export default function AdminDashboard() {
                           style={{width:"100%",padding:"5px 8px 5px 24px",borderRadius:6,border:"1px solid #e2e8f0",fontSize:12,fontFamily:"inherit",boxSizing:"border-box",background:"#fff"}}/>
                       </div>
                     </th>
-                    <th></th>
+                    <th style={{padding:"6px 8px"}}>
+                      <div style={{position:"relative"}}>
+                        <Search size={11} style={{position:"absolute",left:7,top:"50%",transform:"translateY(-50%)",color:"#9ca3af",pointerEvents:"none"}}/>
+                        <input value={userSearchPhone} onChange={e=>setUserSearchPhone(e.target.value)}
+                          placeholder="Téléphone…"
+                          style={{width:"100%",padding:"5px 8px 5px 24px",borderRadius:6,border:"1px solid #e2e8f0",fontSize:12,fontFamily:"inherit",boxSizing:"border-box",background:"#fff"}}/>
+                      </div>
+                    </th>
                     <th style={{padding:"6px 8px"}}>
                       <select value={userFilterRole} onChange={e=>setUserFilterRole(e.target.value)}
                         style={{width:"100%",padding:"5px 6px",borderRadius:6,border:"1px solid #e2e8f0",fontSize:12,fontFamily:"inherit",background:"#fff"}}>
@@ -1210,8 +1219,8 @@ export default function AdminDashboard() {
                       </select>
                     </th>
                     <th style={{padding:"6px 8px",textAlign:"center"}}>
-                      {(userSearchNom||userSearchEmail||userFilterRole||userSortAnnonces) && (
-                        <button onClick={()=>{setUserSearchNom("");setUserSearchEmail("");setUserFilterRole("");setUserSortAnnonces("");}}
+                      {(userSearchNom||userSearchEmail||userSearchPhone||userFilterRole||userSortAnnonces) && (
+                        <button onClick={()=>{setUserSearchNom("");setUserSearchEmail("");setUserSearchPhone("");setUserFilterRole("");setUserSortAnnonces("");}}
                           title="Réinitialiser filtres"
                           style={{padding:"4px 8px",borderRadius:6,border:"1px solid #e2e8f0",background:"#fff",fontSize:11,cursor:"pointer",color:"#6b7280"}}>
                           ✕
