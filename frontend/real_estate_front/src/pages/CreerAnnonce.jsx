@@ -832,9 +832,18 @@ export const CreateListingForm = ({ editId = null }) => {
     } catch {}
   };
 
-  /* Restore photos from IndexedDB on mount */
+  /* Restore photos from IndexedDB on mount — y compris en mode édition
+     (auparavant les photos tout juste téléversées lors de la modification
+     d'une annonce existante étaient perdues au rafraîchissement, car cet
+     effet était désactivé en mode édition). Le cache est associé à
+     l'annonce en cours (ou "new" en création) pour ne pas mélanger les
+     photos d'une session d'édition avec celles d'une autre annonce. */
+  const IDB_OWNER_KEY = "localizi_ca_idb_owner";
+  const idbOwner = editId ? String(editId) : "new";
   useEffect(() => {
-    if (editId) return;
+    const prevOwner = localStorage.getItem(IDB_OWNER_KEY);
+    if (prevOwner && prevOwner !== idbOwner) { clearPhotosIDB(); localStorage.setItem(IDB_OWNER_KEY, idbOwner); return; }
+    localStorage.setItem(IDB_OWNER_KEY, idbOwner);
     loadPhotosIDB().then(files => {
       if (files && files.length > 0) {
         setFormData(prev => ({ ...prev, allImages: files, mainImageIndex: 0 }));
@@ -842,12 +851,11 @@ export const CreateListingForm = ({ editId = null }) => {
     }).catch(() => {});
   }, []); // eslint-disable-line
 
-  /* Save photos to IndexedDB (debounced) */
+  /* Save photos to IndexedDB (debounced) — actif aussi en mode édition */
   useEffect(() => {
-    if (editId) return;
     const t = setTimeout(() => savePhotosIDB(formData.allImages || []), 400);
     return () => clearTimeout(t);
-  }, [formData.allImages, editId]); // eslint-disable-line
+  }, [formData.allImages]); // eslint-disable-line
 
   const totalSteps = 5;
 
@@ -1597,6 +1605,7 @@ export const CreateListingForm = ({ editId = null }) => {
           }
         }
 
+        await clearPhotosIDB();
         toast("Annonce mise à jour !");
         setTimeout(() => { window.location.href = "/compte?tab=annonces&statut=en_attente"; }, 1200);
         return;
@@ -3452,14 +3461,51 @@ export const CreateListingForm = ({ editId = null }) => {
                     changer l'ordre d'affichage — la photo en 1ère position devient automatiquement la principale (n°1).
                     Cliquez sur ★ pour placer directement une photo en tête.
                   </p>
-                  {/* -- Images existantes (edit mode) -- */}
-                  {editId && existingImageUrls.length > 0 && (
-                    <div style={{marginBottom:20}}>
-                      <div className="ca-section-label" style={{marginBottom:10}}>
-                        Photos actuelles de l'annonce
-                        <span className="ca-count-badge">{existingImageUrls.length}</span>
-                      </div>
-                      <div className="ca-img-unified-grid">
+                  {/* Toutes les photos — existantes et nouvellement ajoutées — dans une seule
+                      grille commune, affichées les unes à côté des autres. */}
+                  {(existingImageUrls.length > 0 || formData.allImages.length > 0) && (
+                    <div className="ca-section-label" style={{marginBottom:10}}>
+                      Photos de l'annonce
+                      <span className="ca-count-badge">{existingImageUrls.length + formData.allImages.length}</span>
+                    </div>
+                  )}
+
+                  {/* Zone drag-and-drop globale */}
+                  {(existingImageUrls.length + formData.allImages.length) < 10 && (
+                    <div
+                      className="ca-img-dnd-zone"
+                      style={{marginBottom: (existingImageUrls.length + formData.allImages.length) > 0 ? 16 : 0}}
+                      onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add("ca-img-dnd-zone--over"); }}
+                      onDragLeave={e => e.currentTarget.classList.remove("ca-img-dnd-zone--over")}
+                      onDrop={e => {
+                        e.preventDefault();
+                        e.currentTarget.classList.remove("ca-img-dnd-zone--over");
+                        const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith("image/"));
+                        const remaining = 10 - existingImageUrls.length - formData.allImages.length;
+                        const toAdd = files.slice(0, remaining).filter(f => f.size <= 40 * 1024 * 1024);
+                        if (files.some(f => f.size > 40 * 1024 * 1024)) toast("Certaines images dépassent 40 MB.", "error");
+                        if (toAdd.length > 0) setFormData(prev => ({ ...prev, allImages: [...prev.allImages, ...toAdd] }));
+                      }}
+                      onClick={() => document.getElementById("ca-dnd-input").click()}
+                    >
+                      <input id="ca-dnd-input" type="file" accept="image/*" multiple style={{display:"none"}}
+                        onChange={e => {
+                          const files = Array.from(e.target.files || []);
+                          const remaining = 10 - existingImageUrls.length - formData.allImages.length;
+                          const toAdd = files.slice(0, remaining).filter(f => f.size <= 10 * 1024 * 1024);
+                          if (files.some(f => f.size > 10 * 1024 * 1024)) toast("Certaines images dépassent 10 MB.", "error");
+                          if (toAdd.length > 0) setFormData(prev => ({ ...prev, allImages: [...prev.allImages, ...toAdd] }));
+                          e.target.value = "";
+                        }}
+                      />
+                      <Upload size={32} style={{color:"#9ca3af"}}/>
+                      <span style={{fontSize:14,fontWeight:600,color:"#374151",marginTop:8}}>Glissez vos photos ici</span>
+                      <span style={{fontSize:12,color:"#9ca3af"}}>ou cliquez pour parcourir — JPG, PNG, max 10 MB</span>
+                      <span style={{fontSize:11,color:"#c7d2fe",marginTop:4}}>{existingImageUrls.length + formData.allImages.length}/10 photos</span>
+                    </div>
+                  )}
+
+                  <div className="ca-img-unified-grid" style={{marginBottom: (existingImageUrls.length + formData.allImages.length) > 0 ? 20 : 0}}>
                         {existingImageUrls.map((url, idx) => {
                           const isMain = mainIsExisting && idx === mainExistingIdx;
                           const orderNum = orderNumberFor("existing", idx);
@@ -3514,45 +3560,6 @@ export const CreateListingForm = ({ editId = null }) => {
                             </div>
                           );
                         })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Zone drag-and-drop globale */}
-                  {(existingImageUrls.length + formData.allImages.length) < 10 && (
-                    <div
-                      className="ca-img-dnd-zone"
-                      onDragOver={e => { e.preventDefault(); e.currentTarget.classList.add("ca-img-dnd-zone--over"); }}
-                      onDragLeave={e => e.currentTarget.classList.remove("ca-img-dnd-zone--over")}
-                      onDrop={e => {
-                        e.preventDefault();
-                        e.currentTarget.classList.remove("ca-img-dnd-zone--over");
-                        const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith("image/"));
-                        const remaining = 10 - existingImageUrls.length - formData.allImages.length;
-                        const toAdd = files.slice(0, remaining).filter(f => f.size <= 40 * 1024 * 1024);
-                        if (files.some(f => f.size > 40 * 1024 * 1024)) toast("Certaines images dépassent 40 MB.", "error");
-                        if (toAdd.length > 0) setFormData(prev => ({ ...prev, allImages: [...prev.allImages, ...toAdd] }));
-                      }}
-                      onClick={() => document.getElementById("ca-dnd-input").click()}
-                    >
-                      <input id="ca-dnd-input" type="file" accept="image/*" multiple style={{display:"none"}}
-                        onChange={e => {
-                          const files = Array.from(e.target.files || []);
-                          const remaining = 10 - existingImageUrls.length - formData.allImages.length;
-                          const toAdd = files.slice(0, remaining).filter(f => f.size <= 10 * 1024 * 1024);
-                          if (files.some(f => f.size > 10 * 1024 * 1024)) toast("Certaines images dépassent 10 MB.", "error");
-                          if (toAdd.length > 0) setFormData(prev => ({ ...prev, allImages: [...prev.allImages, ...toAdd] }));
-                          e.target.value = "";
-                        }}
-                      />
-                      <Upload size={32} style={{color:"#9ca3af"}}/>
-                      <span style={{fontSize:14,fontWeight:600,color:"#374151",marginTop:8}}>Glissez vos photos ici</span>
-                      <span style={{fontSize:12,color:"#9ca3af"}}>ou cliquez pour parcourir — JPG, PNG, max 10 MB</span>
-                      <span style={{fontSize:11,color:"#c7d2fe",marginTop:4}}>{existingImageUrls.length + formData.allImages.length}/10 photos</span>
-                    </div>
-                  )}
-
-                  <div className="ca-img-unified-grid" style={{marginTop: formData.allImages.length > 0 ? 16 : 0}}>
                     {formData.allImages.map((file, index) => {
                       const isMain = (!mainIsExisting || existingImageUrls.length === 0) && index === formData.mainImageIndex;
                       const orderNum = orderNumberFor("new", index);
@@ -3571,15 +3578,15 @@ export const CreateListingForm = ({ editId = null }) => {
                             <div className="ca-img-main-badge"><Star size={11} fill="#fff" style={{marginRight:3}}/> Principale</div>
                           )}
                           <div className="ca-img-overlay">
-                            <button type="button" className="ca-img-btn ca-img-btn--eye"
-                              onClick={() => window.open(URL.createObjectURL(file), "_blank")}>
-                              <Eye size={15}/>
-                            </button>
                             <button type="button"
                               className={`ca-img-btn ca-img-btn--heart${isMain ? " ca-img-btn--heart-on" : ""}`}
                               title={isMain ? "Image principale ★" : "Définir comme principale"}
                               onClick={() => setMainNew(index)}>
                               <Star size={15} fill={isMain ? "#fff" : "none"}/>
+                            </button>
+                            <button type="button" className="ca-img-btn ca-img-btn--eye"
+                              onClick={() => window.open(URL.createObjectURL(file), "_blank")}>
+                              <Eye size={15}/>
                             </button>
                             <button type="button" className="ca-img-btn ca-img-btn--del"
                               onClick={() => {
@@ -3601,7 +3608,7 @@ export const CreateListingForm = ({ editId = null }) => {
                     })}
 
                     {/* Slot d'ajout supplémentaire si la grille est déjà partiellement remplie */}
-                    {formData.allImages.length > 0 && (existingImageUrls.length + formData.allImages.length) < 10 && (
+                    {(existingImageUrls.length + formData.allImages.length) > 0 && (existingImageUrls.length + formData.allImages.length) < 10 && (
                       <label className="ca-img-add-slot">
                         <input type="file" accept="image/*" multiple style={{display:"none"}}
                           onChange={e => {
