@@ -842,7 +842,7 @@ export default function Compte() {
     { key:"favoris",   icon:<Heart size={19}/>,  label:"Mes favoris" },
     { key:"noter",     icon:<Star size={19}/>,   label:"Noter les services", badge: toRateLoaded ? toRate.length : 0 },
     ...(storedUser?.role==="partenaire"?[{key:"interventions",icon:<Briefcase size={19}/>,label:"Mes interventions", badge: interventionsLoaded ? pendingInterventions : 0}]:[]),
-    ...(storedUser?.role==="agence"?[{key:"statistiques",icon:<TrendingUp size={19}/>,label:"Statistiques"}]:[]),
+    { key:"statistiques", icon:<TrendingUp size={19}/>, label:"Statistiques" },
     ...(storedUser?.role==="agence"?[{key:"equipe",icon:<Users size={19}/>,label:"Mon équipe"}]:[]),
     ...(storedUser?.role==="agence"?[{key:"onboarding_agence",icon:<FileText size={19}/>,label:"Convention agence",onbInfo:_onbInfo(_onbAgence)}]:[]),
     ...(storedUser?.role==="promoteur"?[{key:"onboarding_promoteur",icon:<FileText size={19}/>,label:"Convention promoteur",onbInfo:_onbInfo(_onbProm)}]:[]),
@@ -1809,8 +1809,8 @@ export default function Compte() {
               )}
             </div>
           )}
-          {/* ═══════ STATISTIQUES (agence only) ═══════ */}
-          {tab==="statistiques" && storedUser?.role==="agence" && (
+          {/* ═══════ STATISTIQUES (tous les rôles) ═══════ */}
+          {tab==="statistiques" && (
             <div>
               <div style={{...card, padding:"22px 26px"}}>
                 <h2 style={{...cardTitle, display:"flex", alignItems:"center", gap:8, marginBottom:4}}>
