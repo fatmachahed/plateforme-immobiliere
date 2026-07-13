@@ -676,10 +676,10 @@ export const CreateListingForm = ({ editId = null }) => {
   const [mainExistingIdx,    setMainExistingIdx]    = useState(0);
   /* true = l'image principale est une image existante ; false = une nouvelle image ajoutée */
   const [mainIsExisting,     setMainIsExisting]     = useState(true);
-  /* -- Réordonnancement des photos par glisser-déposer -- */
-  const [dragExistingIdx, setDragExistingIdx] = useState(null);
-  const [dragNewIdx,      setDragNewIdx]      = useState(null);
-  const [dropOverKey,     setDropOverKey]     = useState(null);
+  /* -- Réordonnancement des photos par glisser-déposer (souris + tactile via Pointer Events) -- */
+  const [dragKind,     setDragKind]     = useState(null); // 'existing' | 'new'
+  const [dragIdx,      setDragIdx]      = useState(null);
+  const [dropOverKey,  setDropOverKey]  = useState(null);
   function reorderExisting(fromIdx, toIdx) {
     if (fromIdx === toIdx) return;
     setExistingImageUrls(prev => {
@@ -691,6 +691,8 @@ export const CreateListingForm = ({ editId = null }) => {
       if (newMainIdx !== -1) setMainExistingIdx(newMainIdx);
       return arr;
     });
+    /* Déplacer une image en 1ère position = elle devient la principale */
+    if (toIdx === 0) { setMainExistingIdx(0); setMainIsExisting(true); }
   }
   function reorderNew(fromIdx, toIdx) {
     if (fromIdx === toIdx) return;
@@ -702,6 +704,56 @@ export const CreateListingForm = ({ editId = null }) => {
       const newMainIdx = arr.indexOf(mainFile);
       return { ...prev, allImages: arr, mainImageIndex: newMainIdx !== -1 ? newMainIdx : prev.mainImageIndex };
     });
+    /* Déplacer une nouvelle image en 1ère position de son groupe = elle devient la
+       principale, mais seulement s'il n'y a pas de photos existantes avant elle
+       (sinon la 1ère position visuelle reste dans le groupe "existantes"). */
+    if (toIdx === 0 && existingImageUrls.length === 0) {
+      handleInputChange("mainImageIndex", 0);
+      setMainIsExisting(false);
+    }
+  }
+  /* Numéro d'affichage unifié : la principale est toujours n°1, peu importe
+     dans quel groupe (existantes / nouvelles) elle se trouve. */
+  function getDisplayOrder() {
+    const mainItem = mainIsExisting
+      ? { kind:"existing", idx: mainExistingIdx }
+      : { kind:"new", idx: formData.mainImageIndex };
+    const rest = [
+      ...existingImageUrls.map((_, i) => ({ kind:"existing", idx:i })).filter(x => !(mainIsExisting && x.idx === mainExistingIdx)),
+      ...formData.allImages.map((_, i) => ({ kind:"new", idx:i })).filter(x => !(!mainIsExisting && x.idx === formData.mainImageIndex)),
+    ];
+    return [mainItem, ...rest];
+  }
+  function orderNumberFor(kind, idx) {
+    const pos = getDisplayOrder().findIndex(x => x.kind === kind && x.idx === idx);
+    return pos === -1 ? "" : pos + 1;
+  }
+  /* -- Pointer Events (souris + tactile) pour le glisser-déposer des photos -- */
+  function findCardUnderPoint(x, y) {
+    const el = document.elementFromPoint(x, y)?.closest("[data-imgcard]");
+    if (!el) return null;
+    return { kind: el.dataset.kind, idx: Number(el.dataset.idx) };
+  }
+  function onCardPointerDown(kind, idx, e) {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    if (e.target.closest("button")) return; // laisser les boutons (★/œil/supprimer) fonctionner normalement
+    setDragKind(kind); setDragIdx(idx);
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  }
+  function onCardPointerMove(e) {
+    if (dragKind === null) return;
+    const target = findCardUnderPoint(e.clientX, e.clientY);
+    if (target && target.kind === dragKind) setDropOverKey(`${target.kind}-${target.idx}`);
+    else setDropOverKey(null);
+  }
+  function onCardPointerUp(e) {
+    if (dragKind === null) return;
+    const target = findCardUnderPoint(e.clientX, e.clientY);
+    if (target && target.kind === dragKind && target.idx !== dragIdx) {
+      if (dragKind === "existing") reorderExisting(dragIdx, target.idx);
+      else reorderNew(dragIdx, target.idx);
+    }
+    setDragKind(null); setDragIdx(null); setDropOverKey(null);
   }
   /* -- Agences pour dropdown accompagnement -- */
   const [agences, setAgences] = useState([]);
@@ -3404,8 +3456,8 @@ export const CreateListingForm = ({ editId = null }) => {
                   </div>
 
                   <p className="ca-tip" style={{marginBottom:12}}>
-                    Glissez-déposez vos photos ou cliquez pour les ajouter. Cliquez sur ★ pour définir l'image principale.
-                    Faites glisser une photo sur une autre pour changer l'ordre d'affichage (numéro en haut à droite).
+                    Glissez-déposez vos photos ou cliquez pour les ajouter. Cliquez sur ★ pour définir l'image principale,
+                    ou faites glisser une photo en 1ère position (souris ou doigt) pour qu'elle devienne automatiquement la principale (n°1).
                   </p>
                   {/* -- Images existantes (edit mode) -- */}
                   {editId && existingImageUrls.length > 0 && (
@@ -3417,18 +3469,19 @@ export const CreateListingForm = ({ editId = null }) => {
                       <div className="ca-img-unified-grid">
                         {existingImageUrls.map((url, idx) => {
                           const isMain = mainIsExisting && idx === mainExistingIdx;
-                          const dropKey = `ex-${idx}`;
+                          const dropKey = `existing-${idx}`;
+                          const orderNum = orderNumberFor("existing", idx);
                           return (
                             <div key={url}
-                              className={`ca-img-uni-card${isMain ? " ca-img-uni-card--main" : ""}${dragExistingIdx===idx ? " ca-img-uni-card--dragging" : ""}${dropOverKey===dropKey ? " ca-img-uni-card--drop-over" : ""}`}
-                              draggable
-                              onDragStart={() => setDragExistingIdx(idx)}
-                              onDragOver={e => { e.preventDefault(); setDropOverKey(dropKey); }}
-                              onDragLeave={() => setDropOverKey(k => k===dropKey ? null : k)}
-                              onDrop={e => { e.preventDefault(); if (dragExistingIdx!==null) reorderExisting(dragExistingIdx, idx); setDragExistingIdx(null); setDropOverKey(null); }}
-                              onDragEnd={() => { setDragExistingIdx(null); setDropOverKey(null); }}
+                              className={`ca-img-uni-card${isMain ? " ca-img-uni-card--main" : ""}${dragKind==="existing"&&dragIdx===idx ? " ca-img-uni-card--dragging" : ""}${dropOverKey===dropKey ? " ca-img-uni-card--drop-over" : ""}`}
+                              data-imgcard data-kind="existing" data-idx={idx}
+                              style={{touchAction:"none"}}
+                              onPointerDown={e => onCardPointerDown("existing", idx, e)}
+                              onPointerMove={onCardPointerMove}
+                              onPointerUp={onCardPointerUp}
+                              onPointerCancel={() => { setDragKind(null); setDragIdx(null); setDropOverKey(null); }}
                             >
-                              <span className="ca-img-order-badge" title="Ordre d'affichage">{idx+1}</span>
+                              <span className={`ca-img-order-badge${orderNum===1 ? " ca-img-order-badge--main" : ""}`} title="Ordre d'affichage">{orderNum}</span>
                               <img src={url} alt={`Photo ${idx+1}`}
                                 style={{width:"100%",height:"100%",objectFit:"cover"}}
                                 onError={e => { e.currentTarget.style.display="none"; }}/>
@@ -3512,17 +3565,18 @@ export const CreateListingForm = ({ editId = null }) => {
                     {formData.allImages.map((file, index) => {
                       const isMain = (!mainIsExisting || existingImageUrls.length === 0) && index === formData.mainImageIndex;
                       const dropKey = `new-${index}`;
+                      const orderNum = orderNumberFor("new", index);
                       return (
                         <div key={index}
-                          className={`ca-img-uni-card${isMain ? " ca-img-uni-card--main" : ""}${dragNewIdx===index ? " ca-img-uni-card--dragging" : ""}${dropOverKey===dropKey ? " ca-img-uni-card--drop-over" : ""}`}
-                          draggable
-                          onDragStart={() => setDragNewIdx(index)}
-                          onDragOver={e => { e.preventDefault(); setDropOverKey(dropKey); }}
-                          onDragLeave={() => setDropOverKey(k => k===dropKey ? null : k)}
-                          onDrop={e => { e.preventDefault(); if (dragNewIdx!==null) reorderNew(dragNewIdx, index); setDragNewIdx(null); setDropOverKey(null); }}
-                          onDragEnd={() => { setDragNewIdx(null); setDropOverKey(null); }}
+                          className={`ca-img-uni-card${isMain ? " ca-img-uni-card--main" : ""}${dragKind==="new"&&dragIdx===index ? " ca-img-uni-card--dragging" : ""}${dropOverKey===dropKey ? " ca-img-uni-card--drop-over" : ""}`}
+                          data-imgcard data-kind="new" data-idx={index}
+                          style={{touchAction:"none"}}
+                          onPointerDown={e => onCardPointerDown("new", index, e)}
+                          onPointerMove={onCardPointerMove}
+                          onPointerUp={onCardPointerUp}
+                          onPointerCancel={() => { setDragKind(null); setDragIdx(null); setDropOverKey(null); }}
                         >
-                          <span className="ca-img-order-badge" title="Ordre d'affichage">{existingImageUrls.length + index + 1}</span>
+                          <span className={`ca-img-order-badge${orderNum===1 ? " ca-img-order-badge--main" : ""}`} title="Ordre d'affichage">{orderNum}</span>
                           <img src={URL.createObjectURL(file)} alt={`Image ${index + 1}`}/>
                           {isMain && (
                             <div className="ca-img-main-badge"><Star size={11} fill="#fff" style={{marginRight:3}}/> Principale</div>
@@ -5208,6 +5262,8 @@ export const CreateListingForm = ({ editId = null }) => {
             display: flex; align-items: center; justify-content: center;
             pointer-events: none;
           }
+          /* Même couleur/style que le badge "Principale" (★) pour la photo n°1 */
+          .ca-img-order-badge--main { background: #f59e0b; }
           .ca-img-uni-card[draggable="true"] { cursor: grab; }
           .ca-img-uni-card--dragging { opacity: .4; }
           .ca-img-uni-card--drop-over { border-color: #6366f1 !important; }
