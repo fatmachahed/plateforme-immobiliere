@@ -175,7 +175,7 @@ def get_agency_stats(
     d_from, d_to = _parse_stats_dates(date_from, date_to)
 
     annonces_q = db.query(models.Annonce).filter(models.Annonce.utilisateur_id == current_user.id)
-    nb_annonces = annonces_q.count()
+    nb_annonces = annonces_q.filter(models.Annonce.status == "approuvee").count()
     nb_vues = db.query(func.coalesce(func.sum(models.Annonce.views_count), 0)).filter(
         models.Annonce.utilisateur_id == current_user.id
     ).scalar() or 0

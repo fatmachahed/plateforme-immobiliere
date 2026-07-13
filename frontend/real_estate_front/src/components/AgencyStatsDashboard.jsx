@@ -173,7 +173,7 @@ export default function AgencyStatsDashboard() {
 
       {/* Cartes stats */}
       <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(160px, 1fr))", gap:12, marginBottom:24}}>
-        <StatCard icon={<Home size={20}/>} label="Annonces publiées" color="#6366f1" value={loadingStats ? "…" : (stats?.nb_annonces ?? 0)}/>
+        <StatCard icon={<Home size={20}/>} label="Annonces en cours" color="#6366f1" value={loadingStats ? "…" : (stats?.nb_annonces ?? 0)}/>
         <StatCard icon={<Eye size={20}/>} label="Vues totales" color="#0ea5e9" value={loadingStats ? "…" : (stats?.nb_vues ?? 0)}/>
         <StatCard icon={<TrendingUp size={20}/>} label="Taux de conversion" color="#16a34a" value={loadingStats ? "…" : `${stats?.taux_conversion ?? 0}%`}/>
         <StatCard icon={<Phone size={20}/>} label="Contacts téléphone" color="#f59e0b" value={loadingStats ? "…" : (stats?.contacts_par_canal?.telephone ?? 0)}/>
