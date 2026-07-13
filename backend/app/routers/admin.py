@@ -248,9 +248,10 @@ def list_users(
     users = db.query(models.User).offset(skip).limit(limit).all()
     return [
         {
-            "id":         u.id,
-            "username":   u.username,
-            "email":      u.email,
+            "id":           u.id,
+            "username":     u.username,
+            "email":        u.email,
+            "phone_number": u.phone_number,
             "role":       u.role.value if hasattr(u.role, "value") else str(u.role),
             "is_blocked": bool(u.is_blocked),
             "note_prestataire":     getattr(u, "note_prestataire", None),
@@ -283,6 +284,7 @@ def toggle_block_user(
 class UserUpdate(BaseModel):
     username: Optional[str] = None
     email:    Optional[str] = None
+    phone_number: Optional[str] = None
     role:     Optional[str] = None
     note_prestataire:     Optional[float] = None
     nombre_interventions: Optional[int]   = None
@@ -299,6 +301,7 @@ def update_user(
         raise HTTPException(404, "Utilisateur non trouvé")
     if body.username:  u.username = body.username
     if body.email:     u.email    = body.email
+    if body.phone_number is not None: u.phone_number = body.phone_number
     if body.role:
         try:
             u.role = RoleEnum(body.role)
@@ -310,7 +313,7 @@ def update_user(
         u.nombre_interventions = body.nombre_interventions
     db.commit()
     db.refresh(u)
-    return {"id": u.id, "username": u.username, "email": u.email, "role": u.role.value if hasattr(u.role,"value") else str(u.role)}
+    return {"id": u.id, "username": u.username, "email": u.email, "phone_number": u.phone_number, "role": u.role.value if hasattr(u.role,"value") else str(u.role)}
 
 
 # ── Supprimer un utilisateur ─────────────────────────────────

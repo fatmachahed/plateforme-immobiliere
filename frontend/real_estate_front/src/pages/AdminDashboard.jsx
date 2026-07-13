@@ -133,7 +133,7 @@ export default function AdminDashboard() {
   const [allAnnonces,  setAllAnnonces] = useState([]);
   const [users,        setUsers]       = useState([]);
   const [userEditModal,setUserEditModal]= useState(null);
-  const [userEditForm, setUserEditForm] = useState({username:"",email:"",role:""});
+  const [userEditForm, setUserEditForm] = useState({username:"",email:"",phone_number:"",role:""});
   const [userSearchNom,  setUserSearchNom]  = useState("");
   const [userSearchEmail,setUserSearchEmail]= useState("");
   const [userFilterRole, setUserFilterRole] = useState("");
@@ -328,6 +328,7 @@ export default function AdminDashboard() {
       const payload = {
         username: userEditForm.username,
         email:    userEditForm.email,
+        phone_number: userEditForm.phone_number,
         role:     userEditForm.role,
       };
       if (userEditModal.role === "partenaire") {
@@ -1189,6 +1190,7 @@ export default function AdminDashboard() {
                           style={{width:"100%",padding:"5px 8px 5px 24px",borderRadius:6,border:"1px solid #e2e8f0",fontSize:12,fontFamily:"inherit",boxSizing:"border-box",background:"#fff"}}/>
                       </div>
                     </th>
+                    <th></th>
                     <th style={{padding:"6px 8px"}}>
                       <select value={userFilterRole} onChange={e=>setUserFilterRole(e.target.value)}
                         style={{width:"100%",padding:"5px 6px",borderRadius:6,border:"1px solid #e2e8f0",fontSize:12,fontFamily:"inherit",background:"#fff"}}>
@@ -1223,7 +1225,7 @@ export default function AdminDashboard() {
                   <>
                     <table className="adm-table">
                       <thead>
-                        <tr><th>#</th><th>Nom</th><th>Email</th><th>Rôle</th>
+                        <tr><th>#</th><th>Nom</th><th>Email</th><th>Téléphone</th><th>Rôle</th>
                           <th style={{cursor:"pointer",userSelect:"none",whiteSpace:"nowrap"}} onClick={()=>setUserSortAnnonces(s=>s==="desc"?"asc":s==="asc"?"":"desc")}>
                             Annonces {userSortAnnonces==="desc"?"↓":userSortAnnonces==="asc"?"↑":"↕"}
                           </th>
@@ -1238,7 +1240,7 @@ export default function AdminDashboard() {
                 return (
                 <table className="adm-table">
                   <thead>
-                    <tr><th>#</th><th>Nom</th><th>Email</th><th>Rôle</th>
+                    <tr><th>#</th><th>Nom</th><th>Email</th><th>Téléphone</th><th>Rôle</th>
                       <th style={{cursor:"pointer",userSelect:"none",whiteSpace:"nowrap"}} onClick={()=>setUserSortAnnonces(s=>s==="desc"?"asc":s==="asc"?"":"desc")}>
                         Annonces {userSortAnnonces==="desc"?"↓":userSortAnnonces==="asc"?"↑":"↕"}
                       </th>
@@ -1258,6 +1260,7 @@ export default function AdminDashboard() {
                           {u.is_verified===false && <span style={{marginLeft:6,fontSize:10,color:"#d97706",fontWeight:700,background:"#fef3c7",padding:"1px 6px",borderRadius:4}}>Non vérifié</span>}
                         </td>
                         <td className="adm-table__email">{u.email}</td>
+                        <td style={{fontSize:12.5,color:"#374151",whiteSpace:"nowrap"}}>{u.phone_number || "—"}</td>
                         <td>
                           <span className={`adm-pill ${
                             u.role==="admin"     ? "adm-pill--admin"  :
@@ -1291,7 +1294,7 @@ export default function AdminDashboard() {
                         <td>
                           <div style={{display:"flex",gap:5,alignItems:"center"}}>
                             {/* Modifier */}
-                            <button title="Modifier" onClick={() => { setUserEditForm({username:u.username,email:u.email,role:u.role,note_prestataire:u.note_prestataire ?? "",nombre_interventions:u.nombre_interventions ?? ""}); setUserEditModal(u); }}
+                            <button title="Modifier" onClick={() => { setUserEditForm({username:u.username,email:u.email,phone_number:u.phone_number||"",role:u.role,note_prestataire:u.note_prestataire ?? "",nombre_interventions:u.nombre_interventions ?? ""}); setUserEditModal(u); }}
                               style={{display:"flex",alignItems:"center",justifyContent:"center",width:30,height:30,borderRadius:6,border:"1px solid #e2e8f0",background:"#fff",cursor:"pointer",color:"#374151"}}>
                               <Pencil size={13}/>
                             </button>
@@ -1331,6 +1334,7 @@ export default function AdminDashboard() {
                 {[
                   {label:"Nom d'utilisateur", key:"username"},
                   {label:"Email", key:"email"},
+                  {label:"Téléphone", key:"phone_number"},
                 ].map(({label,key}) => (
                   <div key={key} style={{marginBottom:14}}>
                     <label style={{fontSize:12,fontWeight:600,color:"#374151",display:"block",marginBottom:5}}>{label}</label>
