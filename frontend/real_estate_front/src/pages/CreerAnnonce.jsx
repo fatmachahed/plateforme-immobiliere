@@ -645,6 +645,7 @@ export const CreateListingForm = ({ editId = null }) => {
   }, [geoSearchQuery, geoSearchOpen]);
 
   function applyGeoSuggestion(s) {
+    setAddressWarning(""); setZoneStatus(null);
     setHierarchy({
       gouvernorat: s.gouvernorat_id != null ? String(s.gouvernorat_id) : "",
       delegation:  s.delegation_id  != null ? String(s.delegation_id)  : "",
@@ -654,6 +655,26 @@ export const CreateListingForm = ({ editId = null }) => {
     setFormData(prev => ({ ...prev, address: builtAddress }));
     setValidationErrors(v => ({ ...v, gouvernorat:false, delegation:false }));
     setGeoSearchOpen(false); setGeoSearchQuery(""); setGeoSearchResults([]);
+
+    /* Déplacer le point sur la carte, comme lors d'une sélection manuelle
+       gouvernorat/délégation (même logique que handleHierarchyChange). */
+    const searchLabel = s.delegation || s.gouvernorat;
+    if (searchLabel) {
+      fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchLabel + ", Tunisie")}&format=json&limit=1&countrycodes=tn`,
+        { headers: { "Accept-Language": "fr" } }
+      )
+        .then(r => r.json())
+        .then(data => {
+          if (data[0]) {
+            const lat = parseFloat(data[0].lat);
+            const lng = parseFloat(data[0].lon);
+            setMapLocation({ lat, lng, address: builtAddress });
+            setFormData(prev => ({ ...prev, latitude: lat.toString(), longitude: lng.toString(), address: builtAddress }));
+          }
+        })
+        .catch(() => {});
+    }
   }
 
   /* Met en gras/couleur primaire la portion du texte qui correspond à la recherche */
