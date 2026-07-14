@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect, useRef, useCallback } from "react";
 import ReactDOM from "react-dom";
 import API_URL, { fmtDevise, convertPrice, fmtPriceApprox } from '../config';
-import { useNavigate, useSearchParams, Link } from "react-router-dom";
+import { useNavigate, useSearchParams, useParams, useLocation, Link } from "react-router-dom";
 import { useToast } from "../components/Toast";
 import { useFeatureFlags } from "../hooks/useFeatureFlags";
 import {
@@ -29,6 +29,19 @@ import AnnonceDetailModal from "./AnnonceDetailModal";
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
+
+/* Slug lisible pour l'URL de la popup annonce (/annonce/{id}/{type}/{titre}),
+   à la manière de Mubawab — cosmétique/SEO uniquement, l'id seul fait foi. */
+function slugify(str) {
+  const accentRange = new RegExp("[̀-ͯ]", "g"); // marques diacritiques (après normalize NFD)
+  return (str || "")
+    .toString()
+    .normalize("NFD").replace(accentRange, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80) || "annonce";
+}
 
 /* -------------------------------------------------------------
    POINT-IN-POLYGON – ray casting algorithm
@@ -2483,6 +2496,8 @@ function CompareBar() {
 
 export default function CartePage() {
   const navigate                   = useNavigate();
+  const routeParams                = useParams();
+  const routeLocation               = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const [active, setActive]         = useState(null);
   const [apiProperties, setApiProps] = useState([]);
@@ -2639,13 +2654,33 @@ export default function CartePage() {
   const [drawnZones,       setDrawnZones]       = useState(() => { try { return JSON.parse(sessionStorage.getItem("localizi_carte_zones") || "null") || []; } catch { return []; } });
   const [eraseMode,        setEraseMode]        = useState(false);
   const [eraseSelectedIdx, setEraseSelectedIdx] = useState(null);
-  const [modalId,          setModalId]          = useState(() => searchParams.get("annonce") || null);
-  useEffect(() => { window.__openAnnonceModal = (id) => setModalId(id); return () => { delete window.__openAnnonceModal; }; }, []);
-  /* Ouvrir le modal depuis l'URL ?annonce=ID (lien email alerte) */
+  const [modalId,          setModalId]          = useState(() => routeParams.id || searchParams.get("annonce") || null);
+  /* Ouvre la popup annonce ET met à jour l'URL en /annonce/{id}/{type}/{titre}
+     (lisible/partageable, à la Mubawab) sans recharger la page — CartePage
+     reste monté puisque ces routes pointent toutes vers le même élément. */
+  const openAnnonceModal = useCallback((id, hint) => {
+    setModalId(id);
+    const found = hint || allPropertiesRef.current.find(p => String(p._realId || p.id).replace("api_","") === String(id));
+    const typeSlug  = slugify(TYPE_LBL[found?.type] || found?.type || "bien");
+    const titleSlug = slugify(found?.titre || "annonce");
+    navigate(`/annonce/${id}/${typeSlug}/${titleSlug}`);
+  }, [navigate]);
+  /* Ferme la popup : si l'URL a été poussée par openAnnonceModal (/annonce/...),
+     revenir en arrière restaure exactement l'URL précédente (filtres compris).
+     Sinon (ex. lien ?annonce= d'une alerte email) on retire juste la popup. */
+  const closeAnnonceModal = useCallback(() => {
+    if (routeLocation.pathname.startsWith("/annonce/")) navigate(-1);
+    else setModalId(null);
+  }, [navigate, routeLocation.pathname]);
+  /* Synchronise modalId avec l'URL (navigation directe, retour navigateur,
+     ou notre propre navigate(-1) dans closeAnnonceModal). */
   useEffect(() => {
-    const id = searchParams.get("annonce");
-    if (id) { setModalId(id); }
-  }, []);
+    if (routeLocation.pathname.startsWith("/annonce/") && routeParams.id) { setModalId(routeParams.id); return; }
+    const qid = searchParams.get("annonce");
+    if (qid) { setModalId(qid); return; }
+    setModalId(null);
+  }, [routeLocation.pathname, routeParams.id, searchParams]);
+  useEffect(() => { window.__openAnnonceModal = (id) => openAnnonceModal(id); return () => { delete window.__openAnnonceModal; }; }, [openAnnonceModal]);
   const [showSaveModal,    setShowSaveModal]    = useState(false);
   const [saveModalName,    setSaveModalName]    = useState("Ma recherche");
   const [saveModalLoading, setSaveModalLoading] = useState(false);
@@ -3407,7 +3442,7 @@ export default function CartePage() {
                   onHover={()=>{}}
                   onClick={(id)=>{
                     const realId = String(id).startsWith("api_") ? String(id).replace("api_","") : id;
-                    setModalId(realId);
+                    openAnnonceModal(realId, p);
                   }}
                 />
               </div>
@@ -3689,7 +3724,7 @@ export default function CartePage() {
             {hoveredPin && <HoverCard
               pin={hoveredPin}
               sharedHoverTimer={sharedHoverTimer}
-              onOpen={(id) => setModalId(id)}
+              onOpen={(id) => openAnnonceModal(id)}
               onLeave={() => setHoveredPin(null)}
             />}
       
@@ -3734,7 +3769,7 @@ export default function CartePage() {
                         onHover={setActive}
                         onClick={(id)=>{
                           const realId = String(id).startsWith("api_") ? String(id).replace("api_","") : id;
-                          setModalId(realId);
+                          openAnnonceModal(realId, p);
                         }}
                       />
                     </div>
@@ -3745,7 +3780,7 @@ export default function CartePage() {
         </div>
 
       {/* -- Modal annonce -- */}
-      {modalId && <AnnonceDetailModal annonceId={modalId} onClose={() => setModalId(null)} />}
+      {modalId && <AnnonceDetailModal annonceId={modalId} onClose={closeAnnonceModal} />}
 
       {/* Le comparateur est désormais une popup globale montée dans App.jsx */}
 
