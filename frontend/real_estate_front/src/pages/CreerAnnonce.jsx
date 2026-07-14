@@ -1794,7 +1794,7 @@ export const CreateListingForm = ({ editId = null }) => {
       if (formData.jardin)        equip.push(formData.surface_jardin ? `jardin privatif de ${formData.surface_jardin} m²` : "jardin privatif");
       if (formData.terrasse)      equip.push(formData.surface_terrasse ? `terrasse de ${formData.surface_terrasse} m²` : "terrasse");
       if (formData.balcon)        equip.push("balcon");
-      if (formData.piscine)       equip.push(formData.surface_piscine ? `piscine de ${formData.surface_piscine} m²` : "piscine");
+      if (formData.piscine)       equip.push(formData.surface_piscine ? `piscine de ${formData.surface_piscine} m³` : "piscine");
       if (formData.ascenseur)     equip.push("ascenseur");
       if (formData.garage)        equip.push(formData.nb_places_garage > 1 ? `garage (${formData.nb_places_garage} places)` : "garage");
       if (formData.parking)       equip.push("place de parking");
@@ -2951,8 +2951,8 @@ export const CreateListingForm = ({ editId = null }) => {
                               </button>
                               {isOn && item.extra && item.extra !== "nb_places_garage" && (
                                 <div className="ca-feat-big-extra">
-                                  <div className="ca-feat-big-extra__label">Surface (m²)</div>
-                                  <input type="number" className="ca-input ca-input--sm" placeholder="m²" min="1"
+                                  <div className="ca-feat-big-extra__label">{item.key === "piscine" ? "Volume (m³)" : "Surface (m²)"}</div>
+                                  <input type="number" className="ca-input ca-input--sm" placeholder={item.key === "piscine" ? "m³" : "m²"} min="1"
                                     value={formData[item.extra] || ""}
                                     onChange={e => handleInputChange(item.extra, e.target.value)}/>
                                 </div>

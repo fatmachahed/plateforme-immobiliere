@@ -419,7 +419,7 @@ def get_annonce_detail(annonce_id: int, db: Session = Depends(get_db)):
                 elif k == "terrasse" and cg.surface_terrasse:
                     label = f"{label} ({cg.surface_terrasse:g} m²)"
                 elif k == "piscine" and cg.surface_piscine:
-                    label = f"{label} ({cg.surface_piscine:g} m²)"
+                    label = f"{label} ({cg.surface_piscine:g} m³)"
                 elif k == "garage" and cg.nb_places_garage and cg.nb_places_garage > 1:
                     label = f"{label} ({cg.nb_places_garage} places)"
                 features.append(label)
