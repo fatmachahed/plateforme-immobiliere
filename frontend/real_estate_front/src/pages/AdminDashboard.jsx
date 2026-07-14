@@ -12,7 +12,7 @@ import {
   CreditCard, ShieldCheck, ShieldOff, Mail, Phone,
   DollarSign, Activity, Filter, Calendar, Edit3, Pencil, Search,
   TrendingUp, MapPin, Sparkles, Handshake, Lock, Unlock,
-  Settings, Save, AlertTriangle, ShieldAlert,
+  Settings, Save, AlertTriangle, ShieldAlert, Layers,
 } from "lucide-react";
 
 
@@ -53,6 +53,7 @@ export default function AdminDashboard() {
      connectés avec le même compte admin. */
   const [boostEnabled, setBoostEnabled] = useState(true);
   const [poiEnabled,   setPoiEnabled]   = useState(true);
+  const [regionRequiredForPins, setRegionRequiredForPins] = useState(false);
   useEffect(() => {
     fetch(`${API_URL}/admin/feature-flags`)
       .then(r => r.ok ? r.json() : null)
@@ -60,6 +61,7 @@ export default function AdminDashboard() {
         if (!data) return;
         if (typeof data.boost_enabled === "boolean") setBoostEnabled(data.boost_enabled);
         if (typeof data.poi_enabled   === "boolean") setPoiEnabled(data.poi_enabled);
+        if (typeof data.require_region_to_show_map_pins === "boolean") setRegionRequiredForPins(data.require_region_to_show_map_pins);
       })
       .catch(() => {});
   }, []);
@@ -2019,6 +2021,49 @@ export default function AdminDashboard() {
                       flexShrink:0,
                     }}>
                     {poiEnabled ? "Désactiver" : "Activer"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Bloc Carte : tous les points vs. gouvernorat requis */}
+              <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:16,padding:"24px 32px",boxShadow:"0 1px 6px rgba(0,0,0,.04)",marginBottom:24}}>
+                <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20,paddingBottom:16,borderBottom:"1px solid #f1f5f9"}}>
+                  <div style={{width:40,height:40,borderRadius:12,background:"#f0fdf4",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    <Layers size={20} color="#16a34a"/>
+                  </div>
+                  <div>
+                    <h2 style={{fontSize:16,fontWeight:800,color:"#0f172a",margin:0}}>Points affichés sur la carte</h2>
+                    <p style={{fontSize:12,color:"#64748b",margin:"3px 0 0"}}>
+                      Contrôle l'optimisation qui limite l'affichage des annonces sur la carte de recherche.
+                      À désactiver au lancement (peu d'annonces, tout doit être visible) ; à activer quand le volume
+                      d'annonces devient important, pour n'afficher les points qu'après sélection d'un gouvernorat.
+                    </p>
+                  </div>
+                </div>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:16}}>
+                  <div>
+                    <div style={{fontSize:14,fontWeight:600,color:"#374151",marginBottom:4}}>
+                      Sélection d'un gouvernorat requise :{" "}
+                      <span style={{color: regionRequiredForPins?"#dc2626":"#16a34a",fontWeight:800}}>
+                        {regionRequiredForPins ? "Activée ✓" : "Désactivée ✕"}
+                      </span>
+                    </div>
+                    <div style={{fontSize:12,color:"#94a3b8"}}>
+                      {regionRequiredForPins
+                        ? "La carte n'affiche des points qu'une fois qu'un gouvernorat est sélectionné (optimisation active)."
+                        : "Tous les biens sont affichés sur la carte, sans sélection préalable d'un gouvernorat."}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => toggleFeatureFlag("require_region_to_show_map_pins", !regionRequiredForPins, setRegionRequiredForPins)}
+                    style={{
+                      padding:"10px 22px",borderRadius:10,border:"none",cursor:"pointer",
+                      fontWeight:700,fontSize:14,transition:"all .2s",
+                      background: regionRequiredForPins ? "#fee2e2" : "#dcfce7",
+                      color: regionRequiredForPins ? "#dc2626" : "#16a34a",
+                      flexShrink:0,
+                    }}>
+                    {regionRequiredForPins ? "Désactiver" : "Activer"}
                   </button>
                 </div>
               </div>

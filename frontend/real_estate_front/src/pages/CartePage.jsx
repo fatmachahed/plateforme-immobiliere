@@ -2502,6 +2502,10 @@ export default function CartePage() {
   const [active, setActive]         = useState(null);
   const [apiProperties, setApiProps] = useState([]);
   const [totalCount,    setTotalCount] = useState(null);
+  /* Paramètre admin : si false (défaut), tous les biens s'affichent sur la carte
+     sans sélection préalable d'un gouvernorat — utile tant que le volume d'annonces
+     est faible. Activable depuis Admin > Paramètres une fois le catalogue plus fourni. */
+  const { require_region_to_show_map_pins: regionRequiredForPins } = useFeatureFlags();
   const [mapBounds, setMapBounds]   = useState(null);
   /* Ref toujours synchronis� avec allProperties (utilisé dans applyFilters) */
   const allPropertiesRef = useRef([]);
@@ -2930,11 +2934,16 @@ export default function CartePage() {
       .catch(() => {});
   }, []); // eslint-disable-line
 
-  /* Fetch annonces only when a gouvernorat is selected */
+  /* Fetch annonces : si l'optimisation "gouvernorat requis" est active et qu'aucun
+     gouvernorat n'est sélectionné, on n'affiche rien (comportement historique).
+     Sinon (paramètre désactivé, valeur par défaut), on charge toutes les annonces
+     tant qu'aucun gouvernorat n'est choisi, et on filtre normalement dès qu'un
+     gouvernorat/délégation est sélectionné par l'utilisateur. */
   useEffect(() => {
-    if (!filters.govId) { setApiProps([]); return; }
+    if (!filters.govId && regionRequiredForPins) { setApiProps([]); return; }
     setListLoading(true);
-    const params = new URLSearchParams({ limit: "500", gouvernorat_id: filters.govId });
+    const params = new URLSearchParams({ limit: "500" });
+    if (filters.govId) params.set("gouvernorat_id", filters.govId);
     if (filters.delId) params.set("delegation_id", filters.delId);
     fetch(`${API_URL}/annonces/public?${params}`)
       .then(r => r.json())
@@ -2944,7 +2953,7 @@ export default function CartePage() {
       })
       .catch(() => {})
       .finally(() => setListLoading(false));
-  }, [filters.govId, filters.delId]); // eslint-disable-line
+  }, [filters.govId, filters.delId, regionRequiredForPins]); // eslint-disable-line
 
   /* Sync favoris API ? localStorage au montage (si connect�) */
   useEffect(() => {
@@ -3606,8 +3615,8 @@ export default function CartePage() {
               onMapRef={(map) => { leafletMapRef.current = map; }}
             />
 
-            {/* -- Overlay : pas de gouvernorat sélectionné — texte blanc direct sur la couche -- */}
-            {!filters.govNom && (
+            {/* -- Overlay : pas de gouvernorat sélectionné — uniquement si l'optimisation est activée -- */}
+            {regionRequiredForPins && !filters.govNom && (
               <div style={{
                 position:"absolute", inset:0, zIndex:8500,
                 background:"rgba(10,12,20,0.55)",

@@ -7,7 +7,7 @@ import API_URL from "../config";
  * chaque appareil/navigateur garde sa propre valeur et un admin qui désactive
  * une fonctionnalité sur PC ne voit pas le changement sur mobile.
  */
-const DEFAULTS = { poi_enabled: true, boost_enabled: true };
+const DEFAULTS = { poi_enabled: true, boost_enabled: true, require_region_to_show_map_pins: false };
 
 let cache = null;
 let inflight = null;
@@ -17,6 +17,7 @@ function readLocalFallback() {
     return {
       poi_enabled:   localStorage.getItem("lz_poi_enabled")   !== "0",
       boost_enabled: localStorage.getItem("lz_boost_enabled") !== "0",
+      require_region_to_show_map_pins: localStorage.getItem("lz_require_region_to_show_map_pins") === "1",
     };
   } catch { return { ...DEFAULTS }; }
 }

@@ -571,7 +571,15 @@ def update_plans_config(
 # Stockées en base (table settings) au lieu du localStorage : sinon chaque
 # navigateur/appareil garde sa propre valeur et un admin qui désactive une
 # fonctionnalité sur PC ne voit pas le changement sur mobile (et vice versa).
-_DEFAULT_FEATURE_FLAGS = {"poi_enabled": True, "boost_enabled": True}
+_DEFAULT_FEATURE_FLAGS = {
+    "poi_enabled": True,
+    "boost_enabled": True,
+    # Si False (par défaut) : tous les biens sont affichés sur la carte quel que soit
+    # le nombre d'annonces — utile au lancement, quand le volume est encore faible.
+    # Si True : la carte n'affiche des points qu'après sélection d'un gouvernorat,
+    # ce qui limite la charge une fois que le nombre d'annonces devient important.
+    "require_region_to_show_map_pins": False,
+}
 
 @router.get("/feature-flags")
 def get_feature_flags(db: Session = Depends(get_db)):
