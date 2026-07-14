@@ -12,7 +12,7 @@ import {
   UtensilsCrossed, Wind, Thermometer, Compass, Wrench,
   HardHat, ThumbsUp, Hammer,
   Wifi, Flame, DoorClosed, ShieldCheck, Tv, PhoneCall, Users, KeyRound, Droplets, Signal, Heart, RefreshCw, Monitor, LockKeyhole, Fence, Fingerprint, Briefcase,
-  Tractor, LayoutGrid, Star, Tag, Phone, Mail, Warehouse, AlertTriangle, Factory
+  Tractor, LayoutGrid, Star, Tag, Phone, Mail, Warehouse, AlertTriangle, Factory, Search
 } from "lucide-react";
 import Layout from "../components/Layout";
 import Logo from "../components/Logo";
@@ -625,6 +625,51 @@ export const CreateListingForm = ({ editId = null }) => {
   });
 
   const { gouvernorats, delegations, localites } = useLocalisation(hierarchy);
+
+  /* -- Recherche rapide gouvernorat/délégation/localité (step Localisation) -- */
+  const [geoSearchOpen,    setGeoSearchOpen]    = useState(false);
+  const [geoSearchQuery,   setGeoSearchQuery]   = useState("");
+  const [geoSearchResults, setGeoSearchResults] = useState([]);
+  const [geoSearchLoading, setGeoSearchLoading] = useState(false);
+  useEffect(() => {
+    if (!geoSearchOpen || geoSearchQuery.trim().length < 2) { setGeoSearchResults([]); return; }
+    const t = setTimeout(() => {
+      setGeoSearchLoading(true);
+      fetch(`${API_URL}/localisation/search-suggestions?q=${encodeURIComponent(geoSearchQuery.trim())}&limit=10`)
+        .then(r => r.ok ? r.json() : [])
+        .then(d => setGeoSearchResults(Array.isArray(d) ? d : []))
+        .catch(() => setGeoSearchResults([]))
+        .finally(() => setGeoSearchLoading(false));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [geoSearchQuery, geoSearchOpen]);
+
+  function applyGeoSuggestion(s) {
+    setHierarchy({
+      gouvernorat: s.gouvernorat_id != null ? String(s.gouvernorat_id) : "",
+      delegation:  s.delegation_id  != null ? String(s.delegation_id)  : "",
+      localite:    s.localite_id    != null ? String(s.localite_id)    : "",
+    });
+    const builtAddress = [s.localite, s.delegation, s.gouvernorat, "Tunisie"].filter(Boolean).join(", ");
+    setFormData(prev => ({ ...prev, address: builtAddress }));
+    setValidationErrors(v => ({ ...v, gouvernorat:false, delegation:false }));
+    setGeoSearchOpen(false); setGeoSearchQuery(""); setGeoSearchResults([]);
+  }
+
+  /* Met en gras/couleur primaire la portion du texte qui correspond à la recherche */
+  function highlightMatch(text, query) {
+    if (!text) return "";
+    if (!query) return text;
+    const idx = text.toLowerCase().indexOf(query.toLowerCase());
+    if (idx === -1) return text;
+    return (
+      <>
+        {text.slice(0, idx)}
+        <strong style={{ color:"#6366f1", fontWeight:800 }}>{text.slice(idx, idx + query.length)}</strong>
+        {text.slice(idx + query.length)}
+      </>
+    );
+  }
 
   const defaultFormData = {
     type_bien: "", categorie: "", etat_bien: "", type_terrain: "", vocation_terrain: "", titre_foncier: "",
@@ -3034,7 +3079,62 @@ export const CreateListingForm = ({ editId = null }) => {
 
                     {/* Left — champs */}
                     <div className="ca-loc-fields">
-                      <div className="ca-section-label">Zone géographique <span className="ca-req">*</span></div>
+                      <div className="ca-section-label" style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                        <span>Zone géographique <span className="ca-req">*</span></span>
+                        <button type="button"
+                          onClick={() => setGeoSearchOpen(v => !v)}
+                          title="Rechercher un gouvernorat, une délégation ou une localité"
+                          style={{
+                            background: geoSearchOpen ? "#eef2ff" : "#f8fafc",
+                            border:"1px solid #e2e8f0", borderRadius:8, width:30, height:30,
+                            display:"flex", alignItems:"center", justifyContent:"center",
+                            cursor:"pointer", color: geoSearchOpen ? "#6366f1" : "#64748b",
+                          }}>
+                          <Search size={14}/>
+                        </button>
+                      </div>
+                      {geoSearchOpen && (
+                        <div style={{position:"relative", marginBottom:10}}>
+                          <input
+                            type="text" autoFocus
+                            value={geoSearchQuery}
+                            onChange={e => setGeoSearchQuery(e.target.value)}
+                            placeholder="Rechercher une localité, une délégation ou un gouvernorat…"
+                            className="ca-input"
+                            style={{width:"100%", boxSizing:"border-box"}}
+                          />
+                          {geoSearchQuery.trim().length >= 2 && (
+                            <div style={{
+                              position:"absolute", zIndex:20, top:"100%", left:0, right:0, marginTop:4,
+                              background:"#fff", border:"1px solid #e2e8f0", borderRadius:10,
+                              boxShadow:"0 10px 30px rgba(0,0,0,.1)", maxHeight:260, overflowY:"auto",
+                            }}>
+                              {geoSearchLoading ? (
+                                <div style={{padding:"12px 14px", fontSize:13, color:"#94a3b8"}}>Recherche…</div>
+                              ) : geoSearchResults.length === 0 ? (
+                                <div style={{padding:"12px 14px", fontSize:13, color:"#94a3b8"}}>Aucun résultat.</div>
+                              ) : geoSearchResults.map((s, i) => (
+                                <button key={i} type="button" onClick={() => applyGeoSuggestion(s)}
+                                  style={{
+                                    display:"block", width:"100%", textAlign:"left",
+                                    padding:"9px 14px", background:"none", border:"none",
+                                    borderBottom: i < geoSearchResults.length-1 ? "1px solid #f1f5f9" : "none",
+                                    cursor:"pointer", fontSize:13, color:"#374151", fontFamily:"inherit",
+                                  }}
+                                  onMouseEnter={e=>e.currentTarget.style.background="#f8faff"}
+                                  onMouseLeave={e=>e.currentTarget.style.background="none"}>
+                                  {[s.localite, s.delegation, s.gouvernorat].filter(Boolean).map((part, pi, arr) => (
+                                    <React.Fragment key={pi}>
+                                      {highlightMatch(part, geoSearchQuery.trim())}
+                                      {pi < arr.length - 1 ? ", " : ""}
+                                    </React.Fragment>
+                                  ))}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
                       <div className="ca-field">
                         <label className="ca-label">Gouvernorat <span className="ca-req">*</span></label>
                         <select

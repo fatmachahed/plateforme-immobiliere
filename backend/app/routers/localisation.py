@@ -79,3 +79,68 @@ def search_localisation(q: str, db: Session = Depends(get_db)):
         }
 
     return None
+
+
+@router.get("/search-suggestions")
+def search_localisation_suggestions(q: str, limit: int = 10, db: Session = Depends(get_db)):
+    """Suggestions multiples (pas juste la première) pour la recherche rapide
+    gouvernorat/délégation/localité dans le formulaire de création d'annonce.
+    Chaque résultat renvoie la chaîne complète (localité, délégation, gouvernorat)."""
+    if not q or len(q.strip()) < 2:
+        return []
+    ql = f"%{q.strip().lower()}%"
+    results = []
+
+    # 1 — Localités (le cas le plus fréquent : quartier/ville précis)
+    loc_rows = (
+        db.query(Localite, Delegation, Gouvernorat)
+        .join(Delegation, Delegation.id == Localite.delegation_id)
+        .join(Gouvernorat, Gouvernorat.id == Delegation.gouvernorat_id)
+        .filter(func.lower(Localite.nom).like(ql))
+        .order_by(Localite.nom)
+        .limit(limit)
+        .all()
+    )
+    for loc, delg, gov in loc_rows:
+        results.append({
+            "gouvernorat_id": gov.id, "gouvernorat": gov.nom,
+            "delegation_id": delg.id, "delegation": delg.nom,
+            "localite_id": loc.id, "localite": loc.nom,
+        })
+
+    remaining = limit - len(results)
+    if remaining > 0:
+        # 2 — Délégations
+        delg_rows = (
+            db.query(Delegation, Gouvernorat)
+            .join(Gouvernorat, Gouvernorat.id == Delegation.gouvernorat_id)
+            .filter(func.lower(Delegation.nom).like(ql))
+            .order_by(Delegation.nom)
+            .limit(remaining)
+            .all()
+        )
+        for delg, gov in delg_rows:
+            results.append({
+                "gouvernorat_id": gov.id, "gouvernorat": gov.nom,
+                "delegation_id": delg.id, "delegation": delg.nom,
+                "localite_id": None, "localite": None,
+            })
+
+    remaining = limit - len(results)
+    if remaining > 0:
+        # 3 — Gouvernorats
+        gov_rows = (
+            db.query(Gouvernorat)
+            .filter(func.lower(Gouvernorat.nom).like(ql))
+            .order_by(Gouvernorat.nom)
+            .limit(remaining)
+            .all()
+        )
+        for gov in gov_rows:
+            results.append({
+                "gouvernorat_id": gov.id, "gouvernorat": gov.nom,
+                "delegation_id": None, "delegation": None,
+                "localite_id": None, "localite": None,
+            })
+
+    return results
