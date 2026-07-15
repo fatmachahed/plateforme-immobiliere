@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { BrowserRouter as Router, Route, Routes, Navigate, useParams } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import "leaflet/dist/leaflet.css";
@@ -7,6 +7,7 @@ import CookieBanner    from "./components/CookieBanner";
 import ComparateurPopup from "./components/ComparateurPopup";
 import { useCompareShowPopup } from "./utils/compareStore";
 import { LanguageProvider } from "./contexts/LanguageContext";
+import { subscribeToPushNotifications, hasAlreadyBeenPromptedForPush, markPushPrompted } from "./utils/pushNotifications";
 
 /* Pages */
 import Home             from "./pages/Home";
@@ -69,6 +70,16 @@ function App() {
      vers une page séparée. */
   const [showComparateur, setShowComparateur] = useState(false);
   useCompareShowPopup(() => setShowComparateur(true));
+
+  /* Notifications push (PWA) : proposer l'abonnement une seule fois par
+     appareil pour un utilisateur connecté (annonces approuvées/refusées,
+     nouvelles demandes de contact/intervention…). */
+  useEffect(() => {
+    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+    if (!token || hasAlreadyBeenPromptedForPush()) return;
+    markPushPrompted();
+    subscribeToPushNotifications();
+  }, []);
 
   return (
     <HelmetProvider>

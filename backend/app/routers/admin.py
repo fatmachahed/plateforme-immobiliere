@@ -186,7 +186,19 @@ def update_annonce_status(
             notify_saved_searches_for_annonce(db, a)
         except Exception:
             pass
+        try:
+            from app.push_utils import send_push_to_user
+            send_push_to_user(db, a.utilisateur_id, "Annonce approuvée ✅",
+                               f"Votre annonce « {a.titre} » est maintenant en ligne.", "/compte?tab=annonces&statut=approuvee")
+        except Exception:
+            pass
     if body.status == "refusee":
+        try:
+            from app.push_utils import send_push_to_user
+            send_push_to_user(db, a.utilisateur_id, "Annonce refusée",
+                               f"Votre annonce « {a.titre} » n'a pas été approuvée. Consultez les raisons.", "/compte?tab=annonces")
+        except Exception:
+            pass
         try:
             owner = db.query(models.User).filter(models.User.id == a.utilisateur_id).first()
             if owner and owner.email:

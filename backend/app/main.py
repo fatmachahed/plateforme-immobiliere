@@ -149,6 +149,17 @@ with engine.connect() as conn:
         "ALTER TABLE caractere_general ADD COLUMN IF NOT EXISTS nb_places_garage INTEGER;",
         # Ordre d'affichage des photos (glisser-déposer côté création/édition d'annonce)
         "ALTER TABLE property_images ADD COLUMN IF NOT EXISTS ordre INTEGER DEFAULT 0;",
+        # Notifications push (PWA) — abonnements par utilisateur/appareil
+        """
+        CREATE TABLE IF NOT EXISTS push_subscriptions (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            endpoint VARCHAR UNIQUE NOT NULL,
+            p256dh VARCHAR NOT NULL,
+            auth VARCHAR NOT NULL,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+        """,
         # Suivi des clics de contact (téléphone/whatsapp/email) — tableau de bord agence
         """
         CREATE TABLE IF NOT EXISTS contact_clicks (

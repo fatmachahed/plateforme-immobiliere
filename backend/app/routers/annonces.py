@@ -872,6 +872,12 @@ def contact_request(
     )
     db.add(req)
     db.commit()
+    try:
+        from app.push_utils import send_push_to_user
+        send_push_to_user(db, annonce.utilisateur_id, "Nouvelle demande de contact",
+                           f"{body.nom} s'intéresse à votre annonce « {annonce.titre} ».", "/compte?tab=contacts")
+    except Exception:
+        pass
     return {"detail": "Demande envoyée. Le propriétaire vous contactera prochainement."}
 
 

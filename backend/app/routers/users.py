@@ -150,6 +150,57 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds
 
 
 # ===============================
+# NOTIFICATIONS PUSH (PWA)
+# ===============================
+@router.get("/push/vapid-public-key")
+def get_vapid_public_key():
+    """Clé publique VAPID — utilisée par le navigateur pour créer l'abonnement push."""
+    from app.push_utils import VAPID_PUBLIC_KEY
+    return {"key": VAPID_PUBLIC_KEY}
+
+
+class PushSubscriptionBody(BaseModel):
+    endpoint: str
+    keys: dict  # { "p256dh": "...", "auth": "..." }
+
+@router.post("/me/push-subscription")
+def save_push_subscription(
+    body: PushSubscriptionBody,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Enregistre (ou met à jour) l'abonnement push de cet appareil/navigateur."""
+    p256dh = body.keys.get("p256dh")
+    auth = body.keys.get("auth")
+    if not p256dh or not auth:
+        raise HTTPException(400, "Clés d'abonnement invalides.")
+    existing = db.query(models.PushSubscription).filter(models.PushSubscription.endpoint == body.endpoint).first()
+    if existing:
+        existing.user_id = current_user.id
+        existing.p256dh = p256dh
+        existing.auth = auth
+    else:
+        db.add(models.PushSubscription(user_id=current_user.id, endpoint=body.endpoint, p256dh=p256dh, auth=auth))
+    db.commit()
+    return {"ok": True}
+
+@router.delete("/me/push-subscription")
+def delete_push_subscription(
+    body: dict,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    endpoint = body.get("endpoint")
+    if endpoint:
+        db.query(models.PushSubscription).filter(
+            models.PushSubscription.endpoint == endpoint,
+            models.PushSubscription.user_id == current_user.id,
+        ).delete()
+        db.commit()
+    return {"ok": True}
+
+
+# ===============================
 # TABLEAU DE BORD STATISTIQUES (agences)
 # ===============================
 def _parse_stats_dates(date_from: Optional[str], date_to: Optional[str]):
@@ -1301,6 +1352,12 @@ def create_intervention(body: dict, db: Session = Depends(get_db)):
     )
     db.add(d)
     db.commit()
+    try:
+        from app.push_utils import send_push_to_user
+        send_push_to_user(db, prestataire_id, "Nouvelle demande d'intervention",
+                           f"{nom} souhaite faire appel à vos services.", "/compte?tab=interventions")
+    except Exception:
+        pass
     return {"message": "Votre demande a été envoyée au prestataire. Il vous recontactera avec vos coordonnées."}
 
 
