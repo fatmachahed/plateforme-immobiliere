@@ -14,7 +14,7 @@ export const EVAL_LEVELS = [
 ];
 
 // En dessous, la moyenne n'est pas assez fiable (peut n'être que le bien lui-même)
-export const EVAL_MIN_SAMPLE = 3;
+export const EVAL_MIN_SAMPLE = 2;
 
 export function getEvalLevel(prixM2, govAvg, count) {
   if (!count || count < EVAL_MIN_SAMPLE || !govAvg || !prixM2 || govAvg <= 0) return EVAL_LEVELS[0];

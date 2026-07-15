@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { LayoutGrid, Bed, ShowerHead, Ruler, HardHat, ChevronLeft, ChevronRight } from "lucide-react";
 import API_URL, { fmtDevise } from "../config";
+import { getEvalLevel, statsKey } from "../utils/priceEval";
 
 const CAT_COLOR = { vente:"#166534", location:"#1e40af", vacances:"#854d0e" };
 const CAT_LBL   = { vente:"Achat", location:"Location", vacances:"Vacances" };
@@ -13,11 +14,43 @@ const FEAT_LABELS = {
   chauffage_central:"Chauffage", internet:"Internet", securite:"Sécurité",
 };
 
+/* Évaluation prix — logique partagée dans utils/priceEval.js
+   (cohérente avec CartePage.jsx / AgentProfile.jsx / CreerAnnonce.jsx) */
+function PriceEvalBar({ prixM2, govStats }) {
+  const gs = govStats || null;
+  const ev = getEvalLevel(prixM2, gs?.avg_prix_m2, gs?.count);
+  const isNone = ev.key === "none";
+  return (
+    <div className="peb">
+      <span className="peb__label" style={{ color: isNone ? "#9ca3af" : ev.color }}>{ev.label}</span>
+      <div className="peb__bar">
+        {Array.from({ length: 5 }, (_, i) => (
+          <span key={i} className="peb__seg" style={{ background: i < ev.segs ? ev.color : "#e2e8f0" }}/>
+        ))}
+      </div>
+      <style>{`
+        .peb          { display:flex; flex-direction:column; gap:4px; }
+        .peb__label   { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; line-height:1; }
+        .peb__bar     { display:flex; gap:3px; }
+        .peb__seg     { flex:1; height:6px; border-radius:3px; transition:background .2s; }
+      `}</style>
+    </div>
+  );
+}
+
 export default function AnnonceModal({ annonceId, onClose }) {
   const [prop,         setProp]         = useState(null);
   const [loading,      setLoading]      = useState(true);
   const [imgIdx,       setImgIdx]       = useState(0);
   const [descExpanded, setDescExpanded] = useState(false);
+  const [govMarketStats, setGovMarketStats] = useState({});
+
+  useEffect(() => {
+    fetch(`${API_URL}/annonces/market-stats`)
+      .then(r => r.ok ? r.json() : {})
+      .then(setGovMarketStats)
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!annonceId) return;
@@ -35,6 +68,7 @@ export default function AnnonceModal({ annonceId, onClose }) {
           id:          data.id,
           titre:       data.titre,
           prix:        Number(data.prix).toLocaleString("fr-TN"),
+          prixRaw:     Number(data.prix) || 0,
           devise:      fmtDevise(data.devise),
           categorie:   data.categorie || "vente",
           gouvernorat: data.gouvernorat || "",
@@ -197,6 +231,18 @@ export default function AnnonceModal({ annonceId, onClose }) {
                 {prop.area           && <Chip icon={<Ruler size={14} strokeWidth={2}/>} label={`${prop.area} m²`}/>}
                 {prop.etat           && <Chip icon={<HardHat size={14} strokeWidth={2}/>} label={prop.etat.replace(/_/g," ")}/>}
               </div>
+
+              {/* Évaluation prix */}
+              {prop.area > 0 && prop.prixRaw > 0 && (
+                <div style={{marginBottom:18}}>
+                  <PriceEvalBar
+                    prixM2={prop.prixRaw / prop.area}
+                    govStats={govMarketStats?.[statsKey({
+                      gouvernorat: prop.gouvernorat, categorie: prop.categorie, etat_bien: prop.etat, duree_type: prop.duree_type,
+                    })] || null}
+                  />
+                </div>
+              )}
 
               {/* Features */}
               {activeFeats.length > 0 && (
