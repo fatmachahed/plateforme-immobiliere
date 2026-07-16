@@ -2592,8 +2592,8 @@ export default function CartePage() {
   /* -- écriture URL ? ALL filtres sérialis�s --
      D�tection de localisation dans le texte saisi (synchrone, sur les données charg�es). */
   const handleSaveSearch = async () => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
+    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+    if (!token) { setShowSaveModal(false); window.location.href = "/login?redirect=/carte"; return; }
     setSaveModalLoading(true);
     try {
       const nom = (saveModalName || "").trim() || "Ma recherche";
@@ -2602,9 +2602,18 @@ export default function CartePage() {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ nom, criteres: filters, email_alert: true }),
       });
-      if (res.ok) { setSaveModalSuccess(true); }
-      else { setSaveModalSuccess(false); setShowSaveModal(false); }
-    } catch { setShowSaveModal(false); }
+      if (res.ok) {
+        setSaveModalSuccess(true);
+      } else if (res.status === 401) {
+        setShowSaveModal(false);
+        toast("Votre session a expiré, veuillez vous reconnecter.", "error");
+        window.location.href = "/login?redirect=/carte";
+      } else {
+        toast("Impossible d'enregistrer cette recherche pour le moment. Réessayez.", "error");
+      }
+    } catch {
+      toast("Impossible d'enregistrer cette recherche — vérifiez votre connexion.", "error");
+    }
     finally { setSaveModalLoading(false); }
   };
 
@@ -3200,7 +3209,7 @@ export default function CartePage() {
       <FilterPanel
         filters={filters} onChange={applyFilters}
         onSaveSearch={() => {
-          const token = localStorage.getItem("token");
+          const token = localStorage.getItem("token") || sessionStorage.getItem("token");
           if (!token) { window.location.href = "/login?redirect=/carte"; return; }
           if (countActiveFilters(filters) < 3) { setShowMinFiltersModal(true); return; }
           setSaveModalName("Ma recherche");
@@ -3330,7 +3339,7 @@ export default function CartePage() {
 
         {/* Bouton Enregistrer — desktop uniquement */}
         <button className="fp__save-search fp__save-search--desktop" onClick={() => {
-          const token = localStorage.getItem("token");
+          const token = localStorage.getItem("token") || sessionStorage.getItem("token");
           if (!token) { window.location.href = "/login?redirect=/carte"; return; }
           if (countActiveFilters(filters) < 3) { setShowMinFiltersModal(true); return; }
           setSaveModalName("Ma recherche");
