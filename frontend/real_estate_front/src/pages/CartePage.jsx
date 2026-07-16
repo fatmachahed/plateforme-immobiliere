@@ -2495,6 +2495,7 @@ function CompareBar() {
    dans App.jsx — plus de définition locale ici pour éviter la duplication. */
 
 export default function CartePage() {
+  const toast                      = useToast();
   const navigate                   = useNavigate();
   const routeParams                = useParams();
   const routeLocation               = useLocation();
