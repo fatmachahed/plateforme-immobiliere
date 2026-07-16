@@ -15,6 +15,7 @@ import Footer from "../components/Footer";
 import AnnonceModal from "../components/AnnonceModal";
 import PublierAnnonceBtn from "../components/PublierAnnonceBtn";
 import Seo from "../components/Seo";
+import { useToast } from "../components/Toast";
 
 /* ── Static demo data (remplace par API calls) ── */
 const RECENT_PROPS = [
@@ -454,13 +455,43 @@ export default function HomePage() {
   const { gouvernorats: apiGouvernorats } = useLocalisation({ gouvernorat:"", delegation:"", localite:"" });
   const [recentAnnonces, setRecentAnnonces] = useState([]);
   const [modalId, setModalId] = useState(null);
+  const toast = useToast();
 
-  /* Capture PWA install prompt */
+  /* Installation PWA : sur iOS, ou une fois l'app déjà installée, le
+     navigateur ne propose jamais l'installation via un bouton — dans ce cas
+     le clic explique la marche à suivre au lieu de ne rien faire. */
+  const [alreadyInstalled, setAlreadyInstalled] = useState(
+    () => typeof window !== "undefined" && window.matchMedia?.("(display-mode: standalone)").matches
+  );
   useEffect(() => {
-    const handler = (e) => { e.preventDefault(); window._lzInstallPrompt = e; };
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+    const onBeforeInstall = (e) => { e.preventDefault(); window._lzInstallPrompt = e; };
+    const onInstalled = () => { window._lzInstallPrompt = null; setAlreadyInstalled(true); };
+    window.addEventListener("beforeinstallprompt", onBeforeInstall);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onBeforeInstall);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
   }, []);
+
+  const handleInstallClick = async () => {
+    if (alreadyInstalled) {
+      toast("L'application est déjà installée sur cet appareil.");
+      return;
+    }
+    const promptEvent = window._lzInstallPrompt;
+    if (!promptEvent) {
+      toast("Installation non proposée par ce navigateur ici — utilisez le menu ⋮ (Android/Chrome) ou Partager → Sur l'écran d'accueil (iOS/Safari).");
+      return;
+    }
+    promptEvent.prompt();
+    try {
+      const { outcome } = await promptEvent.userChoice;
+      if (outcome !== "accepted") toast("Installation annulée.");
+    } finally {
+      window._lzInstallPrompt = null;
+    }
+  };
 
   /* Scroll reveal animations */
   useEffect(() => {
@@ -1044,14 +1075,10 @@ export default function HomePage() {
             <div className="hp-install-ctas">
               <button
                 className="hp-install-btn hp-install-btn--primary"
-                onClick={() => {
-                  if (window._lzInstallPrompt) {
-                    window._lzInstallPrompt.prompt();
-                  }
-                }}
+                onClick={handleInstallClick}
               >
                 <Download size={16}/>
-                Installer l'application
+                {alreadyInstalled ? "Déjà installée" : "Installer l'application"}
               </button>
               <div className="hp-install-hint">
                 <span>📱 iOS : Menu → Partager → Sur l'écran d'accueil</span>
