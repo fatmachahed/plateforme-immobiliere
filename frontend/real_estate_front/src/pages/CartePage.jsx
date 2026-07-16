@@ -2592,12 +2592,19 @@ export default function CartePage() {
 
   /* -- écriture URL ? ALL filtres sérialis�s --
      D�tection de localisation dans le texte saisi (synchrone, sur les données charg�es). */
+  /* Mémorise le nom saisi + les critères avant un aller-retour login, pour
+     reprendre automatiquement la sauvegarde au retour sur /carte — sans
+     obliger l'utilisateur à retaper le nom et re-cliquer "Enregistrer". */
+  const stashPendingSaveSearch = (nom) => {
+    try { sessionStorage.setItem("localizi_pending_save_search", JSON.stringify({ nom, criteres: filters })); } catch {}
+  };
+
   const handleSaveSearch = async () => {
+    const nom = (saveModalName || "").trim() || "Ma recherche";
     const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-    if (!token) { setShowSaveModal(false); window.location.href = "/login?redirect=/carte"; return; }
+    if (!token) { setShowSaveModal(false); stashPendingSaveSearch(nom); window.location.href = "/login?redirect=/carte"; return; }
     setSaveModalLoading(true);
     try {
-      const nom = (saveModalName || "").trim() || "Ma recherche";
       const res = await fetch(`${API_URL}/users/me/saved-searches`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -2607,7 +2614,8 @@ export default function CartePage() {
         setSaveModalSuccess(true);
       } else if (res.status === 401) {
         setShowSaveModal(false);
-        toast("Votre session a expiré, veuillez vous reconnecter.", "error");
+        stashPendingSaveSearch(nom);
+        toast("Votre session a expiré, veuillez vous reconnecter — votre recherche sera enregistrée automatiquement après connexion.", "error");
         window.location.href = "/login?redirect=/carte";
       } else {
         toast("Impossible d'enregistrer cette recherche pour le moment. Réessayez.", "error");
@@ -2700,6 +2708,31 @@ export default function CartePage() {
   const [saveModalLoading, setSaveModalLoading] = useState(false);
   const [saveModalSuccess, setSaveModalSuccess] = useState(false);
   const [saveFilterAlert,  setSaveFilterAlert]  = useState(false);
+
+  /* Reprise automatique d'une sauvegarde de recherche interrompue par un
+     aller-retour login (session expirée en cliquant "Enregistrer") — évite
+     à l'utilisateur de retaper le nom et de re-filtrer après connexion. */
+  useEffect(() => {
+    const raw = sessionStorage.getItem("localizi_pending_save_search");
+    if (!raw) return;
+    const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+    if (!token) return;
+    sessionStorage.removeItem("localizi_pending_save_search");
+    let pending;
+    try { pending = JSON.parse(raw); } catch { return; }
+    if (!pending?.nom) return;
+    fetch(`${API_URL}/users/me/saved-searches`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ nom: pending.nom, criteres: pending.criteres || filters, email_alert: true }),
+    })
+      .then(res => {
+        if (res.ok) toast(`Recherche « ${pending.nom} » enregistrée !`);
+        else toast("Impossible d'enregistrer votre recherche. Réessayez depuis la carte.", "error");
+      })
+      .catch(() => toast("Impossible d'enregistrer votre recherche. Réessayez depuis la carte.", "error"));
+  }, []); // eslint-disable-line
+
   const [showMinFiltersModal, setShowMinFiltersModal] = useState(false);
   const [showFiltersSummary,  setShowFiltersSummary]  = useState(false);
   const filterSumBtnRef = useRef(null);
