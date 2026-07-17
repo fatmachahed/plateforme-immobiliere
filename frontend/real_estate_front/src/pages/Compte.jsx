@@ -61,6 +61,25 @@ const TrackSwitch = ({ val, onChange }) => (
   </div>
 );
 
+const PHONE_CODES = [
+  {code:"+216",flag:"🇹🇳",name:"Tunisie"},
+  {code:"+33", flag:"🇫🇷",name:"France"},
+  {code:"+1",  flag:"🇺🇸",name:"USA/Canada"},
+  {code:"+44", flag:"🇬🇧",name:"Royaume-Uni"},
+  {code:"+49", flag:"🇩🇪",name:"Allemagne"},
+  {code:"+32", flag:"🇧🇪",name:"Belgique"},
+  {code:"+41", flag:"🇨🇭",name:"Suisse"},
+  {code:"+212",flag:"🇲🇦",name:"Maroc"},
+  {code:"+213",flag:"🇩🇿",name:"Algérie"},
+  {code:"+218",flag:"🇱🇾",name:"Libye"},
+  {code:"+966",flag:"🇸🇦",name:"Arabie Saoudite"},
+  {code:"+971",flag:"🇦🇪",name:"Émirats Arabes Unis"},
+  {code:"+974",flag:"🇶🇦",name:"Qatar"},
+  {code:"+90", flag:"🇹🇷",name:"Turquie"},
+  {code:"+34", flag:"🇪🇸",name:"Espagne"},
+  {code:"+39", flag:"🇮🇹",name:"Italie"},
+];
+
 export default function Compte() {
   const toast    = useToast();
   const navigate = useNavigate();
@@ -131,11 +150,19 @@ export default function Compte() {
   const [phoneOtpLoading, setPhoneOtpLoading] = useState(false);
 
   /* Numéros de téléphone supplémentaires (en plus du numéro principal
-     ci-dessus) — affichés dans la popup "Appeler" du détail d'annonce. */
+     ci-dessus) — affichés dans la popup "Appeler" du détail d'annonce.
+     Chaque ajout doit être vérifié par un code envoyé par email, comme le
+     changement du numéro principal (voir handleSaveProfile / phoneOtpModal). */
   const [extraPhones,    setExtraPhones]    = useState([]);
   const [addingPhone,    setAddingPhone]    = useState(false);
+  const [newPhoneCode,   setNewPhoneCode]   = useState("+216");
   const [newPhoneValue,  setNewPhoneValue]  = useState("");
   const [phoneAddLoading,setPhoneAddLoading]= useState(false);
+  const [extraPhoneOtpModal, setExtraPhoneOtpModal] = useState(false);
+  const [extraPhoneOtpCode,  setExtraPhoneOtpCode]  = useState("");
+  const [extraPhoneOtpErr,   setExtraPhoneOtpErr]   = useState("");
+  const [extraPhoneOtpLoading, setExtraPhoneOtpLoading] = useState(false);
+  const [pendingNewNumero, setPendingNewNumero] = useState("");
 
   useEffect(() => {
     if (!token) return;
@@ -145,26 +172,50 @@ export default function Compte() {
       .catch(() => {});
   }, []); // eslint-disable-line
 
-  const handleAddPhone = async () => {
-    const numero = newPhoneValue.trim();
-    if (!numero) return;
+  const handleRequestPhoneOtp = async () => {
+    const local = newPhoneValue.trim();
+    if (!local) return;
+    const numero = `${newPhoneCode} ${local}`;
     setPhoneAddLoading(true);
     try {
-      const res = await fetch(`${API_URL}/users/me/phone-numbers`, {
+      const res = await fetch(`${API_URL}/users/me/phone-numbers/request-otp`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ numero }),
       });
       if (!res.ok) throw new Error();
-      const created = await res.json();
-      setExtraPhones(p => [...p, created]);
-      setNewPhoneValue("");
+      setPendingNewNumero(numero);
+      setExtraPhoneOtpModal(true);
       setAddingPhone(false);
-      toast("Numéro ajouté !");
+      setNewPhoneValue("");
+      toast("Code de vérification envoyé par email.");
     } catch {
-      toast("Impossible d'ajouter ce numéro. Réessayez.", "error");
+      toast("Impossible d'envoyer le code. Réessayez.", "error");
     } finally {
       setPhoneAddLoading(false);
+    }
+  };
+
+  const handleConfirmPhoneOtp = async () => {
+    setExtraPhoneOtpLoading(true);
+    setExtraPhoneOtpErr("");
+    try {
+      const res = await fetch(`${API_URL}/users/me/phone-numbers/confirm-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ otp: extraPhoneOtpCode }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setExtraPhoneOtpErr(data.detail || "Code incorrect."); return; }
+      setExtraPhones(p => [...p, data]);
+      setExtraPhoneOtpModal(false);
+      setExtraPhoneOtpCode("");
+      setPendingNewNumero("");
+      toast("Numéro ajouté et vérifié !");
+    } catch {
+      setExtraPhoneOtpErr("Erreur serveur.");
+    } finally {
+      setExtraPhoneOtpLoading(false);
     }
   };
 
@@ -1076,54 +1127,61 @@ export default function Compte() {
                     <F label="Téléphone">
                       <div style={{display:"flex",gap:5}}>
                         <select style={{...inp(editing),width:80,cursor:editing?"pointer":"default",fontSize:12,flexShrink:0}} value={profile.phone_code||"+216"} disabled={!editing} onChange={e=>setProfile(p=>({...p,phone_code:e.target.value}))}>
-                          {[
-                            {code:"+216",flag:"🇹🇳",name:"Tunisie"},
-                            {code:"+33", flag:"🇫🇷",name:"France"},
-                            {code:"+1",  flag:"🇺🇸",name:"USA/Canada"},
-                            {code:"+44", flag:"🇬🇧",name:"Royaume-Uni"},
-                            {code:"+49", flag:"🇩🇪",name:"Allemagne"},
-                            {code:"+32", flag:"🇧🇪",name:"Belgique"},
-                            {code:"+41", flag:"🇨🇭",name:"Suisse"},
-                            {code:"+212",flag:"🇲🇦",name:"Maroc"},
-                            {code:"+213",flag:"🇩🇿",name:"Algérie"},
-                            {code:"+218",flag:"🇱🇾",name:"Libye"},
-                            {code:"+966",flag:"🇸🇦",name:"Arabie Saoudite"},
-                            {code:"+971",flag:"🇦🇪",name:"Émirats Arabes Unis"},
-                            {code:"+974",flag:"🇶🇦",name:"Qatar"},
-                            {code:"+90", flag:"🇹🇷",name:"Turquie"},
-                            {code:"+34", flag:"🇪🇸",name:"Espagne"},
-                            {code:"+39", flag:"🇮🇹",name:"Italie"},
-                          ].map(({code,flag,name})=><option key={code} value={code}>{flag} {code}</option>)}
+                          {PHONE_CODES.map(({code,flag})=><option key={code} value={code}>{flag} {code}</option>)}
                         </select>
                         <input style={{...inp(editing),flex:1,minWidth:0}} value={profile.phone_number||""} readOnly={!editing} placeholder="12 345 678" onChange={e=>setProfile(p=>({...p,phone_number:e.target.value}))}/>
                       </div>
 
-                      {/* Numéros supplémentaires — visibles par les acheteurs via "Appeler" */}
+                      {/* Numéros supplémentaires — visibles par les acheteurs via "Appeler".
+                          Ajout uniquement en mode édition, et seulement si le numéro
+                          principal est déjà renseigné ; chaque ajout est vérifié par
+                          un code envoyé par email (voir handleRequestPhoneOtp). */}
                       <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:6}}>
                         {extraPhones.map(ph => (
                           <div key={ph.id} style={{display:"flex",alignItems:"center",gap:8,background:"#f8fafc",border:"1.5px solid #e2e8f0",borderRadius:10,padding:"7px 10px"}}>
                             <span style={{flex:1,fontSize:13,color:"#374151",fontWeight:600}}>{ph.numero}</span>
-                            <button onClick={()=>handleRemovePhone(ph.id)} title="Supprimer ce numéro"
-                              style={{background:"none",border:"none",cursor:"pointer",color:"#94a3b8",padding:2,display:"flex"}}>
-                              <X size={15}/>
-                            </button>
+                            {editing && (
+                              <button onClick={()=>handleRemovePhone(ph.id)} title="Supprimer ce numéro"
+                                style={{background:"none",border:"none",cursor:"pointer",color:"#dc2626",padding:2,display:"flex"}}>
+                                <X size={16} strokeWidth={2.5}/>
+                              </button>
+                            )}
                           </div>
                         ))}
-                        {addingPhone ? (
-                          <div style={{display:"flex",gap:6}}>
-                            <input autoFocus value={newPhoneValue} onChange={e=>setNewPhoneValue(e.target.value)}
-                              placeholder="+216 XX XXX XXX" onKeyDown={e=>e.key==="Enter"&&handleAddPhone()}
-                              style={{...inp(true),flex:1,minWidth:0}}/>
-                            <button onClick={handleAddPhone} disabled={phoneAddLoading||!newPhoneValue.trim()}
-                              style={{...btnSec,opacity:phoneAddLoading||!newPhoneValue.trim()?.6:1}}>
-                              {phoneAddLoading?"…":"Ajouter"}
+                        {editing && (
+                          addingPhone ? (
+                            <div style={{display:"flex",gap:6}}>
+                              <select value={newPhoneCode} onChange={e=>setNewPhoneCode(e.target.value)}
+                                style={{...inp(true),width:80,cursor:"pointer",fontSize:12,flexShrink:0}}>
+                                {PHONE_CODES.map(({code,flag})=><option key={code} value={code}>{flag} {code}</option>)}
+                              </select>
+                              <input autoFocus value={newPhoneValue} onChange={e=>setNewPhoneValue(e.target.value)}
+                                placeholder="12 345 678" onKeyDown={e=>e.key==="Enter"&&handleRequestPhoneOtp()}
+                                style={{...inp(true),flex:1,minWidth:0}}/>
+                              <button onClick={handleRequestPhoneOtp} disabled={phoneAddLoading||!newPhoneValue.trim()} title="Envoyer le code de vérification"
+                                style={{background:!newPhoneValue.trim()||phoneAddLoading?"#86efac":"#16a34a",border:"none",borderRadius:10,width:38,height:38,flexShrink:0,cursor:!newPhoneValue.trim()||phoneAddLoading?"default":"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff"}}>
+                                <Plus size={17} strokeWidth={2.5}/>
+                              </button>
+                              <button onClick={()=>{setAddingPhone(false);setNewPhoneValue("");}} title="Annuler"
+                                style={{background:"none",border:"1.5px solid #e2e8f0",borderRadius:10,width:38,height:38,flexShrink:0,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:"#94a3b8"}}>
+                                <X size={16}/>
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={()=>setAddingPhone(true)}
+                              disabled={!profile.phone_number?.trim()}
+                              title={!profile.phone_number?.trim() ? "Renseignez d'abord votre numéro principal" : "Ajouter un numéro"}
+                              style={{
+                                alignSelf:"flex-start", width:34, height:34, borderRadius:10, border:"none",
+                                background: profile.phone_number?.trim() ? "#16a34a" : "#e2e8f0",
+                                color: profile.phone_number?.trim() ? "#fff" : "#94a3b8",
+                                cursor: profile.phone_number?.trim() ? "pointer" : "not-allowed",
+                                display:"flex", alignItems:"center", justifyContent:"center",
+                              }}>
+                              <Plus size={18} strokeWidth={2.5}/>
                             </button>
-                            <button onClick={()=>{setAddingPhone(false);setNewPhoneValue("");}} style={btnSec}><X size={13}/></button>
-                          </div>
-                        ) : (
-                          <button onClick={()=>setAddingPhone(true)} style={{...btnSec,alignSelf:"flex-start",display:"flex",alignItems:"center",gap:6}}>
-                            <Plus size={13}/> Ajouter un numéro
-                          </button>
+                          )
                         )}
                       </div>
                     </F>
@@ -2661,6 +2719,34 @@ export default function Compte() {
                 }catch{setPhoneOtpErr("Erreur serveur.");}finally{setPhoneOtpLoading(false);}
               }} style={{flex:2,padding:"12px",borderRadius:10,border:"none",background:phoneOtpCode.length===6?"#6366f1":"#e2e8f0",color:phoneOtpCode.length===6?"#fff":"#94a3b8",fontWeight:700,fontSize:14,cursor:phoneOtpCode.length===6?"pointer":"default",fontFamily:"inherit",transition:"all .2s"}}>
                 {phoneOtpLoading?"Vérification…":"Confirmer →"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal OTP vérification numéro supplémentaire ── */}
+      {extraPhoneOtpModal && (
+        <div style={{position:"fixed",inset:0,zIndex:99998,background:"rgba(15,23,42,.65)",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div style={{background:"#fff",borderRadius:20,maxWidth:400,width:"100%",padding:"36px 32px",boxShadow:"0 30px 80px rgba(0,0,0,.28)",position:"relative",animation:"fadeInCmp .2s ease"}}>
+            <div style={{textAlign:"center",marginBottom:24}}>
+              <div style={{fontSize:48,marginBottom:12}}>📱</div>
+              <h2 style={{fontSize:20,fontWeight:800,color:"#0f172a",margin:"0 0 8px"}}>Vérification du numéro</h2>
+              <p style={{fontSize:13.5,color:"#64748b",lineHeight:1.6}}>Un code à 6 chiffres a été envoyé à votre adresse email pour confirmer l'ajout de <strong>{pendingNewNumero}</strong>.</p>
+            </div>
+            <input
+              value={extraPhoneOtpCode}
+              onChange={e=>setExtraPhoneOtpCode(e.target.value.replace(/\D/g,"").slice(0,6))}
+              placeholder="_ _ _ _ _ _"
+              maxLength={6}
+              style={{width:"100%",padding:"14px",textAlign:"center",fontSize:28,fontWeight:800,letterSpacing:10,border:`2px solid ${extraPhoneOtpErr?"#ef4444":"#e2e8f0"}`,borderRadius:12,outline:"none",fontFamily:"monospace",boxSizing:"border-box",marginBottom:8}}
+            />
+            {extraPhoneOtpErr && <p style={{color:"#ef4444",fontSize:13,textAlign:"center",marginBottom:8}}>{extraPhoneOtpErr}</p>}
+            <div style={{display:"flex",gap:10,marginTop:16}}>
+              <button onClick={()=>{setExtraPhoneOtpModal(false);setExtraPhoneOtpCode("");setExtraPhoneOtpErr("");setPendingNewNumero("");}} style={{flex:1,padding:"12px",borderRadius:10,border:"1.5px solid #e2e8f0",background:"#f8fafc",color:"#374151",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>Annuler</button>
+              <button disabled={extraPhoneOtpCode.length!==6||extraPhoneOtpLoading} onClick={handleConfirmPhoneOtp}
+                style={{flex:2,padding:"12px",borderRadius:10,border:"none",background:extraPhoneOtpCode.length===6?"#6366f1":"#e2e8f0",color:extraPhoneOtpCode.length===6?"#fff":"#94a3b8",fontWeight:700,fontSize:14,cursor:extraPhoneOtpCode.length===6?"pointer":"default",fontFamily:"inherit",transition:"all .2s"}}>
+                {extraPhoneOtpLoading?"Vérification…":"Confirmer →"}
               </button>
             </div>
           </div>

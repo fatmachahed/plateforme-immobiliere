@@ -202,11 +202,10 @@ def delete_push_subscription(
 
 # ===============================
 # NUMÉROS DE TÉLÉPHONE SUPPLÉMENTAIRES
-# (en plus de users.phone_number, le numéro principal historique)
+# (en plus de users.phone_number, le numéro principal historique —
+# l'ajout se fait via /me/phone-numbers/request-otp puis /confirm-otp,
+# voir plus bas, la vérification par email étant obligatoire)
 # ===============================
-class PhoneNumberBody(BaseModel):
-    numero: str
-
 @router.get("/me/phone-numbers")
 def list_phone_numbers(
     db: Session = Depends(get_db),
@@ -216,21 +215,6 @@ def list_phone_numbers(
         models.UserPhoneNumber.user_id == current_user.id
     ).order_by(models.UserPhoneNumber.id).all()
     return [{"id": r.id, "numero": r.numero} for r in rows]
-
-@router.post("/me/phone-numbers")
-def add_phone_number(
-    body: PhoneNumberBody,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
-):
-    numero = (body.numero or "").strip()
-    if not numero:
-        raise HTTPException(400, "Numéro invalide.")
-    row = models.UserPhoneNumber(user_id=current_user.id, numero=numero)
-    db.add(row)
-    db.commit()
-    db.refresh(row)
-    return {"id": row.id, "numero": row.numero}
 
 @router.delete("/me/phone-numbers/{phone_id}")
 def delete_phone_number(
@@ -682,6 +666,73 @@ def confirm_phone_change(
     updated = crud.update_user(db, current_user.id, {"phone_number": record["new_phone"]})
     _phone_otps.pop(current_user.id, None)
     return updated
+
+
+# ===============================
+# NUMÉROS SUPPLÉMENTAIRES — OTP OBLIGATOIRE
+# (même mécanisme que le changement de numéro principal ci-dessus)
+# ===============================
+_extra_phone_otps: dict = {}
+
+class ExtraPhoneOtpRequest(BaseModel):
+    numero: str
+
+@router.post("/me/phone-numbers/request-otp")
+def request_extra_phone_otp(
+    body: ExtraPhoneOtpRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    numero = (body.numero or "").strip()
+    if not numero:
+        raise HTTPException(400, "Numéro invalide.")
+    otp = str(random.randint(100000, 999999))
+    _extra_phone_otps[current_user.id] = {
+        "otp": otp,
+        "numero": numero,
+        "expires": datetime.utcnow() + timedelta(minutes=10),
+    }
+    try:
+        from app.email_utils import send_email
+        html = f"""
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;color:#0f172a">
+          <div style="background:#6366f1;padding:22px 28px;border-radius:10px 10px 0 0">
+            <h2 style="color:#fff;margin:0;font-size:17px">Vérification de votre numéro</h2>
+          </div>
+          <div style="background:#f8fafc;padding:24px 28px;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 10px 10px">
+            <p>Vous avez demandé à ajouter le numéro <strong>{numero}</strong> à votre compte Localizi.</p>
+            <div style="text-align:center;margin:24px 0">
+              <div style="font-size:36px;font-weight:900;letter-spacing:10px;color:#4f46e5;background:#eef2ff;padding:16px 28px;border-radius:12px;display:inline-block">{otp}</div>
+            </div>
+            <p style="font-size:13px;color:#64748b">Ce code expire dans <strong>10 minutes</strong>. Si vous n'avez pas demandé cet ajout, ignorez cet email.</p>
+          </div>
+        </div>
+        """
+        send_email(current_user.email, f"Code de vérification — {otp} — Localizi", html)
+    except Exception as e:
+        print(f"[ExtraPhoneOTP] Erreur envoi : {e}")
+    return {"detail": "Code OTP envoyé à votre adresse email."}
+
+@router.post("/me/phone-numbers/confirm-otp")
+def confirm_extra_phone_otp(
+    body: PhoneChangeConfirm,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    record = _extra_phone_otps.get(current_user.id)
+    if not record:
+        raise HTTPException(400, "Aucune demande d'ajout en attente.")
+    if datetime.utcnow() > record["expires"]:
+        _extra_phone_otps.pop(current_user.id, None)
+        raise HTTPException(400, "Le code OTP a expiré. Recommencez.")
+    if record["otp"] != body.otp.strip():
+        raise HTTPException(400, "Code incorrect.")
+    row = models.UserPhoneNumber(user_id=current_user.id, numero=record["numero"])
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    _extra_phone_otps.pop(current_user.id, None)
+    return {"id": row.id, "numero": row.numero}
 
 
 # ===============================
