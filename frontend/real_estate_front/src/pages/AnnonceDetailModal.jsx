@@ -21,6 +21,15 @@ function trackContactClick(annonceId, canal) {
   } catch { /* silencieux */ }
 }
 
+function WhatsAppIcon({ size = 16 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+      <path d="M12 0C5.373 0 0 5.373 0 12c0 2.12.549 4.112 1.51 5.845L.057 23.617a.5.5 0 00.611.65l5.975-1.566A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.894a9.893 9.893 0 01-5.048-1.38l-.361-.215-3.745.982.999-3.648-.235-.374A9.861 9.861 0 012.106 12C2.106 6.527 6.527 2.106 12 2.106S21.894 6.527 21.894 12 17.473 21.894 12 21.894z"/>
+    </svg>
+  );
+}
+
 /* Format prix/m² : arrondi supérieur à 1 décimale, jamais 0 */
 function fmtM2(prix, area) {
   if (!area || area <= 0 || !prix || prix <= 0) return null;
@@ -249,6 +258,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
   const samePointKeyRef = React.useRef([]);
   const [showContactModal, setShowContactModal] = useState(false);
   const [showCallModal, setShowCallModal] = useState(false);
+  const [showWhatsappModal, setShowWhatsappModal] = useState(false);
   const [contactForm,    setContactForm]    = useState({ nom:"", email:"", telephone:"", message:"" });
   const [contactSent,    setContactSent]    = useState(false);
   const [contactLoading, setContactLoading] = useState(false);
@@ -798,7 +808,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
                   </div>
                 ):token?(
                   <div className="det-contact-box__btns">
-                    {prop.contact.tel&&<><button onClick={()=>{trackContactClick(prop.id,"telephone");setShowCallModal(true);}} className="ad-cbtn ad-cbtn--call"><Phone size={15}/> Appeler</button><a href={`https://wa.me/${prop.contact.tel.replace(/[\s+]/g,"").replace(/^00/,"")}?text=${encodeURIComponent(`Bonjour, je suis intéressé(e) par votre annonce "${prop.titre}" sur Localizi.tn.`)}`} target="_blank" rel="noopener noreferrer" onClick={()=>trackContactClick(prop.id,"whatsapp")} className="ad-cbtn ad-cbtn--whatsapp"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.12.549 4.112 1.51 5.845L.057 23.617a.5.5 0 00.611.65l5.975-1.566A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.894a9.893 9.893 0 01-5.048-1.38l-.361-.215-3.745.982.999-3.648-.235-.374A9.861 9.861 0 012.106 12C2.106 6.527 6.527 2.106 12 2.106S21.894 6.527 21.894 12 17.473 21.894 12 21.894z"/></svg>WhatsApp</a></>}
+                    {prop.contact.tel&&<><button onClick={()=>{trackContactClick(prop.id,"telephone");setShowCallModal(true);}} className="ad-cbtn ad-cbtn--call"><Phone size={15}/> Appeler</button><button onClick={()=>{trackContactClick(prop.id,"whatsapp");setShowWhatsappModal(true);}} className="ad-cbtn ad-cbtn--whatsapp"><WhatsAppIcon size={16}/> WhatsApp</button></>}
                     {prop.contact.email&&<a href={`mailto:${prop.contact.email}?subject=${encodeURIComponent(`Annonce "${prop.titre}" — Localizi.tn`)}&body=${encodeURIComponent(`Bonjour,\n\nJe suis intéressé(e) par votre annonce "${prop.titre}".\n\nCordialement`)}`} onClick={()=>trackContactClick(prop.id,"email")} className="ad-cbtn ad-cbtn--mail"><Mail size={15}/> Envoyer un e-mail</a>}
                   </div>
                 ):(
@@ -1193,6 +1203,43 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
                     <a key={t} href={`tel:${t.replace(/\s/g,"")}`} onClick={()=>trackContactClick(prop.id,"telephone")} className="ad-cbtn ad-cbtn--call" style={{justifyContent:"space-between"}}>
                       <span style={{display:"flex",alignItems:"center",gap:9}}><Phone size={15}/> {t}</span>
                       <span style={{fontSize:12.5,fontWeight:700,opacity:.85}}>Appeler →</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </div>,
+            document.body
+          );
+        })()}
+
+        {/* Modal WhatsApp : choisir le numéro à contacter */}
+        {showWhatsappModal && (() => {
+          const tels = prop?.contact?.tels?.length ? prop.contact.tels : [prop?.contact?.tel].filter(Boolean);
+          return ReactDOM.createPortal(
+            <div style={{position:"fixed",inset:0,zIndex:10020,background:"rgba(15,23,42,.55)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"'Inter',system-ui,sans-serif"}} onClick={e=>{if(e.target===e.currentTarget)setShowWhatsappModal(false);}}>
+              <div style={{background:"#fff",borderRadius:20,padding:"28px 28px 24px",maxWidth:420,width:"100%",maxHeight:"90vh",display:"flex",flexDirection:"column",boxShadow:"0 24px 64px rgba(0,0,0,.18)"}} onClick={e=>e.stopPropagation()}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18,flexShrink:0}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10}}>
+                    <Logo variant="color" height={28} to={null}/>
+                    <div>
+                      <div style={{fontSize:16,fontWeight:800,color:"#0f172a"}}>Contacter sur WhatsApp</div>
+                      <div style={{fontSize:12,color:"#94a3b8",marginTop:2}}>{tels.length} numéro{tels.length>1?"s":""} disponible{tels.length>1?"s":""}</div>
+                    </div>
+                  </div>
+                  <button onClick={()=>setShowWhatsappModal(false)} style={{background:"#f1f5f9",border:"none",cursor:"pointer",borderRadius:10,width:34,height:34,display:"flex",alignItems:"center",justifyContent:"center",color:"#64748b",flexShrink:0}}>
+                    <X size={18} strokeWidth={2.5}/>
+                  </button>
+                </div>
+                <p style={{fontSize:12.5,color:"#78716c",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:10,padding:"10px 13px",display:"flex",gap:8,alignItems:"flex-start",marginBottom:16}}>
+                  <Info size={14} strokeWidth={2} style={{flexShrink:0,marginTop:1,color:"#d97706"}}/>
+                  En contactant le propriétaire, merci de préciser que vous le contactez depuis Localizi.tn.
+                </p>
+                <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                  {tels.map(t => (
+                    <a key={t} href={`https://wa.me/${t.replace(/[\s+]/g,"").replace(/^00/,"")}?text=${encodeURIComponent(`Bonjour, je suis intéressé(e) par votre annonce "${prop.titre}" sur Localizi.tn.`)}`}
+                      target="_blank" rel="noopener noreferrer" className="ad-cbtn ad-cbtn--whatsapp" style={{justifyContent:"space-between"}}>
+                      <span style={{display:"flex",alignItems:"center",gap:9}}><WhatsAppIcon size={15}/> {t}</span>
+                      <span style={{fontSize:12.5,fontWeight:700,opacity:.85}}>Contacter →</span>
                     </a>
                   ))}
                 </div>
