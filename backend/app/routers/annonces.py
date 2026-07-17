@@ -533,6 +533,7 @@ def get_annonce_detail(annonce_id: int, db: Session = Depends(get_db)):
             "username":        user.username        if user else None,
             "role":            user.role.value      if user and hasattr(user.role, "value") else (str(user.role) if user else None),
             "phone_number":    user.phone_number    if user else None,
+            "phone_numbers":   [p.numero for p in db.query(models.UserPhoneNumber).filter(models.UserPhoneNumber.user_id == user.id).order_by(models.UserPhoneNumber.id).all()] if user else [],
             "email":           user.email           if user else None,
             "profile_picture": user.profile_picture if user else None,
         } if user else None,

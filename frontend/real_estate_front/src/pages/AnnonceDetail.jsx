@@ -87,6 +87,7 @@ function normalizeApi(a) {
     contact: {
       nom:   a.user?.username     || "Propriétaire",
       tel:   a.user?.phone_number || "",
+      tels:  [...new Set([a.user?.phone_number, ...(a.user?.phone_numbers || [])].filter(Boolean))],
       email: a.user?.email        || "",
     },
     publisher_role:    a.user?.role            || null,
@@ -263,6 +264,7 @@ export default function AnnonceDetail() {
   const [prop,      setProp]      = useState(null);
   const [rawData,   setRawData]   = useState(null);
   const [showContactModal, setShowContactModal] = useState(false);
+  const [showCallModal, setShowCallModal] = useState(false);
   const [contactForm,  setContactForm]  = useState({ nom:"", email:"", telephone:"", message:"" });
   const [contactSent,  setContactSent]  = useState(false);
   const [contactLoading, setContactLoading] = useState(false);
@@ -1098,9 +1100,9 @@ export default function AnnonceDetail() {
                 <div className="ad-contact-box__btns">
                   {prop.contact.tel && (
                     <>
-                      <a href={`tel:${prop.contact.tel.replace(/\s/g,"")}`} className="ad-cbtn ad-cbtn--call">
-                        <Phone size={15}/> {prop.contact.tel}
-                      </a>
+                      <button onClick={()=>setShowCallModal(true)} className="ad-cbtn ad-cbtn--call">
+                        <Phone size={15}/> Appeler
+                      </button>
                       <a
                         href={`https://wa.me/${prop.contact.tel.replace(/[\s+]/g,"").replace(/^00/,"")}?text=${encodeURIComponent(`Bonjour, je suis intéressé(e) par votre annonce "${prop.titre}" sur Localizi.tn.`)}`}
                         target="_blank" rel="noopener noreferrer"
@@ -1654,6 +1656,47 @@ export default function AnnonceDetail() {
           .ad-nearby__scroll { grid-template-columns: 1fr; }
         }
       `}</style>
+
+      {/* -- Modal "Appeler" : liste des numéros du propriétaire -- */}
+      {showCallModal && (() => {
+        const tels = prop?.contact?.tels?.length ? prop.contact.tels : [prop?.contact?.tel].filter(Boolean);
+        return ReactDOM.createPortal(
+        <div style={{position:"fixed",inset:0,zIndex:99999,background:"rgba(15,23,42,.55)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"'Inter',system-ui,sans-serif"}}
+          onClick={e=>{if(e.target===e.currentTarget)setShowCallModal(false);}}>
+          <div style={{background:"#fff",borderRadius:20,padding:"28px 28px 24px",maxWidth:420,width:"100%",maxHeight:"90vh",display:"flex",flexDirection:"column",boxShadow:"0 24px 64px rgba(0,0,0,.18)"}}
+            onClick={e=>e.stopPropagation()}>
+            {/* Header — même style que les autres popups du site */}
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18,flexShrink:0}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <Logo variant="color" height={28} to={null}/>
+                <div>
+                  <div style={{fontSize:16,fontWeight:800,color:"#0f172a"}}>Appeler le propriétaire</div>
+                  <div style={{fontSize:12,color:"#94a3b8",marginTop:2}}>{tels.length} numéro{tels.length>1?"s":""} disponible{tels.length>1?"s":""}</div>
+                </div>
+              </div>
+              <button onClick={()=>setShowCallModal(false)} style={{background:"#f1f5f9",border:"none",cursor:"pointer",borderRadius:10,width:34,height:34,display:"flex",alignItems:"center",justifyContent:"center",color:"#64748b",flexShrink:0}}>
+                <X size={18} strokeWidth={2.5}/>
+              </button>
+            </div>
+
+            <p style={{fontSize:12.5,color:"#78716c",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:10,padding:"10px 13px",display:"flex",gap:8,alignItems:"flex-start",marginBottom:16}}>
+              <Info size={14} strokeWidth={2} style={{flexShrink:0,marginTop:1,color:"#d97706"}}/>
+              En appelant le propriétaire, merci de préciser que vous le contactez depuis Localizi.tn.
+            </p>
+
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              {tels.map(t => (
+                <a key={t} href={`tel:${t.replace(/\s/g,"")}`} className="ad-cbtn ad-cbtn--call" style={{justifyContent:"space-between"}}>
+                  <span style={{display:"flex",alignItems:"center",gap:9}}><Phone size={15}/> {t}</span>
+                  <span style={{fontSize:12.5,fontWeight:700,opacity:.85}}>Appeler →</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>,
+        document.body
+        );
+      })()}
 
       {/* -- Modal contact anonyme -- */}
       {showContactModal && ReactDOM.createPortal(

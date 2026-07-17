@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { LayoutGrid, Bed, ShowerHead, Ruler, HardHat, ChevronLeft, ChevronRight } from "lucide-react";
+import { LayoutGrid, Bed, ShowerHead, Ruler, HardHat, ChevronLeft, ChevronRight, Phone, X, Info } from "lucide-react";
 import API_URL, { fmtDevise } from "../config";
 import { getEvalLevel, statsKey } from "../utils/priceEval";
+import Logo from "./Logo";
 
 const CAT_COLOR = { vente:"#166534", location:"#1e40af", vacances:"#854d0e" };
 const CAT_LBL   = { vente:"Achat", location:"Location", vacances:"Vacances" };
@@ -43,6 +44,7 @@ export default function AnnonceModal({ annonceId, onClose }) {
   const [loading,      setLoading]      = useState(true);
   const [imgIdx,       setImgIdx]       = useState(0);
   const [descExpanded, setDescExpanded] = useState(false);
+  const [showCallModal, setShowCallModal] = useState(false);
   const [govMarketStats, setGovMarketStats] = useState({});
 
   useEffect(() => {
@@ -85,6 +87,7 @@ export default function AnnonceModal({ annonceId, onClose }) {
           contact: {
             nom:   data.user?.username     || "Propriétaire",
             tel:   data.user?.phone_number || "",
+            tels:  [...new Set([data.user?.phone_number, ...(data.user?.phone_numbers || [])].filter(Boolean))],
             email: data.user?.email        || "",
             avatar:data.user?.profile_picture || null,
           },
@@ -356,7 +359,15 @@ export default function AnnonceModal({ annonceId, onClose }) {
                     <OwnerAvatar contact={prop.contact}/>
                     <div>
                       <p style={{fontSize:14, fontWeight:700, color:"#0a0a0a", margin:0}}>{prop.contact.nom}</p>
-                      {prop.contact.tel && <p style={{fontSize:13, color:"#374151", margin:0}}>{prop.contact.tel}</p>}
+                      {prop.contact.tel && (
+                        <button onClick={()=>setShowCallModal(true)} style={{
+                          marginTop:3, padding:"5px 12px", borderRadius:8, border:"none",
+                          background:"#6366f1", color:"#fff", fontSize:12.5, fontWeight:700,
+                          cursor:"pointer", display:"inline-flex", alignItems:"center", gap:5,
+                        }}>
+                          <Phone size={12}/> Appeler
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
@@ -381,6 +392,50 @@ export default function AnnonceModal({ annonceId, onClose }) {
           </div>
         )}
       </div>
+
+      {/* -- Modal "Appeler" : liste des numéros du propriétaire -- */}
+      {showCallModal && prop && (
+        <div
+          style={{position:"fixed", inset:0, zIndex:100000, background:"rgba(15,23,42,.55)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", padding:24}}
+          onClick={e => { if (e.target === e.currentTarget) setShowCallModal(false); }}
+        >
+          <div style={{background:"#fff", borderRadius:20, padding:"28px 28px 24px", maxWidth:420, width:"100%", maxHeight:"90vh", display:"flex", flexDirection:"column", boxShadow:"0 24px 64px rgba(0,0,0,.18)"}}
+            onClick={e => e.stopPropagation()}>
+            <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:18, flexShrink:0}}>
+              <div style={{display:"flex", alignItems:"center", gap:10}}>
+                <Logo variant="color" height={28} to={null}/>
+                <div>
+                  <div style={{fontSize:16, fontWeight:800, color:"#0f172a"}}>Appeler le propriétaire</div>
+                  <div style={{fontSize:12, color:"#94a3b8", marginTop:2}}>
+                    {prop.contact.tels.length} numéro{prop.contact.tels.length>1?"s":""} disponible{prop.contact.tels.length>1?"s":""}
+                  </div>
+                </div>
+              </div>
+              <button onClick={()=>setShowCallModal(false)} style={{background:"#f1f5f9", border:"none", cursor:"pointer", borderRadius:10, width:34, height:34, display:"flex", alignItems:"center", justifyContent:"center", color:"#64748b", flexShrink:0}}>
+                <X size={18} strokeWidth={2.5}/>
+              </button>
+            </div>
+
+            <p style={{fontSize:12.5, color:"#78716c", background:"#fffbeb", border:"1px solid #fde68a", borderRadius:10, padding:"10px 13px", display:"flex", gap:8, alignItems:"flex-start", marginBottom:16}}>
+              <Info size={14} strokeWidth={2} style={{flexShrink:0, marginTop:1, color:"#d97706"}}/>
+              En appelant le propriétaire, merci de préciser que vous le contactez depuis Localizi.tn.
+            </p>
+
+            <div style={{display:"flex", flexDirection:"column", gap:10}}>
+              {prop.contact.tels.map(t => (
+                <a key={t} href={`tel:${t.replace(/\s/g,"")}`} style={{
+                  display:"flex", alignItems:"center", justifyContent:"space-between", gap:9,
+                  padding:"14px 16px", borderRadius:11, background:"#6366f1", color:"#fff",
+                  fontSize:15, fontWeight:700, textDecoration:"none",
+                }}>
+                  <span style={{display:"flex", alignItems:"center", gap:9}}><Phone size={15}/> {t}</span>
+                  <span style={{fontSize:12.5, fontWeight:700, opacity:.85}}>Appeler →</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

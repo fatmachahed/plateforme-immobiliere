@@ -252,6 +252,17 @@ class PushSubscription(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class UserPhoneNumber(Base):
+    """Numéros de téléphone supplémentaires d'un utilisateur (en plus de
+    users.phone_number, qui reste le numéro principal historique) —
+    affichés dans la popup "Appeler" du détail d'annonce."""
+    __tablename__ = "user_phone_numbers"
+    id         = Column(Integer, primary_key=True, index=True)
+    user_id    = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    numero     = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 # ----------------------------------------
 # Chambres colocation
 # ----------------------------------------

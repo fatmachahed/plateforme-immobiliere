@@ -201,6 +201,55 @@ def delete_push_subscription(
 
 
 # ===============================
+# NUMÉROS DE TÉLÉPHONE SUPPLÉMENTAIRES
+# (en plus de users.phone_number, le numéro principal historique)
+# ===============================
+class PhoneNumberBody(BaseModel):
+    numero: str
+
+@router.get("/me/phone-numbers")
+def list_phone_numbers(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    rows = db.query(models.UserPhoneNumber).filter(
+        models.UserPhoneNumber.user_id == current_user.id
+    ).order_by(models.UserPhoneNumber.id).all()
+    return [{"id": r.id, "numero": r.numero} for r in rows]
+
+@router.post("/me/phone-numbers")
+def add_phone_number(
+    body: PhoneNumberBody,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    numero = (body.numero or "").strip()
+    if not numero:
+        raise HTTPException(400, "Numéro invalide.")
+    row = models.UserPhoneNumber(user_id=current_user.id, numero=numero)
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return {"id": row.id, "numero": row.numero}
+
+@router.delete("/me/phone-numbers/{phone_id}")
+def delete_phone_number(
+    phone_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    row = db.query(models.UserPhoneNumber).filter(
+        models.UserPhoneNumber.id == phone_id,
+        models.UserPhoneNumber.user_id == current_user.id,
+    ).first()
+    if not row:
+        raise HTTPException(404, "Numéro introuvable.")
+    db.delete(row)
+    db.commit()
+    return {"ok": True}
+
+
+# ===============================
 # TABLEAU DE BORD STATISTIQUES (agences)
 # ===============================
 def _parse_stats_dates(date_from: Optional[str], date_to: Optional[str]):

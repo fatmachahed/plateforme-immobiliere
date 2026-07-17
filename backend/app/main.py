@@ -160,6 +160,15 @@ with engine.connect() as conn:
             created_at TIMESTAMP DEFAULT NOW()
         );
         """,
+        # Numéros de téléphone supplémentaires (en plus de users.phone_number)
+        """
+        CREATE TABLE IF NOT EXISTS user_phone_numbers (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            numero VARCHAR NOT NULL,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+        """,
         # Suivi des clics de contact (téléphone/whatsapp/email) — tableau de bord agence
         """
         CREATE TABLE IF NOT EXISTS contact_clicks (

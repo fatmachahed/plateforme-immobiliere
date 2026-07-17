@@ -130,6 +130,59 @@ export default function Compte() {
   const [phoneOtpErr,   setPhoneOtpErr]   = useState("");
   const [phoneOtpLoading, setPhoneOtpLoading] = useState(false);
 
+  /* Numéros de téléphone supplémentaires (en plus du numéro principal
+     ci-dessus) — affichés dans la popup "Appeler" du détail d'annonce. */
+  const [extraPhones,    setExtraPhones]    = useState([]);
+  const [addingPhone,    setAddingPhone]    = useState(false);
+  const [newPhoneValue,  setNewPhoneValue]  = useState("");
+  const [phoneAddLoading,setPhoneAddLoading]= useState(false);
+
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${API_URL}/users/me/phone-numbers`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : [])
+      .then(d => setExtraPhones(Array.isArray(d) ? d : []))
+      .catch(() => {});
+  }, []); // eslint-disable-line
+
+  const handleAddPhone = async () => {
+    const numero = newPhoneValue.trim();
+    if (!numero) return;
+    setPhoneAddLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/users/me/phone-numbers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ numero }),
+      });
+      if (!res.ok) throw new Error();
+      const created = await res.json();
+      setExtraPhones(p => [...p, created]);
+      setNewPhoneValue("");
+      setAddingPhone(false);
+      toast("Numéro ajouté !");
+    } catch {
+      toast("Impossible d'ajouter ce numéro. Réessayez.", "error");
+    } finally {
+      setPhoneAddLoading(false);
+    }
+  };
+
+  const handleRemovePhone = async (id) => {
+    const prev = extraPhones;
+    setExtraPhones(p => p.filter(ph => ph.id !== id));
+    try {
+      const res = await fetch(`${API_URL}/users/me/phone-numbers/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setExtraPhones(prev);
+      toast("Impossible de supprimer ce numéro. Réessayez.", "error");
+    }
+  };
+
   const [profile, setProfile] = useState({
     username:           storedUser?.username           || "",
     email:              storedUser?.email              || "",
@@ -1043,6 +1096,35 @@ export default function Compte() {
                           ].map(({code,flag,name})=><option key={code} value={code}>{flag} {code}</option>)}
                         </select>
                         <input style={{...inp(editing),flex:1,minWidth:0}} value={profile.phone_number||""} readOnly={!editing} placeholder="12 345 678" onChange={e=>setProfile(p=>({...p,phone_number:e.target.value}))}/>
+                      </div>
+
+                      {/* Numéros supplémentaires — visibles par les acheteurs via "Appeler" */}
+                      <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:6}}>
+                        {extraPhones.map(ph => (
+                          <div key={ph.id} style={{display:"flex",alignItems:"center",gap:8,background:"#f8fafc",border:"1.5px solid #e2e8f0",borderRadius:10,padding:"7px 10px"}}>
+                            <span style={{flex:1,fontSize:13,color:"#374151",fontWeight:600}}>{ph.numero}</span>
+                            <button onClick={()=>handleRemovePhone(ph.id)} title="Supprimer ce numéro"
+                              style={{background:"none",border:"none",cursor:"pointer",color:"#94a3b8",padding:2,display:"flex"}}>
+                              <X size={15}/>
+                            </button>
+                          </div>
+                        ))}
+                        {addingPhone ? (
+                          <div style={{display:"flex",gap:6}}>
+                            <input autoFocus value={newPhoneValue} onChange={e=>setNewPhoneValue(e.target.value)}
+                              placeholder="+216 XX XXX XXX" onKeyDown={e=>e.key==="Enter"&&handleAddPhone()}
+                              style={{...inp(true),flex:1,minWidth:0}}/>
+                            <button onClick={handleAddPhone} disabled={phoneAddLoading||!newPhoneValue.trim()}
+                              style={{...btnSec,opacity:phoneAddLoading||!newPhoneValue.trim()?.6:1}}>
+                              {phoneAddLoading?"…":"Ajouter"}
+                            </button>
+                            <button onClick={()=>{setAddingPhone(false);setNewPhoneValue("");}} style={btnSec}><X size={13}/></button>
+                          </div>
+                        ) : (
+                          <button onClick={()=>setAddingPhone(true)} style={{...btnSec,alignSelf:"flex-start",display:"flex",alignItems:"center",gap:6}}>
+                            <Plus size={13}/> Ajouter un numéro
+                          </button>
+                        )}
                       </div>
                     </F>
                   </div>
