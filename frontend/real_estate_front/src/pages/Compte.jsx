@@ -1167,21 +1167,28 @@ export default function Compte() {
                                 <X size={16}/>
                               </button>
                             </div>
-                          ) : (
+                          ) : (() => {
+                            const canAdd = !!profile.phone_number?.trim() && !extraPhoneOtpModal;
+                            return (
                             <button
                               onClick={()=>setAddingPhone(true)}
-                              disabled={!profile.phone_number?.trim()}
-                              title={!profile.phone_number?.trim() ? "Renseignez d'abord votre numéro principal" : "Ajouter un numéro"}
+                              disabled={!canAdd}
+                              title={
+                                !profile.phone_number?.trim() ? "Renseignez d'abord votre numéro principal"
+                                : extraPhoneOtpModal ? "Terminez d'abord la vérification du numéro précédent"
+                                : "Ajouter un numéro"
+                              }
                               style={{
                                 alignSelf:"flex-start", width:34, height:34, borderRadius:10, border:"none",
-                                background: profile.phone_number?.trim() ? "#16a34a" : "#e2e8f0",
-                                color: profile.phone_number?.trim() ? "#fff" : "#94a3b8",
-                                cursor: profile.phone_number?.trim() ? "pointer" : "not-allowed",
+                                background: canAdd ? "#16a34a" : "#e2e8f0",
+                                color: canAdd ? "#fff" : "#94a3b8",
+                                cursor: canAdd ? "pointer" : "not-allowed",
                                 display:"flex", alignItems:"center", justifyContent:"center",
                               }}>
                               <Plus size={18} strokeWidth={2.5}/>
                             </button>
-                          )
+                            );
+                          })()
                         )}
                       </div>
                     </F>
