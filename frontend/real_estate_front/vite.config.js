@@ -19,8 +19,8 @@ export default defineConfig({
       },
       includeAssets: ['logo_localizi.png', 'images/**/*'],
       manifest: {
-        name: 'Localizi – Immobilier Tunisie',
-        short_name: 'Localizi',
+        name: 'Localizi.tn – Immobilier Tunisie',
+        short_name: 'Localizi.tn',
         description: 'Trouvez, publiez et gérez vos biens immobiliers en Tunisie.',
         theme_color: '#6366f1',
         background_color: '#ffffff',
