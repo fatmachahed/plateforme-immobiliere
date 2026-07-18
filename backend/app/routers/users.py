@@ -673,7 +673,17 @@ def confirm_phone_change(
         raise HTTPException(status_code=400, detail="Code incorrect.")
     updated = crud.update_user(db, current_user.id, {"phone_number": record.numero})
     db.delete(record); db.commit()
-    return updated
+    return {"phone_number": updated.phone_number}
+
+@router.delete("/me/phone-number")
+def delete_primary_phone(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Supprime le numéro principal (redevient vide — l'utilisateur peut en
+    ajouter un nouveau via le même flux OTP que pour l'ajout initial)."""
+    crud.update_user(db, current_user.id, {"phone_number": None})
+    return {"ok": True}
 
 
 # ===============================

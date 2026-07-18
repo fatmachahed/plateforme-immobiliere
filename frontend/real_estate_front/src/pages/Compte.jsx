@@ -127,32 +127,17 @@ export default function Compte() {
   };
 
   /* ──────── PROFIL ──────── */
-  // Sépare un numéro complet (ex "+21622300992") en {code:"+216", local:"22300992"}
-  function splitStoredPhone(full) {
-    if (!full) return { code: "+216", local: "" };
-    const codes = ["+216","+212","+213","+218","+966","+971","+974","+44","+33","+49","+32","+41","+90","+34","+39","+1"];
-    codes.sort((a,b) => b.length - a.length); // codes longs en premier pour éviter les faux positifs
-    for (const c of codes) {
-      if (full.startsWith(c)) return { code: c, local: full.slice(c.length) };
-    }
-    return { code: "+216", local: full };
-  }
-  const _storedPhoneSplit = splitStoredPhone(storedUser?.phone_number || "");
-
   const [editing,         setEditing]         = useState(false);
   const [editing2,        setEditing2]        = useState(false);
   const [saving,          setSaving]          = useState(false);
   const [usernameStatus,  setUsernameStatus]  = useState(null); // null|"checking"|"available"|"taken"|"too-short"
-  const [phoneOtpModal, _setPhoneOtpModal] = useState(() => sessionStorage.getItem("phone_otp_pending") === "1");
-  const setPhoneOtpModal = (v) => { _setPhoneOtpModal(v); if (v) sessionStorage.setItem("phone_otp_pending","1"); else sessionStorage.removeItem("phone_otp_pending"); };
-  const [phoneOtpCode,  setPhoneOtpCode]  = useState("");
-  const [phoneOtpErr,   setPhoneOtpErr]   = useState("");
-  const [phoneOtpLoading, setPhoneOtpLoading] = useState(false);
-
-  /* Numéros de téléphone supplémentaires (en plus du numéro principal
-     ci-dessus) — affichés dans la popup "Appeler" du détail d'annonce.
-     Chaque ajout doit être vérifié par un code envoyé par email, comme le
-     changement du numéro principal (voir handleSaveProfile / phoneOtpModal). */
+  /* Numéros de téléphone : le principal (users.phone_number) ET les
+     supplémentaires (table user_phone_numbers) se comportent maintenant à
+     l'identique — affichage en lecture seule + croix de suppression,
+     jamais de saisie libre. Le seul moyen d'en ajouter un (le tout premier
+     comme les suivants) est le bouton "+", qui déclenche systématiquement
+     une vérification par code envoyé par email avant tout enregistrement. */
+  const [primaryPhone,   setPrimaryPhone]   = useState(storedUser?.phone_number || "");
   const [extraPhones,    setExtraPhones]    = useState([]);
   const [addingPhone,    setAddingPhone]    = useState(false);
   const [newPhoneCode,   setNewPhoneCode]   = useState("+216");
@@ -163,6 +148,8 @@ export default function Compte() {
   const [extraPhoneOtpErr,   setExtraPhoneOtpErr]   = useState("");
   const [extraPhoneOtpLoading, setExtraPhoneOtpLoading] = useState(false);
   const [pendingNewNumero, setPendingNewNumero] = useState("");
+  const [pendingOtpKind,   setPendingOtpKind]   = useState("extra"); // "primary" | "extra"
+  const [phoneDeleteLoading, setPhoneDeleteLoading] = useState(null); // id en cours de suppression ("primary" ou id numérique)
 
   useEffect(() => {
     if (!token) return;
@@ -176,15 +163,19 @@ export default function Compte() {
     const local = newPhoneValue.trim();
     if (!local) return;
     const numero = `${newPhoneCode} ${local}`;
+    const kind = primaryPhone ? "extra" : "primary";
     setPhoneAddLoading(true);
     try {
-      const res = await fetch(`${API_URL}/users/me/phone-numbers/request-otp`, {
+      const url = kind === "primary" ? `${API_URL}/users/me/request-phone-change` : `${API_URL}/users/me/phone-numbers/request-otp`;
+      const body = kind === "primary" ? { new_phone: numero } : { numero };
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ numero }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error();
       setPendingNewNumero(numero);
+      setPendingOtpKind(kind);
       setExtraPhoneOtpModal(true);
       setAddingPhone(false);
       setNewPhoneValue("");
@@ -200,14 +191,20 @@ export default function Compte() {
     setExtraPhoneOtpLoading(true);
     setExtraPhoneOtpErr("");
     try {
-      const res = await fetch(`${API_URL}/users/me/phone-numbers/confirm-otp`, {
+      const url = pendingOtpKind === "primary" ? `${API_URL}/users/me/confirm-phone-change` : `${API_URL}/users/me/phone-numbers/confirm-otp`;
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ otp: extraPhoneOtpCode }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setExtraPhoneOtpErr(data.detail || "Code incorrect."); return; }
-      setExtraPhones(p => [...p, data]);
+      if (pendingOtpKind === "primary") {
+        setPrimaryPhone(data.phone_number || pendingNewNumero);
+        localStorage.setItem("user", JSON.stringify({ ...storedUser, ...data }));
+      } else {
+        setExtraPhones(p => [...p, data]);
+      }
       setExtraPhoneOtpModal(false);
       setExtraPhoneOtpCode("");
       setPendingNewNumero("");
@@ -219,8 +216,28 @@ export default function Compte() {
     }
   };
 
+  const handleRemovePrimaryPhone = async () => {
+    const prev = primaryPhone;
+    setPhoneDeleteLoading("primary");
+    setPrimaryPhone("");
+    try {
+      const res = await fetch(`${API_URL}/users/me/phone-number`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error();
+      localStorage.setItem("user", JSON.stringify({ ...storedUser, phone_number: null }));
+    } catch {
+      setPrimaryPhone(prev);
+      toast("Impossible de supprimer ce numéro. Réessayez.", "error");
+    } finally {
+      setPhoneDeleteLoading(null);
+    }
+  };
+
   const handleRemovePhone = async (id) => {
     const prev = extraPhones;
+    setPhoneDeleteLoading(id);
     setExtraPhones(p => p.filter(ph => ph.id !== id));
     try {
       const res = await fetch(`${API_URL}/users/me/phone-numbers/${id}`, {
@@ -231,14 +248,14 @@ export default function Compte() {
     } catch {
       setExtraPhones(prev);
       toast("Impossible de supprimer ce numéro. Réessayez.", "error");
+    } finally {
+      setPhoneDeleteLoading(null);
     }
   };
 
   const [profile, setProfile] = useState({
     username:           storedUser?.username           || "",
     email:              storedUser?.email              || "",
-    phone_number:       _storedPhoneSplit.local,
-    phone_code:         _storedPhoneSplit.code,
     profile_picture:    storedUser?.profile_picture    || "",
     nom:                storedUser?.nom                || "",
     prenom:             storedUser?.prenom             || "",
@@ -533,28 +550,12 @@ export default function Compte() {
     }
     setSaving(true);
     try {
-      // phone_number contient maintenant seulement la partie locale (ex: "22300992")
-      const localPart = (profile.phone_number || "").trim();
-      const newPhone  = localPart ? `${profile.phone_code||"+216"}${localPart}` : null;
-      const currentPhone = storedUser?.phone_number || "";
-      // Si le numéro a changé → déclencher OTP avant de sauvegarder
-      if (newPhone && newPhone !== currentPhone) {
-        const otpRes = await fetch(`${API_URL}/users/me/request-phone-change`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ new_phone: newPhone }),
-        });
-        if (!otpRes.ok) {
-          toast("Impossible d'envoyer le code de vérification. Vérifiez votre connexion.", "error");
-          setSaving(false);
-          return;
-        }
-        setPhoneOtpModal(true); setPhoneOtpCode(""); setPhoneOtpErr(""); setSaving(false); return;
-      }
+      // Le téléphone (principal et supplémentaires) ne se modifie plus ici :
+      // il passe exclusivement par le flux "+"/OTP dédié (voir handleRequestPhoneOtp).
       const res = await fetch(`${API_URL}/users/me`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ username: profile.username||undefined, phone_number: newPhone||undefined, nom: profile.nom||null, prenom: profile.prenom||null }),
+        body: JSON.stringify({ username: profile.username||undefined, nom: profile.nom||null, prenom: profile.prenom||null }),
       });
       if (!res.ok) throw new Error();
       const updated = await res.json();
@@ -1125,29 +1126,38 @@ export default function Compte() {
                       />
                     </F>
                     <F label="Téléphone">
-                      <div style={{display:"flex",gap:5}}>
-                        <select style={{...inp(editing),width:80,cursor:editing?"pointer":"default",fontSize:12,flexShrink:0}} value={profile.phone_code||"+216"} disabled={!editing} onChange={e=>setProfile(p=>({...p,phone_code:e.target.value}))}>
-                          {PHONE_CODES.map(({code,flag})=><option key={code} value={code}>{flag} {code}</option>)}
-                        </select>
-                        <input style={{...inp(editing),flex:1,minWidth:0}} value={profile.phone_number||""} readOnly={!editing} placeholder="12 345 678" onChange={e=>setProfile(p=>({...p,phone_number:e.target.value}))}/>
-                      </div>
-
-                      {/* Numéros supplémentaires — visibles par les acheteurs via "Appeler".
-                          Ajout uniquement en mode édition, et seulement si le numéro
-                          principal est déjà renseigné ; chaque ajout est vérifié par
-                          un code envoyé par email (voir handleRequestPhoneOtp). */}
-                      <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:6}}>
+                      {/* Tous les numéros (principal + supplémentaires) s'affichent en
+                          lecture seule avec une croix de suppression — jamais de saisie
+                          libre. Le seul moyen d'en ajouter (y compris le tout premier)
+                          est le bouton "+", qui passe systématiquement par une
+                          vérification par code envoyé par email. */}
+                      <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                        {primaryPhone && (
+                          <div style={{display:"flex",alignItems:"center",gap:8,background:"#f8fafc",border:"1.5px solid #e2e8f0",borderRadius:10,padding:"7px 10px"}}>
+                            <span style={{flex:1,fontSize:13,color:"#374151",fontWeight:600}}>{primaryPhone}</span>
+                            <span style={{fontSize:10.5,fontWeight:700,color:"#6366f1",background:"#eef2ff",padding:"2px 8px",borderRadius:999,letterSpacing:".03em"}}>Principal</span>
+                            {editing && (
+                              <button onClick={handleRemovePrimaryPhone} disabled={phoneDeleteLoading==="primary"} title="Supprimer ce numéro"
+                                style={{background:"none",border:"none",cursor:"pointer",color:"#dc2626",padding:2,display:"flex"}}>
+                                <X size={16} strokeWidth={2.5}/>
+                              </button>
+                            )}
+                          </div>
+                        )}
                         {extraPhones.map(ph => (
                           <div key={ph.id} style={{display:"flex",alignItems:"center",gap:8,background:"#f8fafc",border:"1.5px solid #e2e8f0",borderRadius:10,padding:"7px 10px"}}>
                             <span style={{flex:1,fontSize:13,color:"#374151",fontWeight:600}}>{ph.numero}</span>
                             {editing && (
-                              <button onClick={()=>handleRemovePhone(ph.id)} title="Supprimer ce numéro"
+                              <button onClick={()=>handleRemovePhone(ph.id)} disabled={phoneDeleteLoading===ph.id} title="Supprimer ce numéro"
                                 style={{background:"none",border:"none",cursor:"pointer",color:"#dc2626",padding:2,display:"flex"}}>
                                 <X size={16} strokeWidth={2.5}/>
                               </button>
                             )}
                           </div>
                         ))}
+                        {!primaryPhone && !extraPhones.length && !editing && (
+                          <span style={{fontSize:13,color:"#94a3b8"}}>Aucun numéro renseigné.</span>
+                        )}
                         {editing && (
                           addingPhone ? (
                             <div style={{display:"flex",gap:6}}>
@@ -1167,28 +1177,21 @@ export default function Compte() {
                                 <X size={16}/>
                               </button>
                             </div>
-                          ) : (() => {
-                            const canAdd = !!profile.phone_number?.trim() && !extraPhoneOtpModal;
-                            return (
+                          ) : (
                             <button
                               onClick={()=>setAddingPhone(true)}
-                              disabled={!canAdd}
-                              title={
-                                !profile.phone_number?.trim() ? "Renseignez d'abord votre numéro principal"
-                                : extraPhoneOtpModal ? "Terminez d'abord la vérification du numéro précédent"
-                                : "Ajouter un numéro"
-                              }
+                              disabled={extraPhoneOtpModal}
+                              title={extraPhoneOtpModal ? "Terminez d'abord la vérification du numéro précédent" : "Ajouter un numéro"}
                               style={{
                                 alignSelf:"flex-start", width:34, height:34, borderRadius:10, border:"none",
-                                background: canAdd ? "#16a34a" : "#e2e8f0",
-                                color: canAdd ? "#fff" : "#94a3b8",
-                                cursor: canAdd ? "pointer" : "not-allowed",
+                                background: extraPhoneOtpModal ? "#e2e8f0" : "#16a34a",
+                                color: extraPhoneOtpModal ? "#94a3b8" : "#fff",
+                                cursor: extraPhoneOtpModal ? "not-allowed" : "pointer",
                                 display:"flex", alignItems:"center", justifyContent:"center",
                               }}>
                               <Plus size={18} strokeWidth={2.5}/>
                             </button>
-                            );
-                          })()
+                          )
                         )}
                       </div>
                     </F>
@@ -2695,42 +2698,6 @@ export default function Compte() {
         .fav-btn--del:hover { background:#fee2e2; }
         @keyframes fadeInCmp { from{opacity:0;transform:scale(.96)} to{opacity:1;transform:scale(1)} }
       `}</style>
-
-      {/* ── Modal OTP vérification téléphone ── */}
-      {phoneOtpModal && (
-        <div style={{position:"fixed",inset:0,zIndex:99998,background:"rgba(15,23,42,.65)",backdropFilter:"blur(8px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-          <div style={{background:"#fff",borderRadius:20,maxWidth:400,width:"100%",padding:"36px 32px",boxShadow:"0 30px 80px rgba(0,0,0,.28)",position:"relative",animation:"fadeInCmp .2s ease"}}>
-            <div style={{textAlign:"center",marginBottom:24}}>
-              <div style={{fontSize:48,marginBottom:12}}>📱</div>
-              <h2 style={{fontSize:20,fontWeight:800,color:"#0f172a",margin:"0 0 8px"}}>Vérification du numéro</h2>
-              <p style={{fontSize:13.5,color:"#64748b",lineHeight:1.6}}>Un code à 6 chiffres a été envoyé à votre adresse email. Saisissez-le ci-dessous pour confirmer le changement.</p>
-            </div>
-            <input
-              value={phoneOtpCode}
-              onChange={e=>setPhoneOtpCode(e.target.value.replace(/\D/g,"").slice(0,6))}
-              placeholder="_ _ _ _ _ _"
-              maxLength={6}
-              style={{width:"100%",padding:"14px",textAlign:"center",fontSize:28,fontWeight:800,letterSpacing:10,border:`2px solid ${phoneOtpErr?"#ef4444":"#e2e8f0"}`,borderRadius:12,outline:"none",fontFamily:"monospace",boxSizing:"border-box",marginBottom:8}}
-            />
-            {phoneOtpErr && <p style={{color:"#ef4444",fontSize:13,textAlign:"center",marginBottom:8}}>{phoneOtpErr}</p>}
-            <div style={{display:"flex",gap:10,marginTop:16}}>
-              <button onClick={()=>{setPhoneOtpModal(false);setPhoneOtpCode("");setPhoneOtpErr("");}} style={{flex:1,padding:"12px",borderRadius:10,border:"1.5px solid #e2e8f0",background:"#f8fafc",color:"#374151",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>Annuler</button>
-              <button disabled={phoneOtpCode.length!==6||phoneOtpLoading} onClick={async()=>{
-                setPhoneOtpLoading(true); setPhoneOtpErr("");
-                try{
-                  const r=await fetch(`${API_URL}/users/me/confirm-phone-change`,{method:"POST",headers:{Authorization:`Bearer ${token}`,"Content-Type":"application/json"},body:JSON.stringify({otp:phoneOtpCode})});
-                  if(!r.ok){const e=await r.json().catch(()=>({}));setPhoneOtpErr(e.detail||"Code incorrect.");return;}
-                  const updated=await r.json();
-                  localStorage.setItem("user",JSON.stringify({...storedUser,...updated}));
-                  setPhoneOtpModal(false); setEditing(false); toast("Numéro de téléphone vérifié et mis à jour !");
-                }catch{setPhoneOtpErr("Erreur serveur.");}finally{setPhoneOtpLoading(false);}
-              }} style={{flex:2,padding:"12px",borderRadius:10,border:"none",background:phoneOtpCode.length===6?"#6366f1":"#e2e8f0",color:phoneOtpCode.length===6?"#fff":"#94a3b8",fontWeight:700,fontSize:14,cursor:phoneOtpCode.length===6?"pointer":"default",fontFamily:"inherit",transition:"all .2s"}}>
-                {phoneOtpLoading?"Vérification…":"Confirmer →"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ── Modal OTP vérification numéro supplémentaire ── */}
       {extraPhoneOtpModal && (
