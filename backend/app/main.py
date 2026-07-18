@@ -169,6 +169,18 @@ with engine.connect() as conn:
             created_at TIMESTAMP DEFAULT NOW()
         );
         """,
+        # OTP de vérification de numéro (principal ou supplémentaire) — en base
+        # car partagé entre les workers uvicorn (une mémoire process perdrait
+        # la demande si request/confirm tombent sur deux workers différents)
+        """
+        CREATE TABLE IF NOT EXISTS pending_phone_otps (
+            user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            kind VARCHAR NOT NULL,
+            numero VARCHAR NOT NULL,
+            otp VARCHAR NOT NULL,
+            expires_at TIMESTAMP NOT NULL
+        );
+        """,
         # Suivi des clics de contact (téléphone/whatsapp/email) — tableau de bord agence
         """
         CREATE TABLE IF NOT EXISTS contact_clicks (

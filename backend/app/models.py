@@ -252,6 +252,20 @@ class PushSubscription(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class PendingPhoneOtp(Base):
+    """Code OTP de vérification de numéro (principal ou supplémentaire) en
+    attente de confirmation. Stocké en base (pas en mémoire process) car le
+    backend tourne avec plusieurs workers uvicorn qui ne partagent pas la
+    mémoire — un dict Python en RAM perdrait la demande si request et
+    confirm atterrissent sur deux workers différents."""
+    __tablename__ = "pending_phone_otps"
+    user_id    = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    kind       = Column(String, nullable=False)  # "primary" ou "extra"
+    numero     = Column(String, nullable=False)
+    otp        = Column(String, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+
+
 class UserPhoneNumber(Base):
     """Numéros de téléphone supplémentaires d'un utilisateur (en plus de
     users.phone_number, qui reste le numéro principal historique) —

@@ -42,9 +42,6 @@ from pydantic import BaseModel
 # In-memory token store for password reset (replace with DB in production)
 _reset_tokens: dict = {}  # token -> {email, expires}
 
-# In-memory OTP store for phone change: { user_id: {otp, new_phone, expires} }
-_phone_otps: dict = {}
-
 # ── Sécurité 1 : Rate limiting login ─────────────────────────────────────────
 # { ip_address: {"count": int, "blocked_until": datetime | None} }
 _login_attempts: dict = {}
@@ -616,18 +613,29 @@ class PhoneChangeRequest(BaseModel):
 class PhoneChangeConfirm(BaseModel):
     otp: str
 
+def _set_pending_phone_otp(db: Session, user_id: int, kind: str, numero: str) -> str:
+    """Crée (ou remplace) la demande OTP en attente pour cet utilisateur.
+    Stockée en base — voir PendingPhoneOtp — pour être visible de tous les
+    workers uvicorn, contrairement à un dict Python en mémoire process."""
+    otp = str(random.randint(100000, 999999))
+    existing = db.query(models.PendingPhoneOtp).filter(models.PendingPhoneOtp.user_id == user_id).first()
+    if existing:
+        existing.kind = kind
+        existing.numero = numero
+        existing.otp = otp
+        existing.expires_at = datetime.utcnow() + timedelta(minutes=10)
+    else:
+        db.add(models.PendingPhoneOtp(user_id=user_id, kind=kind, numero=numero, otp=otp, expires_at=datetime.utcnow() + timedelta(minutes=10)))
+    db.commit()
+    return otp
+
 @router.post("/me/request-phone-change")
 def request_phone_change(
     body: PhoneChangeRequest,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    otp = str(random.randint(100000, 999999))
-    _phone_otps[current_user.id] = {
-        "otp": otp,
-        "new_phone": body.new_phone,
-        "expires": datetime.utcnow() + timedelta(minutes=10),
-    }
+    otp = _set_pending_phone_otp(db, current_user.id, "primary", body.new_phone)
     try:
         from app.email_utils import send_email
         html = f"""
@@ -655,16 +663,16 @@ def confirm_phone_change(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    record = _phone_otps.get(current_user.id)
-    if not record:
+    record = db.query(models.PendingPhoneOtp).filter(models.PendingPhoneOtp.user_id == current_user.id).first()
+    if not record or record.kind != "primary":
         raise HTTPException(status_code=400, detail="Aucune demande de changement en attente.")
-    if datetime.utcnow() > record["expires"]:
-        _phone_otps.pop(current_user.id, None)
+    if datetime.utcnow() > record.expires_at:
+        db.delete(record); db.commit()
         raise HTTPException(status_code=400, detail="Le code OTP a expiré. Recommencez.")
-    if record["otp"] != body.otp.strip():
+    if record.otp != body.otp.strip():
         raise HTTPException(status_code=400, detail="Code incorrect.")
-    updated = crud.update_user(db, current_user.id, {"phone_number": record["new_phone"]})
-    _phone_otps.pop(current_user.id, None)
+    updated = crud.update_user(db, current_user.id, {"phone_number": record.numero})
+    db.delete(record); db.commit()
     return updated
 
 
@@ -672,8 +680,6 @@ def confirm_phone_change(
 # NUMÉROS SUPPLÉMENTAIRES — OTP OBLIGATOIRE
 # (même mécanisme que le changement de numéro principal ci-dessus)
 # ===============================
-_extra_phone_otps: dict = {}
-
 class ExtraPhoneOtpRequest(BaseModel):
     numero: str
 
@@ -686,12 +692,7 @@ def request_extra_phone_otp(
     numero = (body.numero or "").strip()
     if not numero:
         raise HTTPException(400, "Numéro invalide.")
-    otp = str(random.randint(100000, 999999))
-    _extra_phone_otps[current_user.id] = {
-        "otp": otp,
-        "numero": numero,
-        "expires": datetime.utcnow() + timedelta(minutes=10),
-    }
+    otp = _set_pending_phone_otp(db, current_user.id, "extra", numero)
     try:
         from app.email_utils import send_email
         html = f"""
@@ -719,19 +720,19 @@ def confirm_extra_phone_otp(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    record = _extra_phone_otps.get(current_user.id)
-    if not record:
+    record = db.query(models.PendingPhoneOtp).filter(models.PendingPhoneOtp.user_id == current_user.id).first()
+    if not record or record.kind != "extra":
         raise HTTPException(400, "Aucune demande d'ajout en attente.")
-    if datetime.utcnow() > record["expires"]:
-        _extra_phone_otps.pop(current_user.id, None)
+    if datetime.utcnow() > record.expires_at:
+        db.delete(record); db.commit()
         raise HTTPException(400, "Le code OTP a expiré. Recommencez.")
-    if record["otp"] != body.otp.strip():
+    if record.otp != body.otp.strip():
         raise HTTPException(400, "Code incorrect.")
-    row = models.UserPhoneNumber(user_id=current_user.id, numero=record["numero"])
+    row = models.UserPhoneNumber(user_id=current_user.id, numero=record.numero)
     db.add(row)
+    db.delete(record)
     db.commit()
     db.refresh(row)
-    _extra_phone_otps.pop(current_user.id, None)
     return {"id": row.id, "numero": row.numero}
 
 
