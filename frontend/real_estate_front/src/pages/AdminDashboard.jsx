@@ -147,6 +147,7 @@ export default function AdminDashboard() {
   const [aSearch,      setASearch]     = useState("");
   const [aFiltreType,  setAFiltreType] = useState("");
   const [aFiltreGov,   setAFiltreGov]  = useState("");
+  const [aFiltreCommercial, setAFiltreCommercial] = useState("");
   const [aPrixMin,     setAPrixMin]    = useState("");
   const [aPrixMax,     setAPrixMax]    = useState("");
   const [aDateFrom,    setADateFrom]   = useState("");
@@ -643,16 +644,29 @@ export default function AdminDashboard() {
       }
       if (aFiltreType && a.type_bien !== aFiltreType) return false;
       if (aFiltreGov  && a.gouvernorat !== aFiltreGov) return false;
+      if (aFiltreCommercial && String(a.commercial_id) !== aFiltreCommercial) return false;
       if (aPrixMin && Number(a.prix) < Number(aPrixMin)) return false;
       if (aPrixMax && Number(a.prix) > Number(aPrixMax)) return false;
       if (aDateFrom && new Date(a.date_creation) < new Date(aDateFrom)) return false;
       if (aDateTo   && new Date(a.date_creation) > new Date(aDateTo + "T23:59:59")) return false;
       return true;
     });
-  }, [annonces, aSearch, aFiltreType, aFiltreGov, aPrixMin, aPrixMax, aDateFrom, aDateTo]);
+  }, [annonces, aSearch, aFiltreType, aFiltreGov, aFiltreCommercial, aPrixMin, aPrixMax, aDateFrom, aDateTo]);
 
   const aTypes = useMemo(() => [...new Set(annonces.map(a => a.type_bien).filter(Boolean))].sort(), [annonces]);
   const aGovs  = useMemo(() => [...new Set(annonces.map(a => a.gouvernorat).filter(Boolean))].sort(), [annonces]);
+  /* Liste des managers commerciaux réellement référencés dans les annonces,
+     avec le nombre d'annonces apportées par chacun (affiché dans le filtre). */
+  const aCommerciaux = useMemo(() => {
+    const map = new Map();
+    annonces.forEach(a => {
+      if (!a.commercial_id) return;
+      const key = String(a.commercial_id);
+      if (!map.has(key)) map.set(key, { id: key, nom: a.commercial_nom || `#${key}`, count: 0 });
+      map.get(key).count += 1;
+    });
+    return [...map.values()].sort((a,b) => a.nom.localeCompare(b.nom));
+  }, [annonces]);
 
   return (
     <>
@@ -762,6 +776,11 @@ export default function AdminDashboard() {
                   <option value="">Tous les lieux</option>
                   {aGovs.map(g=><option key={g} value={g}>{g}</option>)}
                 </select>
+                <select value={aFiltreCommercial} onChange={e=>setAFiltreCommercial(e.target.value)}
+                  style={{border:"1.5px solid #e2e8f0",borderRadius:8,padding:"7px 12px",fontSize:13,fontFamily:"inherit",background:"#fff",outline:"none"}}>
+                  <option value="">Tous les managers</option>
+                  {aCommerciaux.map(c=><option key={c.id} value={c.id}>{c.nom} ({c.count})</option>)}
+                </select>
                 <div style={{display:"flex",alignItems:"center",gap:6}}>
                   <input type="number" placeholder="Prix min" value={aPrixMin} onChange={e=>setAPrixMin(e.target.value)}
                     style={{border:"1.5px solid #e2e8f0",borderRadius:8,padding:"7px 10px",fontSize:13,fontFamily:"inherit",width:110,outline:"none"}}/>
@@ -776,8 +795,8 @@ export default function AdminDashboard() {
                   <input type="date" value={aDateTo} onChange={e=>setADateTo(e.target.value)}
                     style={{border:"1.5px solid #e2e8f0",borderRadius:8,padding:"7px 10px",fontSize:13,fontFamily:"inherit",outline:"none"}}/>
                 </div>
-                {(aSearch||aFiltreType||aFiltreGov||aPrixMin||aPrixMax||aDateFrom||aDateTo) && (
-                  <button onClick={()=>{setASearch("");setAFiltreType("");setAFiltreGov("");setAPrixMin("");setAPrixMax("");setADateFrom("");setADateTo("");}}
+                {(aSearch||aFiltreType||aFiltreGov||aFiltreCommercial||aPrixMin||aPrixMax||aDateFrom||aDateTo) && (
+                  <button onClick={()=>{setASearch("");setAFiltreType("");setAFiltreGov("");setAFiltreCommercial("");setAPrixMin("");setAPrixMax("");setADateFrom("");setADateTo("");}}
                     style={{border:"none",background:"#fee2e2",color:"#dc2626",borderRadius:8,padding:"7px 14px",fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
                     ✕ Réinitialiser
                   </button>
@@ -797,7 +816,7 @@ export default function AdminDashboard() {
                       <tr>
                         <th style={{width:64}}></th>
                         <th>Annonce</th><th>Propriétaire</th><th>Type / Cat.</th>
-                        <th>Lieu</th><th>Prix</th><th>Statut</th><th>Date</th><th>Actions</th>
+                        <th>Lieu</th><th>Prix</th><th title="Manager commercial">MG</th><th>Statut</th><th>Date</th><th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -835,11 +854,6 @@ export default function AdminDashboard() {
                           <td>
                             <p className="adm-table__user">{a.user_name}</p>
                             <span className="adm-table__email">{a.user_email}</span>
-                            {a.commercial_nom && (
-                              <div style={{marginTop:3,fontSize:10.5,fontWeight:700,color:"#0284c7",background:"#e0f2fe",display:"inline-block",padding:"1px 7px",borderRadius:999}}>
-                                Commercial : {a.commercial_nom}
-                              </div>
-                            )}
                           </td>
                           <td>
                             <span className="adm-pill">{TypeBienFr(a.type_bien)}</span>
@@ -848,6 +862,11 @@ export default function AdminDashboard() {
                           <td className="adm-table__gov">{a.gouvernorat || "—"}</td>
                           <td className="adm-table__prix">
                             {a.prix ? `${Number(a.prix).toLocaleString("fr-TN")} ${fmtDevise(a.devise)}` : "—"}
+                          </td>
+                          <td>
+                            {a.commercial_nom
+                              ? <span style={{fontSize:11,fontWeight:700,color:"#0284c7",background:"#e0f2fe",padding:"2px 8px",borderRadius:999,whiteSpace:"nowrap"}} title={a.commercial_nom}>{a.commercial_nom}</span>
+                              : <span style={{color:"#cbd5e1"}}>—</span>}
                           </td>
                           <td><StatusBadge status={a.status}/></td>
                           <td className="adm-table__date">
