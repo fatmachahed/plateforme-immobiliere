@@ -96,6 +96,7 @@ class Annonce(Base):
     id = Column(Integer, primary_key=True, index=True)
     reference = Column(String, nullable=True, unique=True, index=True)  # ex: TN0001, SF0012
     utilisateur_id = Column(Integer, ForeignKey("users.id"))
+    commercial_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # manager commercial ayant apporté ce lead (traçabilité)
     gouvernorat_id = Column(Integer, ForeignKey("gouvernorats.id"))
     delegation_id = Column(Integer, ForeignKey("delegations.id"))
     localite_id = Column(Integer, ForeignKey("localites.id"))

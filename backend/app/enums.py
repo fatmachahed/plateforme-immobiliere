@@ -8,6 +8,7 @@ class RoleEnum(str, enum.Enum):
     particulier = "particulier"
     professionnel = "professionnel"
     partenaire = "partenaire"
+    manager_commercial = "manager_commercial"  # rôle interne : suivi de l'apport de leads par commercial
 
 class CategorieEnum(str, enum.Enum):
     vente = "vente"

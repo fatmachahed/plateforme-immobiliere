@@ -126,6 +126,11 @@ def list_annonces(
                 db.query(models.User.username).filter(models.User.id == a.accompagnement_agence_id).scalar()
                 if a.accompagnement_agence_id else None
             ),
+            "commercial_id":  a.commercial_id,
+            "commercial_nom": (
+                db.query(models.User.username).filter(models.User.id == a.commercial_id).scalar()
+                if a.commercial_id else None
+            ),
         })
     return result
 

@@ -835,6 +835,11 @@ export default function AdminDashboard() {
                           <td>
                             <p className="adm-table__user">{a.user_name}</p>
                             <span className="adm-table__email">{a.user_email}</span>
+                            {a.commercial_nom && (
+                              <div style={{marginTop:3,fontSize:10.5,fontWeight:700,color:"#0284c7",background:"#e0f2fe",display:"inline-block",padding:"1px 7px",borderRadius:999}}>
+                                Commercial : {a.commercial_nom}
+                              </div>
+                            )}
                           </td>
                           <td>
                             <span className="adm-pill">{TypeBienFr(a.type_bien)}</span>
@@ -1209,6 +1214,7 @@ export default function AdminDashboard() {
                         <option value="particulier">Particulier</option>
                         <option value="agence">Agence</option>
                         <option value="promoteur">Promoteur</option>
+                        <option value="manager_commercial">Manager commercial</option>
                         <option value="admin">Admin</option>
                       </select>
                     </th>
@@ -1282,6 +1288,7 @@ export default function AdminDashboard() {
                             u.role==="promoteur" ? "Promoteur" :
                             u.role==="particulier"? "Particulier" :
                             u.role==="admin"     ? "Admin" :
+                            u.role==="manager_commercial" ? "Manager commercial" :
                             u.role
                           }</span>
                         </td>
@@ -1362,6 +1369,7 @@ export default function AdminDashboard() {
                     <option value="agence">Agence / Agent</option>
                     <option value="promoteur">Promoteur</option>
                     <option value="partenaire">Partenaire / Prestataire</option>
+                    <option value="manager_commercial">Manager commercial (interne)</option>
                     <option value="admin">Admin</option>
                   </select>
                 </div>

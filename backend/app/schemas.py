@@ -123,6 +123,7 @@ class AnnonceCreate(AnnonceBase):
     anonyme: Optional[bool] = False
     accompagnement: Optional[bool] = False
     accompagnement_agence_id: Optional[int] = None
+    commercial_id: Optional[int] = None  # manager commercial ayant apporté ce lead (traçabilité)
     hauteur_immeuble:     Optional[str] = None
     nb_appartements:      Optional[int] = None
     orientation_immeuble: Optional[str] = None
@@ -298,6 +299,7 @@ class AnnonceRead(AnnonceBase):
     anonyme: Optional[bool] = False
     accompagnement: Optional[bool] = False
     accompagnement_agence_id: Optional[int] = None
+    commercial_id: Optional[int] = None
     # ── Colocation ──
     colocation:      Optional[bool] = False
     places_totales:  Optional[int]  = None

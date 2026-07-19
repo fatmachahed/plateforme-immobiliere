@@ -132,6 +132,10 @@ with engine.connect() as conn:
         # Ajout statuts vendue/louee dans l'enum PostgreSQL
         "ALTER TYPE statusenum ADD VALUE IF NOT EXISTS 'vendue';",
         "ALTER TYPE statusenum ADD VALUE IF NOT EXISTS 'louee';",
+        # Rôle interne "manager commercial" — suivi de l'apport de leads
+        "ALTER TYPE roleenum ADD VALUE IF NOT EXISTS 'manager_commercial';",
+        # Traçabilité : quel manager commercial a apporté ce lead/annonce
+        "ALTER TABLE annonces ADD COLUMN IF NOT EXISTS commercial_id INTEGER REFERENCES users(id);",
         # Table paramètres plateforme (clé-valeur JSON)
         """
         CREATE TABLE IF NOT EXISTS settings (

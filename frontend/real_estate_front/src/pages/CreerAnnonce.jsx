@@ -835,6 +835,9 @@ export const CreateListingForm = ({ editId = null }) => {
   /* -- Agences pour dropdown accompagnement -- */
   const [agences, setAgences] = useState([]);
   const [agenceChoisie, setAgenceChoisie] = useState("");
+  /* -- Managers commerciaux pour traçabilité de l'apport de lead -- */
+  const [commerciaux, setCommerciaux] = useState([]);
+  const [commercialChoisi, setCommercialChoisi] = useState("");
   /* -- Stats de marché (prix moyen/m² par gouvernorat) -- */
   const [marketStats, setMarketStats] = useState({});
   /* -- Index image sélectionnée dans la prévisualisation (step 5) -- */
@@ -951,6 +954,10 @@ export const CreateListingForm = ({ editId = null }) => {
     fetch(`${API_URL}/users/agencies/public`)
       .then(r => r.ok ? r.json() : [])
       .then(data => setAgences(Array.isArray(data) ? data : []))
+      .catch(() => {});
+    fetch(`${API_URL}/users/commerciaux`)
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setCommerciaux(Array.isArray(data) ? data : []))
       .catch(() => {});
   }, []);
 
@@ -1560,6 +1567,7 @@ export const CreateListingForm = ({ editId = null }) => {
         anonyme:                   formData.anonyme || false,
         accompagnement:            formData.accompagnement || false,
         accompagnement_agence_id:  agenceChoisie ? parseInt(agenceChoisie) : null,
+        commercial_id:             commercialChoisi ? parseInt(commercialChoisi) : null,
         hauteur_immeuble:          formData.type_bien === "immeuble"       ? (formData.hauteur_immeuble  || null) : null,
         nb_appartements:           formData.type_bien === "immeuble"       ? (formData.nb_appartements   ? Number(formData.nb_appartements) : null) : null,
         orientation_immeuble:      formData.type_bien === "immeuble"       ? (formData.orientation_immeuble || null) : null,
@@ -4203,6 +4211,20 @@ export const CreateListingForm = ({ editId = null }) => {
                         </div>
                       </div>
                     </div>
+
+                    {/* Manager commercial — traçabilité de l'apport de lead */}
+                    {commerciaux.length > 0 && (
+                      <div style={{marginTop:20,padding:"14px 16px",background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:10}}>
+                        <label style={{fontSize:12.5,fontWeight:700,color:"#374151",display:"block",marginBottom:7}}>
+                          Si vous avez été contacté par un manager commercial, veuillez indiquer son nom
+                        </label>
+                        <select value={commercialChoisi} onChange={e=>setCommercialChoisi(e.target.value)}
+                          style={{width:"100%",padding:"9px 12px",borderRadius:8,border:"1.5px solid #e2e8f0",fontSize:13,fontFamily:"inherit",background:"#fff",cursor:"pointer",boxSizing:"border-box"}}>
+                          <option value="">— Aucun / je ne sais pas —</option>
+                          {commerciaux.map(c => <option key={c.id} value={c.id}>{c.username}</option>)}
+                        </select>
+                      </div>
+                    )}
 
                     {/* Note de bas */}
                     <div style={{marginTop:20,padding:"12px 16px",background:"#fffbeb",border:"1px solid #fde68a",borderRadius:10,fontSize:12.5,color:"#92400e",lineHeight:1.5}}>

@@ -1245,6 +1245,18 @@ def delete_saved_search(search_id: int, db: Session = Depends(get_db), current_u
 
 
 # ===============================
+# MANAGERS COMMERCIAUX (rôle interne)
+# Liste utilisée dans le formulaire de création d'annonce : "Si vous avez
+# été contacté par un manager commercial, indiquez son nom" — permet la
+# traçabilité de l'apport de chaque commercial (voir Annonce.commercial_id).
+# ===============================
+@router.get("/commerciaux")
+def list_commerciaux(db: Session = Depends(get_db)):
+    users = db.query(models.User).filter(models.User.role == models.RoleEnum.manager_commercial).all()
+    return [{"id": u.id, "username": u.username} for u in users]
+
+
+# ===============================
 # AGENCES PUBLIQUES
 # ===============================
 @router.get("/agencies/public")
