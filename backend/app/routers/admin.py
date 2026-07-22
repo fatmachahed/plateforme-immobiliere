@@ -179,6 +179,10 @@ def update_annonce_status(
     a = db.query(models.Annonce).filter(models.Annonce.id == annonce_id).first()
     if not a:
         raise HTTPException(404, "Annonce non trouvée")
+    if body.status == "approuvee":
+        has_image = bool(a.property and (a.property.image_principale or (a.property.images and len(a.property.images) > 0)))
+        if not has_image:
+            raise HTTPException(400, "Impossible d'approuver une annonce sans aucune photo.")
     was_approved = (a.status.value if hasattr(a.status, "value") else a.status) == "approuvee"
     a.status = body.status
     if body.status == "refusee":

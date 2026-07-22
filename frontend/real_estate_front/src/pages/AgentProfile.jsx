@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate, Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import AnnonceDetailModal from "./AnnonceDetailModal";
-import API_URL, { fmtDevise } from "../config";
+import API_URL, { fmtDevise, NO_IMAGE_PLACEHOLDER } from "../config";
 import { useIsInCompare, toggleCompare as toggleCompareStore } from "../utils/compareStore";
 import { getEvalLevel, statsKey } from "../utils/priceEval";
 import {
@@ -107,7 +107,7 @@ function Carousel({ images, h = 190 }) {
 /* ─── Carte annonce — même style que PropCard de CartePage ─── */
 function PropCard({ a, govMarketStats, onOpen }) {
   const realId = String(a.id);
-  const images = a.image ? [resolveUrl(a.image)] : ["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400&q=75"];
+  const images = a.image ? [resolveUrl(a.image)] : [NO_IMAGE_PLACEHOLDER];
   const cat    = a.categorie || "vente";
   const joursEcoules = a.date_creation ? Math.floor((Date.now() - new Date(a.date_creation)) / 86_400_000) : null;
   const ageLabel = joursEcoules === 0 ? "Aujourd'hui" : joursEcoules === 1 ? "il y a 1 j." : joursEcoules != null ? `il y a ${joursEcoules} j.` : null;

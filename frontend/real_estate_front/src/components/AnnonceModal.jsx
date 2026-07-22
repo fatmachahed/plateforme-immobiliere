@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { LayoutGrid, Bed, ShowerHead, Ruler, HardHat, ChevronLeft, ChevronRight, Phone, X, Info } from "lucide-react";
-import API_URL, { fmtDevise } from "../config";
+import API_URL, { fmtDevise, NO_IMAGE_PLACEHOLDER } from "../config";
 import { getEvalLevel, statsKey } from "../utils/priceEval";
 import Logo from "./Logo";
 
@@ -65,7 +65,7 @@ export default function AnnonceModal({ annonceId, onClose }) {
           ? data.images.map(img => img.startsWith("http") ? img : `${API_URL}${img}`)
           : data.image_principale
             ? [data.image_principale.startsWith("http") ? data.image_principale : `${API_URL}${data.image_principale}`]
-            : ["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=900&q=80"];
+            : [NO_IMAGE_PLACEHOLDER];
         setProp({
           id:          data.id,
           titre:       data.titre,
@@ -166,7 +166,7 @@ export default function AnnonceModal({ annonceId, onClose }) {
                 src={prop.images[imgIdx]}
                 alt={prop.titre}
                 style={{width:"100%", height:"100%", objectFit:"cover", display:"block"}}
-                onError={e => { e.currentTarget.src = "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=900&q=80"; }}
+                onError={e => { e.currentTarget.src = NO_IMAGE_PLACEHOLDER; }}
               />
               {/* Filigrane */}
               <div style={{position:"absolute",inset:0,zIndex:2,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}>

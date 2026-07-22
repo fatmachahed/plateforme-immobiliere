@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import API_URL, { fmtDevise } from "../config";
+import API_URL, { fmtDevise, NO_IMAGE_PLACEHOLDER } from "../config";
 import Navbar from "../components/Navbar";
 import Logo from "../components/Logo";
 import { useToast } from "../components/Toast";
@@ -824,10 +824,10 @@ export default function AdminDashboard() {
                         <tr key={a.id} className="adm-table__row--clickable" onClick={() => openPreview(a)}>
                           <td style={{padding:"8px 8px 8px 12px",width:64,verticalAlign:"middle"}}>
                             <img
-                              src={a.image_principale ? (a.image_principale.startsWith("http") ? a.image_principale : `${import.meta.env.VITE_API_URL||""}${a.image_principale}`) : "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=120&q=60"}
+                              src={a.image_principale ? (a.image_principale.startsWith("http") ? a.image_principale : `${import.meta.env.VITE_API_URL||""}${a.image_principale}`) : NO_IMAGE_PLACEHOLDER}
                               alt=""
                               style={{width:52,height:40,objectFit:"cover",borderRadius:6,display:"block",flexShrink:0,border:"1px solid #e5e7eb"}}
-                              onError={e=>{e.target.src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=120&q=60";}}
+                              onError={e=>{e.target.src=NO_IMAGE_PLACEHOLDER;}}
                             />
                           </td>
                           <td>
@@ -1641,10 +1641,10 @@ export default function AdminDashboard() {
                             onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
                             <td style={{padding:"8px 8px 8px 12px",width:64,verticalAlign:"middle"}}>
                               <img
-                                src={a.image_principale ? (a.image_principale.startsWith("http") ? a.image_principale : `${import.meta.env.VITE_API_URL||""}${a.image_principale}`) : "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=120&q=60"}
+                                src={a.image_principale ? (a.image_principale.startsWith("http") ? a.image_principale : `${import.meta.env.VITE_API_URL||""}${a.image_principale}`) : NO_IMAGE_PLACEHOLDER}
                                 alt=""
                                 style={{width:52,height:40,objectFit:"cover",borderRadius:6,display:"block",border:"1px solid #e5e7eb"}}
-                                onError={e=>{e.target.src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=120&q=60";}}
+                                onError={e=>{e.target.src=NO_IMAGE_PLACEHOLDER;}}
                               />
                             </td>
                             <td style={{padding:"12px 14px",verticalAlign:"middle",maxWidth:220}}>

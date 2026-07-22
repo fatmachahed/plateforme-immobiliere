@@ -2,6 +2,20 @@
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 export default API_URL;
 
+/** Image de secours neutre affichée quand une annonce n'a AUCUNE photo —
+ * ne jamais remplacer par une photo de stock (ex: Unsplash), qui donne
+ * l'impression trompeuse qu'une vraie photo a été fournie. */
+export const NO_IMAGE_PLACEHOLDER =
+  "data:image/svg+xml;utf8," + encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="450">
+      <rect width="100%" height="100%" fill="#e2e8f0"/>
+      <g fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M225 195 L300 135 L375 195 V285 H225 Z" transform="translate(0,-10)"/>
+      </g>
+      <text x="50%" y="72%" font-family="Arial, sans-serif" font-size="22" fill="#64748b" text-anchor="middle">Aucune photo disponible</text>
+    </svg>`
+  );
+
 /**
  * Résout l'URL d'affichage d'une image.
  * - URL absolue (http), data:base64 ou blob: → renvoyée telle quelle

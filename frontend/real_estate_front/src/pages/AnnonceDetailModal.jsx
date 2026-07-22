@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom";
-import API_URL, { fmtDevise, fmtPriceApprox } from '../config';
+import API_URL, { fmtDevise, fmtPriceApprox, NO_IMAGE_PLACEHOLDER } from '../config';
 import { useFeatureFlags } from "../hooks/useFeatureFlags";
 import {
   useIsInCompare, toggleCompare as toggleCompareStore,
@@ -116,7 +116,7 @@ function normalizeApi(a) {
     chambres_colocation: a.chambres_colocation || [],
     images: (a.images || []).length > 0
       ? (a.images || []).map(img => img.startsWith("http") ? img : `${API_URL}${img}`)
-      : ["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=900&q=80"],
+      : [NO_IMAGE_PLACEHOLDER],
   };
 }
 
@@ -175,7 +175,7 @@ function ModalNearbyCard({ a }) {
   const realId = String(a.id);
   const img = a.image_principale
     ? (a.image_principale.startsWith("http") ? a.image_principale : `${API_URL}${a.image_principale}`)
-    : "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=400&q=75";
+    : NO_IMAGE_PLACEHOLDER;
   const cat = a.categorie || "vente";
   const joursEcoules = a.date_creation ? Math.floor((Date.now() - new Date(a.date_creation)) / 86_400_000) : null;
   const ageLabel = joursEcoules === 0 ? "Aujourd'hui" : joursEcoules === 1 ? "il y a 1 j." : joursEcoules != null ? `il y a ${joursEcoules} j.` : null;
@@ -432,7 +432,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
   };
 
   /* ── RENDER ── */
-  const images  = prop ? (prop.images?.length > 0 ? prop.images : ["https://images.unsplash.com/photo-1560448204-603b3fc33ddc?w=900&q=80"]) : [];
+  const images  = prop ? (prop.images?.length > 0 ? prop.images : [NO_IMAGE_PLACEHOLDER]) : [];
   const prevImg = () => setImgIdx(i => (i - 1 + images.length) % images.length);
   const nextImg = () => setImgIdx(i => (i + 1) % images.length);
   const isOwner = !!(userData && prop?.utilisateur_id && userData.id === prop.utilisateur_id);

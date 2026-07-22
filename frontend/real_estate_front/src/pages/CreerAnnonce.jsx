@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useRef, useCallback, useContext, createContext } from "react";
 import ReactDOM from "react-dom";
-import API_URL, { fmtPriceApprox } from '../config';
+import API_URL, { fmtPriceApprox, NO_IMAGE_PLACEHOLDER } from '../config';
 import { useNavigate } from "react-router-dom";
 import {
   Home, Building2, MapPin, Camera, ChevronRight, ChevronLeft, Save, Layers, Crown,
@@ -3944,7 +3944,7 @@ export const CreateListingForm = ({ editId = null }) => {
                 } else {
                   imgs = [];
                 }
-                const mainImg = imgs[0] || "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=900&q=80";
+                const mainImg = imgs[0] || NO_IMAGE_PLACEHOLDER;
                 const govLabel = gouvernorats.find(g => g.value === hierarchy.gouvernorat)?.label || "";
                 const delLabel = delegations.find(d => String(d.id) === String(hierarchy.delegation))?.nom || "";
                 const locLabel = localites.find(l => String(l.id) === String(hierarchy.localite))?.nom || "";
