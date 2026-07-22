@@ -255,6 +255,79 @@ def admin_delete_annonce(
     return {"detail": "Annonce supprimée"}
 
 
+# ── Détail complet d'un utilisateur (vue admin en lecture seule) ─────
+@router.get("/users/{user_id}/detail")
+def get_user_detail(
+    user_id: int,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_admin),
+):
+    u = db.query(models.User).filter(models.User.id == user_id).first()
+    if not u:
+        raise HTTPException(404, "Utilisateur non trouvé")
+
+    annonces = db.query(models.Annonce).filter(models.Annonce.utilisateur_id == u.id).order_by(desc(models.Annonce.date_creation)).all()
+    annonces_list = [{
+        "id": a.id,
+        "reference": a.reference,
+        "titre": a.titre,
+        "categorie": a.categorie.value if hasattr(a.categorie, "value") else str(a.categorie),
+        "type_bien": a.type_bien.value if hasattr(a.type_bien, "value") else str(a.type_bien),
+        "status": a.status.value if hasattr(a.status, "value") else str(a.status),
+        "prix": float(a.prix) if a.prix else 0,
+        "devise": a.devise.value if hasattr(a.devise, "value") else str(a.devise),
+        "gouvernorat": a.gouvernorat.nom if a.gouvernorat else None,
+        "views_count": a.views_count or 0,
+        "date_creation": a.date_creation.isoformat() if a.date_creation else None,
+    } for a in annonces]
+
+    agence = None
+    if u.agence_id:
+        ag = db.query(models.Agency).filter(models.Agency.id == u.agence_id).first()
+        if ag:
+            agence = {"id": ag.id, "nom": ag.nom}
+
+    return {
+        "id": u.id,
+        "username": u.username,
+        "email": u.email,
+        "phone_number": u.phone_number,
+        "role": u.role.value if hasattr(u.role, "value") else str(u.role),
+        "nom": u.nom,
+        "prenom": u.prenom,
+        "nom_entreprise": u.nom_entreprise,
+        "agence": agence,
+        "profile_picture": u.profile_picture,
+        "gouvernorat": u.gouvernorat,
+        "localite": u.localite,
+        "adresse": u.adresse,
+        "matricule_fiscal": u.matricule_fiscal,
+        "registre_commerce": u.registre_commerce,
+        "is_blocked": bool(u.is_blocked),
+        "is_verified": bool(u.is_verified),
+        "secteur_partenaire": u.secteur_partenaire,
+        "metier_artisan": u.metier_artisan,
+        "note_prestataire": u.note_prestataire,
+        "nombre_avis": u.nombre_avis,
+        "nombre_interventions": u.nombre_interventions,
+        "profil_particulier": u.profil_particulier,
+        "sexe": u.sexe,
+        "objectif": u.objectif,
+        "promoteur_reference": u.promoteur_reference,
+        "last_login": u.last_login.isoformat() if u.last_login else None,
+        "created_at": u.created_at.isoformat() if u.created_at else None,
+        "updated_at": u.updated_at.isoformat() if u.updated_at else None,
+        "annonces": annonces_list,
+        "stats": {
+            "total": len(annonces_list),
+            "approuvees": sum(1 for a in annonces_list if a["status"] == "approuvee"),
+            "en_attente": sum(1 for a in annonces_list if a["status"] == "en_attente"),
+            "refusees": sum(1 for a in annonces_list if a["status"] == "refusee"),
+            "vues": sum(a["views_count"] for a in annonces_list),
+        },
+    }
+
+
 # ── Liste des utilisateurs ───────────────────────────────────
 @router.get("/users")
 def list_users(

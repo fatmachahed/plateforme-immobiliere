@@ -23,6 +23,7 @@ import Logout           from "./pages/Logout";
 import Apropos          from "./pages/Apropos";
 import Contact          from "./pages/Contact";
 import AdminDashboard   from "./pages/AdminDashboard";
+import AdminUserView    from "./pages/AdminUserView";
 import Favoris          from "./pages/Favoris";
 import EditAnnonce      from "./pages/EditAnnonce";
 import ForgotPassword   from "./pages/ForgotPassword";
@@ -121,6 +122,7 @@ function App() {
 
           {/* Admin */}
           <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/admin/users/:id" element={<AdminUserView />} />
 
           {/* Info */}
           <Route path="/apropos"                   element={<Apropos />} />

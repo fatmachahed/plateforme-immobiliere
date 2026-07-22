@@ -1288,7 +1288,8 @@ export default function AdminDashboard() {
                   </thead>
                   <tbody>
                     {filtered.map(u => (
-                      <tr key={u.id} style={{opacity: u.is_blocked ? .55 : 1}}>
+                      <tr key={u.id} className="adm-table__row--clickable" style={{opacity: u.is_blocked ? .55 : 1}}
+                        onClick={() => navigate(`/admin/users/${u.id}`)}>
                         <td className="adm-table__id">#{u.id}</td>
                         <td style={{fontWeight:600,color:"#0f172a"}}>
                           {u.username}
@@ -1328,7 +1329,7 @@ export default function AdminDashboard() {
                             </>
                           ) : "—"}
                         </td>
-                        <td>
+                        <td onClick={e => e.stopPropagation()}>
                           <div style={{display:"flex",gap:5,alignItems:"center"}}>
                             {/* Modifier */}
                             <button title="Modifier" onClick={() => { setUserEditForm({username:u.username,email:u.email,phone_number:u.phone_number||"",role:u.role,note_prestataire:u.note_prestataire ?? "",nombre_interventions:u.nombre_interventions ?? ""}); setUserEditModal(u); }}
