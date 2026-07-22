@@ -877,6 +877,11 @@ export default function AdminDashboard() {
                               <button className="adm-action adm-action--view" title="Voir" onClick={e => { e.stopPropagation(); openPreview(a); }}>
                                 <Eye size={14}/>
                               </button>
+                              <button className="adm-action" title="Modifier l'annonce"
+                                onClick={e => { e.stopPropagation(); navigate(`/modifier_annonce/${a.id}`); }}
+                                style={{borderColor:"#e2e8f0"}}>
+                                <Pencil size={13}/>
+                              </button>
                               {a.status !== "approuvee" && (
                                 <button className="adm-action adm-action--ok" title="Approuver"
                                   onClick={e => { e.stopPropagation(); updateStatus(a.id, "approuvee"); }}>

@@ -475,7 +475,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
                 )}
               </>
             )}
-            {isOwner && (
+            {(isOwner || adminActions) && (
               <Link to={`/modifier_annonce/${prop.id}`} className="det-action" style={{textDecoration:"none"}}>
                 <Edit size={15}/><span className="det-action-txt"> Modifier</span>
               </Link>
