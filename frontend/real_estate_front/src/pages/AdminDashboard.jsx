@@ -132,6 +132,8 @@ export default function AdminDashboard() {
   };
   const [stats,        setStats]       = useState(null);
   const [annonces,     setAnnonces]    = useState([]);
+  const [allCommerciaux, setAllCommerciaux] = useState([]);
+  const [commercialUpdating, setCommercialUpdating] = useState(null); // id de l'annonce en cours de MAJ
   const [allAnnonces,  setAllAnnonces] = useState([]);
   const [users,        setUsers]       = useState([]);
   const [userEditModal,setUserEditModal]= useState(null);
@@ -227,7 +229,31 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (!token || user?.role !== "admin") { navigate("/login"); return; }
     loadAll();
+    fetch(`${API_URL}/users/commerciaux`)
+      .then(r => r.ok ? r.json() : [])
+      .then(d => setAllCommerciaux(Array.isArray(d) ? d : []))
+      .catch(() => {});
   }, []);
+
+  const fmtCommercialName = c => (c.prenom || c.nom) ? `${c.prenom||""} ${c.nom||""}`.trim() : c.username;
+
+  const handleChangeCommercial = async (annonceId, newCommercialId) => {
+    setCommercialUpdating(annonceId);
+    try {
+      const res = await fetch(`${API_URL}/admin/annonces/${annonceId}/commercial`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ commercial_id: newCommercialId ? Number(newCommercialId) : null }),
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setAnnonces(prev => prev.map(a => a.id === annonceId ? { ...a, commercial_id: data.commercial_id, commercial_nom: data.commercial_nom } : a));
+    } catch {
+      toast("Impossible de mettre à jour le manager commercial.", "error");
+    } finally {
+      setCommercialUpdating(null);
+    }
+  };
 
   useEffect(() => {
     if (tab === "annonces") loadAnnonces();
@@ -863,10 +889,15 @@ export default function AdminDashboard() {
                           <td className="adm-table__prix">
                             {a.prix ? `${Number(a.prix).toLocaleString("fr-TN")} ${fmtDevise(a.devise)}` : "—"}
                           </td>
-                          <td>
-                            {a.commercial_nom
-                              ? <span style={{fontSize:11,fontWeight:700,color:"#0284c7",background:"#e0f2fe",padding:"2px 8px",borderRadius:999,whiteSpace:"nowrap"}} title={a.commercial_nom}>{a.commercial_nom}</span>
-                              : <span style={{color:"#cbd5e1"}}>—</span>}
+                          <td onClick={e => e.stopPropagation()}>
+                            <select
+                              value={a.commercial_id || ""}
+                              disabled={commercialUpdating === a.id}
+                              onChange={e => handleChangeCommercial(a.id, e.target.value)}
+                              style={{fontSize:11.5,fontWeight:700,color: a.commercial_id ? "#0284c7" : "#94a3b8",background: a.commercial_id ? "#e0f2fe" : "#f8fafc",border:"1px solid "+(a.commercial_id?"#bae6fd":"#e2e8f0"),borderRadius:8,padding:"3px 6px",cursor:"pointer",maxWidth:130}}>
+                              <option value="">—</option>
+                              {allCommerciaux.map(c => <option key={c.id} value={c.id}>{fmtCommercialName(c)}</option>)}
+                            </select>
                           </td>
                           <td><StatusBadge status={a.status}/></td>
                           <td className="adm-table__date">

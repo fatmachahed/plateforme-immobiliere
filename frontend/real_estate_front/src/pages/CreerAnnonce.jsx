@@ -3908,7 +3908,7 @@ export const CreateListingForm = ({ editId = null }) => {
                       <select value={commercialChoisi} onChange={e=>setCommercialChoisi(e.target.value)}
                         style={{width:"100%",padding:"9px 12px",borderRadius:8,border:"1.5px solid #e2e8f0",fontSize:13,fontFamily:"inherit",background:"#fff",cursor:"pointer",boxSizing:"border-box"}}>
                         <option value="">— Aucun / je ne sais pas —</option>
-                        {commerciaux.map(c => <option key={c.id} value={c.id}>{c.username}</option>)}
+                        {commerciaux.map(c => <option key={c.id} value={c.id}>{(c.prenom || c.nom) ? `${c.prenom||""} ${c.nom||""}`.trim() : c.username}</option>)}
                       </select>
                     </div>
                   )}

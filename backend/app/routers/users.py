@@ -1253,7 +1253,7 @@ def delete_saved_search(search_id: int, db: Session = Depends(get_db), current_u
 @router.get("/commerciaux")
 def list_commerciaux(db: Session = Depends(get_db)):
     users = db.query(models.User).filter(models.User.role == models.RoleEnum.manager_commercial).all()
-    return [{"id": u.id, "username": u.username} for u in users]
+    return [{"id": u.id, "username": u.username, "nom": u.nom, "prenom": u.prenom} for u in users]
 
 
 # ===============================

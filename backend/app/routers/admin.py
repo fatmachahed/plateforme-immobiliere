@@ -127,9 +127,8 @@ def list_annonces(
                 if a.accompagnement_agence_id else None
             ),
             "commercial_id":  a.commercial_id,
-            "commercial_nom": (
-                db.query(models.User.username).filter(models.User.id == a.commercial_id).scalar()
-                if a.commercial_id else None
+            "commercial_nom": (lambda c: (f"{c.prenom or ''} {c.nom or ''}".strip() or c.username) if c else None)(
+                db.query(models.User).filter(models.User.id == a.commercial_id).first() if a.commercial_id else None
             ),
         })
     return result
@@ -159,6 +158,37 @@ def update_annonce_reference(
     db.commit()
     db.refresh(a)
     return {"id": a.id, "reference": a.reference}
+
+
+# ── Affecter/modifier le manager commercial d'une annonce ───
+class AnnonceCommercialUpdate(BaseModel):
+    commercial_id: Optional[int] = None
+
+@router.patch("/annonces/{annonce_id}/commercial")
+def update_annonce_commercial(
+    annonce_id: int,
+    body: AnnonceCommercialUpdate,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_admin),
+):
+    a = db.query(models.Annonce).filter(models.Annonce.id == annonce_id).first()
+    if not a:
+        raise HTTPException(404, "Annonce non trouvée")
+    if body.commercial_id:
+        commercial = db.query(models.User).filter(
+            models.User.id == body.commercial_id,
+            models.User.role == models.RoleEnum.manager_commercial,
+        ).first()
+        if not commercial:
+            raise HTTPException(400, "Manager commercial invalide.")
+    a.commercial_id = body.commercial_id
+    db.commit()
+    db.refresh(a)
+    commercial_nom = None
+    if a.commercial_id:
+        c = db.query(models.User).filter(models.User.id == a.commercial_id).first()
+        commercial_nom = f"{c.prenom or ''} {c.nom or ''}".strip() or c.username if c else None
+    return {"id": a.id, "commercial_id": a.commercial_id, "commercial_nom": commercial_nom}
 
 
 # ── Changer le statut d'une annonce ─────────────────────────
