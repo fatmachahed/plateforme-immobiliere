@@ -297,6 +297,7 @@ export default function Compte() {
 
   const isAgent = effectiveRole === "agent";
   const isPro   = ["agence","promoteur","partenaire"].includes(effectiveRole);
+  const canHaveInterventions = ["partenaire","agent","agence"].includes(effectiveRole);
   const [proEditing, setProEditing] = useState(false);
   const [proSaving,  setProSaving]  = useState(false);
   const [proFields, setProFields] = useState({
@@ -464,7 +465,7 @@ export default function Compte() {
 
   /* ── Eager load interventions count for badge (partenaire) ── */
   useEffect(() => {
-    if (!token || interventionsLoaded || effectiveRole !== "partenaire") return;
+    if (!token || interventionsLoaded || !canHaveInterventions) return;
     fetch(`${API_URL}/users/interventions/mine`, { headers:{Authorization:`Bearer ${token}`} })
       .then(r=>r.ok?r.json():[]).then(d=>{ setInterventions(Array.isArray(d)?d:[]); setInterventionsLoaded(true); })
       .catch(()=>setInterventionsLoaded(true));
@@ -845,7 +846,7 @@ export default function Compte() {
 
   /* ── Load interventions (lazy, partenaire only) ── */
   useEffect(() => {
-    if (tab !== "interventions" || interventionsLoaded || effectiveRole !== "partenaire") return;
+    if (tab !== "interventions" || interventionsLoaded || !canHaveInterventions) return;
     setInterventionsLoading(true);
     fetch(`${API_URL}/users/interventions/mine`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : [])
@@ -1019,7 +1020,7 @@ export default function Compte() {
     { key:"alertes",   icon:<Bell size={19}/>,   label:"Mes alertes", badge: alertesLoaded ? alertesCount : 0 },
     { key:"favoris",   icon:<Heart size={19}/>,  label:"Mes favoris" },
     { key:"noter",     icon:<Star size={19}/>,   label:"Noter les services", badge: toRateLoaded ? toRate.length : 0 },
-    ...(effectiveRole==="partenaire"?[{key:"interventions",icon:<Briefcase size={19}/>,label:"Mes interventions", badge: interventionsLoaded ? pendingInterventions : 0}]:[]),
+    ...(canHaveInterventions?[{key:"interventions",icon:<Briefcase size={19}/>,label:"Mes interventions", badge: interventionsLoaded ? pendingInterventions : 0}]:[]),
     { key:"statistiques", icon:<TrendingUp size={19}/>, label:"Statistiques" },
     ...(effectiveRole==="agence"?[{key:"equipe",icon:<Users size={19}/>,label:"Mon équipe"}]:[]),
     ...(effectiveRole==="agence"?[{key:"onboarding_agence",icon:<FileText size={19}/>,label:"Convention agence",onbInfo:_onbInfo(_onbAgence)}]:[]),
@@ -2037,8 +2038,8 @@ export default function Compte() {
               )}
             </div>
           )}
-          {/* ═══════ MES INTERVENTIONS (partenaire only) ═══════ */}
-          {tab==="interventions" && effectiveRole==="partenaire" && (
+          {/* ═══════ MES INTERVENTIONS (partenaire / agent / agence) ═══════ */}
+          {tab==="interventions" && canHaveInterventions && (
             <div>
               <div style={{...card,padding:"22px 24px",marginBottom:16,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
                 <div>

@@ -282,6 +282,8 @@ export default function AgentProfile() {
   const photoUrl     = resolveUrl(agent.profile_picture);
   const initiale     = (agent.nom||"?")[0].toUpperCase();
   const isPartenaire = agent.role === "partenaire";
+  const isAgentAgence = agent.role === "agent" || agent.role === "agence";
+  const canRate       = isPartenaire || isAgentAgence;
   const secteurMeta  = SECTEUR_META[agent.secteur_partenaire] || null;
   const accentColor  = isPartenaire ? (secteurMeta?.color || "#6366f1") : "#6366f1";
   const roleLabel    = isPartenaire ? (secteurMeta?.label || "Partenaire")
@@ -357,7 +359,7 @@ export default function AgentProfile() {
               <>
                 <h3 style={{ fontSize:19, fontWeight:800, color:"#0f172a", margin:"0 0 4px" }}>Contacter {agent.nom}</h3>
                 <p style={{ fontSize:13, color:"#64748b", margin:"0 0 18px", lineHeight:1.5 }}>
-                  Laissez vos coordonnées : le prestataire les recevra et vous recontactera pour votre intervention.
+                  Laissez vos coordonnées : {agent.role === "agence" ? "l'agence" : agent.role === "agent" ? "l'agent" : "le prestataire"} les recevra et vous recontactera pour votre intervention.
                 </p>
                 <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
                   <div>
@@ -449,18 +451,18 @@ export default function AgentProfile() {
                 </div>
               )}
               <div className="ap-hero-btns" style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
-                {isPartenaire && (
+                {canRate && (
                   <button type="button" onClick={()=>{
                       const token = localStorage.getItem("token") || sessionStorage.getItem("token");
                       if (!token) { navigate(`/login?redirect=${encodeURIComponent(location.pathname + location.search)}`); return; }
                       setCSent(false); setShowContact(true);
                     }}
                     style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"9px 18px", borderRadius:10, fontSize:13.5, fontWeight:700, border:"none", cursor:"pointer", fontFamily:"inherit", background:accentColor, color:"#fff" }}>
-                    <Mail size={15}/> Contacter {secteurMeta?.label || "le prestataire"}
+                    <Mail size={15}/> Contacter {secteurMeta?.label || (agent.role === "agence" ? "l'agence" : agent.role === "agent" ? "l'agent" : "le prestataire")}
                   </button>
                 )}
                 {agent.telephone && (
-                  <a href={`tel:${agent.telephone}`} style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"9px 16px", borderRadius:10, fontSize:13.5, fontWeight:700, textDecoration:"none", background: isPartenaire ? "#f1f5f9" : accentColor, color: isPartenaire ? "#0f172a" : "#fff", border: isPartenaire ? "1px solid #e2e8f0" : "none" }}>
+                  <a href={`tel:${agent.telephone}`} style={{ display:"inline-flex", alignItems:"center", gap:8, padding:"9px 16px", borderRadius:10, fontSize:13.5, fontWeight:700, textDecoration:"none", background: canRate ? "#f1f5f9" : accentColor, color: canRate ? "#0f172a" : "#fff", border: canRate ? "1px solid #e2e8f0" : "none" }}>
                     <Phone size={15}/> {agent.telephone}
                   </a>
                 )}
@@ -480,8 +482,8 @@ export default function AgentProfile() {
                 <div style={{ fontSize:11.5, color:"#94a3b8", marginTop:5, fontWeight:600 }}>annonce{agent.nb_annonces !== 1 ? "s" : ""}</div>
               </div>
 
-              {/* Note + missions — uniquement pour les prestataires/partenaires */}
-              {isPartenaire && (
+              {/* Note + missions — uniquement pour les prestataires/partenaires et les agents/agences */}
+              {canRate && (
                 <>
                   <div style={{ flex:1, background:"#fffbeb", border:"1px solid #fde68a", borderRadius:14, padding:"18px 10px", textAlign:"center", minWidth:96 }}>
                     <div style={{ fontSize:30, fontWeight:900, color:"#f59e0b", lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center", gap:3 }}>
