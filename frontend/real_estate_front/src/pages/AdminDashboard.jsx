@@ -143,6 +143,7 @@ export default function AdminDashboard() {
   const [userSearchPhone,setUserSearchPhone]= useState("");
   const [userFilterRole, setUserFilterRole] = useState("");
   const [userSortAnnonces,setUserSortAnnonces]= useState(""); // "" | "asc" | "desc"
+  const [userSortDate,   setUserSortDate]    = useState(""); // "" | "asc" | "desc" — trier par date de création
   const [filter,       setFilter]      = useState("en_attente");
   const [loading,      setLoading]     = useState(true);
   /* filtres annonces */
@@ -1286,6 +1287,8 @@ export default function AdminDashboard() {
                   .filter(u => !userFilterRole || u.role === userFilterRole);
                 if (userSortAnnonces === "desc") filtered = [...filtered].sort((a,b)=>b.nb_annonces-a.nb_annonces);
                 if (userSortAnnonces === "asc")  filtered = [...filtered].sort((a,b)=>a.nb_annonces-b.nb_annonces);
+                if (userSortDate === "desc") filtered = [...filtered].sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0));
+                if (userSortDate === "asc")  filtered = [...filtered].sort((a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0));
 
                 const filterRow = (
                   <tr style={{background:"#f8fafc"}}>
@@ -1333,9 +1336,19 @@ export default function AdminDashboard() {
                         <option value="asc">↑ Moins</option>
                       </select>
                     </th>
+                    <th style={{padding:"6px 8px"}}>
+                      <select value={userSortDate} onChange={e=>setUserSortDate(e.target.value)}
+                        title="Trier par date de création"
+                        style={{width:"100%",padding:"5px 6px",borderRadius:6,border:"1px solid #e2e8f0",fontSize:12,fontFamily:"inherit",background:"#fff"}}>
+                        <option value="">↕</option>
+                        <option value="desc">↓ Récents</option>
+                        <option value="asc">↑ Anciens</option>
+                      </select>
+                    </th>
+                    <th style={{padding:"6px 8px"}}></th>
                     <th style={{padding:"6px 8px",textAlign:"center"}}>
-                      {(userSearchNom||userSearchEmail||userSearchPhone||userFilterRole||userSortAnnonces) && (
-                        <button onClick={()=>{setUserSearchNom("");setUserSearchEmail("");setUserSearchPhone("");setUserFilterRole("");setUserSortAnnonces("");}}
+                      {(userSearchNom||userSearchEmail||userSearchPhone||userFilterRole||userSortAnnonces||userSortDate) && (
+                        <button onClick={()=>{setUserSearchNom("");setUserSearchEmail("");setUserSearchPhone("");setUserFilterRole("");setUserSortAnnonces("");setUserSortDate("");}}
                           title="Réinitialiser filtres"
                           style={{padding:"4px 8px",borderRadius:6,border:"1px solid #e2e8f0",background:"#fff",fontSize:11,cursor:"pointer",color:"#6b7280"}}>
                           ✕
@@ -1353,6 +1366,10 @@ export default function AdminDashboard() {
                           <th style={{cursor:"pointer",userSelect:"none",whiteSpace:"nowrap"}} onClick={()=>setUserSortAnnonces(s=>s==="desc"?"asc":s==="asc"?"":"desc")}>
                             Annonces {userSortAnnonces==="desc"?"↓":userSortAnnonces==="asc"?"↑":"↕"}
                           </th>
+                          <th style={{cursor:"pointer",userSelect:"none",whiteSpace:"nowrap"}} onClick={()=>setUserSortDate(s=>s==="desc"?"asc":s==="asc"?"":"desc")}>
+                            Créé le {userSortDate==="desc"?"↓":userSortDate==="asc"?"↑":"↕"}
+                          </th>
+                          <th>Mis à jour</th>
                           <th>Actions</th>
                         </tr>
                         {filterRow}
@@ -1368,7 +1385,9 @@ export default function AdminDashboard() {
                       <th style={{cursor:"pointer",userSelect:"none",whiteSpace:"nowrap"}} onClick={()=>setUserSortAnnonces(s=>s==="desc"?"asc":s==="asc"?"":"desc")}>
                         Annonces {userSortAnnonces==="desc"?"↓":userSortAnnonces==="asc"?"↑":"↕"}
                       </th>
-                      <th>Créé le</th>
+                      <th style={{cursor:"pointer",userSelect:"none",whiteSpace:"nowrap"}} onClick={()=>setUserSortDate(s=>s==="desc"?"asc":s==="asc"?"":"desc")}>
+                        Créé le {userSortDate==="desc"?"↓":userSortDate==="asc"?"↑":"↕"}
+                      </th>
                       <th>Mis à jour</th>
                       <th>Actions</th>
                     </tr>
