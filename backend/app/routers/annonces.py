@@ -47,6 +47,10 @@ def get_market_stats(db: Session = Depends(get_db)):
             models.Annonce.status == "approuvee",
             models.Annonce.prix > 0,
             models.Annonce.superficie > 0,
+            # Exclut les prix/m² aberrants (< 10, erreur de saisie ou prix
+            # symbolique) — ne doivent jamais fausser la moyenne de référence
+            # utilisée pour évaluer les autres annonces du même groupe.
+            (models.Annonce.prix / models.Annonce.superficie) >= 10,
         )
         .group_by(models.Gouvernorat.nom, models.Annonce.categorie, sous_cle)
         .all()

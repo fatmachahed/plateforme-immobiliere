@@ -14,10 +14,16 @@ export const EVAL_LEVELS = [
 ];
 
 // En dessous, la moyenne n'est pas assez fiable (peut n'être que le bien lui-même)
-export const EVAL_MIN_SAMPLE = 2;
+export const EVAL_MIN_SAMPLE = 3;
+
+// Prix/m² (ou /nuit, /mois selon la catégorie) en dessous de ce seuil = valeur
+// aberrante (erreur de saisie, prix symbolique...) — jamais évalué soi-même,
+// et jamais compté comme référence pour évaluer les autres biens du groupe.
+export const EVAL_OUTLIER_THRESHOLD = 10;
 
 export function getEvalLevel(prixM2, govAvg, count) {
   if (!count || count < EVAL_MIN_SAMPLE || !govAvg || !prixM2 || govAvg <= 0) return EVAL_LEVELS[0];
+  if (prixM2 < EVAL_OUTLIER_THRESHOLD) return EVAL_LEVELS[0];
   const r = prixM2 / govAvg;
   if (r >= 1.30) return EVAL_LEVELS[1];
   if (r >= 1.10) return EVAL_LEVELS[2];
@@ -48,9 +54,13 @@ export function buildMarketStats(annonces) {
     if (!a.gouvernorat || !a.categorie || !a.prix || !a.superficie && !a.area) return;
     const area = a.superficie ?? a.area;
     if (!area || area <= 0) return;
+    const prixM2 = a.prix / area;
+    // Exclu de la moyenne de référence : un prix/m² aberrant (< 10) ne doit
+    // jamais fausser l'évaluation des autres annonces du même groupe.
+    if (prixM2 < EVAL_OUTLIER_THRESHOLD) return;
     const key = statsKey(a);
     if (!stats[key]) stats[key] = { sum: 0, count: 0 };
-    stats[key].sum   += a.prix / area;
+    stats[key].sum   += prixM2;
     stats[key].count += 1;
   });
   return stats;
