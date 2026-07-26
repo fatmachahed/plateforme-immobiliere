@@ -344,11 +344,17 @@ def get_user_detail(
         if ag:
             agence = {"id": ag.id, "nom": ag.nom}
 
+    phone_numbers = [
+        {"id": p.id, "numero": p.numero}
+        for p in db.query(models.UserPhoneNumber).filter(models.UserPhoneNumber.user_id == u.id).order_by(models.UserPhoneNumber.id).all()
+    ]
+
     return {
         "id": u.id,
         "username": u.username,
         "email": u.email,
         "phone_number": u.phone_number,
+        "phone_numbers": phone_numbers,
         "role": u.role.value if hasattr(u.role, "value") else str(u.role),
         "nom": u.nom,
         "prenom": u.prenom,

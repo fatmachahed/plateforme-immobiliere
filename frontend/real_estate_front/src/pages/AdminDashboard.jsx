@@ -1369,7 +1369,7 @@ export default function AdminDashboard() {
                   <tbody>
                     {filtered.map(u => (
                       <tr key={u.id} className="adm-table__row--clickable" style={{opacity: u.is_blocked ? .55 : 1}}
-                        onClick={() => navigate(`/admin/users/${u.id}`)}>
+                        onClick={() => navigate(`/compte?admin_view=${u.id}`)}>
                         <td className="adm-table__id">#{u.id}</td>
                         <td style={{fontWeight:600,color:"#0f172a"}}>
                           {u.username}

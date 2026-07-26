@@ -89,7 +89,11 @@ export default function Compte() {
 
   /* ── Active tab — URL-based so refresh keeps the tab ── */
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get("tab") || "profil";
+  /* Vue admin en lecture seule : /compte?admin_view=<userId> — force l'onglet
+     Profil, quel que soit ?tab= dans l'URL (voir plus bas pour le détail). */
+  const adminViewUserId = searchParams.get("admin_view");
+  const isAdminView = !!adminViewUserId;
+  const tab = isAdminView ? "profil" : (searchParams.get("tab") || "profil");
   const setTab = (t) => setSearchParams({ tab: t }, { replace: false });
 
   /* ── Interventions (partenaire only) ── */
@@ -171,7 +175,7 @@ export default function Compte() {
   const [phoneDeleteLoading, setPhoneDeleteLoading] = useState(null); // id en cours de suppression ("primary" ou id numérique)
 
   useEffect(() => {
-    if (!token) return;
+    if (!token || isAdminView) return;
     fetch(`${API_URL}/users/me/phone-numbers`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : [])
       .then(d => setExtraPhones(Array.isArray(d) ? d : []))
@@ -288,8 +292,11 @@ export default function Compte() {
   const [dragOver, setDragOver]               = useState(false);
   const fileInputRef = useRef(null);
 
-  const isAgent = storedUser?.role === "agent";
-  const isPro   = ["agence","promoteur","partenaire"].includes(storedUser?.role);
+  const [viewedUser, setViewedUser] = useState(null);
+  const effectiveRole = isAdminView ? (viewedUser?.role || "particulier") : storedUser?.role;
+
+  const isAgent = effectiveRole === "agent";
+  const isPro   = ["agence","promoteur","partenaire"].includes(effectiveRole);
   const [proEditing, setProEditing] = useState(false);
   const [proSaving,  setProSaving]  = useState(false);
   const [proFields, setProFields] = useState({
@@ -365,7 +372,7 @@ export default function Compte() {
 
   /* ── Load full profile from API and sync localStorage + local states ── */
   useEffect(() => {
-    if (!token) return;
+    if (!token || isAdminView) return;
     fetch(`${API_URL}/users/me`, { headers:{ Authorization:`Bearer ${token}` } })
       .then(r => r.ok ? r.json() : null)
       .then(data => {
@@ -397,6 +404,45 @@ export default function Compte() {
       .catch(() => {});
   }, [token]);
 
+  /* ── Vue admin lecture seule : charge le profil de l'utilisateur ciblé ── */
+  useEffect(() => {
+    if (!isAdminView || !token) return;
+    fetch(`${API_URL}/admin/users/${adminViewUserId}/detail`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        setViewedUser(data);
+        setEmailVerified(data.is_verified !== false);
+        setPrimaryPhone(data.phone_number || "");
+        setExtraPhones(Array.isArray(data.phone_numbers) ? data.phone_numbers : []);
+        setAvatarPreview(data.profile_picture || "");
+        setProfile(p => ({
+          ...p,
+          username:           data.username           || "",
+          email:              data.email               || "",
+          nom:                data.nom                 || "",
+          prenom:             data.prenom               || "",
+          nom_entreprise:     data.nom_entreprise       || "",
+          profil_particulier: data.profil_particulier   || "",
+          sexe:               data.sexe                 || "",
+          objectif:           data.objectif             || "",
+          profile_picture:    data.profile_picture      || "",
+        }));
+        setProFields(p => ({
+          ...p,
+          matricule_fiscal:    data.matricule_fiscal    || "",
+          registre_commerce:   data.registre_commerce   || "",
+          adresse:             data.adresse              || "",
+          gouvernorat:         data.gouvernorat          || "",
+          delegation:          data.localite             || "",
+          metier_artisan:      data.metier_artisan       || "",
+          reference:           data.agence?.nom          || "",
+          promoteur_reference: data.promoteur_reference  || "",
+        }));
+      })
+      .catch(() => {});
+  }, [isAdminView, adminViewUserId, token]);
+
   /* ── Load pro ── */
   useEffect(() => {
     if (!isPro) return;
@@ -418,7 +464,7 @@ export default function Compte() {
 
   /* ── Eager load interventions count for badge (partenaire) ── */
   useEffect(() => {
-    if (!token || interventionsLoaded || storedUser?.role !== "partenaire") return;
+    if (!token || interventionsLoaded || effectiveRole !== "partenaire") return;
     fetch(`${API_URL}/users/interventions/mine`, { headers:{Authorization:`Bearer ${token}`} })
       .then(r=>r.ok?r.json():[]).then(d=>{ setInterventions(Array.isArray(d)?d:[]); setInterventionsLoaded(true); })
       .catch(()=>setInterventionsLoaded(true));
@@ -632,10 +678,10 @@ export default function Compte() {
   };
 
   const handleSavePro = async () => {
-    if (storedUser?.role === "agence" && (refStatus === "taken" || refStatus === "invalid")) {
+    if (effectiveRole === "agence" && (refStatus === "taken" || refStatus === "invalid")) {
       toast("Référence invalide ou déjà utilisée.", "error"); return;
     }
-    if (storedUser?.role === "promoteur" && (proRefStatus === "taken" || proRefStatus === "invalid")) {
+    if (effectiveRole === "promoteur" && (proRefStatus === "taken" || proRefStatus === "invalid")) {
       toast("Référence promoteur invalide ou déjà utilisée.", "error"); return;
     }
     setProSaving(true);
@@ -644,7 +690,7 @@ export default function Compte() {
       if(!res.ok) throw new Error();
       const updated = await res.json();
       // Save agency reference if agence role
-      if (storedUser?.role === "agence" && proFields.reference) {
+      if (effectiveRole === "agence" && proFields.reference) {
         const rr = await fetch(`${API_URL}/users/agency/reference`, { method:"PUT", headers:{ Authorization:`Bearer ${token}`, "Content-Type":"application/json" }, body: JSON.stringify({ reference: proFields.reference }) });
         if (!rr.ok) {
           const err = await rr.json().catch(()=>({}));
@@ -657,7 +703,7 @@ export default function Compte() {
         return;
       }
       // Save promoteur reference if promoteur role
-      if (storedUser?.role === "promoteur" && proFields.promoteur_reference) {
+      if (effectiveRole === "promoteur" && proFields.promoteur_reference) {
         const rr = await fetch(`${API_URL}/users/promoteur/reference`, { method:"PUT", headers:{ Authorization:`Bearer ${token}`, "Content-Type":"application/json" }, body: JSON.stringify({ reference: proFields.promoteur_reference }) });
         if (!rr.ok) {
           const err = await rr.json().catch(()=>({}));
@@ -799,7 +845,7 @@ export default function Compte() {
 
   /* ── Load interventions (lazy, partenaire only) ── */
   useEffect(() => {
-    if (tab !== "interventions" || interventionsLoaded || storedUser?.role !== "partenaire") return;
+    if (tab !== "interventions" || interventionsLoaded || effectiveRole !== "partenaire") return;
     setInterventionsLoading(true);
     fetch(`${API_URL}/users/interventions/mine`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : [])
@@ -842,7 +888,7 @@ export default function Compte() {
 
   /* ── Load agents (lazy, agence only) ── */
   useEffect(() => {
-    if (tab !== "equipe" || agentLoaded || storedUser?.role !== "agence") return;
+    if (tab !== "equipe" || agentLoaded || effectiveRole !== "agence") return;
     setAgentLoading(true);
     fetch(`${API_URL}/users/me/agents`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : [])
@@ -973,11 +1019,11 @@ export default function Compte() {
     { key:"alertes",   icon:<Bell size={19}/>,   label:"Mes alertes", badge: alertesLoaded ? alertesCount : 0 },
     { key:"favoris",   icon:<Heart size={19}/>,  label:"Mes favoris" },
     { key:"noter",     icon:<Star size={19}/>,   label:"Noter les services", badge: toRateLoaded ? toRate.length : 0 },
-    ...(storedUser?.role==="partenaire"?[{key:"interventions",icon:<Briefcase size={19}/>,label:"Mes interventions", badge: interventionsLoaded ? pendingInterventions : 0}]:[]),
+    ...(effectiveRole==="partenaire"?[{key:"interventions",icon:<Briefcase size={19}/>,label:"Mes interventions", badge: interventionsLoaded ? pendingInterventions : 0}]:[]),
     { key:"statistiques", icon:<TrendingUp size={19}/>, label:"Statistiques" },
-    ...(storedUser?.role==="agence"?[{key:"equipe",icon:<Users size={19}/>,label:"Mon équipe"}]:[]),
-    ...(storedUser?.role==="agence"?[{key:"onboarding_agence",icon:<FileText size={19}/>,label:"Convention agence",onbInfo:_onbInfo(_onbAgence)}]:[]),
-    ...(storedUser?.role==="promoteur"?[{key:"onboarding_promoteur",icon:<FileText size={19}/>,label:"Convention promoteur",onbInfo:_onbInfo(_onbProm)}]:[]),
+    ...(effectiveRole==="agence"?[{key:"equipe",icon:<Users size={19}/>,label:"Mon équipe"}]:[]),
+    ...(effectiveRole==="agence"?[{key:"onboarding_agence",icon:<FileText size={19}/>,label:"Convention agence",onbInfo:_onbInfo(_onbAgence)}]:[]),
+    ...(effectiveRole==="promoteur"?[{key:"onboarding_promoteur",icon:<FileText size={19}/>,label:"Convention promoteur",onbInfo:_onbInfo(_onbProm)}]:[]),
   ];
 
   return (
@@ -1001,15 +1047,24 @@ export default function Compte() {
                 <p style={{color:"rgba(255,255,255,.65)",fontSize:13,margin:"4px 0 0"}}>{profile.email}</p>
               </div>
             </div>
-            {storedUser?.role&&<span style={{display:"inline-block",background:"rgba(99,102,241,.85)",color:"#fff",fontSize:11.5,fontWeight:700,padding:"3px 14px",borderRadius:999,backdropFilter:"blur(4px)"}}>{roleLabel[storedUser.role]||storedUser.role}</span>}
+            {effectiveRole&&<span style={{display:"inline-block",background:"rgba(99,102,241,.85)",color:"#fff",fontSize:11.5,fontWeight:700,padding:"3px 14px",borderRadius:999,backdropFilter:"blur(4px)"}}>{roleLabel[effectiveRole]||effectiveRole}</span>}
           </div>
         </div>
       </div>
 
-      <div className="cpt-grid" style={{display:"grid",gridTemplateColumns:"290px 1fr",gap:24,maxWidth:"100%",margin:"0 auto",padding:"28px 24px",alignItems:"start"}}>
+      <div className="cpt-grid" style={{display:"grid",gridTemplateColumns: isAdminView ? "1fr" : "290px 1fr",gap:24,maxWidth: isAdminView ? 900 : "100%",margin:"0 auto",padding:"28px 24px",alignItems:"start"}}>
+
+        {isAdminView && (
+          <div style={{gridColumn:"1 / -1",background:"#eef2ff",border:"1px solid #c7d2fe",borderRadius:10,padding:"10px 16px",fontSize:13,color:"#4338ca",fontWeight:600,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
+            <span style={{display:"flex",alignItems:"center",gap:8}}>👁️ Vue admin — lecture seule. Aucune modification n'est possible depuis cette page.</span>
+            <button onClick={()=>navigate("/admin")} style={{background:"#6366f1",color:"#fff",border:"none",borderRadius:8,padding:"7px 16px",fontSize:12.5,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+              ← Retour à l'administration
+            </button>
+          </div>
+        )}
 
         {/* ══ SIDEBAR ══ */}
-        <aside className="cpt-aside" style={{
+        {!isAdminView && <aside className="cpt-aside" style={{
           background:"#fff", borderRadius:18, border:"1px solid #e5e7eb",
           padding:"28px 16px 20px", position:"sticky", top:20,
           display:"flex", flexDirection:"column", gap:4,
@@ -1022,7 +1077,7 @@ export default function Compte() {
             </div>
             <div style={{fontWeight:800,fontSize:16,color:"#0f172a",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{profile.username}</div>
             <div style={{fontSize:12.5,color:"#94a3b8",marginTop:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{profile.email}</div>
-            {storedUser?.role && <span style={{display:"inline-block",marginTop:8,fontSize:11.5,fontWeight:700,background:"#eef2ff",color:"#4f46e5",padding:"3px 12px",borderRadius:999}}>{roleLabel[storedUser.role]||storedUser.role}</span>}
+            {effectiveRole && <span style={{display:"inline-block",marginTop:8,fontSize:11.5,fontWeight:700,background:"#eef2ff",color:"#4f46e5",padding:"3px 12px",borderRadius:999}}>{roleLabel[effectiveRole]||effectiveRole}</span>}
           </div>
 
           {NAV_ITEMS.map(item => (
@@ -1050,7 +1105,7 @@ export default function Compte() {
           <button onClick={handleLogout} style={{...sideNavStyle(false),color:"#dc2626"}}>
             <LogOut size={18}/> Déconnexion
           </button>
-        </aside>
+        </aside>}
 
         {/* ══ MAIN CONTENT ══ */}
         <main style={{minWidth:0}}>
@@ -1108,10 +1163,10 @@ export default function Compte() {
                       <h2 style={cardTitle}>Mon profil</h2>
                       <p style={{fontSize:12,color:"#94a3b8",marginTop:2}}>Informations de connexion</p>
                     </div>
-                    {!editing
+                    {!isAdminView && (!editing
                       ?<button onClick={()=>setEditing(true)} style={btnSec}><Edit size={13}/> Modifier</button>
                       :<button onClick={()=>{setEditing(false);setUsernameStatus(null);}} style={btnSec}><X size={13}/> Annuler</button>
-                    }
+                    )}
                   </div>
                   <div className="cpt-profil-grid" style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:13}}>
                     <F label="Nom d'utilisateur">
@@ -1151,17 +1206,19 @@ export default function Compte() {
                       {!emailVerified && (
                         <div style={{marginTop:7,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
                           <span style={{fontSize:12,color:"#dc2626",fontWeight:600}}>⚠️ Email non vérifié</span>
-                          <button onClick={handleResendVerification} disabled={resendingVerif}
-                            style={{padding:"5px 14px",borderRadius:8,border:"none",background:"#dc2626",color:"#fff",fontSize:12,fontWeight:700,cursor:resendingVerif?"default":"pointer",opacity:resendingVerif?.7:1}}>
-                            {resendingVerif ? "Envoi…" : "Vérifier"}
-                          </button>
+                          {!isAdminView && (
+                            <button onClick={handleResendVerification} disabled={resendingVerif}
+                              style={{padding:"5px 14px",borderRadius:8,border:"none",background:"#dc2626",color:"#fff",fontSize:12,fontWeight:700,cursor:resendingVerif?"default":"pointer",opacity:resendingVerif?.7:1}}>
+                              {resendingVerif ? "Envoi…" : "Vérifier"}
+                            </button>
+                          )}
                         </div>
                       )}
                     </F>
                     <F label="Rôle">
                       <input
                         style={{...inp(false),background:"#f1f5f9",color:"#64748b",cursor:"not-allowed"}}
-                        value={({particulier:"Particulier",agent:"Agent",agence:"Agence",promoteur:"Promoteur",partenaire:"Partenaire",admin:"Administrateur"})[storedUser?.role] || storedUser?.role || "—"}
+                        value={({particulier:"Particulier",agent:"Agent",agence:"Agence",promoteur:"Promoteur",partenaire:"Partenaire",admin:"Administrateur"})[effectiveRole] || effectiveRole || "—"}
                         readOnly
                       />
                     </F>
@@ -1245,17 +1302,17 @@ export default function Compte() {
                     <div>
                       <h2 style={cardTitle}>Informations complémentaires</h2>
                       <p style={{fontSize:12,color:"#94a3b8",marginTop:2}}>
-                        {storedUser?.role==="particulier"?"Informations personnelles":isAgent?"Informations agent":"Informations professionnelles"}
+                        {effectiveRole==="particulier"?"Informations personnelles":isAgent?"Informations agent":"Informations professionnelles"}
                       </p>
                     </div>
                     {/* Particulier : editing2 indépendant */}
-                    {storedUser?.role==="particulier"&&(
+                    {!isAdminView && effectiveRole==="particulier"&&(
                       !editing2
                         ?<button onClick={()=>setEditing2(true)} style={btnSec}><Edit size={13}/> Modifier</button>
                         :<button onClick={()=>setEditing2(false)} style={btnSec}><X size={13}/> Annuler</button>
                     )}
                     {/* Agent / Pro : proEditing */}
-                    {(isAgent||isPro)&&(
+                    {!isAdminView && (isAgent||isPro)&&(
                       !proEditing
                         ?<button onClick={()=>setProEditing(true)} style={btnSec}><Edit size={13}/> Modifier</button>
                         :<button onClick={()=>setProEditing(false)} style={btnSec}><X size={13}/> Annuler</button>
@@ -1263,7 +1320,7 @@ export default function Compte() {
                   </div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:13}}>
                     {/* Particulier : nom + prénom + profil + sexe */}
-                    {storedUser?.role==="particulier"&&<>
+                    {effectiveRole==="particulier"&&<>
                       <F label="Nom"><input style={inp(editing2)} value={profile.nom} readOnly={!editing2} placeholder={editing2?"Votre nom":"—"} onChange={e=>setProfile(p=>({...p,nom:e.target.value}))}/></F>
                       <F label="Prénom"><input style={inp(editing2)} value={profile.prenom} readOnly={!editing2} placeholder={editing2?"Votre prénom":"—"} onChange={e=>setProfile(p=>({...p,prenom:e.target.value}))}/></F>
                       <F label="Votre profil">
@@ -1319,7 +1376,7 @@ export default function Compte() {
                       <F label="Adresse" full><input style={inp(proEditing)} value={proFields.adresse} readOnly={!proEditing} placeholder={proEditing?"Ex : 12 rue de la Liberté, La Marsa":"Non renseignée"} onChange={e=>setProFields(p=>({...p,adresse:e.target.value}))}/></F>
                     </>}
                     {/* ── Partenaire : secteur verrouillé + métier si artisan ── */}
-                    {storedUser?.role==="partenaire"&&<>
+                    {effectiveRole==="partenaire"&&<>
                       {!["banques","assurances"].includes(storedUser?.secteur_partenaire)&&<>
                         <F label="Nom"><input style={inp(proEditing)} value={profile.nom} readOnly={!proEditing} placeholder={proEditing?"Votre nom":"—"} onChange={e=>setProfile(p=>({...p,nom:e.target.value}))}/></F>
                         <F label="Prénom"><input style={inp(proEditing)} value={profile.prenom} readOnly={!proEditing} placeholder={proEditing?"Votre prénom":"—"} onChange={e=>setProfile(p=>({...p,prenom:e.target.value}))}/></F>
@@ -1352,12 +1409,12 @@ export default function Compte() {
                     </>}
 
                     {/* ── Promoteur / Agence (hors agent) ── */}
-                    {isPro&&!isAgent&&storedUser?.role!=="partenaire"&&<>
+                    {isPro&&!isAgent&&effectiveRole!=="partenaire"&&<>
                       <F label="Matricule fiscal"><input style={inp(proEditing)} value={proFields.matricule_fiscal} readOnly={!proEditing} placeholder={proEditing?"Ex : 1234567/A/M/000":"Non renseigné"} onChange={e=>setProFields(p=>({...p,matricule_fiscal:e.target.value}))}/></F>
                       <F label="Registre de commerce"><input style={inp(proEditing)} value={proFields.registre_commerce} readOnly={!proEditing} placeholder={proEditing?"Ex : B012345/2020":"Non renseigné"} onChange={e=>setProFields(p=>({...p,registre_commerce:e.target.value}))}/></F>
                       <F label="Gouvernorat">{proEditing?<select style={{...inp(true),cursor:"pointer"}} value={proFields.gouvernorat_id} onChange={e=>{const o=e.target.options[e.target.selectedIndex];handleProGovChange(e.target.value,o.text==="— Choisir —"?"":o.text);}}><option value="">— Choisir —</option>{gouvernorats.map(g=><option key={g.id} value={g.id}>{g.nom}</option>)}</select>:<input style={inp(false)} value={proFields.gouvernorat||""} readOnly placeholder="Non renseigné"/>}</F>
                       <F label="Délégation">{proEditing&&delegations.length>0?<select style={{...inp(true),cursor:"pointer"}} value={proFields.delegation_id} onChange={e=>{const o=e.target.options[e.target.selectedIndex];setProFields(p=>({...p,delegation_id:e.target.value,delegation:o.text==="— Toutes —"?"":o.text}));}}><option value="">— Toutes —</option>{delegations.map(d=><option key={d.id} value={d.id}>{d.nom}</option>)}</select>:<input style={inp(proEditing&&delegations.length===0)} value={proFields.delegation||""} readOnly={!proEditing||delegations.length>0} placeholder={proEditing&&!proFields.gouvernorat_id?"Choisissez d'abord un gouvernorat":"Non renseignée"} onChange={e=>setProFields(p=>({...p,delegation:e.target.value}))}/>}</F>
-                      {storedUser?.role==="agence"
+                      {effectiveRole==="agence"
                         ? <>
                             <F label="Adresse"><input style={inp(proEditing)} value={proFields.adresse} readOnly={!proEditing} placeholder={proEditing?"Ex : 12 rue de la Liberté, La Marsa":"Non renseignée"} onChange={e=>setProFields(p=>({...p,adresse:e.target.value}))}/></F>
                             <F label="Référence agence">
@@ -1389,7 +1446,7 @@ export default function Compte() {
                               {proEditing&&refStatus==="available"&&<div style={{fontSize:11,color:"#16a34a",marginTop:2}}>Référence disponible.</div>}
                             </F>
                           </>
-                        : storedUser?.role==="promoteur"
+                        : effectiveRole==="promoteur"
                         ? <>
                             <F label="Adresse" full><input style={inp(proEditing)} value={proFields.adresse} readOnly={!proEditing} placeholder={proEditing?"Ex : 12 rue de la Liberté, La Marsa":"Non renseignée"} onChange={e=>setProFields(p=>({...p,adresse:e.target.value}))}/></F>
                             <F label="Référence promoteur">
@@ -1426,7 +1483,7 @@ export default function Compte() {
                     </>}
                   </div>
                   {/* Bouton Enregistrer propre à cette section */}
-                  {storedUser?.role==="particulier"&&editing2&&(
+                  {effectiveRole==="particulier"&&editing2&&(
                     <button onClick={handleSaveProfile2} disabled={saving} style={{...saveBtn,marginTop:16}}><Save size={14}/> {saving?"Sauvegarde…":"Enregistrer"}</button>
                   )}
                   {(isPro||isAgent)&&proEditing&&(
@@ -1449,7 +1506,7 @@ export default function Compte() {
                   )}
 
                   {/* Zone drag & drop — grande si pas d'image, petite si image présente */}
-                  <div
+                  {!isAdminView && <div
                     onDragOver={e=>{e.preventDefault();setDragOver(true);}}
                     onDragLeave={()=>setDragOver(false)}
                     onDrop={handleDrop}
@@ -1483,12 +1540,14 @@ export default function Compte() {
                       </div>
                     )}
                     {uploadingAvatar&&<div style={{position:"absolute",inset:0,background:"rgba(0,0,0,.45)",display:"flex",alignItems:"center",justifyContent:"center",borderRadius:12}}><div style={{width:24,height:24,border:"3px solid transparent",borderTopColor:"#fff",borderRadius:"50%",animation:"cpt-spin .7s linear infinite"}}/></div>}
-                  </div>
+                  </div>}
 
-                  <button onClick={()=>fileInputRef.current?.click()} disabled={uploadingAvatar} style={{padding:"9px 22px",border:"1.5px solid #c7d2fe",borderRadius:10,background:"#eef2ff",color:"#4f46e5",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:8}}>
-                    <Upload size={14}/> {uploadingAvatar?"Upload…":"Choisir une photo"}
-                  </button>
-                  <input ref={fileInputRef} type="file" accept="image/*" style={{display:"none"}} onChange={handleAvatarChange}/>
+                  {!isAdminView && <>
+                    <button onClick={()=>fileInputRef.current?.click()} disabled={uploadingAvatar} style={{padding:"9px 22px",border:"1.5px solid #c7d2fe",borderRadius:10,background:"#eef2ff",color:"#4f46e5",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",gap:8}}>
+                      <Upload size={14}/> {uploadingAvatar?"Upload…":"Choisir une photo"}
+                    </button>
+                    <input ref={fileInputRef} type="file" accept="image/*" style={{display:"none"}} onChange={handleAvatarChange}/>
+                  </>}
                 </div>
               </div>
 
@@ -1933,7 +1992,7 @@ export default function Compte() {
             </div>
           )}
           {/* ═══════ MES INTERVENTIONS (partenaire only) ═══════ */}
-          {tab==="interventions" && storedUser?.role==="partenaire" && (
+          {tab==="interventions" && effectiveRole==="partenaire" && (
             <div>
               <div style={{...card,padding:"22px 24px",marginBottom:16,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
                 <div>
@@ -2014,7 +2073,7 @@ export default function Compte() {
             </div>
           )}
           {/* ═══════ MON ÉQUIPE (agence only) ═══════ */}
-          {tab==="equipe" && storedUser?.role==="agence" && (
+          {tab==="equipe" && effectiveRole==="agence" && (
             <div>
               <div style={{...card,padding:"0"}}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"22px 26px 18px",borderBottom:"1px solid #f1f5f9"}}>
@@ -2108,11 +2167,11 @@ export default function Compte() {
             </div>
           )}
 
-          {tab==="onboarding_agence" && storedUser?.role==="agence" && (
+          {tab==="onboarding_agence" && effectiveRole==="agence" && (
             <AgenceOnboarding embedded onProgressChange={_refreshOnb} />
           )}
 
-          {tab==="onboarding_promoteur" && storedUser?.role==="promoteur" && (
+          {tab==="onboarding_promoteur" && effectiveRole==="promoteur" && (
             <PromoteurOnboarding embedded onProgressChange={_refreshOnb} />
           )}
 
