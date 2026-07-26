@@ -515,6 +515,31 @@ def delete_user(
     db.query(models.PrestataireReaction).filter(models.PrestataireReaction.client_user_id == u.id).delete(synchronize_session=False)
     db.query(models.ConventionSubmission).filter(models.ConventionSubmission.user_id == u.id).delete(synchronize_session=False)
 
+    # Filet de sécurité générique : interroge directement le catalogue
+    # PostgreSQL pour trouver TOUTE contrainte de clé étrangère pointant
+    # vers users(id) — y compris d'éventuels résidus d'anciennes migrations
+    # qui ne sont plus représentés dans models.py. Pour chacune : NULL si
+    # la colonne l'autorise, sinon suppression des lignes concernées.
+    # (annonces.utilisateur_id et agencies.user_id restent volontairement
+    # bloquants — gérés explicitement ci-dessus, jamais auto-nettoyés.)
+    fk_rows = db.execute(text("""
+        SELECT tc.table_name, kcu.column_name, col.is_nullable
+        FROM information_schema.table_constraints tc
+        JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name
+        JOIN information_schema.constraint_column_usage ccu ON tc.constraint_name = ccu.constraint_name
+        JOIN information_schema.columns col ON col.table_name = kcu.table_name AND col.column_name = kcu.column_name
+        WHERE tc.constraint_type = 'FOREIGN KEY'
+          AND ccu.table_name = 'users' AND ccu.column_name = 'id'
+    """)).fetchall()
+    for table_name, column_name, is_nullable in fk_rows:
+        if (table_name, column_name) in (("annonces", "utilisateur_id"), ("agencies", "user_id")):
+            continue
+        if is_nullable == "YES":
+            db.execute(text(f'UPDATE "{table_name}" SET "{column_name}" = NULL WHERE "{column_name}" = :uid'), {"uid": u.id})
+        else:
+            db.execute(text(f'DELETE FROM "{table_name}" WHERE "{column_name}" = :uid'), {"uid": u.id})
+    db.commit()
+
     try:
         db.delete(u)
         db.commit()
