@@ -484,8 +484,34 @@ def delete_user(
         raise HTTPException(404, "Utilisateur non trouvé")
     if u.id == admin.id:
         raise HTTPException(400, "Impossible de supprimer votre propre compte")
-    db.delete(u)
-    db.commit()
+
+    # Certaines relations (annonces, agence, conventions...) n'ont pas de
+    # suppression en cascade en base — la suppression échouait silencieusement
+    # en 500 pour tout compte ayant publié au moins une annonce. On vérifie
+    # d'abord les cas bloquants les plus courants pour donner un message
+    # actionnable plutôt qu'un crash.
+    nb_annonces = db.query(models.Annonce).filter(models.Annonce.utilisateur_id == u.id).count()
+    if nb_annonces > 0:
+        raise HTTPException(
+            400,
+            f"Ce compte a encore {nb_annonces} annonce(s) publiée(s). "
+            "Réaffectez-les à un autre utilisateur (bouton crayon dans Admin > Annonces) "
+            "ou supprimez-les avant de supprimer ce compte."
+        )
+    agency = db.query(models.Agency).filter(models.Agency.user_id == u.id).first()
+    if agency:
+        raise HTTPException(400, "Ce compte est rattaché à une agence — supprimez ou réaffectez l'agence avant de supprimer ce compte.")
+
+    try:
+        db.delete(u)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            400,
+            "Impossible de supprimer ce compte : des données liées (interventions, conventions, favoris...) "
+            "l'en empêchent encore."
+        )
     return {"detail": "Utilisateur supprimé"}
 
 
