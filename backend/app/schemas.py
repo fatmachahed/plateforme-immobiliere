@@ -115,6 +115,7 @@ class AnnonceCreate(AnnonceBase):
     etat_bien: Optional[str] = None
     etage: Optional[int] = None
     type_option_villa: Optional[str] = None
+    titre_foncier: Optional[str] = None  # "1"/"0" (Oui/Non) envoyé par le front, normalisé en crud
     nb_pieces: Optional[int] = None
     nb_chambres: Optional[int] = None
     nb_salles_bain: Optional[int] = None
@@ -198,6 +199,7 @@ class AnnonceUpdate(BaseModel):
     etat_bien: Optional[str] = None
     etage: Optional[int] = None
     type_option_villa: Optional[str] = None
+    titre_foncier: Optional[str] = None  # "1"/"0" (Oui/Non) envoyé par le front, normalisé en crud
     nb_pieces: Optional[int] = None
     nb_chambres: Optional[int] = None
     nb_salles_bain: Optional[int] = None

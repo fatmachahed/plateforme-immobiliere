@@ -548,6 +548,13 @@ export default function Compte() {
       toast("Nom d'utilisateur invalide ou déjà pris.", "error");
       return;
     }
+    /* Un numéro est en cours de saisie (ligne d'ajout ouverte, "+" pas encore
+       cliqué) : "Enregistrer" doit lui aussi déclencher l'envoi du code de
+       vérification, sinon ce numéro tapé disparaît silencieusement. */
+    if (addingPhone && newPhoneValue.trim()) {
+      await handleRequestPhoneOtp();
+      return;
+    }
     setSaving(true);
     try {
       // Le téléphone (principal et supplémentaires) ne se modifie plus ici :

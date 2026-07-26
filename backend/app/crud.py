@@ -110,6 +110,20 @@ def get_localites(db: Session, delegation_id: int = None):
 # ===============================
 # ANNONCE
 # ===============================
+def _normalize_titre_foncier(data: dict) -> None:
+    """Le front envoie "1"/"0" (Oui/Non) pour le toggle titre foncier, alors
+    que la colonne est un enum Postgres (aucun/individuel/indivision).
+    Convertit en place avant que la valeur n'atteigne le modèle SQLAlchemy."""
+    if "titre_foncier" not in data:
+        return
+    val = data["titre_foncier"]
+    if val == "1":
+        data["titre_foncier"] = "individuel"
+    elif val == "0":
+        data["titre_foncier"] = "aucun"
+    elif val not in ("aucun", "individuel", "indivision"):
+        data["titre_foncier"] = None
+
 def _extract_caract(data: dict) -> tuple:
     CARACT_GEN = [
         "jardin","terrasse","balcon","parking","garage","ascenseur",
@@ -187,6 +201,7 @@ def create_annonce(
     utilisateur_id: int
 ):
     data = annonce.dict()
+    _normalize_titre_foncier(data)
     cg, ci, ml, ceq = _extract_caract(data)
     chambres_coloc = data.pop("chambres_coloc", []) or []
     # Convertir genre_coloc (liste) en chaîne CSV pour stockage
@@ -238,6 +253,7 @@ def update_annonce(db: Session, annonce_id: int, update_data: dict):
     db_annonce = get_annonce(db, annonce_id)
     if not db_annonce:
         return None
+    _normalize_titre_foncier(update_data)
     cg, ci, ml, ceq = _extract_caract(update_data)
     # Chambres colocation : supprimer les anciennes et recréer
     chambres_coloc = update_data.pop("chambres_coloc", None)
