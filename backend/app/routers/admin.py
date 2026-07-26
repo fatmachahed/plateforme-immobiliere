@@ -456,7 +456,7 @@ def update_user(
     if not u:
         raise HTTPException(404, "Utilisateur non trouvé")
     if body.username:  u.username = body.username
-    if body.email:     u.email    = body.email
+    if body.email:     u.email    = body.email.strip().lower()
     if body.phone_number is not None: u.phone_number = body.phone_number
     if body.role:
         try:
@@ -552,14 +552,16 @@ def create_agency(
     db: Session = Depends(get_db),
     _: models.User = Depends(get_current_admin),
 ):
+    agency_email = body.email.strip().lower()
     if db.query(models.User).filter(models.User.username == body.username).first():
         raise HTTPException(400, f"Le nom d'utilisateur '{body.username}' est déjà utilisé.")
-    if db.query(models.User).filter(models.User.email == body.email).first():
+    from sqlalchemy import func as _func
+    if db.query(models.User).filter(_func.lower(models.User.email) == agency_email).first():
         raise HTTPException(400, f"L'email '{body.email}' est déjà utilisé.")
 
     user = models.User(
         username=body.username,
-        email=body.email,
+        email=agency_email,
         hashed_password=_pwd.hash(body.password),
         role=RoleEnum.agence,
         phone_number=body.telephone,
@@ -570,7 +572,7 @@ def create_agency(
     agency = models.Agency(
         user_id=user.id,
         nom=body.nom,
-        email=body.email,
+        email=agency_email,
         telephone=body.telephone,
         adresse=body.adresse,
         matricule=body.matricule,

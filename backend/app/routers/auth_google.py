@@ -46,11 +46,15 @@ def google_login(body: GoogleTokenBody, db: Session = Depends(get_db)):
     email = info.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="Email non disponible depuis Google.")
+    # Gmail (et la plupart des fournisseurs) traite Nom@x.com et nom@x.com
+    # comme la même adresse — toujours normaliser pour éviter les doublons.
+    email = email.strip().lower()
 
     if info.get("email_verified") not in (True, "true"):
         raise HTTPException(status_code=400, detail="Email Google non vérifié.")
 
-    user = db.query(models.User).filter(models.User.email == email).first()
+    from sqlalchemy import func
+    user = db.query(models.User).filter(func.lower(models.User.email) == email).first()
     is_new = user is None
 
     if not user:

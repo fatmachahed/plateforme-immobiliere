@@ -1151,6 +1151,7 @@ export default function Compte() {
 
           {/* ═══════ PROFIL ═══════ */}
           {tab==="profil" && (
+            <>
             <div className="cpt-profil-layout" style={{display:"flex",gap:20,alignItems:"flex-start"}}>
 
               {/* ── Colonne gauche 50% : infos + infos complémentaires ── */}
@@ -1552,6 +1553,51 @@ export default function Compte() {
               </div>
 
             </div>
+
+            {/* ── Vue admin : statistiques + annonces de l'utilisateur consulté ── */}
+            {isAdminView && viewedUser && (
+              <div style={{marginTop:20}}>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(140px, 1fr))",gap:14,marginBottom:20}}>
+                  {[
+                    {label:"Total annonces", val:viewedUser.stats?.total||0, color:"#0f172a"},
+                    {label:"Approuvées",     val:viewedUser.stats?.approuvees||0, color:"#16a34a"},
+                    {label:"En attente",     val:viewedUser.stats?.en_attente||0, color:"#d97706"},
+                    {label:"Refusées",      val:viewedUser.stats?.refusees||0, color:"#dc2626"},
+                    {label:"Vues cumulées", val:viewedUser.stats?.vues||0, color:"#6366f1"},
+                  ].map(s => (
+                    <div key={s.label} style={{background:"#fff",border:"1px solid #e2e8f0",borderRadius:12,padding:"14px 16px"}}>
+                      <div style={{fontSize:22,fontWeight:800,color:s.color}}>{s.val}</div>
+                      <div style={{fontSize:11.5,color:"#64748b",fontWeight:600}}>{s.label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{...card,padding:"20px 24px"}}>
+                  <h2 style={{...cardTitle,marginBottom:14}}>Annonces ({(viewedUser.annonces||[]).length})</h2>
+                  {(viewedUser.annonces||[]).length===0 ? (
+                    <p style={{fontSize:13,color:"#94a3b8"}}>Aucune annonce publiée.</p>
+                  ) : (
+                    <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                      {viewedUser.annonces.map(a => (
+                        <Link key={a.id} to={`/annonce/${a.id}`} target="_blank" style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,padding:"10px 14px",borderRadius:10,border:"1px solid #f1f5f9",textDecoration:"none",color:"inherit",flexWrap:"wrap"}}>
+                          <div style={{minWidth:0}}>
+                            <div style={{fontSize:13.5,fontWeight:700,color:"#0f172a"}}>{a.titre}</div>
+                            <div style={{fontSize:12,color:"#94a3b8"}}>{a.reference || `#${a.id}`} · {a.gouvernorat || "—"} · {new Date(a.date_creation).toLocaleDateString("fr-FR")}</div>
+                          </div>
+                          <div style={{display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+                            <span style={{fontSize:13,fontWeight:700}}>{a.prix ? `${Number(a.prix).toLocaleString("fr-TN")} ${fmtDevise(a.devise)}` : "—"}</span>
+                            <span style={{fontSize:11,fontWeight:700,padding:"2px 9px",borderRadius:999,color:{approuvee:"#16a34a",en_attente:"#d97706",refusee:"#dc2626"}[a.status]||"#64748b",background:{approuvee:"#f0fdf4",en_attente:"#fffbeb",refusee:"#fef2f2"}[a.status]||"#f8fafc"}}>
+                              {STATUS_LABEL_MAP[a.status]||a.status}
+                            </span>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            </>
           )}
 
           {/* ═══════ MES ANNONCES (dashboard exact) ═══════ */}

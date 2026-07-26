@@ -791,7 +791,8 @@ def create_agent(
     if not agency:
         agency = models.Agency(user_id=current_user.id, nom=current_user.username, email=current_user.email or "")
         db.add(agency); db.commit(); db.refresh(agency)
-    if db.query(models.User).filter(models.User.email == body.email).first():
+    agent_email = body.email.strip().lower()
+    if crud.get_user_by_email(db, agent_email):
         raise HTTPException(400, "Cet email est déjà utilisé.")
     if db.query(models.User).filter(models.User.username == body.username).first():
         raise HTTPException(400, "Ce nom d'utilisateur est déjà pris.")
@@ -799,7 +800,7 @@ def create_agent(
     from app.utils.security import hash_password as hp
     new_agent = models.User(
         username=body.username,
-        email=body.email,
+        email=agent_email,
         hashed_password=hp(body.password),
         role=models.RoleEnum.agent,
         nom=body.nom or None,
@@ -848,10 +849,11 @@ def update_agent(
     if not agent:
         raise HTTPException(404, "Agent introuvable")
     if body.email is not None:
-        existing = db.query(models.User).filter(models.User.email == body.email, models.User.id != agent_id).first()
-        if existing:
+        new_email = body.email.strip().lower()
+        existing = crud.get_user_by_email(db, new_email)
+        if existing and existing.id != agent_id:
             raise HTTPException(400, "Cet email est déjà utilisé.")
-        agent.email = body.email
+        agent.email = new_email
     if body.nom    is not None: agent.nom    = body.nom
     if body.prenom is not None: agent.prenom = body.prenom
     db.commit(); db.refresh(agent)

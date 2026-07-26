@@ -11,7 +11,7 @@ def create_user(db: Session, user: schemas.UserCreate, verify_token: str = None)
     hashed_pwd = hash_password(user.password)
     db_user = models.User(
         username=user.username,
-        email=user.email,
+        email=user.email.strip().lower(),
         hashed_password=hashed_pwd,
         role=user.role,
         phone_number=user.phone_number,
@@ -63,7 +63,11 @@ from sqlalchemy.orm import Session
 from app import models
 
 def get_user_by_email(db: Session, email: str):
-    return db.query(models.User).filter(models.User.email == email).first()
+    """Recherche insensible à la casse : Gmail (et la plupart des fournisseurs)
+    traite Nom@x.com et nom@x.com comme la même adresse — on doit faire pareil,
+    sans quoi un même email peut créer plusieurs comptes distincts."""
+    from sqlalchemy import func
+    return db.query(models.User).filter(func.lower(models.User.email) == email.strip().lower()).first()
 
 # ===============================
 # LOCALISATION
