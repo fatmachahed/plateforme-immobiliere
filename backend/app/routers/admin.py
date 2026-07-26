@@ -191,6 +191,29 @@ def update_annonce_commercial(
     return {"id": a.id, "commercial_id": a.commercial_id, "commercial_nom": commercial_nom}
 
 
+# ── Réaffecter le propriétaire d'une annonce ─────────────────
+class AnnonceOwnerUpdate(BaseModel):
+    utilisateur_id: int
+
+@router.patch("/annonces/{annonce_id}/owner")
+def update_annonce_owner(
+    annonce_id: int,
+    body: AnnonceOwnerUpdate,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_admin),
+):
+    a = db.query(models.Annonce).filter(models.Annonce.id == annonce_id).first()
+    if not a:
+        raise HTTPException(404, "Annonce non trouvée")
+    new_owner = db.query(models.User).filter(models.User.id == body.utilisateur_id).first()
+    if not new_owner:
+        raise HTTPException(400, "Utilisateur introuvable.")
+    a.utilisateur_id = new_owner.id
+    db.commit()
+    db.refresh(a)
+    return {"id": a.id, "utilisateur_id": a.utilisateur_id, "user_name": new_owner.username, "user_email": new_owner.email}
+
+
 # ── Changer le statut d'une annonce ─────────────────────────
 class StatusUpdate(BaseModel):
     status:   str

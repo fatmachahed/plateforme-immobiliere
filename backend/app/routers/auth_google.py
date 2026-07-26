@@ -66,6 +66,11 @@ def google_login(body: GoogleTokenBody, db: Session = Depends(get_db)):
             username = f"{base}_{counter}"
             counter += 1
 
+        # Même flux de vérification email que l'inscription par formulaire
+        # (voir _send_verify_email dans routers/users.py) — même si Google a
+        # déjà confirmé la propriété de l'email, on garde le même parcours
+        # pour rester cohérent avec le reste de la plateforme.
+        verify_token = secrets.token_urlsafe(32)
         user = models.User(
             username=username,
             email=email,
@@ -73,10 +78,14 @@ def google_login(body: GoogleTokenBody, db: Session = Depends(get_db)):
             role=RoleEnum.particulier,
             profile_picture=info.get("picture"),
             objectif="autre",
+            is_verified=False,
+            email_verify_token=verify_token,
         )
         db.add(user)
         db.commit()
         db.refresh(user)
+        from app.routers.users import _send_verify_email
+        _send_verify_email(user.email, verify_token)
 
     access_token = create_access_token(data={"sub": str(user.id)})
 

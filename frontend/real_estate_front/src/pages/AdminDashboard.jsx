@@ -176,6 +176,8 @@ export default function AdminDashboard() {
   const [agencyRefText,   setAgencyRefText]   = useState("");
   const [annonceRefEditId, setAnnonceRefEditId] = useState(null);
   const [annonceRefText,   setAnnonceRefText]   = useState("");
+  const [ownerEditId,      setOwnerEditId]      = useState(null);
+  const [ownerUpdating,    setOwnerUpdating]    = useState(null);
   const [agencyModal,   setAgencyModal]    = useState(false);
   /* Liste unifiée des professionnels (agences + inscrits) pour accompagnements */
   const [professionals, setProfessionals]  = useState([]);
@@ -256,7 +258,7 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    if (tab === "annonces") loadAnnonces();
+    if (tab === "annonces") { loadAnnonces(); if (users.length === 0) loadUsers(); }
     if (tab === "users")    loadUsers();
     if (tab === "stats")    { if (allAnnonces.length === 0) loadAllAnnonces(); }
     if (tab === "agences")        { loadAgencies(); if (allAnnonces.length === 0) loadAllAnnonces(); }
@@ -484,6 +486,27 @@ export default function AdminDashboard() {
         toast(err.detail || "Erreur lors de la mise à jour.", "error");
       }
     } catch { toast("Erreur réseau.", "error"); }
+  }
+
+  async function saveAnnonceOwner(id, newUserId) {
+    if (!newUserId) { setOwnerEditId(null); return; }
+    setOwnerUpdating(id);
+    try {
+      const res = await authFetch(`/admin/annonces/${id}/owner`, {
+        method: "PATCH",
+        body: JSON.stringify({ utilisateur_id: Number(newUserId) }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAnnonces(prev => prev.map(a => a.id === id ? { ...a, utilisateur_id: data.utilisateur_id, user_name: data.user_name, user_email: data.user_email } : a));
+        setOwnerEditId(null);
+        toast("Propriétaire réaffecté.");
+      } else {
+        const err = await res.json().catch(()=>({}));
+        toast(err.detail || "Erreur lors de la réaffectation.", "error");
+      }
+    } catch { toast("Erreur réseau.", "error"); }
+    finally { setOwnerUpdating(null); }
   }
 
   async function saveAgencyNote(id) {
@@ -877,9 +900,30 @@ export default function AdminDashboard() {
                               </span>
                             )}
                           </td>
-                          <td>
-                            <p className="adm-table__user">{a.user_name}</p>
-                            <span className="adm-table__email">{a.user_email}</span>
+                          <td onClick={e => e.stopPropagation()}>
+                            {ownerEditId === a.id ? (
+                              <select
+                                autoFocus
+                                defaultValue=""
+                                disabled={ownerUpdating === a.id}
+                                onChange={e => saveAnnonceOwner(a.id, e.target.value)}
+                                onBlur={() => setOwnerEditId(null)}
+                                style={{fontSize:12,padding:"4px 6px",borderRadius:6,border:"1.5px solid #6366f1",maxWidth:220}}>
+                                <option value="">— Choisir un utilisateur —</option>
+                                {users.map(u => <option key={u.id} value={u.id}>{u.username} ({u.email})</option>)}
+                              </select>
+                            ) : (
+                              <>
+                                <p className="adm-table__user">
+                                  {a.user_name}
+                                  <button title="Réaffecter le propriétaire" onClick={() => setOwnerEditId(a.id)}
+                                    style={{background:"none",border:"none",cursor:"pointer",color:"#94a3b8",padding:0,marginLeft:6,verticalAlign:"-1px"}}>
+                                    <Edit3 size={11}/>
+                                  </button>
+                                </p>
+                                <span className="adm-table__email">{a.user_email}</span>
+                              </>
+                            )}
                           </td>
                           <td>
                             <span className="adm-pill">{TypeBienFr(a.type_bien)}</span>
