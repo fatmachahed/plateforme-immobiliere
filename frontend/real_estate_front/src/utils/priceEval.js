@@ -32,17 +32,19 @@ export function getEvalLevel(prixM2, govAvg, count) {
   return EVAL_LEVELS[5];
 }
 
-/* Clé de segmentation : gouvernorat + catégorie (vente/location/vacances —
-   pas comparables entre elles) + durée de location pour les vacances
+/* Clé de segmentation : gouvernorat + délégation (plus précis qu'un simple
+   gouvernorat — deux délégations du même gouvernorat peuvent avoir des
+   marchés très différents) + catégorie (vente/location/vacances — pas
+   comparables entre elles) + durée de location pour les vacances
    (nuitée/semaine/mois/an) + regroupement état du bien (neuf/en construction
    vs bon état/à rénover) pour vente/location.
    Doit rester identique à celle du backend (GET /annonces/market-stats,
    voir backend/app/routers/annonces.py) et entre toutes les pages front. */
-export function statsKey({ gouvernorat, categorie, etat, etat_bien, duree_type }) {
+export function statsKey({ gouvernorat, delegation, categorie, etat, etat_bien, duree_type }) {
   const etatVal = etat_bien ?? etat;
   const etatGroup = (etatVal === "nouveau" || etatVal === "cours_construction") ? "neuf" : "ancien";
-  if (categorie === "vacances") return `${gouvernorat}|vacances|${duree_type || "nuit"}`;
-  return `${gouvernorat}|${categorie}|${etatGroup}`;
+  if (categorie === "vacances") return `${gouvernorat}|${delegation}|vacances|${duree_type || "nuit"}`;
+  return `${gouvernorat}|${delegation}|${categorie}|${etatGroup}`;
 }
 
 /* Construit la table de stats { [statsKey]: {sum, count} } à partir d'une
@@ -51,7 +53,7 @@ export function statsKey({ gouvernorat, categorie, etat, etat_bien, duree_type }
 export function buildMarketStats(annonces) {
   const stats = {};
   (annonces || []).forEach(a => {
-    if (!a.gouvernorat || !a.categorie || !a.prix || !a.superficie && !a.area) return;
+    if (!a.gouvernorat || !a.delegation || !a.categorie || !a.prix || !a.superficie && !a.area) return;
     const area = a.superficie ?? a.area;
     if (!area || area <= 0) return;
     const prixM2 = a.prix / area;

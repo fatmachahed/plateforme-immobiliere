@@ -241,7 +241,7 @@ export default function AnnonceModal({ annonceId, onClose }) {
                   <PriceEvalBar
                     prixM2={prop.prixRaw / prop.area}
                     govStats={govMarketStats?.[statsKey({
-                      gouvernorat: prop.gouvernorat, categorie: prop.categorie, etat_bien: prop.etat, duree_type: prop.duree_type,
+                      gouvernorat: prop.gouvernorat, delegation: prop.delegation, categorie: prop.categorie, etat_bien: prop.etat, duree_type: prop.duree_type,
                     })] || null}
                   />
                 </div>

@@ -3537,9 +3537,11 @@ export const CreateListingForm = ({ editId = null }) => {
                         const surfNum  = parseFloat(formData.superficie);
                         const prixM2n  = (prixNum > 0 && surfNum > 0) ? prixNum / surfNum : null;
                         const govLabel = gouvernorats.find(g => g.value === hierarchy.gouvernorat)?.label || "";
-                        if (!govLabel || !prixM2n) return null;
+                        const delLabel = delegations.find(d => String(d.id) === String(hierarchy.delegation))?.nom || "";
+                        if (!govLabel || !delLabel || !prixM2n) return null;
                         const key = statsKey({
                           gouvernorat: govLabel,
+                          delegation:  delLabel,
                           categorie:   formData.categorie,
                           etat_bien:   formData.etat_bien,
                           duree_type:  formData.duree_type,
