@@ -138,6 +138,25 @@ export default function Compte() {
      comme les suivants) est le bouton "+", qui déclenche systématiquement
      une vérification par code envoyé par email avant tout enregistrement. */
   const [primaryPhone,   setPrimaryPhone]   = useState(storedUser?.phone_number || "");
+  const [emailVerified,  setEmailVerified]  = useState(storedUser?.is_verified !== false);
+  const [resendingVerif, setResendingVerif] = useState(false);
+
+  const handleResendVerification = async () => {
+    setResendingVerif(true);
+    try {
+      const res = await fetch(`${API_URL}/users/resend-verify-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: profile.email }),
+      });
+      if (!res.ok) throw new Error();
+      toast("Email de vérification envoyé — consultez votre boîte mail.");
+    } catch {
+      toast("Impossible d'envoyer l'email. Réessayez.", "error");
+    } finally {
+      setResendingVerif(false);
+    }
+  };
   const [extraPhones,    setExtraPhones]    = useState([]);
   const [addingPhone,    setAddingPhone]    = useState(false);
   const [newPhoneCode,   setNewPhoneCode]   = useState("+216");
@@ -353,6 +372,7 @@ export default function Compte() {
         if (!data) return;
         const merged = { ...JSON.parse(localStorage.getItem("user") || "{}"), ...data };
         localStorage.setItem("user", JSON.stringify(merged));
+        if (data.is_verified !== undefined) setEmailVerified(data.is_verified !== false);
         setProfile(p => ({
           ...p,
           username:           data.username           || p.username,
@@ -1124,7 +1144,20 @@ export default function Compte() {
                       {editing && usernameStatus === "available" && <div style={{display:"flex",alignItems:"center",gap:5,marginTop:5,fontSize:12,color:"#10b981",fontWeight:600}}><span>✓</span> Nom d'utilisateur disponible</div>}
                       {editing && usernameStatus === "taken"     && <div style={{display:"flex",alignItems:"center",gap:5,marginTop:5,fontSize:12,color:"#ef4444",fontWeight:500}}><span>✗</span> Ce nom d'utilisateur est déjà pris</div>}
                     </F>
-                    <F label="E-mail"><input style={inp(false)} value={profile.email} readOnly/></F>
+                    <F label="E-mail">
+                      <input
+                        style={{...inp(false), ...(!emailVerified ? {border:"1.5px solid #ef4444", background:"#fef2f2"} : {})}}
+                        value={profile.email} readOnly/>
+                      {!emailVerified && (
+                        <div style={{marginTop:7,display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                          <span style={{fontSize:12,color:"#dc2626",fontWeight:600}}>⚠️ Email non vérifié</span>
+                          <button onClick={handleResendVerification} disabled={resendingVerif}
+                            style={{padding:"5px 14px",borderRadius:8,border:"none",background:"#dc2626",color:"#fff",fontSize:12,fontWeight:700,cursor:resendingVerif?"default":"pointer",opacity:resendingVerif?.7:1}}>
+                            {resendingVerif ? "Envoi…" : "Vérifier"}
+                          </button>
+                        </div>
+                      )}
+                    </F>
                     <F label="Rôle">
                       <input
                         style={{...inp(false),background:"#f1f5f9",color:"#64748b",cursor:"not-allowed"}}
