@@ -350,8 +350,16 @@ export default function AdminDashboard() {
     if (!window.confirm(`Supprimer définitivement le compte « ${username} » et toutes ses annonces ?`)) return;
     try {
       const res = await authFetch(`/admin/users/${id}`, { method:"DELETE" });
-      if (res.ok) { setUsers(prev => prev.filter(u => u.id!==id)); toast("Compte supprimé."); }
-    } catch {}
+      if (res.ok) {
+        setUsers(prev => prev.filter(u => u.id!==id));
+        toast("Compte supprimé.");
+      } else {
+        const err = await res.json().catch(()=>({}));
+        toast(err.detail || "Impossible de supprimer ce compte.", "error");
+      }
+    } catch {
+      toast("Erreur réseau — la suppression a échoué.", "error");
+    }
   }
 
   async function saveUserEdit() {
