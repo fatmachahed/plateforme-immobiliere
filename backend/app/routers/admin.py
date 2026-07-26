@@ -502,6 +502,19 @@ def delete_user(
     if agency:
         raise HTTPException(400, "Ce compte est rattaché à une agence — supprimez ou réaffectez l'agence avant de supprimer ce compte.")
 
+    # Références secondaires, non bloquantes : ce ne sont que des traces
+    # historiques (qui a été choisi comme accompagnement sur l'annonce d'un
+    # autre, qui a laissé un avis à un prestataire...) — on les nettoie au
+    # lieu de bloquer la suppression pour un simple historique.
+    db.query(models.Annonce).filter(models.Annonce.commercial_id == u.id) \
+        .update({"commercial_id": None}, synchronize_session=False)
+    db.query(models.Annonce).filter(models.Annonce.accompagnement_agence_id == u.id) \
+        .update({"accompagnement_agence_id": None}, synchronize_session=False)
+    db.query(models.DemandeIntervention).filter(models.DemandeIntervention.client_user_id == u.id) \
+        .update({"client_user_id": None}, synchronize_session=False)
+    db.query(models.PrestataireReaction).filter(models.PrestataireReaction.client_user_id == u.id).delete(synchronize_session=False)
+    db.query(models.ConventionSubmission).filter(models.ConventionSubmission.user_id == u.id).delete(synchronize_session=False)
+
     try:
         db.delete(u)
         db.commit()
@@ -509,8 +522,8 @@ def delete_user(
         db.rollback()
         raise HTTPException(
             400,
-            "Impossible de supprimer ce compte : des données liées (interventions, conventions, favoris...) "
-            "l'en empêchent encore."
+            "Impossible de supprimer ce compte : des données liées l'en empêchent encore. "
+            "Contactez le support technique."
         )
     return {"detail": "Utilisateur supprimé"}
 
