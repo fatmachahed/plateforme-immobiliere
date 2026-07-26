@@ -195,6 +195,22 @@ with engine.connect() as conn:
         );
         """,
         "CREATE INDEX IF NOT EXISTS ix_contact_clicks_annonce_id ON contact_clicks (annonce_id);",
+        # Normalise les emails existants en minuscule (Gmail et la plupart des
+        # fournisseurs traitent Nom@x.com et nom@x.com comme la même adresse).
+        # Idempotent (ne touche que les lignes encore en majuscules) et
+        # ignore volontairement les groupes d'emails qui entreraient en
+        # collision une fois passés en minuscule (deux comptes distincts avec
+        # le même email dans une casse différente) — ceux-là nécessitent une
+        # fusion manuelle (transfert des annonces vers un seul compte) avant
+        # de pouvoir être normalisés sans violer la contrainte d'unicité.
+        """
+        UPDATE users
+        SET email = lower(email)
+        WHERE email <> lower(email)
+          AND lower(email) NOT IN (
+              SELECT lower(email) FROM users GROUP BY lower(email) HAVING count(*) > 1
+          );
+        """,
     ]
     for sql in migrations:
         try:
