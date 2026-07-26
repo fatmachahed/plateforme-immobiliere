@@ -19,7 +19,7 @@ import Logo from "../components/Logo";
 import AIDescriptionModal from '../components/AIDescriptionModal';
 import useLocalisation from "../hooks/useLocalisation";
 import { useToast } from "../components/Toast";
-import { getEvalLevel, buildMarketStats, statsKey } from "../utils/priceEval";
+import { getEvalLevel, buildMarketStats, statsKey, median } from "../utils/priceEval";
 import "leaflet/dist/leaflet.css";
 
 /* ── Normalisation légère (correspondance GADM ↔ API) ── */
@@ -388,9 +388,9 @@ const STEPS = [
 const CA_EVAL_TOTAL = 5;
 
 function CaPriceEvalBar({ prixM2, govStats, devise }) {
-  const gs  = govStats || { sum: 0, count: 0 };
-  const avg = gs.count > 0 ? gs.sum / gs.count : 0;
-  const ev  = getEvalLevel(prixM2, avg, gs.count);
+  const gs  = govStats || { values: [], count: 0 };
+  const med = median(gs.values);
+  const ev  = getEvalLevel(prixM2, med, gs.count);
   const isNone = ev.key === "none";
 
   return (
@@ -3546,7 +3546,7 @@ export const CreateListingForm = ({ editId = null }) => {
                           etat_bien:   formData.etat_bien,
                           duree_type:  formData.duree_type,
                         });
-                        const govStats = marketStats[key] || { sum: 0, count: 0 };
+                        const govStats = marketStats[key] || { values: [], count: 0 };
                         return (
                           <CaPriceEvalBar
                             prixM2={prixM2n}

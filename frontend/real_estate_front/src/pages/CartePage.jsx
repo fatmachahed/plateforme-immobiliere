@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Seo from "../components/Seo";
-import { getEvalLevel, statsKey, buildMarketStats } from "../utils/priceEval";
+import { getEvalLevel, statsKey, buildMarketStats, median } from "../utils/priceEval";
 import Logo from "../components/Logo";
 import useLocalisation from "../hooks/useLocalisation";
 import { getDelegations } from "../api/localisation.api";
@@ -381,9 +381,9 @@ const arrowBtn = (s) => ({
 const EVAL_TOTAL = 5;
 
 function PriceEvalBar({ prixM2, govStats }) {
-  const gs  = govStats || { sum: 0, count: 0 };
-  const avg = gs.count > 0 ? gs.sum / gs.count : 0;
-  const ev  = getEvalLevel(prixM2, avg, gs.count);
+  const gs  = govStats || { values: [], count: 0 };
+  const med = median(gs.values);
+  const ev  = getEvalLevel(prixM2, med, gs.count);
   const isNone = ev.key === "none";
   return (
     <div className="peb">

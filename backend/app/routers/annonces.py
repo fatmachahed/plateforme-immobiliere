@@ -15,11 +15,11 @@ router = APIRouter(
 get_db = database.get_db
 
 # ===============================
-# STATS MARCHÉ (prix moyen/m² par gouvernorat), pour la barre d'évaluation prix
+# STATS MARCHÉ (prix médian/m² par gouvernorat), pour la barre d'évaluation prix
 # ===============================
 @router.get("/market-stats")
 def get_market_stats(db: Session = Depends(get_db)):
-    """Prix moyen au m² par gouvernorat + délégation (plus précis qu'un simple
+    """Prix médian au m² par gouvernorat + délégation (plus précis qu'un simple
     gouvernorat — deux délégations d'un même gouvernorat peuvent avoir des
     marchés très différents), SEGMENTÉ par catégorie (vente/location/
     vacances — un loyer ne se compare pas à un prix de vente), par durée de
@@ -27,7 +27,11 @@ def get_market_stats(db: Session = Depends(get_db)):
     (neuf/en construction vs bon état/à rénover). Clé retournée :
     "{gouvernorat}|{delegation}|{categorie}|{etat_ou_duree}" — voir statsKey()
     côté front (utils/priceEval.js) qui doit rester cohérente avec ce
-    regroupement."""
+    regroupement.
+    On utilise la médiane plutôt que la moyenne : quelques annonces à prix
+    extrême (bien de luxe isolé, erreur de saisie non filtrée par le seuil
+    aberrant) tirent une moyenne dans leur sens, alors que la médiane reste
+    proche du prix réellement typique du groupe."""
     from sqlalchemy import func, case
     etat_group = case(
         (models.Annonce.etat_bien.in_(["nouveau", "cours_construction"]), "neuf"),
@@ -37,13 +41,14 @@ def get_market_stats(db: Session = Depends(get_db)):
         (models.Annonce.categorie == "vacances", func.coalesce(models.Annonce.duree_type, "nuit")),
         else_=etat_group,
     )
+    prix_m2 = models.Annonce.prix / models.Annonce.superficie
     rows = (
         db.query(
             models.Gouvernorat.nom.label("gouvernorat"),
             models.Delegation.nom.label("delegation"),
             models.Annonce.categorie.label("categorie"),
             sous_cle.label("sous_cle"),
-            func.avg(models.Annonce.prix / models.Annonce.superficie).label("avg_prix_m2"),
+            func.percentile_cont(0.5).within_group(prix_m2.asc()).label("median_prix_m2"),
             func.count(models.Annonce.id).label("count"),
         )
         .join(models.Gouvernorat, models.Gouvernorat.id == models.Annonce.gouvernorat_id)
@@ -53,7 +58,7 @@ def get_market_stats(db: Session = Depends(get_db)):
             models.Annonce.prix > 0,
             models.Annonce.superficie > 0,
             # Exclut les prix/m² aberrants (< 10, erreur de saisie ou prix
-            # symbolique) — ne doivent jamais fausser la moyenne de référence
+            # symbolique) — ne doivent jamais fausser la référence de prix
             # utilisée pour évaluer les autres annonces du même groupe.
             (models.Annonce.prix / models.Annonce.superficie) >= 10,
         )
@@ -62,7 +67,7 @@ def get_market_stats(db: Session = Depends(get_db)):
     )
     cat_val = lambda c: c.value if hasattr(c, "value") else str(c)
     return {
-        f"{r.gouvernorat}|{r.delegation}|{cat_val(r.categorie)}|{r.sous_cle}": {"avg_prix_m2": float(r.avg_prix_m2), "count": r.count}
+        f"{r.gouvernorat}|{r.delegation}|{cat_val(r.categorie)}|{r.sous_cle}": {"median_prix_m2": float(r.median_prix_m2), "count": r.count}
         for r in rows
     }
 

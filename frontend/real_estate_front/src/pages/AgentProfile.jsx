@@ -26,7 +26,7 @@ function fmtFull(n) {
    (cohérente avec CartePage.jsx et CreerAnnonce.jsx) ─── */
 function PriceEvalBar({ prixM2, govStats }) {
   const gs = govStats || null;
-  const ev = getEvalLevel(prixM2, gs?.avg_prix_m2, gs?.count);
+  const ev = getEvalLevel(prixM2, gs?.median_prix_m2, gs?.count);
   const isNone = ev.key === "none";
   return (
     <div className="peb">
