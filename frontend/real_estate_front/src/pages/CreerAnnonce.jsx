@@ -3466,11 +3466,20 @@ export const CreateListingForm = ({ editId = null }) => {
                             })()
                           : <>
                               <div className="ca-input-unit">
-                                <input type="number"
+                                <input type="text" inputMode="numeric"
                                   className={`ca-input${validationErrors.prix ? " ca-input--err" : ""}`}
-                                  placeholder="250000" min="1" max="9999999999"
-                                  value={formData.prix}
-                                  onChange={e => { handleInputChange("prix", e.target.value); setValidationErrors(v=>({...v,prix:false})); }}/>
+                                  placeholder="250 000"
+                                  value={formData.prix ? Number(formData.prix).toLocaleString("fr-FR") : ""}
+                                  onChange={e => {
+                                    /* Un champ type="number" acceptait "550.000" comme 550,000
+                                       (le "." étant lu comme séparateur décimal) et enregistrait
+                                       550 au lieu de 550 000 — piège classique quand l'utilisateur
+                                       tape un prix avec un séparateur de milliers. On ne garde donc
+                                       que les chiffres, quel que soit le séparateur tapé (. , espace). */
+                                    const digits = e.target.value.replace(/\D/g, "");
+                                    handleInputChange("prix", digits ? String(parseInt(digits, 10)) : "");
+                                    setValidationErrors(v=>({...v,prix:false}));
+                                  }}/>
                                 <select className="ca-currency" value={formData.devise}
                                   onChange={e => handleInputChange("devise", e.target.value)}>
                                   <option value="TND">TND</option>
