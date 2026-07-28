@@ -399,9 +399,9 @@ function CaPriceEvalBar({ prixM2, govStats, devise }) {
         <span className="ca-peb__label" style={{ color: isNone ? "#9ca3af" : ev.color }}>
           {ev.label}
         </span>
-        {!isNone && avg > 0 && (
+        {!isNone && med > 0 && (
           <span className="ca-peb__avg">
-            Moy. zone : {Math.round(avg).toLocaleString("fr-TN")} {devise}/m²
+            Médiane zone : {Math.round(med).toLocaleString("fr-TN")} {devise}/m²
           </span>
         )}
       </div>
