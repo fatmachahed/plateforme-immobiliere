@@ -1393,7 +1393,16 @@ def get_agent_public_profile(user_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "Utilisateur non trouvé")
 
     role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
-    agency = db.query(models.Agency).filter(models.Agency.user_id == user_id).first()
+    # Un même compte peut avoir plusieurs fiches Agency (doublon créé par erreur) :
+    # on prend celle avec l'abonnement actif en priorité (la seule affichée
+    # publiquement dans /users/agencies/public), puis la plus récente, pour
+    # éviter de retomber sur une vieille fiche incomplète (téléphone vide...).
+    agency = (
+        db.query(models.Agency)
+        .filter(models.Agency.user_id == user_id)
+        .order_by(models.Agency.abonnement_actif.desc(), models.Agency.id.desc())
+        .first()
+    )
     nom       = agency.nom       if agency else user.username
     email     = agency.email     if agency else user.email
     # Certaines agences n'ont jamais renseigné leur champ téléphone : dans ce
