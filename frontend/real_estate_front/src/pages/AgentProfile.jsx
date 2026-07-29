@@ -225,6 +225,9 @@ export default function AgentProfile() {
   const [govMarketStats, setGovMarketStats] = useState({});
   const [previewAnnonceId, setPreviewAnnonceId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const ANNONCES_PAGE_SIZE = 15;
+  const [annoncesPage, setAnnoncesPage] = useState(1);
+  useEffect(() => { setAnnoncesPage(1); }, [id]);
   const [showContact, setShowContact] = useState(false);
   const [cSending, setCSending] = useState(false);
   const [cSent, setCSent]       = useState(false);
@@ -524,11 +527,80 @@ export default function AgentProfile() {
             <p style={{ fontWeight:700, color:"#374151", fontSize:15, margin:"0 0 6px" }}>Aucune annonce publiée</p>
             <p style={{ color:"#94a3b8", fontSize:13, margin:0 }}>Ce professionnel n'a pas encore publié d'annonces.</p>
           </div>
-        ) : (
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))", gap:20, marginBottom:60 }}>
-            {agent.annonces.map(a => <PropCard key={a.id} a={a} govMarketStats={govMarketStats} onOpen={setPreviewAnnonceId}/>)}
-          </div>
-        )}
+        ) : (() => {
+            const annoncesTotalPages = Math.ceil(agent.annonces.length / ANNONCES_PAGE_SIZE);
+            const annoncesPageItems  = agent.annonces.slice((annoncesPage - 1) * ANNONCES_PAGE_SIZE, annoncesPage * ANNONCES_PAGE_SIZE);
+            return (
+              <>
+                {annoncesTotalPages > 1 && (
+                  <div style={{ display:"flex", justifyContent:"flex-end", padding:"4px 2px 8px" }}>
+                    <p style={{ fontSize:13, color:"#6b7280", margin:0 }}>Page {annoncesPage} / {annoncesTotalPages}</p>
+                  </div>
+                )}
+
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))", gap:20, marginBottom: annoncesTotalPages > 1 ? 24 : 60 }}>
+                  {annoncesPageItems.map(a => <PropCard key={a.id} a={a} govMarketStats={govMarketStats} onOpen={setPreviewAnnonceId}/>)}
+                </div>
+
+                {annoncesTotalPages > 1 && (
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, padding:"0 0 60px", flexWrap:"wrap" }}>
+                    <button
+                      onClick={()=>{ setAnnoncesPage(p=>Math.max(1,p-1)); window.scrollTo({top:0,behavior:"smooth"}); }}
+                      disabled={annoncesPage===1}
+                      style={{
+                        display:"flex", alignItems:"center", gap:6,
+                        padding:"10px 18px", borderRadius:8,
+                        border:"1.5px solid #e2e8f0", background:annoncesPage===1?"#f8fafc":"#fff",
+                        color:annoncesPage===1?"#9ca3af":"#374151",
+                        fontWeight:700, fontSize:14, cursor:annoncesPage===1?"not-allowed":"pointer",
+                        transition:"all .15s",
+                      }}
+                    >
+                      <ChevronLeft size={15}/> Précédent
+                    </button>
+
+                    {Array.from({length:annoncesTotalPages},(_,i)=>i+1)
+                      .filter(n => n===1 || n===annoncesTotalPages || Math.abs(n-annoncesPage)<=2)
+                      .reduce((acc,n,idx,arr)=>{
+                        if(idx>0 && n-arr[idx-1]>1) acc.push("…");
+                        acc.push(n);
+                        return acc;
+                      },[])
+                      .map((item,idx)=> item==="…"
+                        ? <span key={`ell${idx}`} style={{padding:"0 4px",color:"#9ca3af",fontWeight:700}}>…</span>
+                        : <button key={item}
+                            onClick={()=>{ setAnnoncesPage(item); window.scrollTo({top:0,behavior:"smooth"}); }}
+                            style={{
+                              width:40, height:40, borderRadius:8,
+                              border:`1.5px solid ${annoncesPage===item?accentColor:"#e2e8f0"}`,
+                              background:annoncesPage===item?accentColor:"#fff",
+                              color:annoncesPage===item?"#fff":"#374151",
+                              fontWeight:700, fontSize:14, cursor:"pointer",
+                              transition:"all .15s",
+                            }}
+                          >{item}</button>
+                      )
+                    }
+
+                    <button
+                      onClick={()=>{ setAnnoncesPage(p=>Math.min(annoncesTotalPages,p+1)); window.scrollTo({top:0,behavior:"smooth"}); }}
+                      disabled={annoncesPage===annoncesTotalPages}
+                      style={{
+                        display:"flex", alignItems:"center", gap:6,
+                        padding:"10px 18px", borderRadius:8,
+                        border:"1.5px solid #e2e8f0", background:annoncesPage===annoncesTotalPages?"#f8fafc":"#fff",
+                        color:annoncesPage===annoncesTotalPages?"#9ca3af":"#374151",
+                        fontWeight:700, fontSize:14, cursor:annoncesPage===annoncesTotalPages?"not-allowed":"pointer",
+                        transition:"all .15s",
+                      }}
+                    >
+                      Suivant <ChevronRight size={15}/>
+                    </button>
+                  </div>
+                )}
+              </>
+            );
+          })()}
       </div>
 
       <Footer/>
