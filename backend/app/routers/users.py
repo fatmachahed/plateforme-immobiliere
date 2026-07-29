@@ -1396,7 +1396,10 @@ def get_agent_public_profile(user_id: int, db: Session = Depends(get_db)):
     agency = db.query(models.Agency).filter(models.Agency.user_id == user_id).first()
     nom       = agency.nom       if agency else user.username
     email     = agency.email     if agency else user.email
-    telephone = agency.telephone if agency else user.phone_number
+    # Certaines agences n'ont jamais renseigné leur champ téléphone : dans ce
+    # cas, on retombe sur le téléphone personnel de l'agent/utilisateur plutôt
+    # que d'afficher un profil sans aucun numéro de contact.
+    telephone = (agency.telephone if agency else None) or user.phone_number
 
     annonces_q = db.query(models.Annonce).filter(
         models.Annonce.utilisateur_id == user_id,
