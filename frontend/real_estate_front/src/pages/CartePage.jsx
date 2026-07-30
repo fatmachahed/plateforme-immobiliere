@@ -2319,30 +2319,6 @@ function HoverCard({ pin, sharedHoverTimer, onOpen, onLeave }) {
   const [dir,     setDir]    = useState(1);
   const [sliding, setSliding]= useState(false);
 
-  const realId = pin._realId || pin.id?.toString().replace("api_","");
-  const [isFav, setIsFav] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("localizi_favs")||"[]").some(id => String(id) === String(realId)); }
-    catch { return false; }
-  });
-  const toggleFav = async (e) => {
-    e.stopPropagation();
-    const token = localStorage.getItem("token");
-    if (!token) { window.location.href = `/login?redirect=/carte`; return; }
-    const wasOn = isFav;
-    setIsFav(!wasOn);
-    try {
-      const res = await fetch(`${API_URL}/users/me/favoris/${realId}`, {
-        method: wasOn ? "DELETE" : "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (res.ok) {
-        const favs = JSON.parse(localStorage.getItem("localizi_favs")||"[]");
-        const updated = wasOn ? favs.filter(id => String(id) !== String(realId)) : [...favs, realId];
-        localStorage.setItem("localizi_favs", JSON.stringify(updated));
-      } else { setIsFav(wasOn); }
-    } catch { setIsFav(wasOn); }
-  };
-
   /* Auto-fermeture après 10 s d'inactivité */
   const autoCloseTimer = React.useRef(null);
   const resetTimer = React.useCallback(() => {
@@ -2408,15 +2384,16 @@ function HoverCard({ pin, sharedHoverTimer, onOpen, onLeave }) {
             }} onError={e=>{ e.currentTarget.style.display="none"; }}/>
           </>
         )}
-        {/* Cœur favoris */}
+        {/* Fermer */}
         <button
-          onClick={toggleFav}
+          onClick={e => { e.stopPropagation(); onLeave(); }}
+          title="Fermer"
           style={{position:"absolute",top:7,right:7,zIndex:6,width:28,height:28,borderRadius:"50%",
             background:"rgba(255,255,255,.85)",backdropFilter:"blur(4px)",
             border:"none",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",
             boxShadow:"0 1px 4px rgba(0,0,0,.15)"}}
         >
-          <Heart size={13} fill={isFav?"#ef4444":"none"} color={isFav?"#ef4444":"#374151"}/>
+          <X size={14} color="#374151"/>
         </button>
         {/* Badge catégorie */}
         {(pin.categorie === "location" || pin.categorie === "vacances") && (
