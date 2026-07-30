@@ -382,6 +382,11 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     if existing_username:
         raise HTTPException(status_code=400, detail="Ce nom d'utilisateur est déjà pris.")
 
+    # Numéro de téléphone (WhatsApp) requis à l'inscription (sauf création
+    # via Google, qui passe par un autre endpoint — /auth/google)
+    if not user.phone_number or len(re.sub(r"\D", "", user.phone_number)) < 8:
+        raise HTTPException(status_code=400, detail="Numéro de téléphone (WhatsApp) invalide ou manquant.")
+
     # Sécurité 2 : validation force du mot de passe côté serveur
     _validate_password(user.password)
 
