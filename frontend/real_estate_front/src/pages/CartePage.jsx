@@ -794,7 +794,11 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
     /* Cluster group geographique avec icone personnalisee */
     const clusterGroup = L.markerClusterGroup({
       maxClusterRadius: 60,
-      disableClusteringAtZoom: 16,
+      // Pas de disableClusteringAtZoom : on garde le clustering (avec
+      // spiderfy) actif jusqu'au zoom max. Sinon, deux biens très proches
+      // mais pas à coordonnées identiques (donc pas regroupés par
+      // bindStackedPopup) se retrouvaient superposés sans aucun moyen de les
+      // séparer, même en zoomant au maximum.
       spiderfyOnMaxZoom: true,
       showCoverageOnHover: false,
       zoomToBoundsOnClick: true,
@@ -918,7 +922,15 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
       mapRef.current = map;
       onMapRef?.(map);
       L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-        { attribution:"&copy; OpenStreetMap &copy; CARTO", maxZoom:19 }).addTo(map);
+        {
+          attribution:"&copy; OpenStreetMap &copy; CARTO",
+          // maxNativeZoom = résolution réelle des tuiles CARTO (19). maxZoom
+          // plus haut permet de zoomer 2 niveaux au-delà en réutilisant/
+          // agrandissant la dernière tuile (image un peu floue mais gratuit,
+          // même tuiles) — utile pour séparer des biens très proches les uns
+          // des autres qui se chevauchent au zoom max actuel.
+          maxNativeZoom:19, maxZoom:21,
+        }).addTo(map);
       L.control.zoom({ position:"bottomright" }).addTo(map);
       setTimeout(()=>map.invalidateSize(), 80);
       /* Clic sur le fond de la carte → ferme la HoverCard (pas en mode dessin) */
