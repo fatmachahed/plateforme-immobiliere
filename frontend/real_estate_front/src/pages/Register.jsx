@@ -28,6 +28,31 @@ const PHONE_CODES = [
   {code:"+39", flag:"🇮🇹",name:"Italie"},
 ];
 
+/* Nombre de chiffres attendu (hors indicatif) pour les numéros mobiles des
+   pays les plus courants ici. Pour un code non listé, on retombe sur une
+   fourchette générique (7 à 12 chiffres) plutôt que de bloquer à tort. */
+const PHONE_LENGTHS = {
+  "+216": 8,  // Tunisie
+  "+33":  9,  // France
+  "+1":   10, // USA/Canada
+  "+44":  10, // Royaume-Uni
+  "+32":  9,  // Belgique
+  "+41":  9,  // Suisse
+  "+212": 9,  // Maroc
+  "+213": 9,  // Algérie
+  "+974": 8,  // Qatar
+  "+90":  10, // Turquie
+  "+34":  9,  // Espagne
+};
+const isPhoneNumberValid = (code, number) => {
+  const expected = PHONE_LENGTHS[code];
+  return expected ? number.length === expected : (number.length >= 7 && number.length <= 12);
+};
+const phoneLengthHint = (code) => {
+  const expected = PHONE_LENGTHS[code];
+  return expected ? `Le numéro doit contenir ${expected} chiffres.` : "Numéro de téléphone invalide.";
+};
+
 export default function Register() {
   const [step, setStep] = useState(1);
   const [username,          setUsername]          = useState("");
@@ -110,7 +135,7 @@ export default function Register() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setEmailError("Adresse e-mail invalide — exemple : nom@domaine.com"); return; }
     setEmailError("");
     if (!phoneNumber.trim()) { setPhoneError("Numéro de téléphone (WhatsApp) requis."); return; }
-    if (phoneNumber.length < 6 || phoneNumber.length > 12) { setPhoneError("Numéro de téléphone invalide."); return; }
+    if (!isPhoneNumberValid(phoneCode, phoneNumber)) { setPhoneError(phoneLengthHint(phoneCode)); return; }
     setPhoneError("");
     if (role === "professionnel" && !sousRole) { setError("Veuillez sélectionner votre type de professionnel."); return; }
     setStep(2);
@@ -358,7 +383,7 @@ export default function Register() {
                 <div style={{display:"flex",gap:8}}>
                   <select
                     value={phoneCode}
-                    onChange={e=>setPhoneCode(e.target.value)}
+                    onChange={e=>{ setPhoneCode(e.target.value); if(phoneError) setPhoneError(""); }}
                     disabled={loading}
                     className="sp-input"
                     style={{width:92,flexShrink:0,cursor:"pointer",paddingLeft:10,paddingRight:6}}
@@ -371,7 +396,7 @@ export default function Register() {
                     placeholder="22 345 678"
                     value={phoneNumber}
                     onChange={e=>{ setPhoneNumber(e.target.value.replace(/\D/g,"")); if(phoneError) setPhoneError(""); }}
-                    onBlur={e=>{ const v=e.target.value.trim(); if(v && (v.length<6||v.length>12)) setPhoneError("Numéro de téléphone invalide."); }}
+                    onBlur={e=>{ const v=e.target.value.trim(); if(v && !isPhoneNumberValid(phoneCode,v)) setPhoneError(phoneLengthHint(phoneCode)); }}
                     disabled={loading}
                     autoComplete="tel"
                     inputMode="numeric"
@@ -379,7 +404,7 @@ export default function Register() {
                       flex:1, minWidth:0,
                       ...(phoneError
                         ? {borderColor:"#ef4444",boxShadow:"0 0 0 3px rgba(239,68,68,.15)"}
-                        : phoneNumber.length>=6 ? {borderColor:"#10b981",boxShadow:"0 0 0 3px rgba(16,185,129,.15)"} : {}),
+                        : isPhoneNumberValid(phoneCode,phoneNumber) ? {borderColor:"#10b981",boxShadow:"0 0 0 3px rgba(16,185,129,.15)"} : {}),
                     }}
                   />
                 </div>
@@ -388,7 +413,7 @@ export default function Register() {
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                     {phoneError}
                   </div>
-                ) : phoneNumber.length>=6 && (
+                ) : isPhoneNumberValid(phoneCode,phoneNumber) && (
                   <div style={{display:"flex",alignItems:"center",gap:6,marginTop:6,fontSize:12.5,color:"#10b981",fontWeight:600}}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                     Numéro valide

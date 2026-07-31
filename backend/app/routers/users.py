@@ -383,8 +383,21 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Ce nom d'utilisateur est déjà pris.")
 
     # Numéro de téléphone (WhatsApp) requis à l'inscription (sauf création
-    # via Google, qui passe par un autre endpoint — /auth/google)
-    if not user.phone_number or len(re.sub(r"\D", "", user.phone_number)) < 8:
+    # via Google, qui passe par un autre endpoint — /auth/google). Nombre de
+    # chiffres attendu par indicatif, cohérent avec PHONE_LENGTHS côté front
+    # (Register.jsx) — évite qu'un appel API direct contourne cette règle.
+    _PHONE_LENGTHS = {
+        "+216": 8, "+33": 9, "+1": 10, "+44": 10, "+32": 9, "+41": 9,
+        "+212": 9, "+213": 9, "+974": 8, "+90": 10, "+34": 9,
+    }
+    phone_raw = (user.phone_number or "").strip()
+    phone_code_match = re.match(r"^(\+\d{1,4})\s*(.*)$", phone_raw)
+    if not phone_code_match:
+        raise HTTPException(status_code=400, detail="Numéro de téléphone (WhatsApp) invalide ou manquant.")
+    phone_code, phone_local = phone_code_match.group(1), re.sub(r"\D", "", phone_code_match.group(2))
+    expected_len = _PHONE_LENGTHS.get(phone_code)
+    phone_ok = len(phone_local) == expected_len if expected_len else (7 <= len(phone_local) <= 12)
+    if not phone_ok:
         raise HTTPException(status_code=400, detail="Numéro de téléphone (WhatsApp) invalide ou manquant.")
 
     # Sécurité 2 : validation force du mot de passe côté serveur
