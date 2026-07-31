@@ -8,10 +8,31 @@ import Navbar from "../components/Navbar";
 import { useGoogleLogin } from "@react-oauth/google";
 import heroImg from "../assets/hero-localizi.png";
 
+/* Indicatifs téléphoniques — identique à la liste utilisée dans le profil (Compte.jsx) */
+const PHONE_CODES = [
+  {code:"+216",flag:"🇹🇳",name:"Tunisie"},
+  {code:"+33", flag:"🇫🇷",name:"France"},
+  {code:"+1",  flag:"🇺🇸",name:"USA/Canada"},
+  {code:"+44", flag:"🇬🇧",name:"Royaume-Uni"},
+  {code:"+49", flag:"🇩🇪",name:"Allemagne"},
+  {code:"+32", flag:"🇧🇪",name:"Belgique"},
+  {code:"+41", flag:"🇨🇭",name:"Suisse"},
+  {code:"+212",flag:"🇲🇦",name:"Maroc"},
+  {code:"+213",flag:"🇩🇿",name:"Algérie"},
+  {code:"+218",flag:"🇱🇾",name:"Libye"},
+  {code:"+966",flag:"🇸🇦",name:"Arabie Saoudite"},
+  {code:"+971",flag:"🇦🇪",name:"Émirats Arabes Unis"},
+  {code:"+974",flag:"🇶🇦",name:"Qatar"},
+  {code:"+90", flag:"🇹🇷",name:"Turquie"},
+  {code:"+34", flag:"🇪🇸",name:"Espagne"},
+  {code:"+39", flag:"🇮🇹",name:"Italie"},
+];
+
 export default function Register() {
   const [step, setStep] = useState(1);
   const [username,          setUsername]          = useState("");
   const [email,             setEmail]             = useState("");
+  const [phoneCode,         setPhoneCode]         = useState("+216");
   const [phoneNumber,       setPhoneNumber]       = useState("");
   const [password,          setPassword]          = useState("");
   const [confirmPassword,   setConfirmPassword]   = useState("");
@@ -89,7 +110,7 @@ export default function Register() {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) { setEmailError("Adresse e-mail invalide — exemple : nom@domaine.com"); return; }
     setEmailError("");
     if (!phoneNumber.trim()) { setPhoneError("Numéro de téléphone (WhatsApp) requis."); return; }
-    if (phoneNumber.replace(/\D/g,"").length < 8) { setPhoneError("Numéro de téléphone invalide."); return; }
+    if (phoneNumber.length < 6 || phoneNumber.length > 12) { setPhoneError("Numéro de téléphone invalide."); return; }
     setPhoneError("");
     if (role === "professionnel" && !sousRole) { setError("Veuillez sélectionner votre type de professionnel."); return; }
     setStep(2);
@@ -105,7 +126,7 @@ export default function Register() {
         method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({
           username, email, password,
-          phone_number: phoneNumber.trim(),
+          phone_number: `${phoneCode} ${phoneNumber.trim()}`,
           role: role==="professionnel" ? sousRole : role,
           secteur_partenaire: sousRole==="partenaire" ? secteurPartenaire : null,
           metier_artisan: (sousRole==="partenaire" && secteurPartenaire==="artisans") ? metierArtisan || null : null,
@@ -334,21 +355,43 @@ export default function Register() {
 
               <div className="sp-field">
                 <label className="sp-label">Numéro de téléphone (WhatsApp)</label>
-                <input
-                  type="tel"
-                  className="sp-input"
-                  placeholder="22 345 678"
-                  value={phoneNumber}
-                  onChange={e=>{ setPhoneNumber(e.target.value); if(phoneError) setPhoneError(""); }}
-                  onBlur={e=>{ const v=e.target.value.trim(); if(v && v.replace(/\D/g,"").length<8) setPhoneError("Numéro de téléphone invalide."); }}
-                  disabled={loading}
-                  autoComplete="tel"
-                  style={phoneError ? {borderColor:"#ef4444",boxShadow:"0 0 0 3px rgba(239,68,68,.15)"} : {}}
-                />
-                {phoneError && (
+                <div style={{display:"flex",gap:8}}>
+                  <select
+                    value={phoneCode}
+                    onChange={e=>setPhoneCode(e.target.value)}
+                    disabled={loading}
+                    className="sp-input"
+                    style={{width:92,flexShrink:0,cursor:"pointer",paddingLeft:10,paddingRight:6}}
+                  >
+                    {PHONE_CODES.map(({code,flag})=><option key={code} value={code}>{flag} {code}</option>)}
+                  </select>
+                  <input
+                    type="tel"
+                    className="sp-input"
+                    placeholder="22 345 678"
+                    value={phoneNumber}
+                    onChange={e=>{ setPhoneNumber(e.target.value.replace(/\D/g,"")); if(phoneError) setPhoneError(""); }}
+                    onBlur={e=>{ const v=e.target.value.trim(); if(v && (v.length<6||v.length>12)) setPhoneError("Numéro de téléphone invalide."); }}
+                    disabled={loading}
+                    autoComplete="tel"
+                    inputMode="numeric"
+                    style={{
+                      flex:1, minWidth:0,
+                      ...(phoneError
+                        ? {borderColor:"#ef4444",boxShadow:"0 0 0 3px rgba(239,68,68,.15)"}
+                        : phoneNumber.length>=6 ? {borderColor:"#10b981",boxShadow:"0 0 0 3px rgba(16,185,129,.15)"} : {}),
+                    }}
+                  />
+                </div>
+                {phoneError ? (
                   <div style={{display:"flex",alignItems:"center",gap:6,marginTop:6,fontSize:12.5,color:"#ef4444",fontWeight:500}}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                     {phoneError}
+                  </div>
+                ) : phoneNumber.length>=6 && (
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginTop:6,fontSize:12.5,color:"#10b981",fontWeight:600}}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    Numéro valide
                   </div>
                 )}
               </div>
