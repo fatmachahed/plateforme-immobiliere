@@ -211,6 +211,22 @@ with engine.connect() as conn:
               SELECT lower(email) FROM users GROUP BY lower(email) HAVING count(*) > 1
           );
         """,
+        # Nouvelle localité "JARDINS DE CARTHAGE" (gouvernorat TUNIS, délégation
+        # EL KRAM) — absente du référentiel initial, demandée pour apparaître
+        # partout où les localités sont listées/recherchées (carte, création
+        # d'annonce étape 2...), puisque ces pages lisent toutes cette même
+        # table en base sans liste en dur côté frontend.
+        """
+        INSERT INTO localites (nom, delegation_id)
+        SELECT 'JARDINS DE CARTHAGE', d.id
+        FROM delegations d
+        JOIN gouvernorats g ON g.id = d.gouvernorat_id
+        WHERE g.nom = 'TUNIS' AND d.nom = 'EL KRAM'
+          AND NOT EXISTS (
+              SELECT 1 FROM localites l
+              WHERE l.delegation_id = d.id AND l.nom = 'JARDINS DE CARTHAGE'
+          );
+        """,
     ]
     for sql in migrations:
         try:
