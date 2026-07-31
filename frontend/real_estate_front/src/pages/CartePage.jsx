@@ -1527,6 +1527,40 @@ function FilterPanel({ filters, onChange, onSaveSearch, showSchools, showMosques
   const layersBtnRef = useRef(null);
   const { poi_enabled: poiEnabled } = useFeatureFlags();
 
+  /* -- Recherche rapide gouvernorat/délégation/localité (même moteur que
+     l'étape 2 de création d'annonce) -- */
+  const [zoneSearchOpen,    setZoneSearchOpen]    = useState(false);
+  const [zoneSearchQuery,   setZoneSearchQuery]   = useState("");
+  const [zoneSearchResults, setZoneSearchResults] = useState([]);
+  const [zoneSearchLoading, setZoneSearchLoading] = useState(false);
+  useEffect(() => {
+    if (!zoneSearchOpen || zoneSearchQuery.trim().length < 2) { setZoneSearchResults([]); return; }
+    const t = setTimeout(() => {
+      setZoneSearchLoading(true);
+      fetch(`${API_URL}/localisation/search-suggestions?q=${encodeURIComponent(zoneSearchQuery.trim())}&limit=10`)
+        .then(r => r.ok ? r.json() : [])
+        .then(d => setZoneSearchResults(Array.isArray(d) ? d : []))
+        .catch(() => setZoneSearchResults([]))
+        .finally(() => setZoneSearchLoading(false));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [zoneSearchQuery, zoneSearchOpen]);
+
+  function applyZoneSuggestion(s) {
+    const updated = {
+      ...local, query: "",
+      govId: s.gouvernorat_id != null ? String(s.gouvernorat_id) : "",
+      govNom: s.gouvernorat || "",
+      delId: s.delegation_id != null ? String(s.delegation_id) : "",
+      delNom: s.delegation || "",
+      locId: s.localite_id != null ? String(s.localite_id) : "",
+      locNom: s.localite || "",
+    };
+    setLocal(updated);
+    onChange(updated);
+    setZoneSearchOpen(false); setZoneSearchQuery(""); setZoneSearchResults([]);
+  }
+
   /* Couches de données POI à afficher sur la carte (menu multi-choix "Couche data") */
   const LAYER_ITEMS = [
     { key:"schools",       label:"Écoles",          svg:SCHOOL_SVG,   on:showSchools,       toggle:onToggleSchools,       count:liveSchoolCount },
@@ -1539,6 +1573,21 @@ function FilterPanel({ filters, onChange, onSaveSearch, showSchools, showMosques
 
   /* Resync si les filtres changent depuis l'ext�rieur (ex : navigation via la navbar) */
   useEffect(() => { setLocal(filters); }, [filters]);
+
+  /* Met en gras/couleur primaire la portion du texte qui correspond à la recherche */
+  const highlightZoneMatch = (text, query) => {
+    if (!text) return "";
+    if (!query) return text;
+    const idx = text.toLowerCase().indexOf(query.toLowerCase());
+    if (idx === -1) return text;
+    return (
+      <>
+        {text.slice(0, idx)}
+        <strong style={{ color:"#6366f1", fontWeight:800 }}>{text.slice(idx, idx + query.length)}</strong>
+        {text.slice(idx + query.length)}
+      </>
+    );
+  };
 
   const set          = (k, v) => setLocal(f => ({ ...f, [k]:v }));
   const apply        = ()     => onChange(local);
@@ -1712,6 +1761,63 @@ function FilterPanel({ filters, onChange, onSaveSearch, showSchools, showMosques
           </button>
         </div>
         )}
+
+        {/* Recherche rapide gouvernorat/délégation/localité — même moteur que
+            l'étape 2 de création d'annonce. Desktop uniquement (toute la ligne
+            fp__loc-row est masquée sur mobile). */}
+        <div className="fp__zone-search" style={{position:"relative",marginLeft:"auto",flexShrink:0}}>
+          <button type="button"
+            onClick={()=>setZoneSearchOpen(v=>!v)}
+            title="Rechercher un gouvernorat, une délégation ou une localité"
+            style={{
+              background: zoneSearchOpen ? "#eef2ff" : "#f8fafc",
+              border:"1.5px solid #e5e7eb", borderRadius:10, width:34, height:34,
+              display:"flex", alignItems:"center", justifyContent:"center",
+              cursor:"pointer", color: zoneSearchOpen ? "#6366f1" : "#64748b",
+            }}>
+            <Search size={15}/>
+          </button>
+          {zoneSearchOpen && (
+            <div style={{position:"absolute", top:"calc(100% + 6px)", right:0, zIndex:1000, width:300, maxWidth:"90vw"}}>
+              <input
+                type="text" autoFocus
+                value={zoneSearchQuery}
+                onChange={e => setZoneSearchQuery(e.target.value)}
+                placeholder="Rechercher une localité, une délégation…"
+                style={{width:"100%", boxSizing:"border-box", padding:"9px 12px", borderRadius:10, border:"1.5px solid #6366f1", outline:"none", fontSize:13.5, fontFamily:"'Poppins',sans-serif"}}
+              />
+              {zoneSearchQuery.trim().length >= 2 && (
+                <div style={{
+                  marginTop:4, background:"#fff", border:"1px solid #e2e8f0", borderRadius:10,
+                  boxShadow:"0 10px 30px rgba(0,0,0,.15)", maxHeight:260, overflowY:"auto",
+                }}>
+                  {zoneSearchLoading ? (
+                    <div style={{padding:"12px 14px", fontSize:13, color:"#94a3b8"}}>Recherche…</div>
+                  ) : zoneSearchResults.length === 0 ? (
+                    <div style={{padding:"12px 14px", fontSize:13, color:"#94a3b8"}}>Aucun résultat.</div>
+                  ) : zoneSearchResults.map((s, i) => (
+                    <button key={i} type="button" onClick={() => applyZoneSuggestion(s)}
+                      style={{
+                        display:"block", width:"100%", textAlign:"left",
+                        padding:"9px 14px", background:"none", border:"none",
+                        borderBottom: i < zoneSearchResults.length-1 ? "1px solid #f1f5f9" : "none",
+                        cursor:"pointer", fontSize:13, color:"#374151", fontFamily:"inherit",
+                      }}
+                      onMouseEnter={e=>e.currentTarget.style.background="#f8faff"}
+                      onMouseLeave={e=>e.currentTarget.style.background="none"}>
+                      {[s.localite, s.delegation, s.gouvernorat].filter(Boolean).map((part, pi, arr) => (
+                        <React.Fragment key={pi}>
+                          {highlightZoneMatch(part, zoneSearchQuery.trim())}
+                          {pi < arr.length - 1 ? ", " : ""}
+                        </React.Fragment>
+                      ))}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* -- Filtres avancés -- */}
@@ -3008,14 +3114,16 @@ export default function CartePage() {
   allPropertiesRef.current = allProperties; // toujours à jour pour applyFilters
 
   /* -- Cible de zoom carte selon la hiérarchie sélectionnée --
-     Plus on précise (gov ? del ? loc), plus le zoom est �lev�. */
+     Gouvernorat et délégation déclenchent un zoom ; la localité seule ne
+     doit PAS en déclencher un (la carte doit rester exactement telle
+     quelle) — d'où l'absence volontaire de locNom ici. */
   const centerTarget = React.useMemo(() => {
-    const { locNom, delNom, govNom } = filters;
-    if (!govNom && !delNom && !locNom) return null;
-    const parts = [locNom, delNom, govNom].filter(Boolean);
-    const zoom  = locNom ? 14 : delNom ? 12 : 10;
+    const { delNom, govNom } = filters;
+    if (!govNom && !delNom) return null;
+    const parts = [delNom, govNom].filter(Boolean);
+    const zoom  = delNom ? 12 : 10;
     return { query: parts.join(", ") + ", Tunisie", zoom };
-  }, [filters.govNom, filters.delNom, filters.locNom]);
+  }, [filters.govNom, filters.delNom]);
 
   /* Stats marché : prix moyen/m² par gouvernorat, SEGMENTÉ par catégorie
      (vente / location / vacances — un loyer ne se compare pas à un prix de
