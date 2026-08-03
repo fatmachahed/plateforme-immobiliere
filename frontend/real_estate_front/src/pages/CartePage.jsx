@@ -551,8 +551,8 @@ function PropCard({ p, active, onHover, onClick, govMarketStats, compact }) {
           {p.pieces != null && <span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg> {p.pieces} p.</span>}
           {p.beds   != null && <span><Bed      size={11}/> {p.beds} ch.</span>}
           {p.baths  != null && <span><Bath     size={11}/> {p.baths} sdb</span>}
-          {p.area           && <span><Maximize size={11}/> {p.area} m²</span>}
-          {p.surface_jardin > 0 && <span><TreePine size={11}/> {p.surface_jardin} m²</span>}
+          {p.area           && <span><Maximize size={11}/> {Math.round(p.area)} m²</span>}
+          {p.surface_jardin > 0 && <span><TreePine size={11}/> {Math.round(p.surface_jardin)} m²</span>}
           {p.garage         && <span><Car      size={11}/> Garage</span>}
           {p.categorie === "vacances" && <span><Users size={11}/> {p.capacite_accueil ? `${p.capacite_accueil} pers.` : "—"}</span>}
           {p.categorie === "vacances" && p.duree_valeur && p.duree_type && <span><Moon size={11}/> {p.duree_valeur} {p.duree_type === "nuit" ? "nuit(s) min" : p.duree_type === "semaine" ? "sem. min" : p.duree_type === "mois" ? "mois min" : "an min"}</span>}
@@ -846,7 +846,7 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
             <div style="font-size:14px;font-weight:800;color:#0f172a;margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${pin.titre || "Bien immobilier"}</div>
             <div style="font-size:19px;font-weight:900;color:#0f172a;margin-bottom:8px;">${(pin.prix||0).toLocaleString("fr-TN")} <span style="font-size:12px;font-weight:600;color:#64748b;">${dev}</span></div>
             <div style="display:flex;gap:12px;font-size:12px;color:#475569;margin-bottom:6px;flex-wrap:wrap;">
-              ${pin.area ? `<span style="display:inline-flex;align-items:center;gap:4px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>${pin.area} m&sup2;</span>` : ""}
+              ${pin.area ? `<span style="display:inline-flex;align-items:center;gap:4px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>${Math.round(pin.area)} m&sup2;</span>` : ""}
               ${pin.beds != null ? `<span style="display:inline-flex;align-items:center;gap:4px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>${pin.beds} ch.</span>` : ""}
               ${pin.baths != null ? `<span style="display:inline-flex;align-items:center;gap:4px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6 6.5 3.5a1.5 1.5 0 0 0-1-.5C4.7 3 4 3.7 4 4.5V17a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><line x1="10" y1="5" x2="8" y2="7"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="7" y1="19" x2="7" y2="21"/><line x1="17" y1="19" x2="17" y2="21"/></svg>${pin.baths} sdb</span>` : ""}
             </div>
@@ -2535,7 +2535,7 @@ function HoverCard({ pin, sharedHoverTimer, onOpen, onLeave }) {
           <span style={{fontSize:12,fontWeight:400,color:"#94a3b8",marginLeft:4}}>{fmtDevise(pin.devise)}</span>
         </p>
         <div style={{display:"flex",gap:10,fontSize:11.5,color:"#64748b",flexWrap:"wrap",marginBottom:2}}>
-          {pin.area  && <span style={{display:"flex",alignItems:"center",gap:3}}><Maximize size={10}/> {pin.area} m²</span>}
+          {pin.area  && <span style={{display:"flex",alignItems:"center",gap:3}}><Maximize size={10}/> {Math.round(pin.area)} m²</span>}
           {pin.beds  != null && <span style={{display:"flex",alignItems:"center",gap:3}}><Bed size={10}/> {pin.beds} ch.</span>}
           {pin.baths != null && <span style={{display:"flex",alignItems:"center",gap:3}}><Bath size={10}/> {pin.baths} sdb</span>}
         </div>

@@ -190,8 +190,8 @@ function PropCard({ a, govMarketStats, onOpen }) {
         <div className="pc__specs">
           {a.nb_pieces   != null && <span><Building2 size={11}/> {a.nb_pieces} p.</span>}
           {a.nb_chambres != null && <span><Bed        size={11}/> {a.nb_chambres} ch.</span>}
-          {a.superficie  != null && <span><Maximize   size={11}/> {a.superficie} m²</span>}
-          {a.surface_jardin > 0 && <span><TreePine size={11}/> {a.surface_jardin} m²</span>}
+          {a.superficie  != null && <span><Maximize   size={11}/> {Math.round(a.superficie)} m²</span>}
+          {a.surface_jardin > 0 && <span><TreePine size={11}/> {Math.round(a.surface_jardin)} m²</span>}
         </div>
         <button onClick={toggleCompare} style={{
           marginTop:8, width:"100%", padding:"5px 0", borderRadius:7,
