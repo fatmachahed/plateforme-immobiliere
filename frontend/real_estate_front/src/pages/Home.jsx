@@ -156,6 +156,7 @@ const STATS = [
 
 const TYPES = [
   { label: "Appartement",         icon: <Building2 size={32}/>, href: "/carte?type=appartement",      color: "#6366f1" },
+  { label: "Duplex",              icon: <Building2 size={32}/>, href: "/carte?type=duplex",            color: "#6366f1" },
   { label: "Villa / Maison",      icon: <Home size={32}/>,      href: "/carte?type=villa",             color: "#00B47D" },
   { label: "Terrain",             icon: <Trees size={32}/>,     href: "/carte?type=terrain",           color: "#F5A623" },
   { label: "Bureau",              icon: <Building2 size={32}/>, href: "/carte?type=bureau",            color: "#FF6B35" },

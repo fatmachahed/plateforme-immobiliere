@@ -7,7 +7,7 @@ import { Eye, Phone, MessageCircle, Mail, TrendingUp, Home, ChevronLeft, MapPin 
 import API_URL from "../config";
 
 const TYPE_FR = {
-  appartement:"Appartement", villa:"Villa", maison:"Maison", villa_maison:"Villa/Maison",
+  appartement:"Appartement", duplex:"Duplex", villa:"Villa", maison:"Maison", villa_maison:"Villa/Maison",
   terrain:"Terrain", bureau:"Bureau", local_commercial:"Local commercial",
   ferme:"Ferme agricole", ferme_agricole:"Ferme agricole", immeuble:"Immeuble",
   garage_parking:"Garage / Parking", depot_stockage:"Dépôt de stockage",

@@ -202,7 +202,7 @@ export default function AlerteFiltersModal({ form, setForm, onClose, onSave, sav
               <label style={lbl}>Type de bien</label>
               <select value={form.type||""} onChange={e=>set("type",e.target.value)} style={selH}>
                 <option value="">Tous les types</option>
-                {[["appartement","Appartement"],["villa","Villa/Maison"],["terrain","Terrain"],
+                {[["appartement","Appartement"],["duplex","Duplex"],["villa","Villa/Maison"],["terrain","Terrain"],
                   ["local_commercial","Local commercial"],["bureau","Bureau"],["ferme_agricole","Ferme agricole"],
                   ["immeuble","Immeuble"],["garage_parking","Garage/Parking"],
                   ["depot_stockage","Dépôt de stockage"],
@@ -214,13 +214,13 @@ export default function AlerteFiltersModal({ form, setForm, onClose, onSave, sav
             </div>
 
             {/* Appartement: type logement + étage */}
-            {form.type === "appartement" && (
+            {["appartement","duplex"].includes(form.type) && (
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
                 <div>
                   <label style={lbl}>Type de logement</label>
                   <select value={form.type_appartement||""} onChange={e=>set("type_appartement",e.target.value)} style={selH}>
                     <option value="">Tous</option>
-                    {[["studio","Studio"],["s0","S0"],["s+1","S+1"],["s+2","S+2"],["s+3","S+3"],["s+4","S+4"],["duplex","Duplex"],["penthouse","Penthouse"]].map(([v,l])=>(
+                    {[["studio","Studio"],["s0","S0"],["s+1","S+1"],["s+2","S+2"],["s+3","S+3"],["s+4","S+4"],["penthouse","Penthouse"]].map(([v,l])=>(
                       <option key={v} value={v}>{l}</option>
                     ))}
                   </select>

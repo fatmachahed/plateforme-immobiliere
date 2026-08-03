@@ -19,6 +19,7 @@ const toggleAdvanced = () => setIsAdvancedOpen(!isAdvancedOpen);
   const propertyTypes = [
     { value: "", label: "Tous", icon: "🏠" },
     { value: "appartement", label: "Appartement", icon: "🏢" },
+    { value: "duplex", label: "Duplex", icon: "🏢" },
     { value: "villa", label: "Villa", icon: "🏡" },
     { value: "terrain", label: "Terrain", icon: "🌱" },
     { value: "commercial", label: "Commercial", icon: "🏪" },

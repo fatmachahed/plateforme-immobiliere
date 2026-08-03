@@ -262,9 +262,10 @@ const GRAND_SURFACES = [
   { id:"gs27",nom:"MG Manouba",                        lat:36.812, lng:10.100, gov:"Manouba"    },
 ];
 
-const TYPES    = ["appartement","villa_maison","immeuble","terrain","local_commercial","bureau","ferme_agricole","garage_parking","depot_stockage","batiment_industriel","immobiliers_divers"];
+const TYPES    = ["appartement","duplex","villa_maison","immeuble","terrain","local_commercial","bureau","ferme_agricole","garage_parking","depot_stockage","batiment_industriel","immobiliers_divers"];
 const TYPE_LBL = {
   appartement:       "Appartement",
+  duplex:            "Duplex",
   villa_maison:      "Villa/Maison",
   immeuble:          "Immeuble",
   terrain:           "Terrain",
@@ -1881,7 +1882,7 @@ function FilterPanel({ filters, onChange, onSaveSearch, showSchools, showMosques
             }}>
               <option value="">Tous</option>
               {(local.categories?.length === 1 && local.categories[0] === "vacances"
-                ? ["appartement","villa_maison","immobiliers_divers"]
+                ? ["appartement","duplex","villa_maison","immobiliers_divers"]
                 : TYPES
               ).map(t=><option key={t} value={t}>{TYPE_LBL[t] || ucFirst(t)}</option>)}
             </select>
@@ -1956,7 +1957,7 @@ function FilterPanel({ filters, onChange, onSaveSearch, showSchools, showMosques
             </div>
           )}
           {/* ── APPARTEMENT ── */}
-          {local.type === "appartement" && (<>
+          {["appartement","duplex"].includes(local.type) && (<>
             <div className="fp__adv-group">
               <label className="fp__adv-label">Type de logement</label>
               <select className="fp__adv-sel" value={local.type_appartement||""} onChange={e=>set("type_appartement",e.target.value)}>
@@ -1967,7 +1968,6 @@ function FilterPanel({ filters, onChange, onSaveSearch, showSchools, showMosques
                 <option value="s+2">S+2</option>
                 <option value="s+3">S+3</option>
                 <option value="s+4">S+4</option>
-                <option value="duplex">Duplex</option>
                 <option value="penthouse">Penthouse</option>
               </select>
             </div>
@@ -2136,7 +2136,7 @@ function FilterPanel({ filters, onChange, onSaveSearch, showSchools, showMosques
           </div>
 
           {/* Niveau de standing � pour types résidentiels/commerciaux */}
-          {["appartement","villa","villa_maison","immeuble","local_commercial","bureau"].includes(local.type) && (
+          {["appartement","duplex","villa","villa_maison","immeuble","local_commercial","bureau"].includes(local.type) && (
             <div className="fp__adv-group">
               <label className="fp__adv-label">Standing</label>
               <select className="fp__adv-sel" value={local.standing||""} onChange={e=>set("standing",e.target.value)}>
@@ -2149,7 +2149,7 @@ function FilterPanel({ filters, onChange, onSaveSearch, showSchools, showMosques
           )}
 
           {/* Colocation */}
-          {(local.type === "" || local.type === "appartement" || local.type === "villa" || local.type === "villa_maison") && (
+          {(local.type === "" || local.type === "appartement" || local.type === "duplex" || local.type === "villa" || local.type === "villa_maison") && (
             <div className="fp__adv-group fp__adv-group--full" style={{alignSelf:"flex-end",flex:"none"}}>
               <label className="fp__adv-label">Colocation</label>
               <label style={{

@@ -133,7 +133,7 @@ function val(a, key) {
   const ci   = a.caracteristique_interieure || {};
   const cu   = a.cuisine_equipee_obj || a.cuisine_equipee || {};
   const feat = (k) => !!(a[k] || cg[k] || ci[k]);
-  const TYPE_FR = { appartement:"Appartement", villa:"Villa/Maison", terrain:"Terrain", bureau:"Bureau", local_commercial:"Local commercial", ferme:"Ferme agricole", ferme_agricole:"Ferme agricole", immeuble:"Immeuble", garage_parking:"Garage/Parking", depot_stockage:"Dépôt de stockage", batiment_industriel:"Bâtiment industriel", immobiliers_divers:"Immobiliers divers" };
+  const TYPE_FR = { appartement:"Appartement", duplex:"Duplex", villa:"Villa/Maison", terrain:"Terrain", bureau:"Bureau", local_commercial:"Local commercial", ferme:"Ferme agricole", ferme_agricole:"Ferme agricole", immeuble:"Immeuble", garage_parking:"Garage/Parking", depot_stockage:"Dépôt de stockage", batiment_industriel:"Bâtiment industriel", immobiliers_divers:"Immobiliers divers" };
   const ETAT_FR = { nouveau:"Neuf", bon_etat:"Bon état", a_renover:"À rénover", cours_construction:"En construction" };
   const CAT_FR  = { vente:"Vente", location:"Location", vacances:"Vacances" };
   const ORIENT_FR = { nord:"Nord", nord_est:"Nord-Est", est:"Est", sud_est:"Sud-Est", sud:"Sud", sud_ouest:"Sud-Ouest", ouest:"Ouest", nord_ouest:"Nord-Ouest" };

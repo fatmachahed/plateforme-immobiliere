@@ -53,7 +53,7 @@ const DEMO = [
   { id:6, titre:"Duplex — Ennasr", prix:290000, devise:"TND", location:"Ennasr, Ariana", beds:3, baths:2, area:165, type:"Appartement", categorie:"Vente", etat:"Bon état", annee:2016, description:"Beau duplex S+3 de 165 m² avec terrasse 40 m².", features:["Terrasse 40m²","Ascenseur","Cuisine équipée"], lat:36.860, lng:10.195, images:["https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=900&q=80"], contact:{nom:"Nadia Hajri",tel:"+216 29 111 222",email:"nadia@immo.tn"} },
 ];
 
-const TYPE_FR  = { appartement:"Appartement", villa:"Villa", maison:"Maison", terrain:"Terrain", bureau:"Bureau", local_commercial:"Local commercial", ferme:"Ferme agricole", ferme_agricole:"Ferme agricole", garage_parking:"Garage / Parking", depot_stockage:"Dépôt de stockage", batiment_industriel:"Bâtiment industriel", immobiliers_divers:"Immobiliers divers" };
+const TYPE_FR  = { appartement:"Appartement", duplex:"Duplex", villa:"Villa", maison:"Maison", terrain:"Terrain", bureau:"Bureau", local_commercial:"Local commercial", ferme:"Ferme agricole", ferme_agricole:"Ferme agricole", garage_parking:"Garage / Parking", depot_stockage:"Dépôt de stockage", batiment_industriel:"Bâtiment industriel", immobiliers_divers:"Immobiliers divers" };
 const CAT_FR   = { vente:"Achat", location:"Location", vacances:"Vacances" };
 const ETAT_FR  = { nouveau:"Neuf", bon_etat:"Bon état", a_renover:"À rénover", cours_construction:"En construction" };
 
@@ -1308,7 +1308,7 @@ export default function AnnonceDetail() {
       {/* -- Breadcrumb navigation -- */}
       {(() => {
         const TYPE_PLURAL = {
-          appartement:"Appartements", villa:"Villas", villa_maison:"Villas / Maisons",
+          appartement:"Appartements", duplex:"Duplex", villa:"Villas", villa_maison:"Villas / Maisons",
           bureau:"Bureaux", local_commercial:"Locaux commerciaux", terrain:"Terrains",
           ferme_agricole:"Fermes agricoles", ferme:"Fermes agricoles",
           immeuble:"Immeubles", garage_parking:"Garages / Parkings",

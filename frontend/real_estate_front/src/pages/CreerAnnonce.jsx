@@ -1372,7 +1372,7 @@ export const CreateListingForm = ({ editId = null }) => {
         if (!formData.nb_salles_bain || formData.nb_salles_bain < 1) errors.nb_salles_bain = true;
       }
       /* Colocation : au moins 1 place disponible */
-      if (["location","vacances"].includes(formData.categorie) && ["appartement","villa"].includes(formData.type_bien) && formData.colocation) {
+      if (["location","vacances"].includes(formData.categorie) && ["appartement","duplex","villa"].includes(formData.type_bien) && formData.colocation) {
         const rows = formData.chambres_coloc || [];
         const totalDispo = rows.reduce((s,c) => s + Math.max(0,(c.capacite||1)-(c.places_occupees||0)), 0);
         if (totalDispo < 1) {
@@ -1548,7 +1548,7 @@ export const CreateListingForm = ({ editId = null }) => {
         prix:           parseFloat(formData.prix)       || 0,
         devise:         formData.devise || "TND",
         status:         "en_attente",
-        type_appartement:  formData.type_bien === "appartement" ? (formData.type_appartement || null) : null,
+        type_appartement:  ["appartement","duplex"].includes(formData.type_bien) ? (formData.type_appartement || null) : null,
         type_villa:        formData.type_bien === "villa"       ? (formData.type_villa       || null) : null,
         type_terrain:      formData.type_bien === "terrain"     ? (formData.type_terrain     || null) : null,
         titre_foncier:     formData.type_bien === "terrain"     ? (formData.titre_foncier     || null) : null,
@@ -1573,13 +1573,13 @@ export const CreateListingForm = ({ editId = null }) => {
         nb_appartements:           formData.type_bien === "immeuble"       ? (formData.nb_appartements   ? Number(formData.nb_appartements) : null) : null,
         orientation_immeuble:      formData.type_bien === "immeuble"       ? (formData.orientation_immeuble || null) : null,
         emplacement_garage:        formData.type_bien === "garage_parking"  ? (formData.emplacement_garage|| null) : null,
-        standing:                  ["appartement","villa","villa_maison","immeuble","local_commercial","bureau"].includes(formData.type_bien) ? (formData.standing || null) : null,
-        colocation:      ["location","vacances"].includes(formData.categorie) && ["appartement","villa"].includes(formData.type_bien) ? (formData.colocation || false) : false,
-        places_totales:  ["location","vacances"].includes(formData.categorie) && ["appartement","villa"].includes(formData.type_bien) && formData.colocation ? (formData.chambres_coloc||[]).reduce((s,c)=>s+(c.capacite||1),0) : null,
-        places_occupees: ["location","vacances"].includes(formData.categorie) && ["appartement","villa"].includes(formData.type_bien) && formData.colocation ? (formData.chambres_coloc||[]).reduce((s,c)=>s+(c.places_occupees||0),0) : null,
-        profil_coloc:    ["location","vacances"].includes(formData.categorie) && ["appartement","villa"].includes(formData.type_bien) && formData.colocation ? (formData.profil_coloc || "tous") : null,
-        genre_coloc:     ["location","vacances"].includes(formData.categorie) && ["appartement","villa"].includes(formData.type_bien) && formData.colocation ? (formData.genre_coloc || []) : [],
-        chambres_coloc:  ["location","vacances"].includes(formData.categorie) && ["appartement","villa"].includes(formData.type_bien) && formData.colocation ? (formData.chambres_coloc||[]).map((c,i)=>({numero_chambre:i+1,capacite:c.capacite||1,places_occupees:c.places_occupees||0,prix_par_place:c.prix_par_place||0})) : [],
+        standing:                  ["appartement","duplex","villa","villa_maison","immeuble","local_commercial","bureau"].includes(formData.type_bien) ? (formData.standing || null) : null,
+        colocation:      ["location","vacances"].includes(formData.categorie) && ["appartement","duplex","villa"].includes(formData.type_bien) ? (formData.colocation || false) : false,
+        places_totales:  ["location","vacances"].includes(formData.categorie) && ["appartement","duplex","villa"].includes(formData.type_bien) && formData.colocation ? (formData.chambres_coloc||[]).reduce((s,c)=>s+(c.capacite||1),0) : null,
+        places_occupees: ["location","vacances"].includes(formData.categorie) && ["appartement","duplex","villa"].includes(formData.type_bien) && formData.colocation ? (formData.chambres_coloc||[]).reduce((s,c)=>s+(c.places_occupees||0),0) : null,
+        profil_coloc:    ["location","vacances"].includes(formData.categorie) && ["appartement","duplex","villa"].includes(formData.type_bien) && formData.colocation ? (formData.profil_coloc || "tous") : null,
+        genre_coloc:     ["location","vacances"].includes(formData.categorie) && ["appartement","duplex","villa"].includes(formData.type_bien) && formData.colocation ? (formData.genre_coloc || []) : [],
+        chambres_coloc:  ["location","vacances"].includes(formData.categorie) && ["appartement","duplex","villa"].includes(formData.type_bien) && formData.colocation ? (formData.chambres_coloc||[]).map((c,i)=>({numero_chambre:i+1,capacite:c.capacite||1,places_occupees:c.places_occupees||0,prix_par_place:c.prix_par_place||0})) : [],
         fonds_de_commerce:         formData.type_bien === "local_commercial" ? (formData.fonds_de_commerce || null) : null,
         pas_de_porte:              formData.type_bien === "local_commercial" ? (formData.pas_de_porte || null) : null,
         /* -- Caractéristiques générales -- */
@@ -1813,7 +1813,7 @@ export const CreateListingForm = ({ editId = null }) => {
       const delLabel = delegations.find(d => String(d.id) === String(hierarchy.delegation))?.nom;
 
       const typeLabels = {
-        appartement:"appartement", villa:"villa", terrain:"terrain",
+        appartement:"appartement", duplex:"duplex", villa:"villa", terrain:"terrain",
         bureau:"bureau", ferme_agricole:"ferme agricole", ferme:"ferme agricole", local_commercial:"local commercial", maison:"maison",
         depot_stockage:"dépôt de stockage", batiment_industriel:"bâtiment industriel"
       };
@@ -1825,7 +1825,7 @@ export const CreateListingForm = ({ editId = null }) => {
       // -- Paragraphe 1 : accroche --
       let desc = "";
       const locStr = delLabel ? `${delLabel}${govLabel?`, ${govLabel}`:""}` : govLabel || "";
-      const det = ["appartement","bureau"].includes(formData.type_bien) ? "cet"
+      const det = ["appartement","duplex","bureau"].includes(formData.type_bien) ? "cet"
                 : ["villa","maison","ferme","ferme_agricole"].includes(formData.type_bien) ? "cette"
                 : "ce";
       desc += `Nous vous proposons ${det} ${typeFr} ${offreFr}`;
@@ -1945,7 +1945,7 @@ export const CreateListingForm = ({ editId = null }) => {
     const govLabel = gouvernorats.find(g => g.value === hierarchy.gouvernorat)?.label;
     const delLabel = delegations.find(d => String(d.id) === String(hierarchy.delegation))?.nom;
     const typeLabels = {
-      appartement:"appartement", villa:"villa", villa_maison:"villa", terrain:"terrain",
+      appartement:"appartement", duplex:"duplex", villa:"villa", villa_maison:"villa", terrain:"terrain",
       bureau:"bureau", ferme_agricole:"ferme agricole", local_commercial:"local commercial",
       maison:"maison", depot_stockage:"dépôt de stockage", batiment_industriel:"bâtiment industriel", immeuble:"immeuble",
       garage_parking:"garage", immobiliers_divers:"bien immobilier",
@@ -2025,6 +2025,7 @@ export const CreateListingForm = ({ editId = null }) => {
 
   const TYPE_CARDS = [
     { value: "appartement",      label: "Appartement",      Ico: Building2,  color: "#3b82f6" },
+    { value: "duplex",           label: "Duplex",           Ico: Building2,  color: "#3b82f6" },
     { value: "villa",            label: "Villa/Maison",     Ico: Home,       color: "#10b981" },
     { value: "immeuble",         label: "Immeuble",         Ico: Building2,  color: "#0369a1" },
     { value: "terrain",          label: "Terrain",          Ico: Leaf,       color: "#f59e0b" },
@@ -2242,7 +2243,7 @@ export const CreateListingForm = ({ editId = null }) => {
                     <div className="ca-s1-lr__left">
 
                       {/* Appartement sub-fields */}
-                      {formData.type_bien === "appartement" && (
+                      {["appartement","duplex"].includes(formData.type_bien) && (
                         <div className="ca-row-2">
                           <div className="ca-field">
                             <label className="ca-label">Type de logement</label>
@@ -2255,7 +2256,6 @@ export const CreateListingForm = ({ editId = null }) => {
                               <option value="s+2">S+2</option>
                               <option value="s+3">S+3</option>
                               <option value="s+4">S+4</option>
-                              <option value="duplex">Duplex</option>
                               <option value="penthouse">Penthouse</option>
                             </select>
                           </div>
@@ -2512,7 +2512,7 @@ export const CreateListingForm = ({ editId = null }) => {
                       </>)}
 
                       {/* Orientation */}
-                      {(formData.type_bien==="appartement"||formData.type_bien==="villa"||formData.type_bien==="local_commercial"||formData.type_bien==="bureau") && (
+                      {(formData.type_bien==="appartement"||formData.type_bien==="duplex"||formData.type_bien==="villa"||formData.type_bien==="local_commercial"||formData.type_bien==="bureau") && (
                         <div style={{marginTop:16}}>
                           <div className="ca-section-label">Orientation <span style={{color:"#9ca3af",fontWeight:400,textTransform:"none",fontSize:"10px"}}>(optionnel)</span></div>
                           <div className="ca-toggle-group">
@@ -2531,7 +2531,7 @@ export const CreateListingForm = ({ editId = null }) => {
                       )}
 
                       {/* ── Section Colocation ── pour location et vacances appart/villa */}
-                      {["location","vacances"].includes(formData.categorie) && ["appartement","villa"].includes(formData.type_bien) && (
+                      {["location","vacances"].includes(formData.categorie) && ["appartement","duplex","villa"].includes(formData.type_bien) && (
                         <div style={{marginTop:20,padding:"18px 20px",background:"#f8fafc",borderRadius:16,border:"1.5px solid #e2e8f0"}}>
                           {/* Toggle header */}
                           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom: formData.colocation ? 16 : 0}}>
@@ -2963,7 +2963,7 @@ export const CreateListingForm = ({ editId = null }) => {
                       </>)}
 
                       {/* Niveau de standing */}
-                      {["appartement","villa","villa_maison","immeuble","local_commercial","bureau"].includes(formData.type_bien) && (
+                      {["appartement","duplex","villa","villa_maison","immeuble","local_commercial","bureau"].includes(formData.type_bien) && (
                         <div style={{marginTop:20}}>
                           <div className="ca-section-label">Niveau de standing</div>
                           <div className="ca-etat-row" style={{flexWrap:"wrap"}}>
@@ -3361,7 +3361,7 @@ export const CreateListingForm = ({ editId = null }) => {
                             onClick={() => {
                               if (!formData.type_bien) return;
                               const TYPE_FR = {
-                                appartement:"appartement", villa_maison:"villa", villa:"villa", maison:"maison",
+                                appartement:"appartement", duplex:"duplex", villa_maison:"villa", villa:"villa", maison:"maison",
                                 terrain:"terrain", bureau:"bureau", local_commercial:"local commercial",
                                 immeuble:"immeuble", ferme_agricole:"ferme agricole",
                                 garage_parking:"garage", depot_stockage:"dépôt", batiment_industriel:"bâtiment industriel", immobiliers_divers:"bien immobilier",
@@ -3962,7 +3962,7 @@ export const CreateListingForm = ({ editId = null }) => {
                 const govLabel = gouvernorats.find(g => g.value === hierarchy.gouvernorat)?.label || "";
                 const delLabel = delegations.find(d => String(d.id) === String(hierarchy.delegation))?.nom || "";
                 const locLabel = localites.find(l => String(l.id) === String(hierarchy.localite))?.nom || "";
-                const TYPE_FR = { appartement:"Appartement", villa:"Villa/Maison", terrain:"Terrain", bureau:"Bureau", local_commercial:"Local commercial", ferme:"Ferme agricole", ferme_agricole:"Ferme agricole", immeuble:"Immeuble", garage_parking:"Garage / Parking", immobiliers_divers:"Immobiliers divers" };
+                const TYPE_FR = { appartement:"Appartement", duplex:"Duplex", villa:"Villa/Maison", terrain:"Terrain", bureau:"Bureau", local_commercial:"Local commercial", ferme:"Ferme agricole", ferme_agricole:"Ferme agricole", immeuble:"Immeuble", garage_parking:"Garage / Parking", immobiliers_divers:"Immobiliers divers" };
                 const CAT_FR  = { vente:"Vente", location:"Location", vacances:"Vacances" };
                 const ETAT_FR = { nouveau:"Neuf", bon_etat:"Bon état", a_renover:"À rénover", cours_construction:"En construction" };
                 const CAT_BG  = { vente:"#dcfce7", location:"#dbeafe", vacances:"#fef9c3" };
