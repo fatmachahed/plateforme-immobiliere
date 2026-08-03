@@ -21,13 +21,14 @@ get_db = database.get_db
 def get_market_stats(db: Session = Depends(get_db)):
     """Prix médian au m² par gouvernorat + délégation (plus précis qu'un simple
     gouvernorat — deux délégations d'un même gouvernorat peuvent avoir des
-    marchés très différents), SEGMENTÉ par catégorie (vente/location/
-    vacances — un loyer ne se compare pas à un prix de vente), par durée de
-    location pour les vacances (nuitée/semaine/mois/an), et par état du bien
-    (neuf/en construction vs bon état/à rénover). Clé retournée :
-    "{gouvernorat}|{delegation}|{categorie}|{etat_ou_duree}" — voir statsKey()
-    côté front (utils/priceEval.js) qui doit rester cohérente avec ce
-    regroupement.
+    marchés très différents), SEGMENTÉ par type de bien (un appartement ne se
+    compare jamais à un duplex, une villa ou un terrain), par catégorie
+    (vente/location/vacances — un loyer ne se compare pas à un prix de
+    vente), par durée de location pour les vacances (nuitée/semaine/mois/
+    an), et par état du bien (neuf/en construction vs bon état/à rénover).
+    Clé retournée : "{gouvernorat}|{delegation}|{type_bien}|{categorie}|
+    {etat_ou_duree}" — voir statsKey() côté front (utils/priceEval.js) qui
+    doit rester cohérente avec ce regroupement.
     On utilise la médiane plutôt que la moyenne : quelques annonces à prix
     extrême (bien de luxe isolé, erreur de saisie non filtrée par le seuil
     aberrant) tirent une moyenne dans leur sens, alors que la médiane reste
@@ -50,6 +51,7 @@ def get_market_stats(db: Session = Depends(get_db)):
         db.query(
             models.Gouvernorat.nom.label("gouvernorat"),
             models.Delegation.nom.label("delegation"),
+            models.Annonce.type_bien.label("type_bien"),
             models.Annonce.categorie.label("categorie"),
             sous_cle.label("sous_cle"),
             func.percentile_cont(0.5).within_group(prix_m2.asc()).label("median_prix_m2"),
@@ -67,12 +69,12 @@ def get_market_stats(db: Session = Depends(get_db)):
             # utilisée pour évaluer les autres annonces du même groupe.
             (models.Annonce.prix / surface_totale) >= 10,
         )
-        .group_by(models.Gouvernorat.nom, models.Delegation.nom, models.Annonce.categorie, sous_cle)
+        .group_by(models.Gouvernorat.nom, models.Delegation.nom, models.Annonce.type_bien, models.Annonce.categorie, sous_cle)
         .all()
     )
     cat_val = lambda c: c.value if hasattr(c, "value") else str(c)
     return {
-        f"{r.gouvernorat}|{r.delegation}|{cat_val(r.categorie)}|{r.sous_cle}": {"median_prix_m2": float(r.median_prix_m2), "count": r.count}
+        f"{r.gouvernorat}|{r.delegation}|{cat_val(r.type_bien)}|{cat_val(r.categorie)}|{r.sous_cle}": {"median_prix_m2": float(r.median_prix_m2), "count": r.count}
         for r in rows
     }
 

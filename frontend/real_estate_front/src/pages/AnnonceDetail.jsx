@@ -5,9 +5,9 @@ import {
   useIsInCompare, toggleCompare as toggleCompareStore,
 } from "../utils/compareStore";
 
-function fmtM2(prix, area) {
-  if (!area || area <= 0 || !prix || prix <= 0) return null;
-  const v = Math.ceil((Number(prix) / Number(area)) * 10) / 10;
+function fmtM2(prix, surfaceTotale) {
+  if (!surfaceTotale || surfaceTotale <= 0 || !prix || prix <= 0) return null;
+  const v = Math.ceil((Number(prix) / Number(surfaceTotale)) * 10) / 10;
   if (v <= 0) return null;
   return v.toLocaleString("fr-TN", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
@@ -30,7 +30,7 @@ import Logo from "../components/Logo";
 import Seo from "../components/Seo";
 import { useToast } from "../components/Toast";
 import { useLanguage } from "../contexts/LanguageContext";
-import { getEvalLevel, statsKey, getPrixM2 } from "../utils/priceEval";
+import { getEvalLevel, statsKey, getPrixM2, getSurfaceTotale } from "../utils/priceEval";
 
 
 /* -- Haversine distance in km -- */
@@ -633,7 +633,7 @@ export default function AnnonceDetail() {
             {prop.area > 0 && (
               <div style={{display:"flex",flexDirection:"column",gap:2}}>
                 <span style={{fontSize:18,fontWeight:700,color:"#475569"}}>
-                  {fmtM2(prop.prix, prop.area)} <span style={{fontSize:14,color:"#94a3b8"}}>{fmtDevise(prop.devise)}/m²</span>
+                  {fmtM2(prop.prix, getSurfaceTotale(prop))} <span style={{fontSize:14,color:"#94a3b8"}}>{fmtDevise(prop.devise)}/m²</span>
                 </span>
                 <span style={{fontSize:11,color:"#94a3b8",fontWeight:500}}>Prix au m²</span>
               </div>
@@ -1163,6 +1163,7 @@ export default function AnnonceDetail() {
         if (!prixM2) return null;
         const gs = govMarketStats?.[statsKey({
           gouvernorat: prop.gouvernorat, delegation: prop.delegation,
+          type_bien: prop.type_bien_raw,
           categorie: prop.categorie_raw, etat_bien: prop.etat_bien_raw,
           duree_type: prop.duree_type,
         })] || null;

@@ -3553,6 +3553,7 @@ export const CreateListingForm = ({ editId = null }) => {
                         const key = statsKey({
                           gouvernorat: govLabel,
                           delegation:  delLabel,
+                          type_bien:   formData.type_bien,
                           categorie:   formData.categorie,
                           etat_bien:   formData.etat_bien,
                           duree_type:  formData.duree_type,

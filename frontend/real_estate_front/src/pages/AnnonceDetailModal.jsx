@@ -5,7 +5,7 @@ import { useFeatureFlags } from "../hooks/useFeatureFlags";
 import {
   useIsInCompare, toggleCompare as toggleCompareStore,
 } from "../utils/compareStore";
-import { getEvalLevel, statsKey, getPrixM2 } from "../utils/priceEval";
+import { getEvalLevel, statsKey, getPrixM2, getSurfaceTotale } from "../utils/priceEval";
 
 /* Trace un clic "voir le numéro"/WhatsApp/e-mail — alimente le tableau de
    bord statistiques de l'agence. Best-effort : sendBeacon survit à la
@@ -32,9 +32,9 @@ function WhatsAppIcon({ size = 16 }) {
 }
 
 /* Format prix/m² : arrondi supérieur à 1 décimale, jamais 0 */
-function fmtM2(prix, area) {
-  if (!area || area <= 0 || !prix || prix <= 0) return null;
-  const v = Math.ceil((Number(prix) / Number(area)) * 10) / 10;
+function fmtM2(prix, surfaceTotale) {
+  if (!surfaceTotale || surfaceTotale <= 0 || !prix || prix <= 0) return null;
+  const v = Math.ceil((Number(prix) / Number(surfaceTotale)) * 10) / 10;
   if (v <= 0) return null;
   return v.toLocaleString("fr-TN", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
@@ -618,7 +618,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
               </div>
               {prop.area>0&&(
                 <div style={{display:"flex",flexDirection:"column",gap:2}}>
-                  <span style={{fontSize:18,fontWeight:700,color:"#475569"}}>{fmtM2(prop.prix,prop.area)} <span style={{fontSize:14,color:"#94a3b8"}}>{fmtDevise(prop.devise)}/m²</span></span>
+                  <span style={{fontSize:18,fontWeight:700,color:"#475569"}}>{fmtM2(prop.prix,getSurfaceTotale(prop))} <span style={{fontSize:14,color:"#94a3b8"}}>{fmtDevise(prop.devise)}/m²</span></span>
                   <span style={{fontSize:11,color:"#94a3b8",fontWeight:500}}>Prix au m²</span>
                 </div>
               )}
@@ -849,6 +849,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
           if(!prixM2) return null;
           const gs = govMarketStats?.[statsKey({
             gouvernorat: prop.gouvernorat, delegation: prop.delegation,
+            type_bien: prop.type_bien_raw,
             categorie: prop.categorie_raw, etat_bien: prop.etat_bien_raw,
             duree_type: prop.duree_type,
           })] || null;

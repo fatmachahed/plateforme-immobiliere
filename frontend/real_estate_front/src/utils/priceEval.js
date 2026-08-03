@@ -52,17 +52,20 @@ export function getEvalLevel(prixM2, refPrixM2, count) {
 
 /* Clé de segmentation : gouvernorat + délégation (plus précis qu'un simple
    gouvernorat — deux délégations du même gouvernorat peuvent avoir des
-   marchés très différents) + catégorie (vente/location/vacances — pas
+   marchés très différents) + type de bien (un appartement ne se compare
+   jamais à un duplex, une villa ou un terrain — chaque type a sa propre
+   économie de prix/m²) + catégorie (vente/location/vacances — pas
    comparables entre elles) + durée de location pour les vacances
    (nuitée/semaine/mois/an) + regroupement état du bien (neuf/en construction
    vs bon état/à rénover) pour vente/location.
    Doit rester identique à celle du backend (GET /annonces/market-stats,
    voir backend/app/routers/annonces.py) et entre toutes les pages front. */
-export function statsKey({ gouvernorat, delegation, categorie, etat, etat_bien, duree_type }) {
+export function statsKey({ gouvernorat, delegation, categorie, etat, etat_bien, duree_type, type, type_bien }) {
+  const typeVal = type_bien ?? type ?? "";
   const etatVal = etat_bien ?? etat;
   const etatGroup = (etatVal === "nouveau" || etatVal === "cours_construction") ? "neuf" : "ancien";
-  if (categorie === "vacances") return `${gouvernorat}|${delegation}|vacances|${duree_type || "nuit"}`;
-  return `${gouvernorat}|${delegation}|${categorie}|${etatGroup}`;
+  if (categorie === "vacances") return `${gouvernorat}|${delegation}|${typeVal}|vacances|${duree_type || "nuit"}`;
+  return `${gouvernorat}|${delegation}|${typeVal}|${categorie}|${etatGroup}`;
 }
 
 /* Médiane d'une liste de nombres — utilisée comme référence de prix/m² au
@@ -83,7 +86,7 @@ export function median(values) {
 export function buildMarketStats(annonces) {
   const stats = {};
   (annonces || []).forEach(a => {
-    if (!a.gouvernorat || !a.delegation || !a.categorie) return;
+    if (!a.gouvernorat || !a.delegation || !a.categorie || !(a.type_bien || a.type)) return;
     const prixM2 = getPrixM2(a);
     if (!prixM2) return;
     // Exclu de la référence : un prix/m² aberrant (< 10) ne doit jamais
