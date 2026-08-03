@@ -30,6 +30,7 @@ import Logo from "../components/Logo";
 import Seo from "../components/Seo";
 import { useToast } from "../components/Toast";
 import { useLanguage } from "../contexts/LanguageContext";
+import { getEvalLevel, statsKey, getPrixM2 } from "../utils/priceEval";
 
 
 /* -- Haversine distance in km -- */
@@ -83,6 +84,8 @@ function normalizeApi(a) {
     images:      (a.images || []).length > 0
       ? (a.images || []).map(img => img.startsWith("http") ? img : `${API_URL}${img}`)
       : ["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=900&q=80"],
+    surface_jardin: a.surface_jardin || 0,
+    etat_bien_raw: a.etat_bien || null,
     anonyme: a.anonyme || false,
     contact: {
       nom:   a.user?.username     || "Propriétaire",
@@ -263,6 +266,7 @@ export default function AnnonceDetail() {
 
   const [prop,      setProp]      = useState(null);
   const [rawData,   setRawData]   = useState(null);
+  const [govMarketStats, setGovMarketStats] = useState({});
   const [showContactModal, setShowContactModal] = useState(false);
   const [showCallModal, setShowCallModal] = useState(false);
   const [contactForm,  setContactForm]  = useState({ nom:"", email:"", telephone:"", message:"" });
@@ -289,6 +293,15 @@ export default function AnnonceDetail() {
   const token    = localStorage.getItem("token");
   const userData = (() => { try { return JSON.parse(localStorage.getItem("user")); } catch { return null; } })();
   const { lang, t } = useLanguage();
+
+  /* Stats marché prix/m² — même source que la carte/le profil agent, pour
+     garantir la même évaluation partout (voir utils/priceEval.js). */
+  useEffect(() => {
+    fetch(`${API_URL}/annonces/market-stats`)
+      .then(r => r.ok ? r.json() : {})
+      .then(setGovMarketStats)
+      .catch(() => {});
+  }, []);
 
   /* Fetch annonce from API, fall back to DEMO */
   useEffect(() => {
@@ -1095,8 +1108,8 @@ export default function AnnonceDetail() {
                     </>
                   )}
                 </div>
-              ) : token ? (
-                /* -- NON-ANONYME + CONNECTÉ : coordonnées visibles -- */
+              ) : (
+                /* -- NON-ANONYME : coordonnées toujours visibles, connecté ou non -- */
                 <div className="ad-contact-box__btns">
                   {prop.contact.tel && (
                     <>
@@ -1120,31 +1133,7 @@ export default function AnnonceDetail() {
                     </a>
                   )}
                 </div>
-              ) : (
-                /* -- NON-ANONYME + NON CONNECTÉ : numéro flouté -- */
-                <div className="ad-contact-box__locked">
-                  <button
-                    className="ad-contact-box__blur-btn"
-                    onClick={() => window.location.href = `/login?redirect=/annonce/${prop.id}`}
-                    title="Connectez-vous pour voir le numéro"
-                  >
-                    <Phone size={14}/>
-                    <span className="ad-contact-box__blur-num">+216 XX XXX XXX</span>
-                    <span className="ad-contact-box__blur-lock">📞 Voir le numéro</span>
-                  </button>
-                  <p className="ad-contact-box__lock-msg">
-                    Connectez-vous pour accéder aux coordonnées du propriétaire
-                  </p>
-                  <div className="ad-contact-box__auth-btns">
-                    <a href={`/login?redirect=/annonce/${prop.id}`} className="ad-cbtn ad-cbtn--login">
-                      Se connecter
-                    </a>
-                    <a href="/register" className="ad-cbtn ad-cbtn--register">
-                      Créer un compte
-                    </a>
-                  </div>
-                </div>
-              ) /* fin ternaire anonyme/token */ }
+              ) /* fin ternaire anonyme/non-anonyme */ }
             </div>
           </div>
 
@@ -1164,19 +1153,21 @@ export default function AnnonceDetail() {
         </div>
       </div>
 
-      {/* -- Rapport qualité / prix — pleine largeur -- */}
-      {prop.area > 0 && nearby.length >= 2 && (() => {
-        const thisPPM = prop.prix / prop.area;
-        const nearPPMs = nearby
-          .filter(n => n.superficie > 0 && n.prix > 0)
-          .map(n => n.prix / n.superficie);
-        if (nearPPMs.length < 1) return null;
-        const avgPPM = nearPPMs.reduce((a,b) => a+b, 0) / nearPPMs.length;
-        const r = thisPPM / avgPPM;
-        const score = r >= 1.30 ? 1 : r >= 1.10 ? 2 : r >= 0.90 ? 3 : r >= 0.70 ? 4 : 5;
-        const labels = ["","Prix très élevé","Prix élevé","Prix dans la moyenne","Bon prix","Très bon prix"];
-        const colors = ["","#ef4444","#f97316","#3b82f6","#22c55e","#15803d"];
-        const bgs    = ["","#fef2f2","#fff7ed","#eff6ff","#f0fdf4","#dcfce7"];
+      {/* -- Rapport qualité / prix — pleine largeur --
+          Même moteur d'évaluation que la carte / le profil agent
+          (utils/priceEval.js, médiane par gouvernorat+délégation+
+          catégorie+état, jardin inclus dans la surface) — pour ne plus
+          afficher une évaluation différente d'une page à l'autre. */}
+      {(() => {
+        const prixM2 = getPrixM2(prop);
+        if (!prixM2) return null;
+        const gs = govMarketStats?.[statsKey({
+          gouvernorat: prop.gouvernorat, delegation: prop.delegation,
+          categorie: prop.categorie_raw, etat_bien: prop.etat_bien_raw,
+          duree_type: prop.duree_type,
+        })] || null;
+        const ev = getEvalLevel(prixM2, gs?.median_prix_m2, gs?.count);
+        if (ev.key === "none") return null;
         return (
           <div style={{maxWidth:1200,margin:"0 auto 32px",padding:"0 24px"}}>
             <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:16,overflow:"hidden"}}>
@@ -1186,14 +1177,14 @@ export default function AnnonceDetail() {
               <div style={{padding:"24px 28px"}}>
                 <div style={{display:"flex",gap:8,marginBottom:20}}>
                   {[1,2,3,4,5].map(i => (
-                    <div key={i} style={{height:12,flex:1,borderRadius:8,background:i<=score?colors[score]:"#e5e7eb",transition:"all .4s"}}/>
+                    <div key={i} style={{height:12,flex:1,borderRadius:8,background:i<=ev.segs?ev.color:"#e5e7eb",transition:"all .4s"}}/>
                   ))}
                 </div>
                 <div style={{display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
-                  <div style={{fontSize:20,fontWeight:800,color:colors[score],background:bgs[score],padding:"7px 22px",borderRadius:20}}>
-                    {labels[score]}
+                  <div style={{fontSize:20,fontWeight:800,color:ev.color,background:`${ev.color}1a`,padding:"7px 22px",borderRadius:20}}>
+                    {ev.label}
                   </div>
-                  <div style={{fontSize:13,color:"#6b7280",fontWeight:500}}>Basé sur {nearPPMs.length} bien{nearPPMs.length>1?"s":""} à proximité</div>
+                  <div style={{fontSize:13,color:"#6b7280",fontWeight:500}}>Basé sur {gs.count} bien{gs.count>1?"s":""} dans le même secteur</div>
                 </div>
                 <p style={{margin:"14px 0 0",fontSize:13,color:"#374151",lineHeight:1.6}}>
                   Le prix au m² de cette annonce est comparé aux biens similaires dans le même secteur géographique.

@@ -5,10 +5,10 @@ import Footer from "../components/Footer";
 import AnnonceDetailModal from "./AnnonceDetailModal";
 import API_URL, { fmtDevise, NO_IMAGE_PLACEHOLDER } from "../config";
 import { useIsInCompare, toggleCompare as toggleCompareStore } from "../utils/compareStore";
-import { getEvalLevel, statsKey } from "../utils/priceEval";
+import { getEvalLevel, statsKey, getPrixM2 } from "../utils/priceEval";
 import {
   MapPin, Phone, Mail, Building2, Bed, Bath, Maximize,
-  ArrowLeft, Heart, ChevronLeft, ChevronRight, Users, Car, Moon, Star,
+  ArrowLeft, Heart, ChevronLeft, ChevronRight, Users, Car, Moon, Star, TreePine,
 } from "lucide-react";
 
 /* ─── helpers ─── */
@@ -183,7 +183,7 @@ function PropCard({ a, govMarketStats, onOpen }) {
         </div>
         {/* Évaluation prix — même logique que la carte principale */}
         <PriceEvalBar
-          prixM2={(a.prix > 0 && a.superficie > 0) ? a.prix / a.superficie : null}
+          prixM2={getPrixM2(a)}
           govStats={govMarketStats?.[statsKey(a)] || null}
         />
         <p className="pc__loc"><MapPin size={10}/> {[a.delegation, a.gouvernorat].filter(Boolean).join(" · ")}</p>
@@ -191,6 +191,7 @@ function PropCard({ a, govMarketStats, onOpen }) {
           {a.nb_pieces   != null && <span><Building2 size={11}/> {a.nb_pieces} p.</span>}
           {a.nb_chambres != null && <span><Bed        size={11}/> {a.nb_chambres} ch.</span>}
           {a.superficie  != null && <span><Maximize   size={11}/> {a.superficie} m²</span>}
+          {a.surface_jardin > 0 && <span><TreePine size={11}/> {a.surface_jardin} m²</span>}
         </div>
         <button onClick={toggleCompare} style={{
           marginTop:8, width:"100%", padding:"5px 0", borderRadius:7,

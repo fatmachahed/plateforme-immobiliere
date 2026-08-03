@@ -5,6 +5,7 @@ import { useFeatureFlags } from "../hooks/useFeatureFlags";
 import {
   useIsInCompare, toggleCompare as toggleCompareStore,
 } from "../utils/compareStore";
+import { getEvalLevel, statsKey, getPrixM2 } from "../utils/priceEval";
 
 /* Trace un clic "voir le numéro"/WhatsApp/e-mail — alimente le tableau de
    bord statistiques de l'agence. Best-effort : sendBeacon survit à la
@@ -95,6 +96,7 @@ function normalizeApi(a) {
     fromApi: true, utilisateur_id: a.utilisateur_id || a.user?.id,
     views_count: a.views_count || 0,
     type_bien_raw: a.type_bien, gouvernorat_raw: a.gouvernorat, categorie_raw: a.categorie,
+    etat_bien_raw: a.etat_bien || null, surface_jardin: a.surface_jardin || 0,
     date_creation: a.date_creation || null,
     date_mise_a_jour: a.date_mise_a_jour || null,
     delegation_raw: a.delegation,
@@ -254,6 +256,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
 
   const [prop,           setProp]           = useState(null);
   const [rawData,        setRawData]        = useState(null);
+  const [govMarketStats, setGovMarketStats] = useState({});
   const [samePointList,  setSamePointList]  = useState([]);
   const samePointKeyRef = React.useRef([]);
   const [showContactModal, setShowContactModal] = useState(false);
@@ -298,6 +301,15 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
+
+  /* Stats marché prix/m² — même source que la carte/le profil agent, pour
+     garantir la même évaluation partout (voir utils/priceEval.js). */
+  useEffect(() => {
+    fetch(`${API_URL}/annonces/market-stats`)
+      .then(r => r.ok ? r.json() : {})
+      .then(setGovMarketStats)
+      .catch(() => {});
+  }, []);
 
   /* Fetch annonce */
   useEffect(() => {
@@ -806,19 +818,10 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
                     {isOwner&&<div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:9,padding:"9px 13px",fontSize:12.5,color:"#92400e",marginBottom:12,lineHeight:1.5}}>👁️ Votre annonce est publiée <strong>anonymement</strong>.<br/>Les visiteurs ne voient pas vos coordonnées.</div>}
                     {!isOwner&&<><button className="adm-contact-cta" onClick={()=>{const u=(() => { try { return JSON.parse(localStorage.getItem("user")); } catch { return null; } })();if(u)setContactForm(f=>({...f,nom:f.nom||u.username||"",telephone:f.telephone||u.phone_number||"",email:f.email||u.email||""}));setShowContactModal(true);}} style={{width:"100%",padding:"13px 16px",borderRadius:11,border:"none",background:"linear-gradient(135deg,#6366f1,#818cf8)",color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}><MessageCircle size={16} strokeWidth={2.5}/> Contacter le propriétaire</button><p className="adm-contact-sub" style={{fontSize:11.5,color:"#94a3b8",textAlign:"center",marginTop:8}}>Laissez vos coordonnées — le propriétaire vous contactera s'il est intéressé.</p></>}
                   </div>
-                ):token?(
+                ):(
                   <div className="det-contact-box__btns">
                     {prop.contact.tel&&<><button onClick={()=>{trackContactClick(prop.id,"telephone");setShowCallModal(true);}} className="ad-cbtn ad-cbtn--call"><Phone size={15}/> Appeler</button><button onClick={()=>{trackContactClick(prop.id,"whatsapp");setShowWhatsappModal(true);}} className="ad-cbtn ad-cbtn--whatsapp"><WhatsAppIcon size={16}/> WhatsApp</button></>}
                     {prop.contact.email&&<a href={`mailto:${prop.contact.email}?subject=${encodeURIComponent(`Annonce "${prop.titre}" — Localizi.tn`)}&body=${encodeURIComponent(`Bonjour,\n\nJe suis intéressé(e) par votre annonce "${prop.titre}".\n\nCordialement`)}`} onClick={()=>trackContactClick(prop.id,"email")} className="ad-cbtn ad-cbtn--mail"><Mail size={15}/> Envoyer un e-mail</a>}
-                  </div>
-                ):(
-                  <div className="det-contact-box__locked">
-                    <button className="det-contact-box__blur-btn" onClick={()=>window.location.href=`/login?redirect=/annonce/${prop.id}`}><Phone size={14}/><span className="det-contact-box__blur-num">+216 XX XXX XXX</span><span className="det-contact-box__blur-lock">📞 Voir le numéro</span></button>
-                    <p className="det-contact-box__lock-msg">Connectez-vous pour accéder aux coordonnées du propriétaire</p>
-                    <div className="det-contact-box__auth-btns">
-                      <a href={`/login?redirect=/annonce/${prop.id}`} className="ad-cbtn ad-cbtn--login">Se connecter</a>
-                      <a href="/register" className="ad-cbtn ad-cbtn--register">Créer un compte</a>
-                    </div>
                   </div>
                 )}
               </div>
@@ -839,18 +842,19 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
           </div>
         </div>
 
-        {/* Rapport qualité/prix */}
-        {prop.area>0&&nearby.length>=2&&(()=>{
-          const thisPPM=prop.prix/prop.area;
-          const nearPPMs=nearby.filter(n=>n.superficie>0&&n.prix>0).map(n=>n.prix/n.superficie);
-          if(nearPPMs.length<1)return null;
-          const avgPPM=nearPPMs.reduce((a,b)=>a+b,0)/nearPPMs.length;
-          const r=thisPPM/avgPPM;
-          const score=r>=1.30?1:r>=1.10?2:r>=0.90?3:r>=0.70?4:5;
-          const labels=["","Prix très élevé","Prix élevé","Prix dans la moyenne","Bon prix","Très bon prix"];
-          const colors=["","#ef4444","#f97316","#3b82f6","#22c55e","#15803d"];
-          const bgs=["","#fef2f2","#fff7ed","#eff6ff","#f0fdf4","#dcfce7"];
-          return(<div style={{maxWidth:1200,margin:"0 auto 32px",padding:"0 24px"}}><div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:16,overflow:"hidden"}}><div style={{padding:"18px 28px 14px",borderBottom:"1px solid #e5e7eb"}}><span style={{fontSize:15,fontWeight:800,color:"#0f172a",letterSpacing:"-.01em"}}>Rapport qualité / prix</span></div><div style={{padding:"24px 28px"}}><div style={{display:"flex",gap:8,marginBottom:20}}>{[1,2,3,4,5].map(i=><div key={i} style={{height:12,flex:1,borderRadius:8,background:i<=score?colors[score]:"#e5e7eb",transition:"all .4s"}}/>)}</div><div style={{display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}><div style={{fontSize:20,fontWeight:800,color:colors[score],background:bgs[score],padding:"7px 22px",borderRadius:20}}>{labels[score]}</div><div style={{fontSize:13,color:"#6b7280",fontWeight:500}}>Basé sur {nearPPMs.length} bien{nearPPMs.length>1?"s":""} à proximité</div></div><p style={{margin:"14px 0 0",fontSize:13,color:"#374151",lineHeight:1.6}}>Le prix au m² de cette annonce est comparé aux biens similaires dans le même secteur géographique.</p></div></div></div>);
+        {/* Rapport qualité/prix — même moteur d'évaluation que la carte / le
+            profil agent (utils/priceEval.js, médiane, jardin inclus). */}
+        {(()=>{
+          const prixM2 = getPrixM2(prop);
+          if(!prixM2) return null;
+          const gs = govMarketStats?.[statsKey({
+            gouvernorat: prop.gouvernorat, delegation: prop.delegation,
+            categorie: prop.categorie_raw, etat_bien: prop.etat_bien_raw,
+            duree_type: prop.duree_type,
+          })] || null;
+          const ev = getEvalLevel(prixM2, gs?.median_prix_m2, gs?.count);
+          if (ev.key === "none") return null;
+          return(<div style={{maxWidth:1200,margin:"0 auto 32px",padding:"0 24px"}}><div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:16,overflow:"hidden"}}><div style={{padding:"18px 28px 14px",borderBottom:"1px solid #e5e7eb"}}><span style={{fontSize:15,fontWeight:800,color:"#0f172a",letterSpacing:"-.01em"}}>Rapport qualité / prix</span></div><div style={{padding:"24px 28px"}}><div style={{display:"flex",gap:8,marginBottom:20}}>{[1,2,3,4,5].map(i=><div key={i} style={{height:12,flex:1,borderRadius:8,background:i<=ev.segs?ev.color:"#e5e7eb",transition:"all .4s"}}/>)}</div><div style={{display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}><div style={{fontSize:20,fontWeight:800,color:ev.color,background:`${ev.color}1a`,padding:"7px 22px",borderRadius:20}}>{ev.label}</div><div style={{fontSize:13,color:"#6b7280",fontWeight:500}}>Basé sur {gs.count} bien{gs.count>1?"s":""} dans le même secteur</div></div><p style={{margin:"14px 0 0",fontSize:13,color:"#374151",lineHeight:1.6}}>Le prix au m² de cette annonce est comparé aux biens similaires dans le même secteur géographique.</p></div></div></div>);
         })()}
 
         {/* ── Biens au même emplacement ── */}

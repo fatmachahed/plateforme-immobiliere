@@ -1447,6 +1447,7 @@ def get_agent_public_profile(user_id: int, db: Session = Depends(get_db)):
             "categorie":     a.categorie.value if hasattr(a.categorie, "value") else str(a.categorie),
             "type_bien":     a.type_bien.value if hasattr(a.type_bien, "value") else str(a.type_bien),
             "superficie":    float(a.superficie) if a.superficie else None,
+            "surface_jardin": a.caractere_general.surface_jardin if a.caractere_general else None,
             "nb_pieces":     a.nb_pieces,
             "nb_chambres":   a.nb_chambres,
             "etat_bien":     a.etat_bien.value  if hasattr(a.etat_bien,  "value") else a.etat_bien,

@@ -31,7 +31,10 @@ def get_market_stats(db: Session = Depends(get_db)):
     On utilise la médiane plutôt que la moyenne : quelques annonces à prix
     extrême (bien de luxe isolé, erreur de saisie non filtrée par le seuil
     aberrant) tirent une moyenne dans leur sens, alors que la médiane reste
-    proche du prix réellement typique du groupe."""
+    proche du prix réellement typique du groupe.
+    Surface prise en compte : superficie habitable + superficie du jardin
+    (si renseignée) — cohérent avec le calcul du prix/m² utilisé partout
+    ailleurs (voir utils/priceEval.js côté front)."""
     from sqlalchemy import func, case
     etat_group = case(
         (models.Annonce.etat_bien.in_(["nouveau", "cours_construction"]), "neuf"),
@@ -41,7 +44,8 @@ def get_market_stats(db: Session = Depends(get_db)):
         (models.Annonce.categorie == "vacances", func.coalesce(models.Annonce.duree_type, "nuit")),
         else_=etat_group,
     )
-    prix_m2 = models.Annonce.prix / models.Annonce.superficie
+    surface_totale = models.Annonce.superficie + func.coalesce(models.CaractereGeneral.surface_jardin, 0)
+    prix_m2 = models.Annonce.prix / surface_totale
     rows = (
         db.query(
             models.Gouvernorat.nom.label("gouvernorat"),
@@ -53,6 +57,7 @@ def get_market_stats(db: Session = Depends(get_db)):
         )
         .join(models.Gouvernorat, models.Gouvernorat.id == models.Annonce.gouvernorat_id)
         .join(models.Delegation, models.Delegation.id == models.Annonce.delegation_id)
+        .outerjoin(models.CaractereGeneral, models.CaractereGeneral.annonce_id == models.Annonce.id)
         .filter(
             models.Annonce.status == "approuvee",
             models.Annonce.prix > 0,
@@ -60,7 +65,7 @@ def get_market_stats(db: Session = Depends(get_db)):
             # Exclut les prix/m² aberrants (< 10, erreur de saisie ou prix
             # symbolique) — ne doivent jamais fausser la référence de prix
             # utilisée pour évaluer les autres annonces du même groupe.
-            (models.Annonce.prix / models.Annonce.superficie) >= 10,
+            (models.Annonce.prix / surface_totale) >= 10,
         )
         .group_by(models.Gouvernorat.nom, models.Delegation.nom, models.Annonce.categorie, sous_cle)
         .all()
@@ -249,6 +254,7 @@ def search_annonces_public(
             etat_bien=a.etat_bien.value if a.etat_bien and hasattr(a.etat_bien, "value") else (str(a.etat_bien) if a.etat_bien else None),
             titre_foncier=bool(a.titre_foncier) if a.titre_foncier is not None else None,
             prix_ancien=float(a.prix_ancien) if a.prix_ancien else None,
+            surface_jardin=a.caractere_general.surface_jardin if a.caractere_general else None,
         ))
     return result
 
@@ -467,6 +473,7 @@ def get_annonce_detail(annonce_id: int, db: Session = Depends(get_db)):
         "prix":            float(a.prix),
         "devise":          a.devise.value          if hasattr(a.devise,          "value") else str(a.devise),
         "superficie":      a.superficie,
+        "surface_jardin":  a.caractere_general.surface_jardin if a.caractere_general else None,
         "categorie":       a.categorie.value       if hasattr(a.categorie,       "value") else str(a.categorie),
         "type_bien":       a.type_bien.value        if hasattr(a.type_bien,        "value") else str(a.type_bien),
         "type_appartement":a.type_appartement.value if a.type_appartement and hasattr(a.type_appartement,"value") else (str(a.type_appartement) if a.type_appartement else None),

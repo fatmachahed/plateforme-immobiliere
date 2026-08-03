@@ -19,7 +19,7 @@ import Logo from "../components/Logo";
 import AIDescriptionModal from '../components/AIDescriptionModal';
 import useLocalisation from "../hooks/useLocalisation";
 import { useToast } from "../components/Toast";
-import { getEvalLevel, buildMarketStats, statsKey, median } from "../utils/priceEval";
+import { getEvalLevel, buildMarketStats, statsKey, median, getPrixM2, getSurfaceTotale } from "../utils/priceEval";
 import "leaflet/dist/leaflet.css";
 
 /* ── Normalisation légère (correspondance GADM ↔ API) ── */
@@ -3495,7 +3495,8 @@ export const CreateListingForm = ({ editId = null }) => {
                       {(() => {
                         const prixNum = parseFloat(formData.prix);
                         const surfNum = parseFloat(formData.superficie);
-                        const _rawM2  = (prixNum > 0 && surfNum > 0) ? prixNum / surfNum : null;
+                        const jardinNum = formData.jardin ? (parseFloat(formData.surface_jardin) || 0) : 0;
+                        const _rawM2  = getPrixM2({ prix: prixNum, superficie: surfNum, surface_jardin: jardinNum });
                         const prixM2  = (_rawM2 && _rawM2 > 0)
                           ? (Number.isInteger(_rawM2) ? _rawM2.toLocaleString("fr-TN") : _rawM2.toLocaleString("fr-TN", {minimumFractionDigits:1, maximumFractionDigits:1}))
                           : null;
@@ -3544,7 +3545,8 @@ export const CreateListingForm = ({ editId = null }) => {
                       {(() => {
                         const prixNum  = parseFloat(formData.prix);
                         const surfNum  = parseFloat(formData.superficie);
-                        const prixM2n  = (prixNum > 0 && surfNum > 0) ? prixNum / surfNum : null;
+                        const jardinNum = formData.jardin ? (parseFloat(formData.surface_jardin) || 0) : 0;
+                        const prixM2n  = getPrixM2({ prix: prixNum, superficie: surfNum, surface_jardin: jardinNum });
                         const govLabel = gouvernorats.find(g => g.value === hierarchy.gouvernorat)?.label || "";
                         const delLabel = delegations.find(d => String(d.id) === String(hierarchy.delegation))?.nom || "";
                         if (!govLabel || !delLabel || !prixM2n) return null;

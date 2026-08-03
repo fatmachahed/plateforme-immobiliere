@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { LayoutGrid, Bed, ShowerHead, Ruler, HardHat, ChevronLeft, ChevronRight, Phone, X, Info } from "lucide-react";
+import { LayoutGrid, Bed, ShowerHead, Ruler, HardHat, ChevronLeft, ChevronRight, Phone, X, Info, TreePine } from "lucide-react";
 import API_URL, { fmtDevise, NO_IMAGE_PLACEHOLDER } from "../config";
-import { getEvalLevel, statsKey } from "../utils/priceEval";
+import { getEvalLevel, statsKey, getPrixM2 } from "../utils/priceEval";
 import Logo from "./Logo";
 
 const CAT_COLOR = { vente:"#166534", location:"#1e40af", vacances:"#854d0e" };
@@ -80,6 +80,7 @@ export default function AnnonceModal({ annonceId, onClose }) {
           baths:       data.nb_salles_bain,
           pieces:      data.nb_pieces,
           area:        data.superficie,
+          surface_jardin: data.surface_jardin || 0,
           type:        data.type_bien   || "",
           etat:        data.etat_bien   || "",
           description: data.description || "",
@@ -232,6 +233,7 @@ export default function AnnonceModal({ annonceId, onClose }) {
                 {prop.beds   != null && <Chip icon={<Bed size={14} strokeWidth={2}/>} label={`${prop.beds} chambre${prop.beds>1?"s":""}`}/>}
                 {prop.baths  != null && <Chip icon={<ShowerHead size={14} strokeWidth={2}/>} label={`${prop.baths} sdb`}/>}
                 {prop.area           && <Chip icon={<Ruler size={14} strokeWidth={2}/>} label={`${prop.area} m²`}/>}
+                {prop.surface_jardin > 0 && <Chip icon={<TreePine size={14} strokeWidth={2}/>} label={`${prop.surface_jardin} m² jardin`}/>}
                 {prop.etat           && <Chip icon={<HardHat size={14} strokeWidth={2}/>} label={prop.etat.replace(/_/g," ")}/>}
               </div>
 
@@ -239,7 +241,7 @@ export default function AnnonceModal({ annonceId, onClose }) {
               {prop.area > 0 && prop.prixRaw > 0 && (
                 <div style={{marginBottom:18}}>
                   <PriceEvalBar
-                    prixM2={prop.prixRaw / prop.area}
+                    prixM2={getPrixM2({ prix: prop.prixRaw, superficie: prop.area, surface_jardin: prop.surface_jardin })}
                     govStats={govMarketStats?.[statsKey({
                       gouvernorat: prop.gouvernorat, delegation: prop.delegation, categorie: prop.categorie, etat_bien: prop.etat, duree_type: prop.duree_type,
                     })] || null}

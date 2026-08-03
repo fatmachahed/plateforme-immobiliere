@@ -21,6 +21,24 @@ export const EVAL_MIN_SAMPLE = 3;
 // et jamais compté comme référence pour évaluer les autres biens du groupe.
 export const EVAL_OUTLIER_THRESHOLD = 10;
 
+/* Surface prise en compte pour le prix/m² : superficie habitable + superficie
+   du jardin si le bien en a un (sinon 0). Centralisé ici pour que TOUTES les
+   pages (carte, profil agent/promoteur, détail annonce, création d'annonce)
+   calculent exactement le même prix/m² à partir des mêmes champs, au lieu
+   que chacune fasse son propre "prix / superficie" sans le jardin. */
+export function getSurfaceTotale(a) {
+  const base   = Number(a?.superficie ?? a?.area) || 0;
+  const jardin = Number(a?.surface_jardin) || 0;
+  return base + jardin;
+}
+
+/* Prix/m² d'une annonce, sur la surface totale (habitable + jardin). */
+export function getPrixM2(a) {
+  const prix = Number(a?.prix) || 0;
+  const surf = getSurfaceTotale(a);
+  return (prix > 0 && surf > 0) ? prix / surf : null;
+}
+
 export function getEvalLevel(prixM2, refPrixM2, count) {
   if (!count || count < EVAL_MIN_SAMPLE || !refPrixM2 || !prixM2 || refPrixM2 <= 0) return EVAL_LEVELS[0];
   if (prixM2 < EVAL_OUTLIER_THRESHOLD) return EVAL_LEVELS[0];
@@ -65,10 +83,9 @@ export function median(values) {
 export function buildMarketStats(annonces) {
   const stats = {};
   (annonces || []).forEach(a => {
-    if (!a.gouvernorat || !a.delegation || !a.categorie || !a.prix || !a.superficie && !a.area) return;
-    const area = a.superficie ?? a.area;
-    if (!area || area <= 0) return;
-    const prixM2 = a.prix / area;
+    if (!a.gouvernorat || !a.delegation || !a.categorie) return;
+    const prixM2 = getPrixM2(a);
+    if (!prixM2) return;
     // Exclu de la référence : un prix/m² aberrant (< 10) ne doit jamais
     // fausser l'évaluation des autres annonces du même groupe.
     if (prixM2 < EVAL_OUTLIER_THRESHOLD) return;

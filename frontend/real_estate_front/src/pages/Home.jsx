@@ -16,6 +16,7 @@ import AnnonceModal from "../components/AnnonceModal";
 import PublierAnnonceBtn from "../components/PublierAnnonceBtn";
 import Seo from "../components/Seo";
 import { useToast } from "../components/Toast";
+import { getSurfaceTotale } from "../utils/priceEval";
 
 /* ── Static demo data (remplace par API calls) ── */
 const RECENT_PROPS = [
@@ -268,10 +269,12 @@ function PropCard({ p, delay = 0, onOpen }) {
   const [isFav, setIsFav] = useState(() => {
     try { return JSON.parse(localStorage.getItem("localizi_favs")||"[]").includes(Number(realId)||realId); } catch { return false; }
   });
-  const prixM2 = (p.area > 0 && prixNum > 0) ? (() => {
-    const v = Math.ceil((prixNum / p.area) * 10) / 10;
+  const prixM2 = (() => {
+    const surf = getSurfaceTotale(p);
+    if (!(surf > 0) || !(prixNum > 0)) return null;
+    const v = Math.ceil((prixNum / surf) * 10) / 10;
     return v > 0 ? v.toLocaleString("fr-TN", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : null;
-  })() : null;
+  })();
 
   const toggleFav = (e) => {
     e.stopPropagation();
@@ -536,6 +539,7 @@ export default function HomePage() {
             baths:            a.nb_salles_bain,
             garage:           a.garage || a.parking,
             area:             a.superficie,
+            surface_jardin:   a.surface_jardin || 0,
             type:             a.type_bien || "",
             categorie:        a.categorie || "vente",
             boost:            a.boost_level || 0,

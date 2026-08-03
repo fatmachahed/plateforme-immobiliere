@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Seo from "../components/Seo";
-import { getEvalLevel, statsKey, buildMarketStats, median } from "../utils/priceEval";
+import { getEvalLevel, statsKey, buildMarketStats, median, getPrixM2 } from "../utils/priceEval";
 import Logo from "../components/Logo";
 import useLocalisation from "../hooks/useLocalisation";
 import { getDelegations } from "../api/localisation.api";
@@ -405,7 +405,7 @@ function PriceEvalBar({ prixM2, govStats }) {
 
 /* --- Carte de bien --- */
 function PropCard({ p, active, onHover, onClick, govMarketStats, compact }) {
-  const prixM2   = (p.prix > 0 && p.area > 0) ? p.prix / p.area : null;
+  const prixM2   = getPrixM2(p);
   const govStats = govMarketStats?.[statsKey(p)] || null;
   const realId   = p._realId || p.id?.toString().replace("api_","");
   const toast    = useToast();
@@ -551,6 +551,7 @@ function PropCard({ p, active, onHover, onClick, govMarketStats, compact }) {
           {p.beds   != null && <span><Bed      size={11}/> {p.beds} ch.</span>}
           {p.baths  != null && <span><Bath     size={11}/> {p.baths} sdb</span>}
           {p.area           && <span><Maximize size={11}/> {p.area} m²</span>}
+          {p.surface_jardin > 0 && <span><TreePine size={11}/> {p.surface_jardin} m²</span>}
           {p.garage         && <span><Car      size={11}/> Garage</span>}
           {p.categorie === "vacances" && <span><Users size={11}/> {p.capacite_accueil ? `${p.capacite_accueil} pers.` : "—"}</span>}
           {p.categorie === "vacances" && p.duree_valeur && p.duree_type && <span><Moon size={11}/> {p.duree_valeur} {p.duree_type === "nuit" ? "nuit(s) min" : p.duree_type === "semaine" ? "sem. min" : p.duree_type === "mois" ? "mois min" : "an min"}</span>}
@@ -2366,6 +2367,7 @@ function transformApiAnnonce(a) {
     baths:         a.nb_salles_bain || null,
     garage:        !!(a.features?.includes("garage") || a.features?.includes("parking")),
     area:          a.superficie     || 0,
+    surface_jardin: a.surface_jardin || 0,
     type:          a.type_bien === "maison" ? "villa_maison" : (a.type_bien || ""),
     categorie:     a.categorie,
     duree_type:       a.duree_type       || null,
