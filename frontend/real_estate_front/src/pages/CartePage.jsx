@@ -4535,7 +4535,6 @@ export default function CartePage() {
         .pc__specs {
           display: flex; gap: 10px; flex-wrap: wrap;
           padding-top: 8px; border-top: 1px solid #f1f5f9;
-          max-height: 28px; overflow: hidden;
         }
         .pc__specs span {
           display: flex; align-items: center; gap: 3px;
