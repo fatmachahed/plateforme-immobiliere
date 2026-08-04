@@ -323,7 +323,7 @@ export default function Register() {
               <div className="sp-divider"><span>ou remplir le formulaire</span></div>
 
               <div className="sp-field">
-                <label className="sp-label">Nom d'utilisateur</label>
+                <label className="sp-label">Nom d'utilisateur <span style={{color:"#ef4444"}}>*</span></label>
                 <input
                   type="text"
                   className="sp-input"
@@ -358,7 +358,7 @@ export default function Register() {
                 )}
               </div>
               <div className="sp-field">
-                <label className="sp-label">Adresse e-mail</label>
+                <label className="sp-label">Adresse e-mail <span style={{color:"#ef4444"}}>*</span></label>
                 <input
                   type="text"
                   className="sp-input"
@@ -379,7 +379,7 @@ export default function Register() {
               </div>
 
               <div className="sp-field">
-                <label className="sp-label">Numéro de téléphone (WhatsApp)</label>
+                <label className="sp-label">Numéro de téléphone (WhatsApp) <span style={{color:"#ef4444"}}>*</span></label>
                 <div style={{display:"flex",gap:8}}>
                   <select
                     value={phoneCode}
@@ -532,7 +532,7 @@ export default function Register() {
           {step===2 && (
             <form onSubmit={handleSubmit} className="sp-form">
               <div className="sp-field">
-                <label className="sp-label">Mot de passe</label>
+                <label className="sp-label">Mot de passe <span style={{color:"#ef4444"}}>*</span></label>
                 <div className="sp-pw-wrap">
                   <input type={showPwd?"text":"password"} className="sp-input" placeholder="••••••••" value={password} onChange={e=>setPassword(e.target.value)} required disabled={loading} autoComplete="new-password"/>
                   <button type="button" className="sp-eye" onClick={()=>setShowPwd(v=>!v)} tabIndex={-1}>{showPwd?<Eye size={17}/>:<EyeOff size={17}/>}</button>
@@ -569,7 +569,7 @@ export default function Register() {
                 })()}
               </div>
               <div className="sp-field">
-                <label className="sp-label">Confirmer le mot de passe</label>
+                <label className="sp-label">Confirmer le mot de passe <span style={{color:"#ef4444"}}>*</span></label>
                 <div className="sp-pw-wrap">
                   <input type={showConfirm?"text":"password"} className="sp-input" placeholder="••••••••" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} required disabled={loading} autoComplete="new-password"/>
                   <button type="button" className="sp-eye" onClick={()=>setShowConfirm(v=>!v)} tabIndex={-1}>{showConfirm?<Eye size={17}/>:<EyeOff size={17}/>}</button>
