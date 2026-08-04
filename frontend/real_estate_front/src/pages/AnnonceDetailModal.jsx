@@ -74,6 +74,16 @@ const TYPE_FR  = { appartement:"Appartement", duplex:"Duplex", villa:"Villa", ma
 const CAT_FR   = { vente:"Achat", location:"Location", vacances:"Vacances" };
 const ETAT_FR  = { nouveau:"Neuf", bon_etat:"Bon état", a_renover:"À rénover", cours_construction:"En construction" };
 
+/* "2027-06" -> "Juin 2027" */
+function fmtMoisAnnee(ym) {
+  if (!ym) return null;
+  const [y, m] = ym.split("-").map(Number);
+  if (!y || !m) return ym;
+  const d = new Date(y, m - 1, 1);
+  const label = d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
 function normalizeApi(a) {
   const loc = [a.localite, a.delegation, a.gouvernorat].filter(Boolean).join(", ");
   return {
@@ -96,7 +106,7 @@ function normalizeApi(a) {
     fromApi: true, utilisateur_id: a.utilisateur_id || a.user?.id,
     views_count: a.views_count || 0,
     type_bien_raw: a.type_bien, gouvernorat_raw: a.gouvernorat, categorie_raw: a.categorie,
-    etat_bien_raw: a.etat_bien || null, surface_jardin: a.surface_jardin || 0,
+    etat_bien_raw: a.etat_bien || null, surface_jardin: a.surface_jardin || 0, livraison_prevue: a.livraison_prevue || null,
     date_creation: a.date_creation || null,
     date_mise_a_jour: a.date_mise_a_jour || null,
     delegation_raw: a.delegation,
@@ -780,6 +790,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
               <div className="det-meta">
                 <div className="det-meta__item"><Tag size={13}/> <span>Type :</span> {prop.type}</div>
                 {prop.etat&&<div className="det-meta__item"><CheckCircle size={13}/><span>État :</span> {prop.etat}</div>}
+                {prop.etat_bien_raw==="cours_construction"&&prop.livraison_prevue&&<div className="det-meta__item"><Calendar size={13}/><span>Livraison prévue :</span> {fmtMoisAnnee(prop.livraison_prevue)}</div>}
                 {prop.annee&&<div className="det-meta__item"><Calendar size={13}/><span>Année :</span> {prop.annee}</div>}
                 {prop.type_appartement&&<div className="det-meta__item"><Layers size={13}/><span>Logement :</span> {prop.type_appartement.toUpperCase()}</div>}
                 {prop.etage!=null&&<div className="det-meta__item"><ChevronsUp size={13}/><span>Étage :</span> {prop.etage===0?"RDC":`${prop.etage}e étage`}</div>}

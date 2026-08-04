@@ -57,6 +57,16 @@ const TYPE_FR  = { appartement:"Appartement", duplex:"Duplex", villa:"Villa", ma
 const CAT_FR   = { vente:"Achat", location:"Location", vacances:"Vacances" };
 const ETAT_FR  = { nouveau:"Neuf", bon_etat:"Bon état", a_renover:"À rénover", cours_construction:"En construction" };
 
+/* "2027-06" -> "Juin 2027" */
+function fmtMoisAnnee(ym) {
+  if (!ym) return null;
+  const [y, m] = ym.split("-").map(Number);
+  if (!y || !m) return ym;
+  const d = new Date(y, m - 1, 1);
+  const label = d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
 function normalizeApi(a) {
   const loc = [a.localite, a.delegation, a.gouvernorat].filter(Boolean).join(", ");
   return {
@@ -86,6 +96,7 @@ function normalizeApi(a) {
       : ["https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=900&q=80"],
     surface_jardin: a.surface_jardin || 0,
     etat_bien_raw: a.etat_bien || null,
+    livraison_prevue: a.livraison_prevue || null,
     anonyme: a.anonyme || false,
     contact: {
       nom:   a.user?.username     || "Propriétaire",
@@ -896,6 +907,9 @@ export default function AnnonceDetail() {
             <div className="ad-meta">
               <div className="ad-meta__item"><Tag size={13}/> <span>Type :</span> {prop.type}</div>
               {prop.etat  && <div className="ad-meta__item"><CheckCircle size={13}/><span>État :</span> {prop.etat}</div>}
+              {prop.etat_bien_raw === "cours_construction" && prop.livraison_prevue && (
+                <div className="ad-meta__item"><Calendar size={13}/><span>Livraison prévue :</span> {fmtMoisAnnee(prop.livraison_prevue)}</div>
+              )}
               {prop.annee && <div className="ad-meta__item"><Calendar size={13}/><span>Année :</span> {prop.annee}</div>}
 
               {/* -- Appartement -- */}
