@@ -113,6 +113,7 @@ class AnnonceCreate(AnnonceBase):
     type_terrain: Optional[str] = None
     type_bureau: Optional[str] = None
     etat_bien: Optional[str] = None
+    livraison_prevue: Optional[str] = None  # mois estimé (YYYY-MM), si etat_bien="cours_construction"
     etage: Optional[int] = None
     type_option_villa: Optional[str] = None
     titre_foncier: Optional[str] = None  # "1"/"0" (Oui/Non) envoyé par le front, normalisé en crud
@@ -197,6 +198,7 @@ class AnnonceUpdate(BaseModel):
     type_terrain: Optional[str] = None
     type_bureau: Optional[str] = None
     etat_bien: Optional[str] = None
+    livraison_prevue: Optional[str] = None  # mois estimé (YYYY-MM), si etat_bien="cours_construction"
     etage: Optional[int] = None
     type_option_villa: Optional[str] = None
     titre_foncier: Optional[str] = None  # "1"/"0" (Oui/Non) envoyé par le front, normalisé en crud

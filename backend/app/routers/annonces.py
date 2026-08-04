@@ -482,6 +482,7 @@ def get_annonce_detail(annonce_id: int, db: Session = Depends(get_db)):
         "type_villa":      a.type_villa.value       if a.type_villa      and hasattr(a.type_villa,      "value") else (str(a.type_villa)      if a.type_villa      else None),
         "type_terrain":    a.type_terrain.value     if a.type_terrain    and hasattr(a.type_terrain,    "value") else (str(a.type_terrain)    if a.type_terrain    else None),
         "etat_bien":       a.etat_bien.value        if a.etat_bien       and hasattr(a.etat_bien,       "value") else (str(a.etat_bien)       if a.etat_bien       else None),
+        "livraison_prevue": a.livraison_prevue,
         "etage":           a.etage,
         "description":     a.description,
         "status":          a.status.value           if hasattr(a.status,          "value") else str(a.status),

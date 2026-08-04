@@ -107,6 +107,7 @@ class Annonce(Base):
     type_villa = Column(SqlEnum(TypeVillaEnum), nullable=True)
     type_terrain = Column(SqlEnum(TypeTerrainEnum), nullable=True)
     etat_bien = Column(SqlEnum(EtatBienEnum))
+    livraison_prevue = Column(String, nullable=True)  # mois estimé (YYYY-MM), si etat_bien="cours_construction"
     etage = Column(Integer, nullable=True)
     type_option_villa = Column(SqlEnum(TypeOptionVillaEnum), nullable=True)
     titre = Column(String, nullable=False)

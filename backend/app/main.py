@@ -68,6 +68,8 @@ with engine.connect() as conn:
         "ALTER TABLE annonces ADD COLUMN IF NOT EXISTS duree_type VARCHAR;",
         "ALTER TABLE annonces ADD COLUMN IF NOT EXISTS duree_valeur VARCHAR;",
         "ALTER TABLE annonces ADD COLUMN IF NOT EXISTS capacite_accueil INTEGER;",
+        # Date de livraison prévue (mois, YYYY-MM) pour les biens "en construction"
+        "ALTER TABLE annonces ADD COLUMN IF NOT EXISTS livraison_prevue VARCHAR;",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS secteur_partenaire VARCHAR;",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS metier_artisan VARCHAR;",
         "ALTER TABLE caractere_general ADD COLUMN IF NOT EXISTS animaux_admis BOOLEAN DEFAULT FALSE;",

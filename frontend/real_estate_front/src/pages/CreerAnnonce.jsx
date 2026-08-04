@@ -445,6 +445,7 @@ function buildPrefill(a) {
     type_bien:         a.type_bien || "",
     categorie:         a.categorie || "",
     etat_bien:         a.etat_bien || "",
+    livraison_prevue:  a.livraison_prevue || "",
     type_terrain:      a.type_terrain || "",
     vocation_terrain:  a.vocation_terrain || "",
     titre_foncier:     a.titre_foncier === "individuel" ? "1" : a.titre_foncier === "aucun" ? "0" : "",
@@ -1554,6 +1555,7 @@ export const CreateListingForm = ({ editId = null }) => {
         titre_foncier:     formData.type_bien === "terrain"     ? (formData.titre_foncier     || null) : null,
         type_bureau:       formData.type_bien === "bureau"      ? (formData.type_logement_bureau || null) : null,
         etat_bien:         formData.etat_bien         || null,
+        livraison_prevue:  formData.etat_bien === "cours_construction" ? (formData.livraison_prevue || null) : null,
         etage:             formData.etage ? parseInt(formData.etage) : null,
         /* type_option_villa est une sélection multiple (ex: "sous-sol,rez-de-jardin").
            Le backend attend une seule valeur enum ? on envoie null pour éviter l'erreur DB.
