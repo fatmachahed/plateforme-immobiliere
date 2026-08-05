@@ -1,5 +1,5 @@
 # main.py
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
@@ -259,13 +259,36 @@ app.include_router(auth_google.router, tags=["Auth"])
 def health():
     return {"status": "ok"}
 
-# 5a. Sitemap XML dynamique — pages statiques uniquement. Les fiches annonce
-# individuelles (/annonce/{id}) redirigent vers une popup sur /carte (pas de
-# contenu propre indexable), donc ne sont plus listées ici.
+# 5a. Sitemap XML dynamique — pages statiques + une entrée par annonce
+# approuvée. Les fiches annonce s'ouvrent en popup au-dessus de /carte (pas
+# de page à part), mais chacune a désormais son propre title/description/
+# JSON-LD (voir Seo dans AnnonceDetailModal.jsx) et une URL lisible et
+# stable (/annonce/{id}/{type}/{slug}) — sans les lister ici, Google n'a
+# aucune chance de découvrir/indexer les milliers de fiches individuelles,
+# qui sont justement le contenu le plus spécifique (et donc le plus
+# atteignable en référencement) du site.
+import re as _re
+import unicodedata as _unicodedata
 from fastapi.responses import Response as _XmlResponse
 
+_SITEMAP_TYPE_LBL = {
+    "appartement": "appartement", "duplex": "duplex", "villa": "villa-maison",
+    "villa_maison": "villa-maison", "maison": "villa-maison", "immeuble": "immeuble",
+    "terrain": "terrain", "local_commercial": "local-commercial", "bureau": "bureau",
+    "ferme_agricole": "ferme-agricole", "ferme": "ferme-agricole",
+    "garage_parking": "garage-parking", "depot_stockage": "depot-stockage",
+    "batiment_industriel": "batiment-industriel", "immobiliers_divers": "immobiliers-divers",
+}
+
+def _slugify(value: str) -> str:
+    value = _unicodedata.normalize("NFD", value or "")
+    value = "".join(c for c in value if _unicodedata.category(c) != "Mn")  # retire les accents
+    value = value.lower()
+    value = _re.sub(r"[^a-z0-9]+", "-", value).strip("-")
+    return value[:80] or "annonce"
+
 @app.get("/sitemap.xml", tags=["SEO"])
-def sitemap():
+def sitemap(db: Session = Depends(get_db)):
     base = "https://www.localizi.tn"
     static_paths = [
         "", "carte", "vendre", "trouver-un-agent", "trouver-un-promoteur",
@@ -276,6 +299,40 @@ def sitemap():
     body = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
     for u in urls:
         body.append(f"<url><loc>{u}</loc><changefreq>weekly</changefreq></url>")
+
+    annonces = (
+        db.query(models.Annonce.id, models.Annonce.titre, models.Annonce.type_bien, models.Annonce.date_mise_a_jour)
+        .filter(models.Annonce.status == "approuvee")
+        .all()
+    )
+    for a in annonces:
+        type_bien_val = a.type_bien.value if hasattr(a.type_bien, "value") else str(a.type_bien)
+        type_slug = _SITEMAP_TYPE_LBL.get(type_bien_val, "bien")
+        title_slug = _slugify(a.titre)
+        lastmod = a.date_mise_a_jour.strftime("%Y-%m-%d") if a.date_mise_a_jour else None
+        loc = f"{base}/annonce/{a.id}/{type_slug}/{title_slug}"
+        lastmod_tag = f"<lastmod>{lastmod}</lastmod>" if lastmod else ""
+        body.append(f"<url><loc>{loc}</loc>{lastmod_tag}<changefreq>weekly</changefreq></url>")
+
+    # Profils pro (agent/agence/promoteur/prestataire) ayant au moins une
+    # annonce approuvée — les profils vides seraient du contenu trop pauvre
+    # pour Google (thin content), donc volontairement exclus.
+    _PROFILE_PREFIX = {"partenaire": "prestataire", "promoteur": "promoteur"}
+    pros = (
+        db.query(models.User.id, models.User.role)
+        .filter(models.User.role.in_(["agent", "agence", "promoteur", "partenaire"]))
+        .filter(db.query(models.Annonce.id).filter(
+            models.Annonce.utilisateur_id == models.User.id,
+            models.Annonce.status == "approuvee",
+            models.Annonce.anonyme == False,
+        ).exists())
+        .all()
+    )
+    for p in pros:
+        role_val = p.role.value if hasattr(p.role, "value") else str(p.role)
+        prefix = _PROFILE_PREFIX.get(role_val, "agent")
+        body.append(f"<url><loc>{base}/{prefix}/{p.id}</loc><changefreq>weekly</changefreq></url>")
+
     body.append("</urlset>")
     return _XmlResponse(content="".join(body), media_type="application/xml")
 

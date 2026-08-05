@@ -38,7 +38,8 @@ function fmtM2(prix, surfaceTotale) {
   if (v <= 0) return null;
   return v.toLocaleString("fr-TN", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
+import Seo from "../components/Seo";
 import {
   ChevronLeft, ChevronRight, ArrowLeft, MapPin,
   Bed, Bath, Maximize, Phone, Mail, Heart, Share2,
@@ -255,6 +256,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
   const [activeId,  setActiveId]  = useState(String(annonceId));
   const id       = activeId;
   const navigate = useNavigate();
+  const location = useLocation();
   const toast    = useToast();
 
   /* Le parent (ex: CartePage) réutilise la même instance de la modale et se
@@ -1323,11 +1325,36 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
       </>
   );
 
+  /* SEO : chaque annonce a son propre title/description/JSON-LD, indexés
+     par Google sous l'URL lisible /annonce/{id}/{type}/{slug} — sans ça,
+     toutes les fiches annonces partageaient le title/description générique
+     de la carte, invisibles individuellement pour la recherche. */
+  const seoTitle = prop ? `${prop.titre} — ${Number(prop.prix).toLocaleString("fr-TN")} ${fmtDevise(prop.devise)}` : "";
+  const seoDesc  = prop ? `${prop.type} ${prop.categorie==="location"?"à louer":prop.categorie==="vacances"?"en location vacances":"à vendre"} à ${prop.location}${prop.area?`, ${prop.area} m²`:""}${prop.beds!=null?`, ${prop.beds} chambres`:""}. Consultez cette annonce sur Localizi.tn.` : "";
+  /* Jamais l'image placeholder (data URI SVG) dans les balises OG/JSON-LD —
+     invalide pour Google/Facebook, qui attendent une vraie URL d'image. */
+  const seoImages = (images || []).filter(img => img.startsWith("http"));
+  const seoJsonLd = prop ? {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: prop.titre,
+    description: seoDesc,
+    ...(seoImages.length > 0 ? { image: seoImages } : {}),
+    offers: {
+      "@type": "Offer",
+      price: prop.prix,
+      priceCurrency: prop.devise === "TND" ? "TND" : (prop.devise || "TND"),
+      availability: "https://schema.org/InStock",
+      url: `https://www.localizi.tn${location.pathname}`,
+    },
+  } : null;
+
   return ReactDOM.createPortal(
     <div
       style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(15,23,42,.6)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}}
       onClick={onClose}
     >
+      {prop && <Seo title={seoTitle} description={seoDesc} path={location.pathname} image={seoImages[0]} jsonLd={seoJsonLd} />}
       {/* Close button outside */}
       <button
         className="adm-close-btn"

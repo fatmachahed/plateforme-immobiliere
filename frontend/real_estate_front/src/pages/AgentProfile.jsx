@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useLocation, useNavigate, Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import Seo from "../components/Seo";
 import AnnonceDetailModal from "./AnnonceDetailModal";
 import API_URL, { fmtDevise, NO_IMAGE_PLACEHOLDER } from "../config";
 import { useIsInCompare, toggleCompare as toggleCompareStore } from "../utils/compareStore";
@@ -295,8 +296,17 @@ export default function AgentProfile() {
   const backHref  = isPartenaire ? "/trouver-un-prestataire" : isPromoteur ? "/trouver-un-promoteur" : "/trouver-un-agent";
   const backLabel = isPartenaire ? "Retour aux prestataires" : isPromoteur ? "Retour aux promoteurs" : "Retour aux agents";
 
+  /* SEO : chaque agent/agence/promoteur/prestataire a son propre title et
+     description (nom, rôle, localisation, nombre d'annonces) — sans ça,
+     ces centaines de pages professionnelles partageaient toutes le même
+     title/description générique, invisibles individuellement pour Google. */
+  const seoLoc  = [agent.localite, agent.gouvernorat].filter(Boolean).join(", ");
+  const seoTitle = `${agent.nom} — ${roleLabel}${seoLoc ? ` à ${seoLoc}` : ""}`;
+  const seoDesc  = `${agent.nom}, ${roleLabel.toLowerCase()}${seoLoc ? ` à ${seoLoc}` : ""} sur Localizi.tn. ${agent.nb_annonces} annonce${agent.nb_annonces>1?"s":""} immobilière${agent.nb_annonces>1?"s":""} publiée${agent.nb_annonces>1?"s":""}.`;
+
   return (
     <div style={{ minHeight:"100vh", background:"#f1f5f9", fontFamily:"'Poppins',system-ui,sans-serif" }}>
+      <Seo title={seoTitle} description={seoDesc} path={location.pathname} image={photoUrl || undefined} />
       <style>{`
         /* ── Carousel animations ── */
         @keyframes carouselInL  { from{transform:translateX(100%)} to{transform:translateX(0)} }
