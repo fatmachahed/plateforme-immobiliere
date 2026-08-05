@@ -3328,6 +3328,15 @@ export default function CartePage() {
   return (
     <div className={`cp-root${listMode ? "" : " cp-root--carte"}`}>
       <Seo title={seoTitle} description={seoDesc} path="/carte" />
+      {/* H1 visible aux lecteurs d'écran et aux moteurs de recherche (technique
+          d'accessibilité standard) : la page n'a pas de titre visible classique
+          (c'est une carte interactive), mais Google a besoin d'un vrai contenu
+          de page — pas seulement la balise <title> — pour associer cette page
+          à des requêtes précises comme "appartement à vendre" / "appartement à
+          louer" selon les filtres actifs. */}
+      <h1 style={{position:"absolute",width:1,height:1,padding:0,margin:-1,overflow:"hidden",clip:"rect(0,0,0,0)",whiteSpace:"nowrap",border:0}}>
+        {seoTitle}
+      </h1>
       <Navbar />
 
       <div

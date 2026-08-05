@@ -134,7 +134,7 @@ export default function Geolocalisation() {
   return (
     <div style={{ minHeight: "100vh", background: "#f8fafc", fontFamily: "'Poppins',system-ui,sans-serif" }}>
       <Seo
-        title="Immobilier géolocalisé en Tunisie : pourquoi ça change tout"
+        title="Géolocalisation immobilière en Tunisie : pourquoi ça change tout"
         description="Une annonce immobilière géolocalisée génère 5 fois plus de contacts qu'une annonce classique. Découvrez pourquoi la géolocalisation est incontournable pour vendre ou louer en Tunisie, et comment Localizi.tn l'utilise."
         path="/faq/geolocalisation-immobilier"
         jsonLd={{
