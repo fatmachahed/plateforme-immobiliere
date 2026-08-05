@@ -24,6 +24,7 @@ class TypeBienEnum(str, enum.Enum):
     #   (bord_eau and maison kept in DB for backward compat, but new entries use villa_maison/immobiliers_divers)
     appartement = "appartement"
     duplex = "duplex"
+    penthouse = "penthouse"
     villa = "villa"
     villa_maison = "villa_maison"
     bureau = "bureau"

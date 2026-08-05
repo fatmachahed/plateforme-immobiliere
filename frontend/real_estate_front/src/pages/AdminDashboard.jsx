@@ -27,7 +27,7 @@ function StatusBadge({ status }) {
 }
 
 function TypeBienFr(t) {
-  const m = { appartement:"Appartement", duplex:"Duplex", villa:"Villa/Maison", villa_maison:"Villa/Maison", maison:"Villa/Maison",
+  const m = { appartement:"Appartement", duplex:"Duplex", penthouse:"Penthouse", villa:"Villa/Maison", villa_maison:"Villa/Maison", maison:"Villa/Maison",
     terrain:"Terrain", bureau:"Bureau", local_commercial:"Local commercial", ferme:"Ferme agricole", ferme_agricole:"Ferme agricole",
     immeuble:"Immeuble", garage_parking:"Garage/Parking", immobiliers_divers:"Immobiliers divers" };
   return m[t] || t;

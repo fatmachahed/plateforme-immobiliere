@@ -8,7 +8,7 @@ import API_URL, { fmtDevise } from '../config';
 
 
 const TYPE_FR = {
-  appartement: "Appartement", duplex: "Duplex", villa: "Villa", maison: "Maison",
+  appartement: "Appartement", duplex: "Duplex", penthouse: "Penthouse", villa: "Villa", maison: "Maison",
   terrain: "Terrain", bureau: "Bureau", local_commercial: "Local com.", ferme: "Ferme agricole", ferme_agricole: "Ferme agricole",
 };
 const CAT_FR = { vente: "Achat", location: "Location", vacances: "Vacances" };

@@ -136,6 +136,8 @@ with engine.connect() as conn:
         "ALTER TYPE statusenum ADD VALUE IF NOT EXISTS 'louee';",
         # Nouveau type de bien "duplex" — mêmes caractéristiques que appartement
         "ALTER TYPE typebienenum ADD VALUE IF NOT EXISTS 'duplex';",
+        # Nouveau type de bien "penthouse" — mêmes caractéristiques que appartement
+        "ALTER TYPE typebienenum ADD VALUE IF NOT EXISTS 'penthouse';",
         # Rôle interne "manager commercial" — suivi de l'apport de leads
         "ALTER TYPE roleenum ADD VALUE IF NOT EXISTS 'manager_commercial';",
         # Traçabilité : quel manager commercial a apporté ce lead/annonce
@@ -272,7 +274,7 @@ import unicodedata as _unicodedata
 from fastapi.responses import Response as _XmlResponse
 
 _SITEMAP_TYPE_LBL = {
-    "appartement": "appartement", "duplex": "duplex", "villa": "villa-maison",
+    "appartement": "appartement", "duplex": "duplex", "penthouse": "penthouse", "villa": "villa-maison",
     "villa_maison": "villa-maison", "maison": "villa-maison", "immeuble": "immeuble",
     "terrain": "terrain", "local_commercial": "local-commercial", "bureau": "bureau",
     "ferme_agricole": "ferme-agricole", "ferme": "ferme-agricole",

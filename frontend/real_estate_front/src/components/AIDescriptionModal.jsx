@@ -7,12 +7,12 @@ function genDescription(initialData, instruction) {
   const w = (instruction || "").toLowerCase();
 
   const typeLabels = {
-    appartement: "appartement", duplex: "duplex", villa: "villa", terrain: "terrain",
+    appartement: "appartement", duplex: "duplex", penthouse: "penthouse", villa: "villa", terrain: "terrain",
     bureau: "bureau", ferme: "ferme agricole", ferme_agricole: "ferme agricole", local_commercial: "local commercial",
     maison: "maison", bord_eau: "bien en bord de mer",
   };
   const typeFr  = typeLabels[d.type_bien] || d.type_bien || "bien immobilier";
-  const det     = ["appartement","duplex","bureau"].includes(d.type_bien) ? "cet"
+  const det     = ["appartement","duplex","penthouse","bureau"].includes(d.type_bien) ? "cet"
                 : ["villa","maison","ferme","ferme_agricole"].includes(d.type_bien) ? "cette"
                 : "ce";
   const offreFr = d.categorie === "location" ? "à louer"
@@ -42,7 +42,7 @@ function genDescription(initialData, instruction) {
   let intro = ctx.formel
     ? `Nous avons l'honneur de vous présenter ${det} ${typeFr} ${offreFr}`
     : `Nous vous proposons ${det} ${typeFr} ${offreFr}`;
-  if (loc) intro += `, idéalement situé${["appartement","duplex"].includes(d.type_bien) ? "e" : ""} à ${loc}`;
+  if (loc) intro += `, idéalement situé${["appartement","duplex","penthouse"].includes(d.type_bien) ? "e" : ""} à ${loc}`;
   const qualifiers = [];
   if (ctx.calme)    qualifiers.push("dans un cadre calme et résidentiel");
   if (ctx.central)  qualifiers.push("à proximité immédiate de toutes les commodités");

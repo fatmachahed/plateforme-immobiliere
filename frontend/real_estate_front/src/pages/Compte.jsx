@@ -24,7 +24,7 @@ import AgencyStatsDashboard from "../components/AgencyStatsDashboard";
 
 /* ── helpers ── */
 const TYPE_FR = {
-  appartement:"Appartement", duplex:"Duplex", villa:"Villa", maison:"Maison",
+  appartement:"Appartement", duplex:"Duplex", penthouse:"Penthouse", villa:"Villa", maison:"Maison",
   terrain:"Terrain", bureau:"Bureau", local_commercial:"Local commercial",
   ferme:"Ferme agricole", ferme_agricole:"Ferme agricole",
   garage_parking:"Garage / Parking", depot_stockage:"Dépôt de stockage", batiment_industriel:"Bâtiment industriel",
@@ -34,7 +34,7 @@ const CAT_FR_LABEL = { vente:"Vente", location:"Location", vacances:"Vacances" }
 const CAT_FR2 = { vente:"Achat", location:"Location", vacances:"Vacances" };
 const CAT_COLOR = { vente:"#6366f1", location:"#10b981", vacances:"#f59e0b" };
 const TYPE_LABEL_MAP = {
-  appartement:"Appartement", duplex:"Duplex", villa:"Villa/Maison", villa_maison:"Villa/Maison", maison:"Villa/Maison",
+  appartement:"Appartement", duplex:"Duplex", penthouse:"Penthouse", villa:"Villa/Maison", villa_maison:"Villa/Maison", maison:"Villa/Maison",
   immeuble:"Immeuble", terrain:"Terrain", bureau:"Bureau",
   ferme:"Ferme agricole", ferme_agricole:"Ferme agricole", local_commercial:"Local commercial",
   garage_parking:"Garage / Parking", depot_stockage:"Dépôt de stockage", batiment_industriel:"Bâtiment industriel", immobiliers_divers:"Immobiliers divers",
@@ -1629,7 +1629,7 @@ export default function Compte() {
                   <div className="db-search"><Search size={15} className="db-search__ico"/><input className="db-search__input" type="text" placeholder="Rechercher…" value={search} onChange={e=>setSearch(e.target.value)}/>{search&&<button className="db-search__clear" onClick={()=>setSearch("")}><X size={13}/></button>}</div>
                   <select className="db-toolbar__type" value={typeFilter} onChange={e=>setTypeFilter(e.target.value)} style={{flex:1,minWidth:0,border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 8px",fontSize:12.5,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}>
                     <option value="">Tous types</option>
-                    {[["appartement","Appartement"],["duplex","Duplex"],["villa_maison","Villa/Maison"],["immeuble","Immeuble"],["terrain","Terrain"],["local_commercial","Local commercial"],["bureau","Bureau"],["ferme_agricole","Ferme agricole"],["garage_parking","Garage / Parking"],["depot_stockage","Dépôt de stockage"],["batiment_industriel","Bâtiment industriel"],["immobiliers_divers","Immobiliers divers"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
+                    {[["appartement","Appartement"],["duplex","Duplex"],["penthouse","Penthouse"],["villa_maison","Villa/Maison"],["immeuble","Immeuble"],["terrain","Terrain"],["local_commercial","Local commercial"],["bureau","Bureau"],["ferme_agricole","Ferme agricole"],["garage_parking","Garage / Parking"],["depot_stockage","Dépôt de stockage"],["batiment_industriel","Bâtiment industriel"],["immobiliers_divers","Immobiliers divers"]].map(([v,l])=><option key={v} value={v}>{l}</option>)}
                   </select>
                   <select className="db-toolbar__status" value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} style={{flex:1,minWidth:0,border:"1.5px solid #e5e7eb",borderRadius:8,padding:"7px 8px",fontSize:12.5,fontFamily:"inherit",background:"#fff",color:"#374151",outline:"none"}}>
                     <option value="">Tous statuts</option>
