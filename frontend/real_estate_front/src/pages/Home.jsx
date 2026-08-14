@@ -7,7 +7,7 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   Search, MapPin, Home, TrendingUp, Shield, Clock, Star,
   ArrowRight, Bed, Bath, Maximize, Zap, CheckCircle,
-  Building2, Trees, ChevronRight, ChevronLeft, Play, Car, Users, Moon, Heart, X, Download, Smartphone, Wifi, Factory
+  Building2, Trees, ChevronRight, ChevronLeft, Play, Car, Users, Moon, Heart, X, Download, Smartphone, Wifi, Factory, Share, PlusSquare
 } from "lucide-react";
 import ReactDOM from "react-dom";
 import Navbar from "../components/Navbar";
@@ -464,9 +464,18 @@ export default function HomePage() {
 
   /* Installation PWA : sur iOS, ou une fois l'app déjà installée, le
      navigateur ne propose jamais l'installation via un bouton — dans ce cas
-     le clic explique la marche à suivre au lieu de ne rien faire. */
+     le clic explique la marche à suivre au lieu de ne rien faire. Safari
+     iOS ne déclenche JAMAIS "beforeinstallprompt" (Apple ne le supporte
+     pas) : un simple toast qui disparaît en 3-4 s passait inaperçu et
+     donnait l'impression que "l'app ne marche pas sur iPhone" — remplacé
+     par une pop-up persistante avec les étapes illustrées, spécifique iOS. */
   const [alreadyInstalled, setAlreadyInstalled] = useState(
     () => typeof window !== "undefined" && window.matchMedia?.("(display-mode: standalone)").matches
+  );
+  const [showIOSInstallModal, setShowIOSInstallModal] = useState(false);
+  const isIOS = typeof navigator !== "undefined" && (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1) // iPadOS 13+ en mode "bureau"
   );
   useEffect(() => {
     const onBeforeInstall = (e) => { e.preventDefault(); window._lzInstallPrompt = e; };
@@ -484,6 +493,7 @@ export default function HomePage() {
       toast("L'application est déjà installée sur cet appareil.");
       return;
     }
+    if (isIOS) { setShowIOSInstallModal(true); return; }
     const promptEvent = window._lzInstallPrompt;
     if (!promptEvent) {
       toast("Installation non proposée par ce navigateur ici — utilisez le menu ⋮ (Android/Chrome) ou Partager → Sur l'écran d'accueil (iOS/Safari).");
@@ -880,6 +890,49 @@ export default function HomePage() {
 
       {/* ── Modal annonce ── */}
       {modalId && <AnnonceModal annonceId={modalId} onClose={() => setModalId(null)} />}
+
+      {/* ── Modal installation iOS : étapes illustrées, reste affichée tant
+          qu'on ne la ferme pas (contrairement au toast, facilement raté) ── */}
+      {showIOSInstallModal && ReactDOM.createPortal(
+        <div
+          onClick={() => setShowIOSInstallModal(false)}
+          style={{ position:"fixed", inset:0, zIndex:99999, background:"rgba(15,23,42,.6)", backdropFilter:"blur(4px)", display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background:"#fff", borderRadius:20, maxWidth:400, width:"100%", padding:"28px 24px 24px", boxShadow:"0 20px 60px rgba(0,0,0,.3)", position:"relative" }}
+          >
+            <button onClick={() => setShowIOSInstallModal(false)} style={{ position:"absolute", top:16, right:16, background:"#f1f5f9", border:"none", borderRadius:"50%", width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", color:"#64748b" }}>
+              <X size={16}/>
+            </button>
+            <h3 style={{ fontSize:18, fontWeight:800, color:"#0f172a", margin:"0 0 6px" }}>Installer sur iPhone / iPad</h3>
+            <p style={{ fontSize:13.5, color:"#64748b", margin:"0 0 20px", lineHeight:1.5 }}>
+              Safari ne propose pas de bouton d'installation automatique — voici comment ajouter Localizi.tn à votre écran d'accueil en 2 étapes :
+            </p>
+            <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+                <div style={{ flexShrink:0, width:36, height:36, borderRadius:10, background:"#eef2ff", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:"#6366f1", fontSize:14 }}>1</div>
+                <div style={{ fontSize:13.5, color:"#374151", display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+                  Appuyez sur l'icône <Share size={16} color="#007aff" style={{flexShrink:0}}/> <strong>Partager</strong> en bas de Safari
+                </div>
+              </div>
+              <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+                <div style={{ flexShrink:0, width:36, height:36, borderRadius:10, background:"#eef2ff", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, color:"#6366f1", fontSize:14 }}>2</div>
+                <div style={{ fontSize:13.5, color:"#374151", display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+                  Faites défiler et appuyez sur <PlusSquare size={16} color="#0f172a" style={{flexShrink:0}}/> <strong>Sur l'écran d'accueil</strong>
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowIOSInstallModal(false)}
+              style={{ width:"100%", marginTop:22, padding:"12px", borderRadius:11, border:"none", background:"#6366f1", color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"inherit" }}
+            >
+              Compris
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* ── Bouton flottant Aide & FAQ ── */}
       <Link to="/faq" className="hp-faq-fab" style={{
