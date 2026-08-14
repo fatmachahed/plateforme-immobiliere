@@ -1011,8 +1011,8 @@ export default function AnnonceDetail() {
                 );
 
                 /* -- Agence / Promoteur : logo en grand -- */
-                if (role === "agence" || role === "promoteur") {
-                  const isAgence  = role === "agence";
+                if (role === "agence" || role === "agent" || role === "promoteur") {
+                  const isAgence  = role === "agence" || role === "agent";
                   const clr       = isAgence ? "#0369a1" : "#7c3aed";
                   const bg        = isAgence ? "#e0f2fe"  : "#ede9fe";
                   const bgGrad    = isAgence
