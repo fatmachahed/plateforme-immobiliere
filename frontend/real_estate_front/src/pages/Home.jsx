@@ -1127,7 +1127,7 @@ export default function HomePage() {
             <ul className="hp-install-perks">
               <li><CheckCircle size={15} color="#6366f1"/><span>Accès rapide depuis l'écran d'accueil</span></li>
               <li><Wifi size={15} color="#6366f1"/><span>Expérience fluide, comme une app native</span></li>
-              <li><Smartphone size={15} color="#6366f1"/><span>Compatible iOS et Android</span></li>
+              <li><Smartphone size={15} color="#6366f1"/><span>Compatible Android (version iOS en cours de développement)</span></li>
             </ul>
 
             {/* CTA */}
@@ -1140,7 +1140,6 @@ export default function HomePage() {
                 {alreadyInstalled ? "Déjà installée" : "Installer l'application"}
               </button>
               <div className="hp-install-hint">
-                <span>📱 iOS : Menu → Partager → Sur l'écran d'accueil</span>
                 <span>🤖 Android : Menu ⋮ → Installer l'application</span>
               </div>
             </div>
