@@ -1,0 +1,4 @@
+# Scripts shell : toujours en fin de ligne LF, même checkout sous Windows,
+# sinon bash échoue sur le serveur ("\r": command not found).
+*.sh text eol=lf
+deploy/* text eol=lf
