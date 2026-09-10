@@ -2,6 +2,20 @@
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 export default API_URL;
 
+/* ── Fond de carte Leaflet ───────────────────────────────────────────
+ * CARTO a rendu ses fonds de carte payants : les tuiles anonymes de
+ * basemaps.cartocdn.com sont désormais tamponnées "API KEY REQUIRED"
+ * (et leur token v3 ne s'applique qu'à l'API vectorielle, pas aux
+ * tuiles raster utilisées ici). On bascule sur les tuiles OpenStreetMap
+ * France (osmfr) : gratuites, sans clé, sans expiration, style clair
+ * proche de l'ancien rendu — c'est déjà ce qu'utilise MapView.jsx.
+ * Pour un style premium type CARTO plus tard (ex. Stadia "Alidade
+ * Smooth"), il suffit de changer ces deux constantes. */
+export const MAP_TILE_URL =
+  "https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png";
+export const MAP_TILE_ATTRIBUTION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+
 /** Image de secours neutre affichée quand une annonce n'a AUCUNE photo —
  * ne jamais remplacer par une photo de stock (ex: Unsplash), qui donne
  * l'impression trompeuse qu'une vraie photo a été fournie. */

@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import { MAP_TILE_URL } from "../config";
 
 const PLANS = [
   {
@@ -146,10 +147,7 @@ function ComparisonMap() {
       });
       mapRef.current = map;
 
-      L.tileLayer(
-        "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-        { maxZoom: 19 }
-      ).addTo(map);
+      L.tileLayer(MAP_TILE_URL, { maxZoom: 19 }).addTo(map);
 
       COMPARE_PINS.forEach(p => {
         const s = PIN_STYLE[p.level];

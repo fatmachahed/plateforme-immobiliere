@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useRef, useCallback } from "react";
 import ReactDOM from "react-dom";
-import API_URL, { fmtDevise, convertPrice, fmtPriceApprox, NO_IMAGE_PLACEHOLDER } from '../config';
+import API_URL, { fmtDevise, convertPrice, fmtPriceApprox, NO_IMAGE_PLACEHOLDER, MAP_TILE_URL, MAP_TILE_ATTRIBUTION } from '../config';
 import { useNavigate, useSearchParams, useParams, useLocation, Link } from "react-router-dom";
 import { useToast } from "../components/Toast";
 import { useFeatureFlags } from "../hooks/useFeatureFlags";
@@ -924,9 +924,9 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
         .setView(initCenter, initZoom);
       mapRef.current = map;
       onMapRef?.(map);
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+      L.tileLayer(MAP_TILE_URL,
         {
-          attribution:"&copy; OpenStreetMap &copy; CARTO",
+          attribution: MAP_TILE_ATTRIBUTION,
           // maxNativeZoom = résolution réelle des tuiles CARTO (19). maxZoom
           // plus haut permet de zoomer 2 niveaux au-delà en réutilisant/
           // agrandissant la dernière tuile (image un peu floue mais gratuit,

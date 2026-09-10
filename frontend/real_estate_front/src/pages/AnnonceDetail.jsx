@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom";
-import API_URL, { fmtDevise, fmtPriceApprox } from '../config';
+import API_URL, { fmtDevise, fmtPriceApprox, MAP_TILE_URL, MAP_TILE_ATTRIBUTION } from '../config';
 import {
   useIsInCompare, toggleCompare as toggleCompareStore,
 } from "../utils/compareStore";
@@ -1941,7 +1941,7 @@ function BigMap({ lat, lng }) {
       const map = L.map(ref.current, { zoomControl:true, dragging:true, scrollWheelZoom:false }).setView([lat,lng],15);
       mapRef.current  = map;
       leafletRef.current = L;
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",{attribution:"© OpenStreetMap © CARTO",maxZoom:19}).addTo(map);
+      L.tileLayer(MAP_TILE_URL,{attribution:MAP_TILE_ATTRIBUTION,maxZoom:19}).addTo(map);
       const icon = L.divIcon({ className:"", html:PIN_SVG_HTML, iconSize:[36,48], iconAnchor:[18,48] });
       L.marker([lat,lng],{icon}).addTo(map);
       setTimeout(()=>map.invalidateSize(),80);

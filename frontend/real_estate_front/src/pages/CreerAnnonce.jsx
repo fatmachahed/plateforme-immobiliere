@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useRef, useCallback, useContext, createContext } from "react";
 import ReactDOM from "react-dom";
-import API_URL, { fmtPriceApprox, NO_IMAGE_PLACEHOLDER } from '../config';
+import API_URL, { fmtPriceApprox, NO_IMAGE_PLACEHOLDER, MAP_TILE_URL, MAP_TILE_ATTRIBUTION } from '../config';
 import { useNavigate } from "react-router-dom";
 import {
   Home, Building2, MapPin, Camera, ChevronRight, ChevronLeft, Save, Layers, Crown,
@@ -227,8 +227,8 @@ function ControlledMap({ position, onLocationChange, govLabel, delLabel, onZoneS
       const map = L.map(containerRef.current).setView([position.lat, position.lng], 13);
       mapRef.current = map;
 
-      L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
-        { attribution: "© OpenStreetMap © CARTO", maxZoom: 19 }).addTo(map);
+      L.tileLayer(MAP_TILE_URL,
+        { attribution: MAP_TILE_ATTRIBUTION, maxZoom: 19 }).addTo(map);
 
       const marker = L.marker([position.lat, position.lng], { draggable: true }).addTo(map);
       markerRef.current = marker;
