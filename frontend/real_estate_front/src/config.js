@@ -4,16 +4,17 @@ export default API_URL;
 
 /* ── Fond de carte Leaflet ───────────────────────────────────────────
  * CARTO a rendu ses fonds de carte payants (filigrane "API KEY REQUIRED"
- * sur les tuiles anonymes). En attendant de choisir un fournisseur
- * définitif (Stadia "Alidade Smooth" testé mais jugé trop épuré), on
- * reste sur les tuiles OpenStreetMap France (osmfr) : gratuites, sans
- * clé, sans expiration, rendu détaillé classique. Serveur communautaire
- * unique (France) → un peu plus lent au zoom que via un CDN.
- * Pour changer de fournisseur, il suffit de modifier ces constantes. */
+ * sur les tuiles anonymes). On utilise Stadia Maps, style "OSM Bright" :
+ * rendu détaillé et coloré (rues, POI, labels) proche d'OpenStreetMap /
+ * Google Maps, servi par un CDN mondial (rapide), gratuit jusqu'à
+ * 200 000 tuiles/mois, sans clé — auth par domaine autorisé dans le
+ * compte Stadia (localizi.tn + sous-domaines ; localhost d'office en dev).
+ * Autres styles Stadia possibles en changeant juste l'URL :
+ * alidade_smooth (épuré), alidade_smooth_dark, outdoors. */
 export const MAP_TILE_URL =
-  "https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png";
+  "https://tiles.stadiamaps.com/tiles/osm_bright/{z}/{x}/{y}{r}.png";
 export const MAP_TILE_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> France';
+  '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 
 /* Options Leaflet communes aux tuiles : réduisent le nombre de requêtes
  * pendant le zoom/déplacement et gardent un buffer autour du viewport
