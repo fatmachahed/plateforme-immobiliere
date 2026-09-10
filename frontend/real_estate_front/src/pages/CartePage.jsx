@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useRef, useCallback } from "react";
 import ReactDOM from "react-dom";
-import API_URL, { fmtDevise, convertPrice, fmtPriceApprox, NO_IMAGE_PLACEHOLDER, MAP_TILE_URL, MAP_TILE_ATTRIBUTION } from '../config';
+import API_URL, { fmtDevise, convertPrice, fmtPriceApprox, NO_IMAGE_PLACEHOLDER, MAP_TILE_URL, MAP_TILE_ATTRIBUTION, MAP_TILE_OPTIONS } from '../config';
 import { useNavigate, useSearchParams, useParams, useLocation, Link } from "react-router-dom";
 import { useToast } from "../components/Toast";
 import { useFeatureFlags } from "../hooks/useFeatureFlags";
@@ -926,13 +926,14 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
       onMapRef?.(map);
       L.tileLayer(MAP_TILE_URL,
         {
+          ...MAP_TILE_OPTIONS,
           attribution: MAP_TILE_ATTRIBUTION,
-          // maxNativeZoom = résolution réelle des tuiles CARTO (19). maxZoom
-          // plus haut permet de zoomer 2 niveaux au-delà en réutilisant/
-          // agrandissant la dernière tuile (image un peu floue mais gratuit,
-          // même tuiles) — utile pour séparer des biens très proches les uns
-          // des autres qui se chevauchent au zoom max actuel.
-          maxNativeZoom:19, maxZoom:21,
+          // maxNativeZoom = résolution réelle des tuiles (20). maxZoom plus
+          // haut permet de zoomer au-delà en réutilisant/agrandissant la
+          // dernière tuile (image un peu floue mais même tuiles) — utile
+          // pour séparer des biens très proches qui se chevauchent au zoom
+          // max.
+          maxNativeZoom:20, maxZoom:21,
         }).addTo(map);
       L.control.zoom({ position:"bottomright" }).addTo(map);
       setTimeout(()=>map.invalidateSize(), 80);

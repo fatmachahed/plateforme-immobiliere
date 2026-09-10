@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom";
-import API_URL, { fmtDevise, fmtPriceApprox, NO_IMAGE_PLACEHOLDER, MAP_TILE_URL, MAP_TILE_ATTRIBUTION } from '../config';
+import API_URL, { fmtDevise, fmtPriceApprox, NO_IMAGE_PLACEHOLDER, MAP_TILE_URL, MAP_TILE_ATTRIBUTION, MAP_TILE_OPTIONS } from '../config';
 import { useFeatureFlags } from "../hooks/useFeatureFlags";
 import {
   useIsInCompare, toggleCompare as toggleCompareStore,
@@ -1693,7 +1693,7 @@ function BigMap({lat,lng}){
         tap:false,
       }).setView([lat,lng],15);
       mapRef.current=map;leafletRef.current=L;
-      L.tileLayer(MAP_TILE_URL,{attribution:MAP_TILE_ATTRIBUTION,maxZoom:19}).addTo(map);
+      L.tileLayer(MAP_TILE_URL,{...MAP_TILE_OPTIONS,attribution:MAP_TILE_ATTRIBUTION,maxZoom:20}).addTo(map);
 
       /* Pin en forme de goutte (style Google Maps) dessiné en vecteur natif
          Leaflet (polygone + cercle via le moteur SVG interne) — les divIcon/HTML

@@ -2,7 +2,7 @@
 import useLocalisation from "../hooks/useLocalisation";
 import heroImg from "../assets/hero-localizi.png";
 import statsIllustration from "../assets/localizi-stats-img.png";
-import API_URL, { fmtDevise, MAP_TILE_URL } from "../config";
+import API_URL, { fmtDevise, MAP_TILE_URL, MAP_TILE_ATTRIBUTION, MAP_TILE_OPTIONS } from "../config";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Search, MapPin, Home, TrendingUp, Shield, Clock, Star,
@@ -87,7 +87,7 @@ function HomeTunisiaMap({ props: annonces }) {
       });
       mapRef.current = map;
 
-      L.tileLayer(MAP_TILE_URL, { maxZoom: 19 }).addTo(map);
+      L.tileLayer(MAP_TILE_URL, { ...MAP_TILE_OPTIONS, attribution: MAP_TILE_ATTRIBUTION, maxZoom: 20 }).addTo(map);
 
       /* Cadrage automatique sur la Tunisie */
       map.fitBounds([[30.2, 7.5], [37.5, 11.6]], { padding: [18, 18] });

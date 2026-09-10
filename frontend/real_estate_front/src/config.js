@@ -3,18 +3,27 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 export default API_URL;
 
 /* ── Fond de carte Leaflet ───────────────────────────────────────────
- * CARTO a rendu ses fonds de carte payants : les tuiles anonymes de
- * basemaps.cartocdn.com sont désormais tamponnées "API KEY REQUIRED"
- * (et leur token v3 ne s'applique qu'à l'API vectorielle, pas aux
- * tuiles raster utilisées ici). On bascule sur les tuiles OpenStreetMap
- * France (osmfr) : gratuites, sans clé, sans expiration, style clair
- * proche de l'ancien rendu — c'est déjà ce qu'utilise MapView.jsx.
- * Pour un style premium type CARTO plus tard (ex. Stadia "Alidade
- * Smooth"), il suffit de changer ces deux constantes. */
+ * CARTO a rendu ses fonds de carte payants (filigrane "API KEY REQUIRED"
+ * sur les tuiles anonymes). On utilise Stadia Maps, style "Alidade
+ * Smooth" : très proche de l'ancien rendu CARTO, servi par un CDN
+ * mondial (rapide), gratuit jusqu'à 200 000 tuiles/mois, sans clé —
+ * l'authentification se fait par domaine autorisé dans le compte Stadia
+ * (localizi.tn + sous-domaines ; localhost autorisé d'office en dev).
+ * Pour changer de fournisseur plus tard, il suffit de modifier ces
+ * constantes. */
 export const MAP_TILE_URL =
-  "https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png";
+  "https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png";
 export const MAP_TILE_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+  '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+
+/* Options Leaflet communes aux tuiles : réduisent le nombre de requêtes
+ * pendant le zoom/déplacement et gardent un buffer autour du viewport
+ * → ouverture et zoom plus fluides. */
+export const MAP_TILE_OPTIONS = {
+  updateWhenZooming: false,
+  updateWhenIdle: true,
+  keepBuffer: 3,
+};
 
 /** Image de secours neutre affichée quand une annonce n'a AUCUNE photo —
  * ne jamais remplacer par une photo de stock (ex: Unsplash), qui donne

@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect, useRef, useCallback, useContext, createContext } from "react";
 import ReactDOM from "react-dom";
-import API_URL, { fmtPriceApprox, NO_IMAGE_PLACEHOLDER, MAP_TILE_URL, MAP_TILE_ATTRIBUTION } from '../config';
+import API_URL, { fmtPriceApprox, NO_IMAGE_PLACEHOLDER, MAP_TILE_URL, MAP_TILE_ATTRIBUTION, MAP_TILE_OPTIONS } from '../config';
 import { useNavigate } from "react-router-dom";
 import {
   Home, Building2, MapPin, Camera, ChevronRight, ChevronLeft, Save, Layers, Crown,
@@ -228,7 +228,7 @@ function ControlledMap({ position, onLocationChange, govLabel, delLabel, onZoneS
       mapRef.current = map;
 
       L.tileLayer(MAP_TILE_URL,
-        { attribution: MAP_TILE_ATTRIBUTION, maxZoom: 19 }).addTo(map);
+        { ...MAP_TILE_OPTIONS, attribution: MAP_TILE_ATTRIBUTION, maxZoom: 20 }).addTo(map);
 
       const marker = L.marker([position.lat, position.lng], { draggable: true }).addTo(map);
       markerRef.current = marker;
