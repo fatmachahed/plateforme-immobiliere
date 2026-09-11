@@ -4,17 +4,21 @@ export default API_URL;
 
 /* ── Fond de carte Leaflet ───────────────────────────────────────────
  * CARTO a rendu ses fonds de carte payants (filigrane "API KEY REQUIRED"
- * sur les tuiles anonymes). On utilise Stadia Maps, style "OSM Bright" :
- * rendu détaillé et coloré (rues, POI, labels) proche d'OpenStreetMap /
- * Google Maps, servi par un CDN mondial (rapide), gratuit jusqu'à
- * 200 000 tuiles/mois, sans clé — auth par domaine autorisé dans le
- * compte Stadia (localizi.tn + sous-domaines ; localhost d'office en dev).
- * Autres styles Stadia possibles en changeant juste l'URL :
- * alidade_smooth (épuré), alidade_smooth_dark, outdoors. */
+ * sur les tuiles anonymes). osmfr (mirroir communautaire français) était
+ * détaillé mais lent (pas de CDN). Stadia "osm_bright" était rapide mais
+ * moins détaillé (jeu de données OpenMapTiles, pas le rendu osm-carto).
+ * On teste ici la source OpenStreetMap officielle (tile.openstreetmap.org) :
+ * même rendu détaillé "osm-carto" qu'osmfr, mais servi par Fastly (CDN
+ * mondial) → plus rapide. Gratuit, sans clé, usage raisonnable toléré par
+ * la politique OSM (pas de garantie de service en cas de pic de trafic
+ * massif — à surveiller si le site grossit beaucoup).
+ * Autres styles Stadia possibles en changeant juste l'URL (le compte est
+ * déjà configuré) : osm_bright, alidade_smooth, alidade_smooth_dark,
+ * outdoors. */
 export const MAP_TILE_URL =
-  "https://tiles.stadiamaps.com/tiles/osm_bright/{z}/{x}/{y}{r}.png";
+  "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
 export const MAP_TILE_ATTRIBUTION =
-  '&copy; <a href="https://stadiamaps.com/">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 /* Options Leaflet communes aux tuiles : réduisent le nombre de requêtes
  * pendant le zoom/déplacement et gardent un buffer autour du viewport
