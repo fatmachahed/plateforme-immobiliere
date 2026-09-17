@@ -7,7 +7,7 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   Search, MapPin, Home, TrendingUp, Shield, Clock, Star,
   ArrowRight, Bed, Bath, Maximize, Zap, CheckCircle,
-  Building2, Trees, ChevronRight, ChevronLeft, Play, Car, Users, Moon, Heart, X, Download, Smartphone, Wifi, Factory, Share, PlusSquare
+  Building2, Trees, ChevronRight, ChevronLeft, Play, Car, Users, Moon, Heart, X, Download, Smartphone, Wifi, Factory, Share, PlusSquare, Map
 } from "lucide-react";
 import ReactDOM from "react-dom";
 import Navbar from "../components/Navbar";
@@ -632,7 +632,12 @@ export default function HomePage() {
         <div className="hp-hero__bg" />
         <div className="hp-hero__overlay" />
         <div className="hp-hero__content animate-fadeInUp">
-          <span className="hp-hero__badge">📍 1ère plateforme de géolocalisation immobilière en Tunisie</span>
+          <span className="hp-hero__badge">
+            📍 1ère plateforme de géolocalisation immobilière en Tunisie
+            <Link to="/carte" className="hp-hero__badge-map" title="Voir la carte" aria-label="Voir la carte">
+              <Map size={16} />
+            </Link>
+          </span>
           <h1 className="hp-hero__title">
             Trouvez votre<br />
             <span className="hp-hero__highlight">propriété idéale</span>
@@ -1212,6 +1217,13 @@ export default function HomePage() {
           color: #e0e7ff; font-size: 15.5px; font-weight: 700;
           padding: 8px 18px; border-radius: 999px; backdrop-filter: blur(4px);
         }
+        .hp-hero__badge-map {
+          display: flex; align-items: center; justify-content: center;
+          width: 24px; height: 24px; border-radius: 50%;
+          background: rgba(255,255,255,.16); color: #fff;
+          transition: background .15s, transform .15s;
+        }
+        .hp-hero__badge-map:hover { background: rgba(255,255,255,.3); transform: scale(1.08); }
         .hp-hero__title {
           color: white; font-size: clamp(36px, 5.5vw, 68px); font-weight: 900;
           line-height: 1.1; margin: 10px 0 18px;
