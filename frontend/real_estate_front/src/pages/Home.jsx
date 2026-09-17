@@ -632,7 +632,7 @@ export default function HomePage() {
         <div className="hp-hero__bg" />
         <div className="hp-hero__overlay" />
         <div className="hp-hero__content animate-fadeInUp">
-          <span className="hp-hero__badge">📍 1ère plateforme immobilière géolocalisée de Tunisie</span>
+          <span className="hp-hero__badge">📍 1ère plateforme de géolocalisation immobilière en Tunisie</span>
           <h1 className="hp-hero__title">
             Trouvez votre<br />
             <span className="hp-hero__highlight">propriété idéale</span>
@@ -1209,8 +1209,8 @@ export default function HomePage() {
         .hp-hero__badge {
           display: inline-flex; align-items: center; gap: 7px;
           background: rgba(99,102,241,.18); border: 1px solid rgba(165,180,252,.4);
-          color: #e0e7ff; font-size: 13.5px; font-weight: 700;
-          padding: 7px 16px; border-radius: 999px; backdrop-filter: blur(4px);
+          color: #e0e7ff; font-size: 15.5px; font-weight: 700;
+          padding: 8px 18px; border-radius: 999px; backdrop-filter: blur(4px);
         }
         .hp-hero__title {
           color: white; font-size: clamp(36px, 5.5vw, 68px); font-weight: 900;
@@ -1509,7 +1509,7 @@ export default function HomePage() {
           /* Hero height réduite */
           .hp-hero { min-height: 78vh; }
           /* Badge géolocalisation : plus petit sur mobile */
-          .hp-hero__badge { font-size: 11.5px !important; padding: 5px 12px !important; }
+          .hp-hero__badge { font-size: 12.5px !important; padding: 6px 14px !important; }
           /* Titre centré et plus grand */
           .hp-hero__title { font-size: 30px !important; line-height: 1.2 !important; margin-bottom: 10px !important; text-align: center !important; }
           .hp-hero__highlight { font-size: inherit !important; }
