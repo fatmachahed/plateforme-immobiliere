@@ -4,6 +4,7 @@ import { HelmetProvider } from "react-helmet-async";
 import "leaflet/dist/leaflet.css";
 import { ToastProvider } from "./components/Toast";
 import CookieBanner    from "./components/CookieBanner";
+import ChatbotWidget    from "./components/ChatbotWidget";
 import ComparateurPopup from "./components/ComparateurPopup";
 import { useCompareShowPopup } from "./utils/compareStore";
 import { LanguageProvider } from "./contexts/LanguageContext";
@@ -149,8 +150,9 @@ function App() {
           {/* 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
-        {/* Doit rester DANS <Router> : ComparateurPopup utilise <Link> (contexte routeur) */}
+        {/* Doit rester DANS <Router> : ComparateurPopup et ChatbotWidget utilisent <Link> (contexte routeur) */}
         {showComparateur && <ComparateurPopup onClose={() => setShowComparateur(false)} />}
+        <ChatbotWidget />
       </Router>
       <CookieBanner />
     </ToastProvider>

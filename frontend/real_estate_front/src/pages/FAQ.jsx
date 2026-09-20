@@ -5,7 +5,7 @@ import Footer from "../components/Footer";
 import Seo from "../components/Seo";
 import { ChevronDown, ChevronUp, HelpCircle, MapPin, ArrowRight } from "lucide-react";
 
-const FAQS = [
+export const FAQS = [
   {
     cat: "À propos de Localizi.tn",
     items: [
