@@ -5,6 +5,7 @@ import Footer from "../components/Footer";
 import API_URL from "../config";
 import useLocalisation from "../hooks/useLocalisation";
 import AgentsMarquee from "../components/AgentsMarquee";
+import heroDemandeImg from "../assets/hero-demande.png";
 import {
   Search, Home, MapPin, Banknote, Maximize2, BedDouble,
   Phone, Mail, User, CheckCircle2, ChevronDown, Info
@@ -180,16 +181,30 @@ export default function DeposerDemande() {
       <div className="dd-page">
 
         {/* Hero */}
-        <div className="dd-hero">
-          <div className="dd-hero__inner">
-            <div className="dd-hero__ico"><Search size={28} color="#fff"/></div>
-            <h1 className="dd-hero__title">Déposer une demande</h1>
-            <p className="dd-hero__sub">
-              Décrivez le bien que vous recherchez. Les agents immobiliers actifs
-              dans la zone recherchée vous contacteront directement.
-            </p>
+        <section style={{
+          position: "relative", height: "clamp(280px, 38vw, 480px)",
+          overflow: "hidden", background: "#1e293b",
+        }}>
+          <img
+            src={heroDemandeImg}
+            alt=""
+            style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"center 75%", opacity:.55 }}
+          />
+          <div style={{
+            position:"absolute", inset:0,
+            background:"linear-gradient(90deg, rgba(15,23,42,.7) 0%, rgba(15,23,42,.15) 100%)",
+            display:"flex", alignItems:"center", justifyContent:"center",
+          }}>
+            <div className="dd-hero__inner">
+              <div className="dd-hero__ico"><Search size={28} color="#fff"/></div>
+              <h1 className="dd-hero__title">Déposer une demande</h1>
+              <p className="dd-hero__sub">
+                Décrivez le bien que vous recherchez. Les agents immobiliers actifs
+                dans la zone recherchée vous contacteront directement.
+              </p>
+            </div>
           </div>
-        </div>
+        </section>
 
         <AgentsMarquee/>
 
@@ -381,12 +396,7 @@ export default function DeposerDemande() {
         .dd-page { min-height: 100vh; background: #f8fafc; }
 
         /* Hero */
-        .dd-hero {
-          background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-          padding: 56px 24px 48px;
-          text-align: center;
-        }
-        .dd-hero__inner { max-width: 640px; margin: 0 auto; }
+        .dd-hero__inner { max-width: 640px; margin: 0 auto; padding: 0 24px; text-align: center; }
         .dd-hero__ico {
           width: 60px; height: 60px; border-radius: 50%;
           background: rgba(255,255,255,.15);
@@ -523,7 +533,7 @@ export default function DeposerDemande() {
         .dd-success-btn:hover { background: #4f46e5; }
 
         @media (max-width: 600px) {
-          .dd-hero { padding: 40px 16px 32px; }
+          .dd-hero__inner { padding: 0 16px; }
           .dd-hero__title { font-size: 22px; }
           .dd-grid-2 { grid-template-columns: 1fr; }
           .dd-budget-row { flex-wrap: wrap; }
