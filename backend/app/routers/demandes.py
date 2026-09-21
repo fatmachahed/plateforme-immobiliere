@@ -9,6 +9,7 @@ Flux :
   GET  /demandes/token/{t}         → lit la demande (pour page de gestion)
   GET  /demandes                   → liste admin (auth admin requis)
   GET  /demandes/mes               → liste agents : demandes filtrées par gouvernorat
+  GET  /demandes/miennes           → liste des demandes déposées par l'utilisateur connecté
   POST /demandes/{id}/consulter    → trace la consultation par un agent
 """
 
@@ -25,6 +26,7 @@ from typing import List, Optional
 
 from app.database import get_db
 from app.routers.users import get_current_user
+from app.utils.auth import get_current_user_optional
 from app.email_utils import send_email, LOGO_IMG_HTML, SOCIAL_FOOTER_HTML
 
 import os
@@ -218,7 +220,11 @@ def _send_expiry_email(demande: dict):
 # ── Endpoints publics ─────────────────────────────────────────────────────────
 
 @router.post("", status_code=201)
-def creer_demande(data: DemandeCreate, db: Session = Depends(get_db)):
+def creer_demande(
+    data: DemandeCreate,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user_optional),
+):
     token = secrets.token_urlsafe(32)
     expire_at = datetime.now(timezone.utc) + timedelta(days=30)
 
@@ -226,11 +232,11 @@ def creer_demande(data: DemandeCreate, db: Session = Depends(get_db)):
         INSERT INTO demandes_immo
           (nom, email, telephone, whatsapp, categorie, type_bien, gouvernorats, delegations,
            budget_min, budget_max, devise, surface_min, surface_max, nb_pieces,
-           meuble, colocation, delai, description, statut, token, expire_at)
+           meuble, colocation, delai, description, statut, token, expire_at, user_id)
         VALUES
           (:nom, :email, :telephone, :whatsapp, :categorie, :type_bien, :gouvernorats, :delegations,
            :budget_min, :budget_max, :devise, :surface_min, :surface_max, :nb_pieces,
-           :meuble, :colocation, :delai, :description, 'pending', :token, :expire_at)
+           :meuble, :colocation, :delai, :description, 'pending', :token, :expire_at, :user_id)
         RETURNING *
     """), {
         "nom":         data.nom,
@@ -251,6 +257,7 @@ def creer_demande(data: DemandeCreate, db: Session = Depends(get_db)):
         "colocation":  data.colocation,
         "delai":       data.delai,
         "description": data.description,
+        "user_id":     current_user.id if current_user else None,
         "token":       token,
         "expire_at":   expire_at,
     })
@@ -344,6 +351,30 @@ def liste_demandes_agent(db: Session = Depends(get_db), current_user=Depends(get
         """), {"gouv": f"%{gouv}%"}).fetchall()
     else:
         rows = []
+
+    result = []
+    for r in rows:
+        d = dict(r._mapping)
+        d["gouvernorats"] = json.loads(d["gouvernorats"]) if isinstance(d["gouvernorats"], str) else d["gouvernorats"]
+        d["delegations"]  = json.loads(d["delegations"])  if isinstance(d.get("delegations"), str) else (d.get("delegations") or [])
+        result.append(d)
+    return result
+
+
+# ── Endpoint utilisateur : ses propres demandes déposées ─────────────────────
+
+@router.get("/miennes")
+def liste_mes_demandes(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    rows = db.execute(text("""
+        SELECT id, nom, email, telephone, whatsapp, categorie, type_bien,
+               gouvernorats, delegations, budget_min, budget_max, devise,
+               surface_min, surface_max,
+               nb_pieces, meuble, colocation, delai, description,
+               statut, token, expire_at, created_at
+        FROM demandes_immo
+        WHERE user_id = :uid
+        ORDER BY created_at DESC
+    """), {"uid": current_user.id}).fetchall()
 
     result = []
     for r in rows:

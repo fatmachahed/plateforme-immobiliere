@@ -108,6 +108,12 @@ export default function Compte() {
   const [demandesLoading,setDemandesLoading]= useState(false);
   const [demandeContact, setDemandeContact] = useState(null); // id demande dont on affiche le contact
 
+  /* ── Mes demandes immobilières (tout utilisateur ayant déposé une demande) ── */
+  const [mesDemandes,       setMesDemandes]       = useState([]);
+  const [mesDemandesLoaded, setMesDemandesLoaded] = useState(false);
+  const [mesDemandesLoading,setMesDemandesLoading]= useState(false);
+  const [mesDemandeActionId,setMesDemandeActionId]= useState(null); // id en cours de renouvellement/clôture
+
   /* ── Noter les services reçus (tout utilisateur ayant contacté un prestataire) ── */
   const [toRate,        setToRate]        = useState([]);
   const [toRateLoaded,  setToRateLoaded]  = useState(false);
@@ -167,6 +173,35 @@ export default function Compte() {
       setResendingVerif(false);
     }
   };
+  const handleRenewMyDemande = async (d) => {
+    setMesDemandeActionId(d.id);
+    try {
+      const res = await fetch(`${API_URL}/demandes/token/${d.token}/renew`, { method: "POST" });
+      if (!res.ok) throw new Error();
+      setMesDemandes(prev => prev.map(x => x.id === d.id ? { ...x, statut: "active" } : x));
+      toast("Demande renouvelée pour 30 jours.");
+    } catch {
+      toast("Impossible de renouveler la demande. Réessayez.", "error");
+    } finally {
+      setMesDemandeActionId(null);
+    }
+  };
+
+  const handleCloseMyDemande = async (d) => {
+    if (!window.confirm("Clôturer cette demande ? Vous avez trouvé votre bien ?")) return;
+    setMesDemandeActionId(d.id);
+    try {
+      const res = await fetch(`${API_URL}/demandes/token/${d.token}/close`, { method: "POST" });
+      if (!res.ok) throw new Error();
+      setMesDemandes(prev => prev.map(x => x.id === d.id ? { ...x, statut: "closed" } : x));
+      toast("Demande clôturée.");
+    } catch {
+      toast("Impossible de clôturer la demande. Réessayez.", "error");
+    } finally {
+      setMesDemandeActionId(null);
+    }
+  };
+
   const [extraPhones,    setExtraPhones]    = useState([]);
   const [addingPhone,    setAddingPhone]    = useState(false);
   const [newPhoneCode,   setNewPhoneCode]   = useState("+216");
@@ -550,6 +585,12 @@ export default function Compte() {
       fetch(`${API_URL}/demandes/mes`, { headers:{Authorization:`Bearer ${token}`} })
         .then(r=>r.ok?r.json():[]).then(d=>{ setDemandes(Array.isArray(d)?d:[]); setDemandesLoaded(true); })
         .catch(()=>setDemandesLoaded(true)).finally(()=>setDemandesLoading(false));
+    }
+    if (tab === "mes_demandes_immo" && !mesDemandesLoaded) {
+      setMesDemandesLoading(true);
+      fetch(`${API_URL}/demandes/miennes`, { headers:{Authorization:`Bearer ${token}`} })
+        .then(r=>r.ok?r.json():[]).then(d=>{ setMesDemandes(Array.isArray(d)?d:[]); setMesDemandesLoaded(true); })
+        .catch(()=>setMesDemandesLoaded(true)).finally(()=>setMesDemandesLoading(false));
     }
   }, [tab, alertesLoaded]);
 
@@ -1031,6 +1072,7 @@ export default function Compte() {
     { key:"contacts",  icon:<Bell size={19}/>,   label:"Demandes reçues", badge: contactsLoaded ? unreadCount : 0 },
     { key:"alertes",   icon:<Bell size={19}/>,   label:"Mes alertes", badge: alertesLoaded ? alertesCount : 0 },
     { key:"favoris",   icon:<Heart size={19}/>,  label:"Mes favoris" },
+    { key:"mes_demandes_immo", icon:<Search size={19}/>, label:"Mes demandes", badge: mesDemandesLoaded ? mesDemandes.filter(d=>d.statut==="active"||d.statut==="pending").length : 0 },
     { key:"noter",     icon:<Star size={19}/>,   label:"Noter les services", badge: toRateLoaded ? toRate.length : 0 },
     ...(canHaveInterventions?[{key:"interventions",icon:<Briefcase size={19}/>,label:"Mes interventions", badge: interventionsLoaded ? pendingInterventions : 0}]:[]),
     { key:"statistiques", icon:<TrendingUp size={19}/>, label:"Statistiques" },
@@ -2252,6 +2294,104 @@ export default function Compte() {
                           <span style={{fontSize:11.5, color:"#94a3b8"}}>
                             Expire le {d.expire_at && new Date(d.expire_at).toLocaleDateString("fr-FR", {day:"numeric",month:"long"})}
                           </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ═══════ MES DEMANDES (tous les rôles) ═══════ */}
+          {tab==="mes_demandes_immo" && (
+            <div>
+              <div style={{...card, padding:"22px 26px", marginBottom:20}}>
+                <h2 style={{...cardTitle, display:"flex", alignItems:"center", gap:8, marginBottom:4}}>
+                  <Search size={17} style={{color:"#6366f1"}}/>Mes demandes
+                </h2>
+                <p style={{fontSize:12.5, color:"#94a3b8", marginBottom:0}}>
+                  Les biens que vous recherchez via "Déposer une demande". Suivez leur statut, renouvelez-les ou clôturez-les depuis ici.
+                </p>
+              </div>
+
+              {mesDemandesLoading ? (
+                <div style={{textAlign:"center",padding:40,color:"#94a3b8"}}>Chargement…</div>
+              ) : mesDemandes.length === 0 ? (
+                <div style={{...card, padding:40, textAlign:"center"}}>
+                  <Search size={40} style={{color:"#e5e7eb", marginBottom:12}}/>
+                  <p style={{color:"#94a3b8", fontSize:14, margin:"0 0 14px"}}>
+                    Vous n'avez déposé aucune demande pour l'instant.
+                  </p>
+                  <Link to="/deposer-une-demande" style={{display:"inline-flex",alignItems:"center",gap:7,padding:"9px 18px",borderRadius:9,background:"#6366f1",color:"#fff",fontSize:13,fontWeight:700,textDecoration:"none"}}>
+                    Déposer une demande
+                  </Link>
+                </div>
+              ) : (
+                <div style={{display:"flex", flexDirection:"column", gap:16}}>
+                  {mesDemandes.map(d => {
+                    const catLabel = {achat:"Achat",location:"Location",vacances:"Vacances"}[d.categorie] || d.categorie;
+                    const catColor = {achat:"#6366f1",location:"#10b981",vacances:"#f59e0b"}[d.categorie] || "#6366f1";
+                    const statutColor = {active:"#16a34a",pending:"#f59e0b",expired:"#9ca3af",closed:"#6b7280"}[d.statut] || "#6b7280";
+                    const statutLabel = {active:"Active",pending:"En attente de confirmation",expired:"Expirée",closed:"Clôturée"}[d.statut] || d.statut;
+                    const govs = Array.isArray(d.gouvernorats) ? d.gouvernorats : (d.gouvernorats ? JSON.parse(d.gouvernorats) : []);
+                    const dels = Array.isArray(d.delegations) ? d.delegations : (d.delegations ? JSON.parse(d.delegations) : []);
+                    const devise = d.devise || "DT";
+                    const actionLoading = mesDemandeActionId === d.id;
+                    return (
+                      <div key={d.id} style={{...card, padding:0, overflow:"hidden"}}>
+                        <div style={{padding:"18px 22px", display:"flex", alignItems:"flex-start", gap:16, flexWrap:"wrap"}}>
+                          <div style={{flex:1, minWidth:200}}>
+                            <div style={{display:"flex", alignItems:"center", gap:10, marginBottom:10, flexWrap:"wrap"}}>
+                              <span style={{background:catColor+"18", color:catColor, fontSize:12, fontWeight:700, padding:"3px 12px", borderRadius:20}}>
+                                {catLabel}
+                              </span>
+                              <span style={{background:"#f1f5f9", color:"#374151", fontSize:12, fontWeight:600, padding:"3px 12px", borderRadius:20}}>
+                                {d.type_bien}
+                              </span>
+                              <span style={{background:statutColor+"18", color:statutColor, fontSize:12, fontWeight:700, padding:"3px 12px", borderRadius:20}}>
+                                {statutLabel}
+                              </span>
+                            </div>
+                            <div style={{display:"flex", flexWrap:"wrap", gap:"6px 20px", fontSize:13, color:"#374151"}}>
+                              {govs.length > 0 && (
+                                <span style={{display:"flex", alignItems:"center", gap:5}}>
+                                  <MapPin size={13} style={{color:"#6366f1", flexShrink:0}}/>
+                                  {govs.join(", ")}{dels.length > 0 ? ` (${dels.join(", ")})` : ""}
+                                </span>
+                              )}
+                              {(d.budget_min || d.budget_max) && (
+                                <span style={{display:"flex", alignItems:"center", gap:5}}>
+                                  <Banknote size={13} style={{color:"#6366f1", flexShrink:0}}/>
+                                  {d.budget_min ? `${Number(d.budget_min).toLocaleString("fr-TN")} ${devise}` : "—"}
+                                  {" → "}
+                                  {d.budget_max ? `${Number(d.budget_max).toLocaleString("fr-TN")} ${devise}` : "—"}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div style={{flexShrink:0, fontSize:11.5, color:"#94a3b8", textAlign:"right", minWidth:90}}>
+                            {d.expire_at && `Expire le ${new Date(d.expire_at).toLocaleDateString("fr-FR", {day:"numeric",month:"long"})}`}
+                          </div>
+                        </div>
+                        <div style={{borderTop:"1px solid #f1f5f9", padding:"14px 22px", background:"#fafafa", display:"flex", alignItems:"center", gap:10, flexWrap:"wrap"}}>
+                          {(d.statut === "active" || d.statut === "expired") && (
+                            <button onClick={() => handleRenewMyDemande(d)} disabled={actionLoading}
+                              style={{display:"flex",alignItems:"center",gap:7,padding:"9px 16px",borderRadius:9,background:"#f1f5f9",color:"#0f172a",border:"1px solid #e2e8f0",fontSize:13,fontWeight:600,cursor:actionLoading?"default":"pointer",fontFamily:"inherit",opacity:actionLoading?.6:1}}>
+                              <RefreshCw size={14}/> Renouveler (30 jours)
+                            </button>
+                          )}
+                          {(d.statut === "active" || d.statut === "pending") && (
+                            <button onClick={() => handleCloseMyDemande(d)} disabled={actionLoading}
+                              style={{display:"flex",alignItems:"center",gap:7,padding:"9px 16px",borderRadius:9,background:"#fef2f2",color:"#b91c1c",border:"1px solid #fecaca",fontSize:13,fontWeight:600,cursor:actionLoading?"default":"pointer",fontFamily:"inherit",opacity:actionLoading?.6:1}}>
+                              <XCircle size={14}/> Clôturer (j'ai trouvé)
+                            </button>
+                          )}
+                          {d.statut === "pending" && (
+                            <span style={{fontSize:12, color:"#92400e"}}>
+                              Confirmez via le lien reçu par email pour la rendre visible aux agents.
+                            </span>
+                          )}
                         </div>
                       </div>
                     );

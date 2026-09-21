@@ -59,6 +59,27 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise credentials_exception
     return user
 
+optional_oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
+
+def get_current_user_optional(token: str = Depends(optional_oauth2_scheme), db: Session = Depends(get_db)):
+    """Comme get_current_user, mais renvoie None (au lieu de lever 401) si aucun
+    token n'est fourni ou s'il est invalide — pour les endpoints publics qui se
+    comportent différemment (ex. rattacher un compte) quand l'utilisateur est connecté."""
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        sub = payload.get("sub")
+        if sub is None:
+            return None
+    except (JWTError, ExpiredSignatureError):
+        return None
+    try:
+        user = db.query(models.User).filter(models.User.id == int(sub)).first()
+    except (ValueError, TypeError):
+        user = db.query(models.User).filter(models.User.email == sub).first()
+    return user
+
 def get_current_admin(current_user: models.User = Depends(get_current_user)):
     role_val = current_user.role.value if hasattr(current_user.role, "value") else current_user.role
     if role_val != "admin":

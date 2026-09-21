@@ -266,6 +266,9 @@ with engine.connect() as conn:
         # Délégation(s) souhaitée(s) + devise du budget (ajoutés après coup)
         "ALTER TABLE demandes_immo ADD COLUMN IF NOT EXISTS delegations TEXT NOT NULL DEFAULT '[]';",
         "ALTER TABLE demandes_immo ADD COLUMN IF NOT EXISTS devise VARCHAR NOT NULL DEFAULT 'DT';",
+        # Rattache une demande au compte de son auteur, s'il était connecté en la déposant
+        "ALTER TABLE demandes_immo ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;",
+        "CREATE INDEX IF NOT EXISTS ix_demandes_immo_user_id ON demandes_immo (user_id);",
         # Table de traçabilité des consultations
         """
         CREATE TABLE IF NOT EXISTS demande_consultations (

@@ -284,9 +284,13 @@ export default function DeposerDemande() {
     setLoading(true);
     try {
       const toNumberOrNull = (v) => (v === "" || v === null || v === undefined ? null : Number(v));
+      const token = localStorage.getItem("token") || sessionStorage.getItem("token");
       const res = await fetch(`${API_URL}/demandes`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           ...form,
           gouvernorats: form.gouvernorat ? [form.gouvernorat] : [],
