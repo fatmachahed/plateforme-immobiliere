@@ -70,6 +70,7 @@ export default function Footer() {
               <li><Link to="/trouver-un-agent" onClick={()=>window.scrollTo({top:0,behavior:"instant"})}>Trouver un agent</Link></li>
               <li><Link to="/trouver-un-promoteur" onClick={()=>window.scrollTo({top:0,behavior:"instant"})}>Trouver un promoteur</Link></li>
               <li><Link to="/trouver-un-prestataire" onClick={()=>window.scrollTo({top:0,behavior:"instant"})}>Trouver un prestataire</Link></li>
+              <li><Link to="/deposer-une-demande" onClick={()=>window.scrollTo({top:0,behavior:"instant"})}>Déposer une demande</Link></li>
             </ul>
           </div>
 

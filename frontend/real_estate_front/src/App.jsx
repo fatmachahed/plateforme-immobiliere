@@ -49,6 +49,8 @@ import PromoteurOnboarding      from "./pages/PromoteurOnboarding";
 import TrouverUnPromoteur       from "./pages/TrouverUnPromoteur";
 import TrouverUnPrestataire     from "./pages/TrouverUnPrestataire";
 import Geolocalisation          from "./pages/Geolocalisation";
+import DeposerDemande           from "./pages/DeposerDemande";
+import GererDemande             from "./pages/GererDemande";
 import NotFound                 from "./pages/NotFound";
 
 /* Lien email alerte : déconnecte silencieusement puis recharge la page carte en mode invité */
@@ -146,6 +148,8 @@ function App() {
           <Route path="/trouver-un-promoteur"      element={<TrouverUnPromoteur />} />
           <Route path="/trouver-un-prestataire"   element={<TrouverUnPrestataire />} />
           <Route path="/faq/geolocalisation-immobilier" element={<Geolocalisation />} />
+          <Route path="/deposer-une-demande"           element={<DeposerDemande />} />
+          <Route path="/ma-demande/:token"             element={<GererDemande />} />
 
           {/* 404 */}
           <Route path="*" element={<NotFound />} />

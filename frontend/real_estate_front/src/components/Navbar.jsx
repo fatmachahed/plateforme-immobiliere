@@ -32,6 +32,7 @@ const NAV_LINK_KEYS = [
   { key: "nav_rent",     href: "/carte?categorie=location", icon: Key        },
   { key: "nav_vacation", href: "/carte?categorie=vacances", icon: Umbrella   },
   { key: "nav_sell",     href: "/vendre",                   icon: PlusCircle, label: "Vente" },
+  { key: "nav_demande",  href: "/deposer-une-demande",      icon: Search,     label: "Demande" },
 ];
 
 const PROS_LINKS = [

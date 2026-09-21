@@ -10,7 +10,7 @@ import {
   Save, X, Building2, MapPin, FileText, Briefcase, Users,
   Eye, EyeOff, Edit2, Trash2, CheckCircle, Clock, XCircle, ArrowRight,
   Upload, Plus, Search, TrendingUp, Bell, Sparkles, Zap, Maximize, Bed, Bath,
-  Copy, RefreshCw, Pencil, Star
+  Copy, RefreshCw, Pencil, Star, MessageSquare, Banknote, Maximize2, ChevronDown
 } from "lucide-react";
 import { useToast } from "../components/Toast";
 import {
@@ -101,6 +101,12 @@ export default function Compte() {
   const [interventionsLoaded, setInterventionsLoaded] = useState(false);
   const [interventionsLoading,setInterventionsLoading]= useState(false);
   const [updatingIntervId,    setUpdatingIntervId]    = useState(null);
+
+  /* ── Demandes immobilières (agent / agence / admin) ── */
+  const [demandes,       setDemandes]       = useState([]);
+  const [demandesLoaded, setDemandesLoaded] = useState(false);
+  const [demandesLoading,setDemandesLoading]= useState(false);
+  const [demandeContact, setDemandeContact] = useState(null); // id demande dont on affiche le contact
 
   /* ── Noter les services reçus (tout utilisateur ayant contacté un prestataire) ── */
   const [toRate,        setToRate]        = useState([]);
@@ -538,6 +544,12 @@ export default function Compte() {
       fetch(`${API_URL}/users/interventions/to-rate`, { headers:{Authorization:`Bearer ${token}`} })
         .then(r=>r.ok?r.json():[]).then(d=>{ setToRate(Array.isArray(d)?d:[]); setToRateLoaded(true); })
         .catch(()=>setToRateLoaded(true)).finally(()=>setToRateLoading(false));
+    }
+    if (tab === "demandes" && !demandesLoaded) {
+      setDemandesLoading(true);
+      fetch(`${API_URL}/demandes/mes`, { headers:{Authorization:`Bearer ${token}`} })
+        .then(r=>r.ok?r.json():[]).then(d=>{ setDemandes(Array.isArray(d)?d:[]); setDemandesLoaded(true); })
+        .catch(()=>setDemandesLoaded(true)).finally(()=>setDemandesLoading(false));
     }
   }, [tab, alertesLoaded]);
 
@@ -1022,6 +1034,7 @@ export default function Compte() {
     { key:"noter",     icon:<Star size={19}/>,   label:"Noter les services", badge: toRateLoaded ? toRate.length : 0 },
     ...(canHaveInterventions?[{key:"interventions",icon:<Briefcase size={19}/>,label:"Mes interventions", badge: interventionsLoaded ? pendingInterventions : 0}]:[]),
     { key:"statistiques", icon:<TrendingUp size={19}/>, label:"Statistiques" },
+    ...(["agence","agent","admin"].includes(effectiveRole)?[{key:"demandes",icon:<MessageSquare size={19}/>,label:"Demandes clients"}]:[]),
     ...(effectiveRole==="agence"?[{key:"equipe",icon:<Users size={19}/>,label:"Mon équipe"}]:[]),
     ...(effectiveRole==="agence"?[{key:"onboarding_agence",icon:<FileText size={19}/>,label:"Convention agence",onbInfo:_onbInfo(_onbAgence)}]:[]),
     ...(effectiveRole==="promoteur"?[{key:"onboarding_promoteur",icon:<FileText size={19}/>,label:"Convention promoteur",onbInfo:_onbInfo(_onbProm)}]:[]),
@@ -2105,6 +2118,147 @@ export default function Compte() {
               )}
             </div>
           )}
+          {/* ═══════ DEMANDES CLIENTS (agent / agence / admin) ═══════ */}
+          {tab==="demandes" && ["agence","agent","admin"].includes(effectiveRole) && (
+            <div>
+              <div style={{...card, padding:"22px 26px", marginBottom:20}}>
+                <h2 style={{...cardTitle, display:"flex", alignItems:"center", gap:8, marginBottom:4}}>
+                  <MessageSquare size={17} style={{color:"#6366f1"}}/>Demandes clients
+                </h2>
+                <p style={{fontSize:12.5, color:"#94a3b8", marginBottom:0}}>
+                  Acheteurs et locataires qui recherchent un bien dans votre zone.
+                  Cliquez sur "Voir contact" pour afficher les coordonnées et les contacter directement.
+                </p>
+              </div>
+
+              {demandesLoading ? (
+                <div style={{textAlign:"center",padding:40,color:"#94a3b8"}}>Chargement…</div>
+              ) : demandes.length === 0 ? (
+                <div style={{...card, padding:40, textAlign:"center"}}>
+                  <MessageSquare size={40} style={{color:"#e5e7eb", marginBottom:12}}/>
+                  <p style={{color:"#94a3b8", fontSize:14, margin:0}}>
+                    Aucune demande active dans votre gouvernorat pour le moment.
+                  </p>
+                </div>
+              ) : (
+                <div style={{display:"flex", flexDirection:"column", gap:16}}>
+                  {demandes.map(d => {
+                    const isOpen = demandeContact === d.id;
+                    const catLabel = {achat:"Achat",location:"Location",vacances:"Vacances"}[d.categorie] || d.categorie;
+                    const catColor = {achat:"#6366f1",location:"#10b981",vacances:"#f59e0b"}[d.categorie] || "#6366f1";
+                    const delaiLabel = {urgent:"Urgent (< 1 mois)","3mois":"Dans les 3 mois",reflexion:"En réflexion"}[d.delai] || d.delai;
+                    const govs = Array.isArray(d.gouvernorats) ? d.gouvernorats : (d.gouvernorats ? JSON.parse(d.gouvernorats) : []);
+                    return (
+                      <div key={d.id} style={{...card, padding:0, overflow:"hidden"}}>
+                        {/* En-tête carte */}
+                        <div style={{padding:"18px 22px", display:"flex", alignItems:"flex-start", gap:16, flexWrap:"wrap"}}>
+                          <div style={{flex:1, minWidth:200}}>
+                            <div style={{display:"flex", alignItems:"center", gap:10, marginBottom:10, flexWrap:"wrap"}}>
+                              <span style={{background:catColor+"18", color:catColor, fontSize:12, fontWeight:700, padding:"3px 12px", borderRadius:20}}>
+                                {catLabel}
+                              </span>
+                              <span style={{background:"#f1f5f9", color:"#374151", fontSize:12, fontWeight:600, padding:"3px 12px", borderRadius:20}}>
+                                {d.type_bien}
+                              </span>
+                              {d.delai && (
+                                <span style={{background:"#fffbeb", color:"#92400e", fontSize:12, fontWeight:600, padding:"3px 12px", borderRadius:20}}>
+                                  {delaiLabel}
+                                </span>
+                              )}
+                            </div>
+                            <div style={{display:"flex", flexWrap:"wrap", gap:"6px 20px", fontSize:13, color:"#374151"}}>
+                              {govs.length > 0 && (
+                                <span style={{display:"flex", alignItems:"center", gap:5}}>
+                                  <MapPin size={13} style={{color:"#6366f1", flexShrink:0}}/>
+                                  {govs.join(", ")}
+                                </span>
+                              )}
+                              {(d.budget_min || d.budget_max) && (
+                                <span style={{display:"flex", alignItems:"center", gap:5}}>
+                                  <Banknote size={13} style={{color:"#6366f1", flexShrink:0}}/>
+                                  {d.budget_min ? `${Number(d.budget_min).toLocaleString("fr-TN")} DT` : "—"}
+                                  {" → "}
+                                  {d.budget_max ? `${Number(d.budget_max).toLocaleString("fr-TN")} DT` : "—"}
+                                </span>
+                              )}
+                              {(d.surface_min || d.surface_max) && (
+                                <span style={{display:"flex", alignItems:"center", gap:5}}>
+                                  <Maximize2 size={13} style={{color:"#6366f1", flexShrink:0}}/>
+                                  {d.surface_min ? `${d.surface_min} m²` : "—"}
+                                  {" → "}
+                                  {d.surface_max ? `${d.surface_max} m²` : "—"}
+                                </span>
+                              )}
+                              {d.nb_pieces && d.nb_pieces !== "Indifférent" && (
+                                <span style={{display:"flex", alignItems:"center", gap:5}}>
+                                  <Home size={13} style={{color:"#6366f1", flexShrink:0}}/>
+                                  {d.nb_pieces} pièce{d.nb_pieces !== "1" ? "s" : ""}
+                                </span>
+                              )}
+                            </div>
+                            {d.description && (
+                              <p style={{margin:"10px 0 0", fontSize:13, color:"#64748b", lineHeight:1.5, fontStyle:"italic"}}>
+                                « {d.description} »
+                              </p>
+                            )}
+                          </div>
+                          <div style={{flexShrink:0, fontSize:11.5, color:"#94a3b8", textAlign:"right", minWidth:90}}>
+                            {d.created_at && new Date(d.created_at).toLocaleDateString("fr-FR", {day:"numeric",month:"short",year:"numeric"})}
+                          </div>
+                        </div>
+
+                        {/* Bouton voir contact / contact affiché */}
+                        <div style={{borderTop:"1px solid #f1f5f9", padding:"14px 22px", background:"#fafafa", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap"}}>
+                          {!isOpen ? (
+                            <button
+                              onClick={async () => {
+                                setDemandeContact(d.id);
+                                /* Tracer la consultation */
+                                try {
+                                  await fetch(`${API_URL}/demandes/${d.id}/consulter`, {
+                                    method:"POST",
+                                    headers:{Authorization:`Bearer ${token}`}
+                                  });
+                                } catch {}
+                              }}
+                              style={{display:"flex",alignItems:"center",gap:7,padding:"9px 18px",borderRadius:9,background:"#6366f1",color:"#fff",fontSize:13,fontWeight:700,border:"none",cursor:"pointer",fontFamily:"inherit"}}>
+                              <Eye size={15}/> Voir le contact
+                            </button>
+                          ) : (
+                            <div style={{display:"flex", flexWrap:"wrap", gap:10, alignItems:"center"}}>
+                              <span style={{fontWeight:700, fontSize:14, color:"#0f172a"}}>{d.nom}</span>
+                              {d.email && (
+                                <a href={`mailto:${d.email}`}
+                                  style={{display:"flex",alignItems:"center",gap:6,padding:"7px 14px",borderRadius:8,background:"#eef2ff",color:"#4f46e5",fontSize:13,fontWeight:600,textDecoration:"none"}}>
+                                  <Mail size={14}/> {d.email}
+                                </a>
+                              )}
+                              {d.telephone && (
+                                <a href={`tel:${d.telephone}`}
+                                  style={{display:"flex",alignItems:"center",gap:6,padding:"7px 14px",borderRadius:8,background:"#f0fdf4",color:"#16a34a",fontSize:13,fontWeight:600,textDecoration:"none"}}>
+                                  <Phone size={14}/> {d.telephone}
+                                </a>
+                              )}
+                              {d.whatsapp && (
+                                <a href={`https://wa.me/${d.whatsapp.replace(/[^0-9]/g,"")}`} target="_blank" rel="noopener noreferrer"
+                                  style={{display:"flex",alignItems:"center",gap:6,padding:"7px 14px",borderRadius:8,background:"#f0fdf4",color:"#16a34a",fontSize:13,fontWeight:600,textDecoration:"none"}}>
+                                  <Phone size={14}/> WhatsApp : {d.whatsapp}
+                                </a>
+                              )}
+                            </div>
+                          )}
+                          <span style={{fontSize:11.5, color:"#94a3b8"}}>
+                            Expire le {d.expire_at && new Date(d.expire_at).toLocaleDateString("fr-FR", {day:"numeric",month:"long"})}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* ═══════ STATISTIQUES (tous les rôles) ═══════ */}
           {tab==="statistiques" && (
             <div>

@@ -24,6 +24,7 @@ const T = {
     nav_promoteurs:    "Trouver un promoteur",
     nav_prestataires:  "Trouver un prestataire",
     nav_sell:          "Vente",
+    nav_demande:       "Demande",
 
     /* Home hero */
     hero_title:    "Trouvez votre bien idéal en Tunisie",
@@ -76,6 +77,7 @@ const T = {
     nav_rent:      "Rent",
     nav_vacation:  "Vacation",
     nav_sell:          "Sale",
+    nav_demande:       "Request",
     nav_agents:        "Find an agent",
     nav_promoteurs:    "Find a developer",
     nav_prestataires:  "Find a contractor",

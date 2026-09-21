@@ -12,7 +12,7 @@ import {
   CreditCard, ShieldCheck, ShieldOff, Mail, Phone,
   DollarSign, Activity, Filter, Calendar, Edit3, Pencil, Search,
   TrendingUp, MapPin, Sparkles, Handshake, Lock, Unlock,
-  Settings, Save, AlertTriangle, ShieldAlert, Layers,
+  Settings, Save, AlertTriangle, ShieldAlert, Layers, MessageSquare, Banknote, Maximize2,
 } from "lucide-react";
 
 
@@ -211,6 +211,27 @@ export default function AdminDashboard() {
   const [agencyNoteId,  setAgencyNoteId] = useState(null);
   const [agencyNoteText,setAgencyNoteText] = useState("");
 
+  /* Demandes immobilières (vue admin) */
+  const [demandesImmo,       setDemandesImmo]       = useState([]);
+  const [demandesImmoLoaded, setDemandesImmoLoaded] = useState(false);
+  const [demandeContactOpen, setDemandeContactOpen] = useState(null);
+
+  async function loadDemandesImmo() {
+    try {
+      const r = await authFetch("/demandes/admin/all");
+      const d = await r.json();
+      setDemandesImmo(Array.isArray(d) ? d : []);
+      setDemandesImmoLoaded(true);
+    } catch {}
+  }
+
+  async function adminCloturerDemande(id) {
+    try {
+      await authFetch(`/demandes/admin/${id}/cloturer`, { method:"POST" });
+      setDemandesImmo(prev => prev.map(d => d.id === id ? {...d, statut:"closed"} : d));
+    } catch {}
+  }
+
   /* Conventions */
   const [conventions,      setConventions]      = useState([]);
   const [convLoading,      setConvLoading]      = useState(false);
@@ -266,6 +287,7 @@ export default function AdminDashboard() {
     if (tab === "accompagnements"){ loadAllAnnonces(); if (users.length === 0) loadUsers(); if (agencies.length === 0) loadAgencies(); loadProfessionals(); }
     if (tab === "conventions") loadConventions();
     if (tab === "parametres" && !plansLoaded) loadPlansConfig();
+    if (tab === "demandes_immo" && !demandesImmoLoaded) loadDemandesImmo();
   }, [tab, filter]);
 
   async function loadPlansConfig() {
@@ -743,8 +765,9 @@ export default function AdminDashboard() {
             { id:"agences",        icon:<Building size={16}/>,  label:"Agences" },
             { id:"accompagnements",icon:<Sparkles size={16}/>,  label:"Accompagnements" },
             { id:"mandats",        icon:<Handshake size={16}/>, label:"Partage des mandats" },
-            { id:"conventions",    icon:<FileText  size={16}/>, label:"Conventions" },
-            { id:"parametres",     icon:<Settings  size={16}/>, label:"Paramètres" },
+            { id:"conventions",    icon:<FileText       size={16}/>, label:"Conventions" },
+            { id:"demandes_immo",  icon:<MessageSquare  size={16}/>, label:"Demandes clients" },
+            { id:"parametres",     icon:<Settings       size={16}/>, label:"Paramètres" },
           ].map(item => (
             <button key={item.id}
               className={`adm-nav${tab === item.id ? " adm-nav--active" : ""}`}
@@ -772,6 +795,7 @@ export default function AdminDashboard() {
               {tab === "accompagnements" && "Accompagnements"}
               {tab === "mandats"         && "Partage des mandats"}
               {tab === "conventions"     && "Demandes de conventions"}
+              {tab === "demandes_immo"  && "Demandes clients"}
               {tab === "parametres"     && "Paramètres de la plateforme"}
             </h1>
             <button className="adm-refresh" onClick={loadAll}><RefreshCw size={15}/></button>
@@ -2026,6 +2050,86 @@ export default function AdminDashboard() {
               </div>
             );
           })()}
+
+          {/* ─── TAB: Demandes clients ─── */}
+          {tab === "demandes_immo" && (
+            <div>
+              <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:12,padding:"16px 22px",marginBottom:20,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:12}}>
+                <div>
+                  <p style={{fontSize:13,color:"#64748b",margin:0}}>
+                    {demandesImmo.length} demande{demandesImmo.length!==1?"s":""} au total ·{" "}
+                    {demandesImmo.filter(d=>d.statut==="active").length} active{demandesImmo.filter(d=>d.statut==="active").length!==1?"s":""}
+                  </p>
+                </div>
+                <button onClick={loadDemandesImmo} style={{display:"flex",alignItems:"center",gap:6,padding:"8px 14px",borderRadius:8,background:"#f1f5f9",border:"none",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+                  <RefreshCw size={14}/> Actualiser
+                </button>
+              </div>
+
+              {demandesImmo.length === 0 ? (
+                <div style={{textAlign:"center",padding:60,color:"#94a3b8"}}>Aucune demande enregistrée.</div>
+              ) : (
+                <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                  {demandesImmo.map(d => {
+                    const catLabel = {achat:"Achat",location:"Location",vacances:"Vacances"}[d.categorie] || d.categorie;
+                    const catColor = {achat:"#6366f1",location:"#10b981",vacances:"#f59e0b"}[d.categorie] || "#6366f1";
+                    const statutColor = {active:"#16a34a",pending:"#f59e0b",expired:"#9ca3af",closed:"#6b7280"}[d.statut] || "#6b7280";
+                    const statutLabel = {active:"Active",pending:"En attente",expired:"Expirée",closed:"Clôturée"}[d.statut] || d.statut;
+                    const govs = Array.isArray(d.gouvernorats) ? d.gouvernorats : [];
+                    const isContactOpen = demandeContactOpen === d.id;
+                    return (
+                      <div key={d.id} style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:12,overflow:"hidden"}}>
+                        <div style={{padding:"16px 20px",display:"flex",alignItems:"flex-start",gap:16,flexWrap:"wrap"}}>
+                          <div style={{flex:1,minWidth:220}}>
+                            <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:8}}>
+                              <span style={{background:catColor+"18",color:catColor,fontSize:11.5,fontWeight:700,padding:"2px 10px",borderRadius:20}}>{catLabel}</span>
+                              <span style={{background:"#f1f5f9",color:"#374151",fontSize:11.5,fontWeight:600,padding:"2px 10px",borderRadius:20}}>{d.type_bien}</span>
+                              <span style={{background:statutColor+"18",color:statutColor,fontSize:11.5,fontWeight:700,padding:"2px 10px",borderRadius:20}}>{statutLabel}</span>
+                              {d.nb_consultations > 0 && (
+                                <span style={{background:"#eef2ff",color:"#4f46e5",fontSize:11.5,fontWeight:600,padding:"2px 10px",borderRadius:20}}>
+                                  {d.nb_consultations} consultation{d.nb_consultations!==1?"s":""}
+                                </span>
+                              )}
+                            </div>
+                            <div style={{display:"flex",flexWrap:"wrap",gap:"4px 16px",fontSize:12.5,color:"#374151"}}>
+                              {govs.length > 0 && <span><MapPin size={12} style={{verticalAlign:"middle",color:"#6366f1"}}/> {govs.join(", ")}</span>}
+                              {d.budget_max && <span><Banknote size={12} style={{verticalAlign:"middle",color:"#6366f1"}}/> jusqu'à {Number(d.budget_max).toLocaleString("fr-TN")} DT</span>}
+                              {d.surface_min && <span><Maximize2 size={12} style={{verticalAlign:"middle",color:"#6366f1"}}/> {d.surface_min} m² min</span>}
+                            </div>
+                            {d.description && <p style={{margin:"8px 0 0",fontSize:12.5,color:"#64748b",fontStyle:"italic"}}>« {d.description} »</p>}
+                          </div>
+                          <div style={{flexShrink:0,textAlign:"right",fontSize:11.5,color:"#94a3b8"}}>
+                            #{d.id}<br/>
+                            {d.created_at && new Date(d.created_at).toLocaleDateString("fr-FR")}
+                          </div>
+                        </div>
+                        <div style={{borderTop:"1px solid #f1f5f9",padding:"12px 20px",background:"#fafafa",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+                          {!isContactOpen ? (
+                            <button onClick={()=>setDemandeContactOpen(d.id)} style={{display:"flex",alignItems:"center",gap:6,padding:"7px 14px",borderRadius:8,background:"#6366f1",color:"#fff",fontSize:12.5,fontWeight:700,border:"none",cursor:"pointer",fontFamily:"inherit"}}>
+                              <Eye size={13}/> Voir contact
+                            </button>
+                          ) : (
+                            <div style={{display:"flex",flexWrap:"wrap",gap:8,alignItems:"center"}}>
+                              <span style={{fontWeight:700,fontSize:13,color:"#0f172a"}}>{d.nom}</span>
+                              {d.email && <a href={`mailto:${d.email}`} style={{display:"flex",alignItems:"center",gap:5,padding:"5px 12px",borderRadius:7,background:"#eef2ff",color:"#4f46e5",fontSize:12.5,fontWeight:600,textDecoration:"none"}}><Mail size={13}/>{d.email}</a>}
+                              {d.telephone && <a href={`tel:${d.telephone}`} style={{display:"flex",alignItems:"center",gap:5,padding:"5px 12px",borderRadius:7,background:"#f0fdf4",color:"#16a34a",fontSize:12.5,fontWeight:600,textDecoration:"none"}}><Phone size={13}/>{d.telephone}</a>}
+                              {d.whatsapp && <span style={{fontSize:12.5,color:"#16a34a",fontWeight:600}}>WA: {d.whatsapp}</span>}
+                            </div>
+                          )}
+                          {d.statut === "active" && (
+                            <button onClick={()=>{ if(window.confirm("Clôturer cette demande ?")) adminCloturerDemande(d.id); }}
+                              style={{display:"flex",alignItems:"center",gap:5,padding:"7px 12px",borderRadius:8,background:"#fef2f2",color:"#b91c1c",border:"1px solid #fecaca",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit",marginLeft:"auto"}}>
+                              <XCircle size={13}/> Clôturer
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ─── TAB: Paramètres ─── */}
           {tab === "parametres" && (

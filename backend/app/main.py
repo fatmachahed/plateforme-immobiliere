@@ -42,7 +42,7 @@ app.add_middleware(
 # 2. Imports après CORS
 from sqlalchemy.orm import Session
 from app.database import Base, engine, get_db
-from app.routers import users, annonces, properties, localisation, catalogue, upload, admin, auth_google
+from app.routers import users, annonces, properties, localisation, catalogue, upload, admin, auth_google, demandes
 
 # Créer les tables si elles n'existent pas
 Base.metadata.create_all(bind=engine)
@@ -233,6 +233,46 @@ with engine.connect() as conn:
               WHERE l.delegation_id = d.id AND l.nom = 'JARDINS DE CARTHAGE'
           );
         """,
+        # Table des demandes immobilières (côté demande / acheteurs / locataires)
+        """
+        CREATE TABLE IF NOT EXISTS demandes_immo (
+            id           SERIAL PRIMARY KEY,
+            nom          VARCHAR NOT NULL,
+            email        VARCHAR NOT NULL,
+            telephone    VARCHAR,
+            whatsapp     VARCHAR,
+            categorie    VARCHAR NOT NULL,
+            type_bien    VARCHAR NOT NULL,
+            gouvernorats TEXT NOT NULL DEFAULT '[]',
+            budget_min   NUMERIC,
+            budget_max   NUMERIC,
+            surface_min  NUMERIC,
+            surface_max  NUMERIC,
+            nb_pieces    VARCHAR,
+            meuble       VARCHAR,
+            colocation   VARCHAR,
+            delai        VARCHAR,
+            description  TEXT,
+            statut       VARCHAR NOT NULL DEFAULT 'pending',
+            token        VARCHAR UNIQUE NOT NULL,
+            expire_at    TIMESTAMP WITH TIME ZONE,
+            confirmed_at TIMESTAMP WITH TIME ZONE,
+            created_at   TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+        """,
+        "CREATE INDEX IF NOT EXISTS ix_demandes_immo_token   ON demandes_immo (token);",
+        "CREATE INDEX IF NOT EXISTS ix_demandes_immo_statut  ON demandes_immo (statut);",
+        "CREATE INDEX IF NOT EXISTS ix_demandes_immo_email   ON demandes_immo (email);",
+        # Table de traçabilité des consultations
+        """
+        CREATE TABLE IF NOT EXISTS demande_consultations (
+            id         SERIAL PRIMARY KEY,
+            demande_id INTEGER REFERENCES demandes_immo(id) ON DELETE CASCADE,
+            user_id    INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            UNIQUE (demande_id, user_id)
+        );
+        """,
     ]
     for sql in migrations:
         try:
@@ -255,8 +295,32 @@ app.include_router(catalogue.router,   tags=["Catalogue"])
 app.include_router(upload.router,      tags=["Upload"])
 app.include_router(admin.router,       tags=["Admin"])
 app.include_router(auth_google.router, tags=["Auth"])
+app.include_router(demandes.router,    tags=["Demandes"])
 
-# 5. Health check (utilisé par Docker et le monitoring)
+# 5. Tâche d'expiration des demandes (au démarrage + toutes les heures)
+import threading as _threading
+
+def _run_expire_loop():
+    import time as _time
+    from app.database import SessionLocal
+    from app.routers.demandes import expire_demandes
+    while True:
+        try:
+            db = SessionLocal()
+            n = expire_demandes(db)
+            if n:
+                print(f"[expire_demandes] {n} demande(s) expirée(s)")
+        except Exception as e:
+            print(f"[expire_demandes] erreur: {e}")
+        finally:
+            try: db.close()
+            except: pass
+        _time.sleep(3600)  # toutes les heures
+
+_expire_thread = _threading.Thread(target=_run_expire_loop, daemon=True)
+_expire_thread.start()
+
+# 6. Health check (utilisé par Docker et le monitoring)
 @app.get("/health", tags=["Health"])
 def health():
     return {"status": "ok"}
