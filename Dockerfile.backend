@@ -1,6 +1,10 @@
 # ── Backend FastAPI ──────────────────────────────────────────
 FROM python:3.11-slim
 
+# Sortie non bufferisée : les print() (ex. erreurs d'envoi d'email) apparaissent
+# immédiatement dans `docker logs`, au lieu de rester coincés dans le buffer.
+ENV PYTHONUNBUFFERED=1
+
 WORKDIR /app
 
 # Dépendances système minimales
