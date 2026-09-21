@@ -357,21 +357,35 @@ def liste_demandes_agent(db: Session = Depends(get_db), current_user=Depends(get
     """Demandes visibles pour un agent/agence : uniquement celles que l'admin lui a
     explicitement assignées (assigned_agent_id) — jamais par simple correspondance
     de gouvernorat, pour éviter toute concurrence entre professionnels d'une même
-    zone. L'admin, lui, voit tout via /demandes/admin/all."""
+    zone. L'admin voit tout (comme sur /demandes/admin/all) : il n'est en
+    concurrence avec personne, et doit pouvoir retrouver toutes les demandes
+    depuis son propre "Mon compte" sans repasser par /admin."""
     if current_user.role not in ("agence", "agent", "admin"):
         raise HTTPException(403, "Accès réservé aux professionnels.")
 
-    rows = db.execute(text("""
-        SELECT id, nom, email, telephone, whatsapp, categorie, type_bien,
-               gouvernorats, delegations, budget_min, budget_max, devise,
-               surface_min, surface_max,
-               nb_pieces, meuble, colocation, delai, description,
-               statut, expire_at, created_at
-        FROM demandes_immo
-        WHERE assigned_agent_id = :uid
-          AND statut IN ('active', 'expired')
-        ORDER BY created_at DESC
-    """), {"uid": current_user.id}).fetchall()
+    if current_user.role == "admin":
+        rows = db.execute(text("""
+            SELECT id, nom, email, telephone, whatsapp, categorie, type_bien,
+                   gouvernorats, delegations, budget_min, budget_max, devise,
+                   surface_min, surface_max,
+                   nb_pieces, meuble, colocation, delai, description,
+                   statut, expire_at, created_at
+            FROM demandes_immo
+            WHERE statut IN ('active', 'expired')
+            ORDER BY created_at DESC
+        """)).fetchall()
+    else:
+        rows = db.execute(text("""
+            SELECT id, nom, email, telephone, whatsapp, categorie, type_bien,
+                   gouvernorats, delegations, budget_min, budget_max, devise,
+                   surface_min, surface_max,
+                   nb_pieces, meuble, colocation, delai, description,
+                   statut, expire_at, created_at
+            FROM demandes_immo
+            WHERE assigned_agent_id = :uid
+              AND statut IN ('active', 'expired')
+            ORDER BY created_at DESC
+        """), {"uid": current_user.id}).fetchall()
 
     result = []
     for r in rows:

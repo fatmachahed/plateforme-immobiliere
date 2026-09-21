@@ -2168,7 +2168,9 @@ export default function Compte() {
                   <MessageSquare size={17} style={{color:"#6366f1"}}/>Demandes clients
                 </h2>
                 <p style={{fontSize:12.5, color:"#94a3b8", marginBottom:0}}>
-                  Demandes que l'administrateur vous a assignées. Cliquez sur "Voir contact" pour afficher les coordonnées et les contacter directement.
+                  {effectiveRole==="admin"
+                    ? "Toutes les demandes immobilières déposées sur la plateforme. Cliquez sur \"Voir contact\" pour afficher les coordonnées."
+                    : "Demandes que l'administrateur vous a assignées. Cliquez sur \"Voir contact\" pour afficher les coordonnées et les contacter directement."}
                 </p>
               </div>
 
@@ -2178,7 +2180,7 @@ export default function Compte() {
                 <div style={{...card, padding:40, textAlign:"center"}}>
                   <MessageSquare size={40} style={{color:"#e5e7eb", marginBottom:12}}/>
                   <p style={{color:"#94a3b8", fontSize:14, margin:0}}>
-                    Aucune demande ne vous a été assignée pour le moment.
+                    {effectiveRole==="admin" ? "Aucune demande enregistrée pour le moment." : "Aucune demande ne vous a été assignée pour le moment."}
                   </p>
                 </div>
               ) : (
