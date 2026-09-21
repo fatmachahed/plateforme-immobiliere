@@ -344,7 +344,7 @@ export default function DeposerDemande() {
               <span>
                 Vos coordonnées (téléphone, WhatsApp, email) seront visibles
                 <strong> uniquement</strong> aux agents et agences immobilières
-                inscrits et actifs dans les gouvernorats sélectionnés.
+                inscrits et actifs dans le gouvernorat et les délégations sélectionnées.
               </span>
             </div>
 
