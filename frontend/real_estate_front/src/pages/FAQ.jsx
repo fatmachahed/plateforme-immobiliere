@@ -19,7 +19,7 @@ export const FAQS = [
       },
       {
         q: "Localizi.tn est-elle gratuite ?",
-        a: "Oui, gratuite. Aucun paiement n'est demandé pour publier ou consulter des annonces, que vous soyez particulier, agent immobilier, agence immobilière ou promoteur."
+        a: "Oui, la publication et la consultation d'annonces sont totalement gratuites, que vous soyez particulier, agent immobilier, agence immobilière ou promoteur. Des options payantes pour gagner en visibilité (mise en avant sur la carte, badge certifié, remontée en tête de liste pendant 7 jours…) seront proposées progressivement en complément de l'offre gratuite de base, à mesure du développement de la plateforme."
       },
       {
         q: "Qui peut utiliser Localizi.tn ?",
@@ -80,6 +80,10 @@ export const FAQS = [
         a: "Accédez à votre tableau de bord > « Mes annonces », puis cliquez sur « Modifier » ou « Supprimer » en regard de l'annonce concernée. Toute modification importante peut nécessiter une nouvelle validation."
       },
       {
+        q: "Puis-je masquer la position exacte de mon bien sur la carte ?",
+        a: "Oui. Lors de la publication, vous choisissez le niveau de précision affiché (adresse exacte, quartier ou délégation seulement), pour préserver votre confidentialité tout en restant visible. Vous pouvez ajuster ou déplacer cette position à tout moment."
+      },
+      {
         q: "Mon annonce a été refusée. Que faire ?",
         a: "Vous recevrez un email détaillant les raisons du refus. Corrigez les points signalés et republiez votre annonce. Si vous avez des questions, contactez notre support."
       },
@@ -97,12 +101,20 @@ export const FAQS = [
         a: "Configurez vos critères de recherche puis cliquez sur « Enregistrer cette alerte » depuis la page de recherche ou votre tableau de bord. Vous recevrez un email automatique dès qu'une nouvelle annonce correspondant à vos critères est publiée."
       },
       {
+        q: "Comment recevoir une alerte sur une zone précise de la carte ?",
+        a: "Dessinez ou sélectionnez une zone directement sur la carte puis enregistrez une alerte : vous êtes notifié par email dès qu'une nouvelle annonce correspond à cette zone."
+      },
+      {
         q: "Comment ajouter un bien à mes favoris ?",
         a: "Cliquez sur l'icône cœur sur la carte ou sur la page de détail de l'annonce. Vous devez être connecté pour sauvegarder des favoris. Retrouvez tous vos favoris dans votre tableau de bord."
       },
       {
+        q: "Quelle différence entre « Favoris » et « Alertes » ?",
+        a: "Les favoris sauvegardent des annonces que vous avez déjà consultées (compte requis). Les alertes vous préviennent automatiquement par email dès qu'une nouvelle annonce correspond à des critères de recherche que vous avez définis."
+      },
+      {
         q: "Comment comparer plusieurs annonces ?",
-        a: "Depuis la carte, cliquez sur « Comparer » pour ajouter une annonce au comparateur. Vous pouvez comparer jusqu'à 4 annonces côte à côte en termes de surface, prix, localisation et caractéristiques."
+        a: "Depuis la carte, cliquez sur « Comparer » pour ajouter une annonce au comparateur. Vous pouvez comparer jusqu'à 4 annonces à la fois, même sans compte (les biens ajoutés restent sur votre navigateur). Le comparateur affiche toutes les caractéristiques des biens pour vous aider dans votre sélection."
       },
     ],
   },
@@ -114,16 +126,24 @@ export const FAQS = [
         a: "Lors de l'inscription, choisissez le profil « Professionnel » puis sélectionnez « Agence/Agent » ou « Promoteur ». Votre profil sera visible dans l'annuaire des professionnels de Localizi.tn."
       },
       {
+        q: "Quels documents dois-je fournir pour m'inscrire comme agence ou promoteur ?",
+        a: "Matricule fiscal, registre de commerce et au moins 3 justificatifs (formats PDF, JPG ou PNG acceptés). Votre dossier est vérifié par notre équipe sous 24 à 48h ouvrables."
+      },
+      {
         q: "Les agents, agences et promoteurs paient-ils pour publier leur annonce ?",
         a: "Non. La publication est gratuite pour tous, y compris les agences immobilières et les promoteurs immobiliers. Aucun abonnement n'est requis."
       },
       {
-        q: "Comment trouver un agent immobilier sur Localizi.tn ?",
-        a: "Accédez à la page « Trouver un agent » depuis le menu. Vous pouvez rechercher par nom, par gouvernorat ou par délégation de couverture."
+        q: "Comment trouver un agent, un promoteur ou un prestataire (artisan, notaire, architecte…) ?",
+        a: "Utilisez les annuaires dédiés depuis le menu « Trouver un agent / promoteur / prestataire ». La recherche se fait par nom, gouvernorat ou délégation, sans qu'un compte soit nécessaire."
       },
       {
         q: "Un promoteur peut-il publier des biens neufs ?",
         a: "Oui. Les promoteurs immobiliers inscrits sur Localizi.tn peuvent publier leurs projets immobiliers neufs et les présenter à des milliers d'acheteurs potentiels, sans aucun frais. Un badge \"neuf\" est alors apposé sur les photos du bien immobilier."
+      },
+      {
+        q: "Puis-je créer des comptes pour mes agents ?",
+        a: "Oui. Depuis votre espace agence, vous pouvez créer et gérer les comptes de vos agents (le nombre de comptes inclus dépend de votre formule)."
       },
     ],
   },
@@ -139,8 +159,38 @@ export const FAQS = [
         a: "Depuis la page de l'annonce, cliquez sur « Signaler un problème » ou contactez-nous via le formulaire de contact en précisant la référence de l'annonce. Notre équipe traitera votre signalement sous 24 heures."
       },
       {
+        q: "Comment signaler un compte piraté ou une usurpation d'identité ?",
+        a: "Utilisez « Signaler un problème » (depuis le menu ou depuis une annonce concernée), en joignant une capture d'écran si possible. Votre signalement est traité sous 24 à 48h ouvrables."
+      },
+      {
         q: "Mes coordonnées sont-elles visibles sur mes annonces ?",
         a: "Seules les informations que vous choisissez de partager lors de la création de votre annonce sont visibles. Vous pouvez également choisir de masquer votre numéro et d'utiliser uniquement le formulaire de contact de la plateforme."
+      },
+    ],
+  },
+  {
+    cat: "Vendre un bien",
+    items: [
+      {
+        q: "Dois-je passer par une agence pour vendre mon bien ?",
+        a: "Non, vous avez le choix : passer par un agent ou une agence partenaire, ou publier vous-même votre annonce directement sur Localizi.tn, sans commission."
+      },
+    ],
+  },
+  {
+    cat: "Déposer une demande (acheteurs / investisseurs)",
+    items: [
+      {
+        q: "Comment fonctionne « Déposer une demande » sur Localizi.tn ?",
+        a: "Si vous ne trouvez pas le bien recherché parmi les annonces publiées, décrivez votre projet (type de bien, budget, gouvernorat et délégations souhaités) depuis « Demande » dans le menu. Votre demande est transmise à notre équipe pour être prise en charge."
+      },
+      {
+        q: "Dois-je créer un compte pour déposer une demande ?",
+        a: "Non, un compte n'est pas obligatoire. Cependant, si vous êtes connecté, votre demande est automatiquement rattachée à votre compte et vous pouvez la suivre dans « Mon compte » > « Mes demandes »."
+      },
+      {
+        q: "Une fois ma demande déposée en tant qu'acheteur ou investisseur, comment est-elle traitée ?",
+        a: "Après confirmation, votre demande est examinée par l'équipe Localizi.tn, qui l'affecte à un agent immobilier ou une agence en fonction de la zone géographique que vous avez indiquée. Ce dispatching centralisé évite qu'une même demande soit traitée en parallèle par plusieurs agents d'une même zone, et vous garantit un seul interlocuteur dédié pour le suivi."
       },
     ],
   },
