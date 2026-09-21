@@ -4,7 +4,7 @@ import {
   Search, Menu, X, User, LogIn, UserPlus, LogOut,
   LayoutDashboard, Zap, ChevronDown, ChevronRight, Map, Heart, Globe,
   Home, Key, Umbrella, Phone, PlusCircle, Bell, Users, AlertTriangle, Building2,
-  HelpCircle, Info, Mail, Wrench, Facebook, Instagram, Youtube, Linkedin, CreditCard, Briefcase, Star, TrendingUp
+  HelpCircle, Info, Mail, Wrench, Facebook, Instagram, Youtube, Linkedin, CreditCard, Briefcase, Star, TrendingUp, MessageSquare
 } from "lucide-react";
 import API_URL, { imgUrl } from "../config";
 import { useLanguage } from "../contexts/LanguageContext";
@@ -320,6 +320,9 @@ export default function Navbar() {
                         <Link to="/compte?tab=noter" className="lz-nav__dd-item"><Star size={14} /> Noter les services{toRateCount>0&&<span style={{marginLeft:"auto",background:"#ef4444",color:"#fff",borderRadius:10,fontSize:10,fontWeight:800,padding:"1px 6px",minWidth:16,textAlign:"center"}}>{toRateCount}</span>}</Link>
                         <Link to="/compte?tab=favoris"   className="lz-nav__dd-item"><Heart size={14} /> Mes favoris</Link>
                         <Link to="/compte?tab=mes_demandes_immo" className="lz-nav__dd-item"><Search size={14} /> Mes demandes</Link>
+                        {["agence","agent","admin"].includes(user?.role) && (
+                          <Link to="/compte?tab=demandes" className="lz-nav__dd-item"><MessageSquare size={14} /> Demandes clients</Link>
+                        )}
                         <Link to="/compte?tab=statistiques" className="lz-nav__dd-item"><TrendingUp size={14} /> Statistiques</Link>
                         <Link to="/mon-abonnement" className="lz-nav__dd-item"><CreditCard size={14}/> Mon abonnement</Link>
                         {boostEnabled && (
@@ -469,6 +472,7 @@ export default function Navbar() {
                       { to:"/compte?tab=noter",    label:"Noter les services", Ico:Star,          badge:toRateCount },
                       { to:"/compte?tab=favoris",  label:"Mes favoris",      Ico:Heart,           badge:0           },
                       { to:"/compte?tab=mes_demandes_immo", label:"Mes demandes", Ico:Search,      badge:0           },
+                      ...(["agence","agent","admin"].includes(user?.role) ? [{ to:"/compte?tab=demandes", label:"Demandes clients", Ico:MessageSquare, badge:0 }] : []),
                       { to:"/compte?tab=alertes",  label:"Mes alertes",      Ico:Bell,            badge:0           },
                       { to:"/compte?tab=statistiques", label:"Statistiques", Ico:TrendingUp,      badge:0           },
                       { to:"/mon-abonnement",      label:"Mon abonnement",   Ico:CreditCard,      badge:0           },
