@@ -59,6 +59,164 @@ function Select({ value, onChange, options, placeholder }) {
   );
 }
 
+function DdStyles() {
+  return (
+    <style>{`
+        .dd-page { min-height: 100vh; background: #f8fafc; }
+
+        /* Hero */
+        .dd-hero__inner { max-width: 640px; margin: 0 auto; padding: 0 24px; text-align: center; }
+        .dd-hero__ico {
+          width: 60px; height: 60px; border-radius: 50%;
+          background: rgba(255,255,255,.15);
+          display: flex; align-items: center; justify-content: center;
+          margin: 0 auto 20px;
+        }
+        .dd-hero__title { font-size: 28px; font-weight: 800; color: #fff; margin: 0 0 12px; }
+        .dd-hero__sub   { font-size: 15px; color: rgba(255,255,255,.85); line-height: 1.6; margin: 0; }
+
+        /* Container */
+        .dd-container { max-width: 780px; margin: 0 auto; padding: 40px 20px 64px; }
+
+        /* Form */
+        .dd-form { display: flex; flex-direction: column; gap: 28px; }
+
+        /* Section */
+        .dd-section {
+          background: #fff; border: 1px solid #e5e7eb;
+          border-radius: 16px; padding: 28px;
+        }
+        .dd-section__head {
+          display: flex; align-items: center; gap: 10px;
+          margin-bottom: 20px;
+        }
+        .dd-section__title { font-size: 16px; font-weight: 700; color: #0f172a; margin: 0; }
+        .dd-section__desc  { font-size: 13px; color: #6b7280; margin: -12px 0 16px; }
+
+        /* Grid */
+        .dd-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .dd-budget-row { display: flex; gap: 16px; margin-bottom: 16px; align-items: flex-start; }
+        .dd-budget-row > .dd-field:first-child,
+        .dd-budget-row > .dd-field:nth-child(2) { flex: 1; min-width: 0; }
+        .dd-budget-row > .dd-field:last-child { flex: 0 0 auto; width: 95px; }
+        .dd-budget-row > .dd-field:last-child .dd-select { padding-left: 10px; padding-right: 26px; }
+
+        /* Field */
+        .dd-field { display: flex; flex-direction: column; gap: 6px; }
+        .dd-label { font-size: 13px; font-weight: 600; color: #374151; }
+        .dd-req   { color: #ef4444; }
+        .dd-hint  { font-size: 11.5px; color: #9ca3af; margin: -3px 0 0; }
+
+        /* Inputs */
+        .dd-input, .dd-select, .dd-textarea {
+          width: 100%; padding: 10px 14px;
+          border: 1.5px solid #e5e7eb; border-radius: 10px;
+          font-size: 14px; color: #0f172a; font-family: inherit;
+          background: #fff; outline: none;
+          transition: border-color .15s;
+          box-sizing: border-box;
+        }
+        .dd-input:focus, .dd-select:focus, .dd-textarea:focus {
+          border-color: #6366f1;
+        }
+        .dd-textarea { resize: vertical; min-height: 90px; }
+
+        /* Select wrapper */
+        .dd-select-wrap { position: relative; }
+        .dd-select { appearance: none; padding-right: 36px; cursor: pointer; }
+        .dd-select-arrow {
+          position: absolute; right: 12px; top: 50%;
+          transform: translateY(-50%); pointer-events: none; color: #9ca3af;
+        }
+
+        /* Gouvernorats chips */
+        .dd-gouv-grid {
+          display: flex; flex-wrap: wrap; gap: 8px;
+        }
+        .dd-gouv-chip {
+          padding: 7px 14px; border-radius: 20px;
+          border: 1.5px solid #e5e7eb; background: #f9fafb;
+          font-size: 13px; font-weight: 500; color: #374151;
+          cursor: pointer; transition: all .15s;
+        }
+        .dd-gouv-chip:hover { border-color: #6366f1; color: #6366f1; }
+        .dd-gouv-chip--on {
+          background: #eef2ff; border-color: #6366f1;
+          color: #4f46e5; font-weight: 600;
+        }
+
+        /* Privacy note */
+        .dd-privacy-note {
+          display: flex; align-items: flex-start; gap: 10px;
+          background: #f0fdf4; border: 1px solid #bbf7d0;
+          border-radius: 10px; padding: 14px 16px;
+          font-size: 13px; color: #166534; line-height: 1.5;
+        }
+        .dd-privacy-note svg { flex-shrink: 0; margin-top: 2px; color: #16a34a; }
+
+        /* Error */
+        .dd-error {
+          background: #fef2f2; border: 1px solid #fecaca;
+          border-radius: 10px; padding: 12px 16px;
+          font-size: 13px; color: #b91c1c;
+        }
+
+        /* Submit */
+        .dd-submit {
+          width: 100%; padding: 14px;
+          background: #6366f1; color: #fff;
+          border: none; border-radius: 12px;
+          font-size: 16px; font-weight: 700;
+          cursor: pointer; transition: background .15s;
+        }
+        .dd-submit:hover:not(:disabled) { background: #4f46e5; }
+        .dd-submit:disabled { opacity: .6; cursor: not-allowed; }
+
+        /* Success page */
+        .dd-success-page {
+          min-height: 70vh; display: flex;
+          align-items: center; justify-content: center;
+          padding: 40px 20px;
+        }
+        .dd-success-card {
+          background: #fff; border: 1px solid #e5e7eb;
+          border-radius: 20px; padding: 48px 40px;
+          max-width: 520px; text-align: center;
+        }
+        .dd-success-head {
+          display: flex; align-items: center; justify-content: center; gap: 10px;
+          margin-bottom: 14px;
+        }
+        .dd-success-title { font-size: 20px; font-weight: 800; color: #16a34a; margin: 0; }
+        .dd-success-sub   { font-size: 15px; color: #6b7280; line-height: 1.7; margin: 0 0 20px; text-align: center; }
+        .dd-success-tip {
+          display: flex; align-items: flex-start; justify-content: center; gap: 8px;
+          background: #fffbeb; border: 1px solid #fde68a;
+          border-radius: 8px; padding: 12px 14px;
+          font-size: 13px; color: #92400e; text-align: center; margin-bottom: 28px;
+        }
+        .dd-success-tip svg { flex-shrink: 0; margin-top: 1px; color: #d97706; }
+        .dd-success-btn {
+          display: inline-block; padding: 12px 28px;
+          background: #6366f1; color: #fff;
+          border-radius: 10px; font-weight: 700; font-size: 15px;
+          text-decoration: none; transition: background .15s;
+        }
+        .dd-success-btn:hover { background: #4f46e5; }
+
+        @media (max-width: 600px) {
+          .dd-hero__inner { padding: 0 16px; }
+          .dd-hero__title { font-size: 22px; }
+          .dd-grid-2 { grid-template-columns: 1fr; }
+          .dd-budget-row { flex-wrap: wrap; }
+          .dd-budget-row > .dd-field:last-child { flex: 1 0 100%; min-width: 0; }
+          .dd-section { padding: 20px 16px; }
+          .dd-success-card { padding: 32px 20px; }
+        }
+    `}</style>
+  );
+}
+
 export default function DeposerDemande() {
   const storedUser = (() => {
     try { return JSON.parse(localStorage.getItem("user") || sessionStorage.getItem("user")); }
@@ -157,8 +315,10 @@ export default function DeposerDemande() {
       <Navbar />
       <div className="dd-success-page">
         <div className="dd-success-card">
-          <div className="dd-success-ico"><CheckCircle2 size={48} color="#22c55e"/></div>
-          <h1 className="dd-success-title">Demande envoyée !</h1>
+          <div className="dd-success-head">
+            <CheckCircle2 size={26} color="#16a34a"/>
+            <h1 className="dd-success-title">Demande envoyée !</h1>
+          </div>
           <p className="dd-success-sub">
             Un email de confirmation vous a été envoyé à <strong>{form.email}</strong>.
             Cliquez sur le lien dans cet email pour activer votre demande et la rendre
@@ -172,6 +332,7 @@ export default function DeposerDemande() {
         </div>
       </div>
       <Footer />
+      <DdStyles/>
     </>
   );
 
@@ -392,156 +553,7 @@ export default function DeposerDemande() {
       </div>
       <Footer />
 
-      <style>{`
-        .dd-page { min-height: 100vh; background: #f8fafc; }
-
-        /* Hero */
-        .dd-hero__inner { max-width: 640px; margin: 0 auto; padding: 0 24px; text-align: center; }
-        .dd-hero__ico {
-          width: 60px; height: 60px; border-radius: 50%;
-          background: rgba(255,255,255,.15);
-          display: flex; align-items: center; justify-content: center;
-          margin: 0 auto 20px;
-        }
-        .dd-hero__title { font-size: 28px; font-weight: 800; color: #fff; margin: 0 0 12px; }
-        .dd-hero__sub   { font-size: 15px; color: rgba(255,255,255,.85); line-height: 1.6; margin: 0; }
-
-        /* Container */
-        .dd-container { max-width: 780px; margin: 0 auto; padding: 40px 20px 64px; }
-
-        /* Form */
-        .dd-form { display: flex; flex-direction: column; gap: 28px; }
-
-        /* Section */
-        .dd-section {
-          background: #fff; border: 1px solid #e5e7eb;
-          border-radius: 16px; padding: 28px;
-        }
-        .dd-section__head {
-          display: flex; align-items: center; gap: 10px;
-          margin-bottom: 20px;
-        }
-        .dd-section__title { font-size: 16px; font-weight: 700; color: #0f172a; margin: 0; }
-        .dd-section__desc  { font-size: 13px; color: #6b7280; margin: -12px 0 16px; }
-
-        /* Grid */
-        .dd-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-        .dd-budget-row { display: flex; gap: 16px; margin-bottom: 16px; align-items: flex-start; }
-        .dd-budget-row > .dd-field:first-child,
-        .dd-budget-row > .dd-field:nth-child(2) { flex: 1; min-width: 0; }
-        .dd-budget-row > .dd-field:last-child { flex: 0 0 auto; width: 95px; }
-        .dd-budget-row > .dd-field:last-child .dd-select { padding-left: 10px; padding-right: 26px; }
-
-        /* Field */
-        .dd-field { display: flex; flex-direction: column; gap: 6px; }
-        .dd-label { font-size: 13px; font-weight: 600; color: #374151; }
-        .dd-req   { color: #ef4444; }
-        .dd-hint  { font-size: 11.5px; color: #9ca3af; margin: -3px 0 0; }
-
-        /* Inputs */
-        .dd-input, .dd-select, .dd-textarea {
-          width: 100%; padding: 10px 14px;
-          border: 1.5px solid #e5e7eb; border-radius: 10px;
-          font-size: 14px; color: #0f172a; font-family: inherit;
-          background: #fff; outline: none;
-          transition: border-color .15s;
-          box-sizing: border-box;
-        }
-        .dd-input:focus, .dd-select:focus, .dd-textarea:focus {
-          border-color: #6366f1;
-        }
-        .dd-textarea { resize: vertical; min-height: 90px; }
-
-        /* Select wrapper */
-        .dd-select-wrap { position: relative; }
-        .dd-select { appearance: none; padding-right: 36px; cursor: pointer; }
-        .dd-select-arrow {
-          position: absolute; right: 12px; top: 50%;
-          transform: translateY(-50%); pointer-events: none; color: #9ca3af;
-        }
-
-        /* Gouvernorats chips */
-        .dd-gouv-grid {
-          display: flex; flex-wrap: wrap; gap: 8px;
-        }
-        .dd-gouv-chip {
-          padding: 7px 14px; border-radius: 20px;
-          border: 1.5px solid #e5e7eb; background: #f9fafb;
-          font-size: 13px; font-weight: 500; color: #374151;
-          cursor: pointer; transition: all .15s;
-        }
-        .dd-gouv-chip:hover { border-color: #6366f1; color: #6366f1; }
-        .dd-gouv-chip--on {
-          background: #eef2ff; border-color: #6366f1;
-          color: #4f46e5; font-weight: 600;
-        }
-
-        /* Privacy note */
-        .dd-privacy-note {
-          display: flex; align-items: flex-start; gap: 10px;
-          background: #f0fdf4; border: 1px solid #bbf7d0;
-          border-radius: 10px; padding: 14px 16px;
-          font-size: 13px; color: #166534; line-height: 1.5;
-        }
-        .dd-privacy-note svg { flex-shrink: 0; margin-top: 2px; color: #16a34a; }
-
-        /* Error */
-        .dd-error {
-          background: #fef2f2; border: 1px solid #fecaca;
-          border-radius: 10px; padding: 12px 16px;
-          font-size: 13px; color: #b91c1c;
-        }
-
-        /* Submit */
-        .dd-submit {
-          width: 100%; padding: 14px;
-          background: #6366f1; color: #fff;
-          border: none; border-radius: 12px;
-          font-size: 16px; font-weight: 700;
-          cursor: pointer; transition: background .15s;
-        }
-        .dd-submit:hover:not(:disabled) { background: #4f46e5; }
-        .dd-submit:disabled { opacity: .6; cursor: not-allowed; }
-
-        /* Success page */
-        .dd-success-page {
-          min-height: 70vh; display: flex;
-          align-items: center; justify-content: center;
-          padding: 40px 20px;
-        }
-        .dd-success-card {
-          background: #fff; border: 1px solid #e5e7eb;
-          border-radius: 20px; padding: 48px 40px;
-          max-width: 520px; text-align: center;
-        }
-        .dd-success-ico { margin-bottom: 20px; }
-        .dd-success-title { font-size: 24px; font-weight: 800; color: #0f172a; margin: 0 0 12px; }
-        .dd-success-sub   { font-size: 15px; color: #6b7280; line-height: 1.7; margin: 0 0 20px; }
-        .dd-success-tip {
-          display: flex; align-items: flex-start; gap: 8px;
-          background: #fffbeb; border: 1px solid #fde68a;
-          border-radius: 8px; padding: 12px 14px;
-          font-size: 13px; color: #92400e; text-align: left; margin-bottom: 28px;
-        }
-        .dd-success-tip svg { flex-shrink: 0; margin-top: 1px; color: #d97706; }
-        .dd-success-btn {
-          display: inline-block; padding: 12px 28px;
-          background: #6366f1; color: #fff;
-          border-radius: 10px; font-weight: 700; font-size: 15px;
-          text-decoration: none; transition: background .15s;
-        }
-        .dd-success-btn:hover { background: #4f46e5; }
-
-        @media (max-width: 600px) {
-          .dd-hero__inner { padding: 0 16px; }
-          .dd-hero__title { font-size: 22px; }
-          .dd-grid-2 { grid-template-columns: 1fr; }
-          .dd-budget-row { flex-wrap: wrap; }
-          .dd-budget-row > .dd-field:last-child { flex: 1 0 100%; min-width: 0; }
-          .dd-section { padding: 20px 16px; }
-          .dd-success-card { padding: 32px 20px; }
-        }
-      `}</style>
+      <DdStyles/>
     </>
   );
 }
