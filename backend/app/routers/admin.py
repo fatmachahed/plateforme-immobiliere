@@ -85,7 +85,10 @@ def list_annonces(
     q = db.query(models.Annonce)
     if status:
         q = q.filter(models.Annonce.status == status)
-    q = q.order_by(desc(models.Annonce.date_creation))
+    # Trie par date de dernière modification (ex. approbation) plutôt que par date
+    # de dépôt initial, pour qu'une annonce qu'on vient d'approuver remonte en
+    # haut de liste même si elle a été soumise il y a longtemps.
+    q = q.order_by(desc(models.Annonce.date_mise_a_jour))
     annonces = q.offset(skip).limit(limit).all()
 
     result = []
