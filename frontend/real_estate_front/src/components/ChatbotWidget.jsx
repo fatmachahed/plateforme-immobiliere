@@ -41,27 +41,33 @@ const SUGGESTIONS = [
   "Comment contacter le support ?",
 ];
 
-function findAnswer(question) {
-  const tokens = (strip(question).match(/[a-z0-9]+/g) || [])
+/* -- Mode "moteur de recherche" : un mot tapé (ex. "gratuit") doit remonter
+   TOUTES les entrées où ce mot apparaît, pas juste une seule "meilleure"
+   réponse devinée. On note chaque entrée (correspondance exacte du mot
+   normalisé > correspondance partielle, question > réponse) puis on
+   renvoie la liste triée. -- */
+const MAX_RESULTS = 6;
+
+function searchFaq(query) {
+  const tokens = (strip(query).match(/[a-z0-9]+/g) || [])
     .filter((t) => t.length >= 3 && !STOPWORDS.has(t))
     .map(norm);
-  if (tokens.length === 0) return null;
+  if (tokens.length === 0) return [];
 
-  let best = null;
-  let bestScore = 0;
-  for (const entry of ENTRIES) {
+  const scored = ENTRIES.map((entry) => {
     let score = 0;
     for (const t of tokens) {
-      if (entry.tokensQ.has(t)) score += 3;
-      else if (entry.tokensA.has(t)) score += 1;
+      if (entry.tokensQ.has(t)) score += 5;
+      else if ([...entry.tokensQ].some((w) => w.includes(t) || t.includes(w))) score += 3;
+      else if (entry.tokensA.has(t)) score += 2;
+      else if ([...entry.tokensA].some((w) => w.includes(t) || t.includes(w))) score += 1;
     }
-    if (score > bestScore) {
-      bestScore = score;
-      best = entry;
-    }
-  }
-  /* Score minimal pour éviter une réponse hors-sujet sur une correspondance trop faible */
-  return bestScore >= 3 ? best : null;
+    return { entry, score };
+  })
+    .filter((r) => r.score > 0)
+    .sort((a, b) => b.score - a.score);
+
+  return scored.slice(0, MAX_RESULTS).map((r) => r.entry);
 }
 
 const WELCOME = "Bonjour 👋 Je suis l'assistant Localizi.tn. Posez-moi une question sur la navigation du site (publier une annonce, rechercher un bien, créer un compte…) ou choisissez une suggestion ci-dessous.";
@@ -79,16 +85,34 @@ export default function ChatbotWidget() {
   const ask = (question) => {
     const q = question.trim();
     if (!q) return;
-    const match = findAnswer(q);
-    const answer = match
-      ? match.a
-      : "Je n'ai pas trouvé de réponse précise à cette question. Consultez notre page FAQ complète ou contactez notre support, ils vous répondront rapidement.";
-    setMessages((m) => [
-      ...m,
-      { from: "user", text: q },
-      { from: "bot", text: answer, fallback: !match },
-    ]);
+    const results = searchFaq(q);
+
+    let botMessage;
+    if (results.length === 0) {
+      botMessage = {
+        from: "bot",
+        text: "Je n'ai pas trouvé de réponse précise à cette question. Consultez notre page FAQ complète ou contactez notre support, ils vous répondront rapidement.",
+        fallback: true,
+      };
+    } else if (results.length === 1) {
+      botMessage = { from: "bot", text: results[0].a };
+    } else {
+      botMessage = {
+        from: "bot",
+        text: `${results.length} réponses contiennent « ${q} » — cliquez sur une question :`,
+        results,
+      };
+    }
+
+    setMessages((m) => [...m, { from: "user", text: q }, botMessage]);
     setInput("");
+  };
+
+  /* Choix d'un résultat dans une liste de recherche : on affiche directement
+     sa réponse (pas une nouvelle recherche sur son intitulé, qui redonnerait
+     souvent plusieurs résultats à cause des mots communs "gratuit", "annonce"…). */
+  const pick = (entry) => {
+    setMessages((m) => [...m, { from: "user", text: entry.q }, { from: "bot", text: entry.a }]);
   };
 
   return (
@@ -147,6 +171,25 @@ export default function ChatbotWidget() {
                       <Link to="/contact" onClick={() => setOpen(false)} style={{ fontSize: 12, fontWeight: 700, color: "#4f46e5", textDecoration: "underline" }}>
                         Contacter le support
                       </Link>
+                    </div>
+                  )}
+                  {m.results && (
+                    <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+                      {m.results.map((r, ri) => (
+                        <button
+                          key={ri}
+                          onClick={() => pick(r)}
+                          style={{
+                            textAlign: "left", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 9,
+                            padding: "7px 10px", fontSize: 12.5, color: "#4338ca", cursor: "pointer",
+                            fontFamily: "inherit", fontWeight: 600,
+                          }}
+                          onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#a5b4fc"; e.currentTarget.style.background = "#eef2ff"; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.background = "#fff"; }}
+                        >
+                          {r.q}
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>
