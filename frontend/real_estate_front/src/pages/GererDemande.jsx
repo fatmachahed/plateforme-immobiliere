@@ -10,6 +10,7 @@ const STATUT_LABELS = {
   active:   { label: "Active",     color: "#16a34a", bg: "#f0fdf4" },
   expired:  { label: "Expirée",    color: "#9ca3af", bg: "#f9fafb" },
   closed:   { label: "Clôturée",   color: "#6b7280", bg: "#f3f4f6" },
+  refusee:  { label: "Refusée",    color: "#dc2626", bg: "#fef2f2" },
 };
 
 const CATEGORIE_LABELS = { achat: "Achat", location: "Location", vacances: "Vacances / saisonnier" };

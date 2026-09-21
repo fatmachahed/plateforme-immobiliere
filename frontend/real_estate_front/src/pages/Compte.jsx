@@ -2333,8 +2333,8 @@ export default function Compte() {
                   {mesDemandes.map(d => {
                     const catLabel = {achat:"Achat",location:"Location",vacances:"Vacances"}[d.categorie] || d.categorie;
                     const catColor = {achat:"#6366f1",location:"#10b981",vacances:"#f59e0b"}[d.categorie] || "#6366f1";
-                    const statutColor = {active:"#16a34a",pending:"#f59e0b",expired:"#9ca3af",closed:"#6b7280"}[d.statut] || "#6b7280";
-                    const statutLabel = {active:"Active",pending:"En attente de confirmation",expired:"Expirée",closed:"Clôturée"}[d.statut] || d.statut;
+                    const statutColor = {active:"#16a34a",pending:"#f59e0b",expired:"#9ca3af",closed:"#6b7280",refusee:"#dc2626"}[d.statut] || "#6b7280";
+                    const statutLabel = {active:"Active",pending:"En attente de confirmation",expired:"Expirée",closed:"Clôturée",refusee:"Refusée"}[d.statut] || d.statut;
                     const govs = Array.isArray(d.gouvernorats) ? d.gouvernorats : (d.gouvernorats ? JSON.parse(d.gouvernorats) : []);
                     const dels = Array.isArray(d.delegations) ? d.delegations : (d.delegations ? JSON.parse(d.delegations) : []);
                     const devise = d.devise || "DT";

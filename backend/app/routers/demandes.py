@@ -502,6 +502,74 @@ def admin_cloturer(demande_id: int, db: Session = Depends(get_db), current_user=
     return {"message": "Demande clôturée par l'admin."}
 
 
+@router.post("/admin/{demande_id}/refuser")
+def admin_refuser(demande_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(403)
+    d = db.execute(text("SELECT id FROM demandes_immo WHERE id=:id"), {"id": demande_id}).fetchone()
+    if not d:
+        raise HTTPException(404, "Demande introuvable.")
+    db.execute(text("UPDATE demandes_immo SET statut='refusee' WHERE id=:id"), {"id": demande_id})
+    db.commit()
+    return {"message": "Demande refusée."}
+
+
+@router.delete("/admin/{demande_id}")
+def admin_supprimer(demande_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(403)
+    d = db.execute(text("SELECT id FROM demandes_immo WHERE id=:id"), {"id": demande_id}).fetchone()
+    if not d:
+        raise HTTPException(404, "Demande introuvable.")
+    db.execute(text("DELETE FROM demandes_immo WHERE id=:id"), {"id": demande_id})
+    db.commit()
+    return {"message": "Demande supprimée."}
+
+
+class DemandeUpdate(BaseModel):
+    nom:          Optional[str]  = None
+    email:        Optional[str]  = None
+    telephone:    Optional[str]  = None
+    whatsapp:     Optional[str]  = None
+    categorie:    Optional[str]  = None
+    type_bien:    Optional[str]  = None
+    gouvernorats: Optional[List[str]] = None
+    delegations:  Optional[List[str]] = None
+    budget_min:   Optional[float] = None
+    budget_max:   Optional[float] = None
+    devise:       Optional[str]  = None
+    surface_min:  Optional[float] = None
+    surface_max:  Optional[float] = None
+    nb_pieces:    Optional[str]  = None
+    meuble:       Optional[str]  = None
+    colocation:   Optional[str]  = None
+    delai:        Optional[str]  = None
+    description:  Optional[str]  = None
+
+
+@router.put("/admin/{demande_id}")
+def admin_modifier(demande_id: int, data: DemandeUpdate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(403)
+    d = db.execute(text("SELECT id FROM demandes_immo WHERE id=:id"), {"id": demande_id}).fetchone()
+    if not d:
+        raise HTTPException(404, "Demande introuvable.")
+
+    fields = data.dict(exclude_unset=True)
+    if "gouvernorats" in fields:
+        fields["gouvernorats"] = json.dumps(fields["gouvernorats"], ensure_ascii=False)
+    if "delegations" in fields:
+        fields["delegations"] = json.dumps(fields["delegations"], ensure_ascii=False)
+    if not fields:
+        return {"message": "Rien à modifier."}
+
+    set_clause = ", ".join(f"{k}=:{k}" for k in fields)
+    fields["id"] = demande_id
+    db.execute(text(f"UPDATE demandes_immo SET {set_clause} WHERE id=:id"), fields)
+    db.commit()
+    return {"message": "Demande modifiée."}
+
+
 # ── Tâche d'expiration (à appeler par un cron ou au démarrage) ───────────────
 
 def expire_demandes(db: Session):

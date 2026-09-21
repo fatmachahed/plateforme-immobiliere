@@ -215,6 +215,9 @@ export default function AdminDashboard() {
   const [demandesImmo,       setDemandesImmo]       = useState([]);
   const [demandesImmoLoaded, setDemandesImmoLoaded] = useState(false);
   const [demandeContactOpen, setDemandeContactOpen] = useState(null);
+  const [previewDemande,     setPreviewDemande]     = useState(null); // demande affichée dans la modale "Voir"
+  const [editDemande,        setEditDemande]        = useState(null); // demande en cours d'édition (form state)
+  const [savingDemande,      setSavingDemande]      = useState(false);
 
   async function loadDemandesImmo() {
     try {
@@ -230,6 +233,52 @@ export default function AdminDashboard() {
       await authFetch(`/demandes/admin/${id}/cloturer`, { method:"POST" });
       setDemandesImmo(prev => prev.map(d => d.id === id ? {...d, statut:"closed"} : d));
     } catch {}
+  }
+
+  async function refuserDemande(id) {
+    if (!window.confirm("Refuser cette demande ?")) return;
+    try {
+      await authFetch(`/demandes/admin/${id}/refuser`, { method:"POST" });
+      setDemandesImmo(prev => prev.map(d => d.id === id ? {...d, statut:"refusee"} : d));
+      toast("Demande refusée.");
+    } catch { toast("Erreur.", "error"); }
+  }
+
+  async function deleteDemande(id) {
+    if (!window.confirm("Supprimer définitivement cette demande ?")) return;
+    try {
+      await authFetch(`/demandes/admin/${id}`, { method:"DELETE" });
+      setDemandesImmo(prev => prev.filter(d => d.id !== id));
+      toast("Demande supprimée.");
+    } catch { toast("Erreur.", "error"); }
+  }
+
+  async function saveDemandeEdit() {
+    if (!editDemande) return;
+    setSavingDemande(true);
+    try {
+      const { id, ...fields } = editDemande;
+      const payload = {
+        ...fields,
+        budget_min:  fields.budget_min === "" ? null : Number(fields.budget_min),
+        budget_max:  fields.budget_max === "" ? null : Number(fields.budget_max),
+        surface_min: fields.surface_min === "" ? null : Number(fields.surface_min),
+        surface_max: fields.surface_max === "" ? null : Number(fields.surface_max),
+      };
+      const r = await authFetch(`/demandes/admin/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) throw new Error();
+      setDemandesImmo(prev => prev.map(d => d.id === id ? { ...d, ...payload } : d));
+      toast("Demande modifiée.");
+      setEditDemande(null);
+    } catch {
+      toast("Impossible de modifier la demande.", "error");
+    } finally {
+      setSavingDemande(false);
+    }
   }
 
   async function assignerDemande(id, agentId) {
@@ -2091,8 +2140,8 @@ export default function AdminDashboard() {
                   {demandesImmo.map(d => {
                     const catLabel = {achat:"Achat",location:"Location",vacances:"Vacances"}[d.categorie] || d.categorie;
                     const catColor = {achat:"#6366f1",location:"#10b981",vacances:"#f59e0b"}[d.categorie] || "#6366f1";
-                    const statutColor = {active:"#16a34a",pending:"#f59e0b",expired:"#9ca3af",closed:"#6b7280"}[d.statut] || "#6b7280";
-                    const statutLabel = {active:"Active",pending:"En attente",expired:"Expirée",closed:"Clôturée"}[d.statut] || d.statut;
+                    const statutColor = {active:"#16a34a",pending:"#f59e0b",expired:"#9ca3af",closed:"#6b7280",refusee:"#dc2626"}[d.statut] || "#6b7280";
+                    const statutLabel = {active:"Active",pending:"En attente",expired:"Expirée",closed:"Clôturée",refusee:"Refusée"}[d.statut] || d.statut;
                     const govs = Array.isArray(d.gouvernorats) ? d.gouvernorats : [];
                     const dels = Array.isArray(d.delegations) ? d.delegations : [];
                     const devise = d.devise || "DT";
@@ -2118,9 +2167,34 @@ export default function AdminDashboard() {
                             </div>
                             {d.description && <p style={{margin:"8px 0 0",fontSize:12.5,color:"#64748b",fontStyle:"italic"}}>« {d.description} »</p>}
                           </div>
-                          <div style={{flexShrink:0,textAlign:"right",fontSize:11.5,color:"#94a3b8"}}>
-                            #{d.id}<br/>
-                            {d.created_at && new Date(d.created_at).toLocaleDateString("fr-FR")}
+                          <div style={{flexShrink:0,display:"flex",flexDirection:"column",alignItems:"flex-end",gap:8}}>
+                            <div className="adm-actions">
+                              <button className="adm-action adm-action--view" title="Voir" onClick={()=>setPreviewDemande(d)}>
+                                <Eye size={14}/>
+                              </button>
+                              <button className="adm-action" title="Modifier la demande" style={{borderColor:"#e2e8f0"}}
+                                onClick={()=>setEditDemande({
+                                  id: d.id, nom: d.nom||"", email: d.email||"", telephone: d.telephone||"", whatsapp: d.whatsapp||"",
+                                  categorie: d.categorie||"", type_bien: d.type_bien||"",
+                                  budget_min: d.budget_min ?? "", budget_max: d.budget_max ?? "", devise: d.devise||"DT",
+                                  surface_min: d.surface_min ?? "", surface_max: d.surface_max ?? "",
+                                  nb_pieces: d.nb_pieces||"", delai: d.delai||"", description: d.description||"",
+                                })}>
+                                <Pencil size={13}/>
+                              </button>
+                              {d.statut !== "refusee" && (
+                                <button className="adm-action adm-action--reject" title="Refuser" onClick={()=>refuserDemande(d.id)}>
+                                  <X size={14}/>
+                                </button>
+                              )}
+                              <button className="adm-action adm-action--del" title="Supprimer" onClick={()=>deleteDemande(d.id)}>
+                                <Trash2 size={14}/>
+                              </button>
+                            </div>
+                            <div style={{fontSize:11.5,color:"#94a3b8",textAlign:"right"}}>
+                              #{d.id}<br/>
+                              {d.created_at && new Date(d.created_at).toLocaleDateString("fr-FR")}
+                            </div>
                           </div>
                         </div>
                         <div style={{borderTop:"1px solid #f1f5f9",padding:"12px 20px",background:"#fafafa",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
@@ -3064,6 +3138,114 @@ export default function AdminDashboard() {
             onReject:  () => setModal({ annonce: previewAnnonce, action:"reject" }),
           }}
         />
+      )}
+
+      {/* ── Modale "Voir" une demande ── */}
+      {previewDemande && (() => {
+        const d = previewDemande;
+        const govs = Array.isArray(d.gouvernorats) ? d.gouvernorats : [];
+        const dels = Array.isArray(d.delegations) ? d.delegations : [];
+        const devise = d.devise || "DT";
+        const Row = ({ label, value }) => value ? (
+          <div style={{display:"flex",justifyContent:"space-between",gap:16,padding:"9px 0",borderBottom:"1px solid #f1f5f9"}}>
+            <span style={{fontSize:12.5,color:"#94a3b8"}}>{label}</span>
+            <span style={{fontSize:13,color:"#0f172a",fontWeight:600,textAlign:"right"}}>{value}</span>
+          </div>
+        ) : null;
+        return (
+          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}
+            onClick={()=>setPreviewDemande(null)}>
+            <div style={{background:"#fff",borderRadius:16,maxWidth:520,width:"100%",maxHeight:"85vh",overflowY:"auto",padding:"28px 30px"}}
+              onClick={e=>e.stopPropagation()}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+                <h2 style={{fontSize:17,fontWeight:800,color:"#0f172a",margin:0}}>Demande #{d.id}</h2>
+                <button onClick={()=>setPreviewDemande(null)} style={{background:"none",border:"none",cursor:"pointer",color:"#94a3b8"}}><X size={20}/></button>
+              </div>
+              <Row label="Nom" value={d.nom}/>
+              <Row label="Email" value={d.email}/>
+              <Row label="WhatsApp" value={d.whatsapp}/>
+              <Row label="Téléphone" value={d.telephone}/>
+              <Row label="Catégorie" value={{achat:"Achat",location:"Location",vacances:"Vacances"}[d.categorie]||d.categorie}/>
+              <Row label="Type de bien" value={d.type_bien}/>
+              <Row label="Gouvernorat" value={govs.join(", ")}/>
+              <Row label="Délégation(s)" value={dels.join(", ")}/>
+              <Row label="Budget" value={(d.budget_min||d.budget_max) ? `${d.budget_min?Number(d.budget_min).toLocaleString("fr-TN"):"—"} → ${d.budget_max?Number(d.budget_max).toLocaleString("fr-TN"):"—"} ${devise}` : null}/>
+              <Row label="Surface" value={(d.surface_min||d.surface_max) ? `${d.surface_min||"—"} → ${d.surface_max||"—"} m²` : null}/>
+              <Row label="Nombre de pièces" value={d.nb_pieces}/>
+              <Row label="Délai" value={{urgent:"Urgent (< 1 mois)","3mois":"Dans les 3 mois",reflexion:"En réflexion"}[d.delai]||d.delai}/>
+              <Row label="Statut" value={d.statut}/>
+              <Row label="Assigné à" value={d.assigned_agent_nom || d.assigned_agent_email}/>
+              <Row label="Consultations" value={d.nb_consultations}/>
+              <Row label="Créée le" value={d.created_at && new Date(d.created_at).toLocaleDateString("fr-FR")}/>
+              {d.description && (
+                <div style={{marginTop:14}}>
+                  <p style={{fontSize:12.5,color:"#94a3b8",margin:"0 0 4px"}}>Description</p>
+                  <p style={{fontSize:13,color:"#374151",lineHeight:1.6,margin:0,fontStyle:"italic"}}>« {d.description} »</p>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Modale "Modifier" une demande ── */}
+      {editDemande && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}
+          onClick={()=>!savingDemande && setEditDemande(null)}>
+          <div style={{background:"#fff",borderRadius:16,maxWidth:560,width:"100%",maxHeight:"85vh",overflowY:"auto",padding:"28px 30px"}}
+            onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:18}}>
+              <h2 style={{fontSize:17,fontWeight:800,color:"#0f172a",margin:0}}>Modifier la demande #{editDemande.id}</h2>
+              <button onClick={()=>setEditDemande(null)} style={{background:"none",border:"none",cursor:"pointer",color:"#94a3b8"}}><X size={20}/></button>
+            </div>
+            {[
+              ["nom","Nom"], ["email","Email"], ["telephone","Téléphone"], ["whatsapp","WhatsApp"],
+            ].map(([key,label]) => (
+              <div key={key} style={{marginBottom:12}}>
+                <label style={{fontSize:12.5,fontWeight:600,color:"#374151",display:"block",marginBottom:4}}>{label}</label>
+                <input value={editDemande[key]||""} onChange={e=>setEditDemande(prev=>({...prev,[key]:e.target.value}))}
+                  style={{width:"100%",padding:"9px 12px",borderRadius:9,border:"1.5px solid #e5e7eb",fontSize:13.5,fontFamily:"inherit",boxSizing:"border-box"}}/>
+              </div>
+            ))}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+              <div>
+                <label style={{fontSize:12.5,fontWeight:600,color:"#374151",display:"block",marginBottom:4}}>Budget minimum</label>
+                <input type="number" value={editDemande.budget_min} onChange={e=>setEditDemande(prev=>({...prev,budget_min:e.target.value}))}
+                  style={{width:"100%",padding:"9px 12px",borderRadius:9,border:"1.5px solid #e5e7eb",fontSize:13.5,fontFamily:"inherit",boxSizing:"border-box"}}/>
+              </div>
+              <div>
+                <label style={{fontSize:12.5,fontWeight:600,color:"#374151",display:"block",marginBottom:4}}>Budget maximum</label>
+                <input type="number" value={editDemande.budget_max} onChange={e=>setEditDemande(prev=>({...prev,budget_max:e.target.value}))}
+                  style={{width:"100%",padding:"9px 12px",borderRadius:9,border:"1.5px solid #e5e7eb",fontSize:13.5,fontFamily:"inherit",boxSizing:"border-box"}}/>
+              </div>
+              <div>
+                <label style={{fontSize:12.5,fontWeight:600,color:"#374151",display:"block",marginBottom:4}}>Surface minimum (m²)</label>
+                <input type="number" value={editDemande.surface_min} onChange={e=>setEditDemande(prev=>({...prev,surface_min:e.target.value}))}
+                  style={{width:"100%",padding:"9px 12px",borderRadius:9,border:"1.5px solid #e5e7eb",fontSize:13.5,fontFamily:"inherit",boxSizing:"border-box"}}/>
+              </div>
+              <div>
+                <label style={{fontSize:12.5,fontWeight:600,color:"#374151",display:"block",marginBottom:4}}>Surface maximum (m²)</label>
+                <input type="number" value={editDemande.surface_max} onChange={e=>setEditDemande(prev=>({...prev,surface_max:e.target.value}))}
+                  style={{width:"100%",padding:"9px 12px",borderRadius:9,border:"1.5px solid #e5e7eb",fontSize:13.5,fontFamily:"inherit",boxSizing:"border-box"}}/>
+              </div>
+            </div>
+            <div style={{marginBottom:12}}>
+              <label style={{fontSize:12.5,fontWeight:600,color:"#374151",display:"block",marginBottom:4}}>Description</label>
+              <textarea rows={3} value={editDemande.description||""} onChange={e=>setEditDemande(prev=>({...prev,description:e.target.value}))}
+                style={{width:"100%",padding:"9px 12px",borderRadius:9,border:"1.5px solid #e5e7eb",fontSize:13.5,fontFamily:"inherit",boxSizing:"border-box",resize:"vertical"}}/>
+            </div>
+            <div style={{display:"flex",gap:10,justifyContent:"flex-end",marginTop:18}}>
+              <button onClick={()=>setEditDemande(null)} disabled={savingDemande}
+                style={{padding:"10px 18px",borderRadius:9,border:"1px solid #e2e8f0",background:"#fff",color:"#374151",fontSize:13.5,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+                Annuler
+              </button>
+              <button onClick={saveDemandeEdit} disabled={savingDemande}
+                style={{padding:"10px 18px",borderRadius:9,border:"none",background:"#6366f1",color:"#fff",fontSize:13.5,fontWeight:700,cursor:savingDemande?"default":"pointer",fontFamily:"inherit",opacity:savingDemande?.6:1}}>
+                {savingDemande ? "Enregistrement…" : "Enregistrer"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── Onglet Accompagnements (déplacé dans <main>) ── */}
