@@ -1237,7 +1237,7 @@ export default function Compte() {
                         readOnly
                       />
                     </F>
-                    <F label="Téléphone">
+                    <F label="WhatsApp">
                       {/* Tous les numéros (principal + supplémentaires) s'affichent en
                           lecture seule avec une croix de suppression — jamais de saisie
                           libre. Le seul moyen d'en ajouter (y compris le tout premier)
