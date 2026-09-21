@@ -313,7 +313,7 @@ export default function Navbar() {
                       <div className="lz-nav__dd-body">
                         <Link to="/compte?tab=profil"    className="lz-nav__dd-item"><User size={14} /> Mon profil</Link>
                         <Link to="/compte?tab=annonces&statut=approuvee"  className="lz-nav__dd-item"><LayoutDashboard size={14} /> Mes annonces</Link>
-                        <Link to="/compte?tab=contacts"  className="lz-nav__dd-item"><Bell size={14} /> Demandes reçues{unreadCount>0&&<span style={{marginLeft:"auto",background:"#ef4444",color:"#fff",borderRadius:10,fontSize:10,fontWeight:800,padding:"1px 6px",minWidth:16,textAlign:"center"}}>{unreadCount}</span>}</Link>
+                        <Link to="/compte?tab=contacts"  className="lz-nav__dd-item"><Bell size={14} /> Contacts reçus{unreadCount>0&&<span style={{marginLeft:"auto",background:"#ef4444",color:"#fff",borderRadius:10,fontSize:10,fontWeight:800,padding:"1px 6px",minWidth:16,textAlign:"center"}}>{unreadCount}</span>}</Link>
                         {user?.role==="partenaire" && (
                           <Link to="/compte?tab=interventions" className="lz-nav__dd-item"><Briefcase size={14} /> Mes interventions{interventionsCount>0&&<span style={{marginLeft:"auto",background:"#ef4444",color:"#fff",borderRadius:10,fontSize:10,fontWeight:800,padding:"1px 6px",minWidth:16,textAlign:"center"}}>{interventionsCount}</span>}</Link>
                         )}
@@ -464,7 +464,7 @@ export default function Navbar() {
                     {[
                       { to:"/compte?tab=profil",   label:"Mon profil",       Ico:User,            badge:0           },
                       { to:"/compte?tab=annonces", label:"Mes annonces",     Ico:LayoutDashboard, badge:0           },
-                      { to:"/compte?tab=contacts", label:"Demandes reçues",  Ico:Bell,            badge:unreadCount },
+                      { to:"/compte?tab=contacts", label:"Contacts reçus",  Ico:Bell,            badge:unreadCount },
                       ...(user?.role==="partenaire" ? [{ to:"/compte?tab=interventions", label:"Mes interventions", Ico:Briefcase, badge:interventionsCount }] : []),
                       { to:"/compte?tab=noter",    label:"Noter les services", Ico:Star,          badge:toRateCount },
                       { to:"/compte?tab=favoris",  label:"Mes favoris",      Ico:Heart,           badge:0           },

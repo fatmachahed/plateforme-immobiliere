@@ -1069,7 +1069,7 @@ export default function Compte() {
   const NAV_ITEMS = [
     { key:"profil",    icon:<User size={19}/>,   label:"Mon profil" },
     { key:"annonces",  icon:<Home size={19}/>,   label:"Mes annonces" },
-    { key:"contacts",  icon:<Bell size={19}/>,   label:"Demandes reçues", badge: contactsLoaded ? unreadCount : 0 },
+    { key:"contacts",  icon:<Bell size={19}/>,   label:"Contacts reçus", badge: contactsLoaded ? unreadCount : 0 },
     { key:"alertes",   icon:<Bell size={19}/>,   label:"Mes alertes", badge: alertesLoaded ? alertesCount : 0 },
     { key:"favoris",   icon:<Heart size={19}/>,  label:"Mes favoris" },
     { key:"mes_demandes_immo", icon:<Search size={19}/>, label:"Mes demandes", badge: mesDemandesLoaded ? mesDemandes.filter(d=>d.statut==="active"||d.statut==="pending").length : 0 },
