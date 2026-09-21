@@ -66,8 +66,8 @@ export default function DeposerDemande() {
   const [form, setForm] = useState({
     nom:         storedUser?.username || storedUser?.nom || "",
     email:       storedUser?.email || "",
-    telephone:   storedUser?.phone_number || "",
-    whatsapp:    "",
+    telephone:   "",
+    whatsapp:    storedUser?.phone_number || "",
     categorie:   "",
     type_bien:   "",
     gouvernorat_id: "",
