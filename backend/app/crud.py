@@ -245,7 +245,11 @@ def create_annonce(
     db.refresh(db_annonce)
     return db_annonce
 def get_annonces_by_user(db: Session, user_id: int, skip: int = 0, limit: int = 100):
-    return db.query(models.Annonce).filter(models.Annonce.utilisateur_id == user_id).offset(skip).limit(limit).all()
+    return (
+        db.query(models.Annonce)
+        .filter(models.Annonce.utilisateur_id == user_id, models.Annonce.status != "supprimee")
+        .offset(skip).limit(limit).all()
+    )
 
 def get_annonce(db: Session, annonce_id: int):
     return db.query(models.Annonce).filter(models.Annonce.id == annonce_id).first()
@@ -320,13 +324,6 @@ def update_annonce(db: Session, annonce_id: int, update_data: dict):
             ))
     db.commit()
     db.refresh(db_annonce)
-    return db_annonce
-def delete_annonce(db: Session, annonce_id: int):
-    db_annonce = get_annonce(db, annonce_id)
-    if not db_annonce:
-        return None
-    db.delete(db_annonce)
-    db.commit()
     return db_annonce
 
 # ===============================

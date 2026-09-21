@@ -18,9 +18,12 @@ import {
 
 function StatusBadge({ status }) {
   const map = {
-    approuvee:  { label:"Approuvée",  cls:"adm-badge--ok"   },
-    en_attente: { label:"En attente", cls:"adm-badge--warn" },
-    refusee:    { label:"Refusée",    cls:"adm-badge--err"  },
+    approuvee:  { label:"Approuvée",     cls:"adm-badge--ok"    },
+    en_attente: { label:"En attente",    cls:"adm-badge--warn"  },
+    refusee:    { label:"Refusée",       cls:"adm-badge--err"   },
+    vendue:     { label:"Déjà vendue",   cls:"adm-badge--info"  },
+    louee:      { label:"Déjà louée",    cls:"adm-badge--info"  },
+    supprimee:  { label:"Supprimée",     cls:"adm-badge--muted" },
   };
   const m = map[status] || { label: status, cls:"" };
   return <span className={`adm-badge ${m.cls}`}>{m.label}</span>;
@@ -774,6 +777,9 @@ export default function AdminDashboard() {
     { icon:<CheckCircle size={22}/>, label:"Approuvées",     val:stats.approuvees,     cls:"adm-stat--green",onClick:()=>{ setTab("annonces"); setFilter("approuvee"); } },
     { icon:<Clock size={22}/>,       label:"En attente",     val:stats.en_attente,     cls:"adm-stat--amber",onClick:()=>{ setTab("annonces"); setFilter("en_attente"); } },
     { icon:<XCircle size={22}/>,     label:"Refusées",       val:stats.refusees,       cls:"adm-stat--red",  onClick:()=>{ setTab("annonces"); setFilter("refusee"); } },
+    { icon:<Home size={22}/>,        label:"Déjà louées",    val:stats.louees,         cls:"adm-stat--indigo",onClick:()=>{ setTab("annonces"); setFilter("louee"); } },
+    { icon:<DollarSign size={22}/>,  label:"Déjà vendues",   val:stats.vendues,        cls:"adm-stat--purple",onClick:()=>{ setTab("annonces"); setFilter("vendue"); } },
+    { icon:<Trash2 size={22}/>,      label:"Supprimées",     val:stats.supprimees,     cls:"adm-stat--gray", onClick:()=>{ setTab("annonces"); setFilter("supprimee"); } },
     { icon:<Users size={22}/>,       label:"Utilisateurs",   val:stats.total_users,    cls:"adm-stat--blue", onClick:()=>{ setTab("users"); } },
   ] : [];
 
@@ -895,6 +901,9 @@ export default function AdminDashboard() {
                   {v:"en_attente", l:"En attente"},
                   {v:"approuvee",  l:"Approuvées"},
                   {v:"refusee",    l:"Refusées"},
+                  {v:"supprimee",  l:"Supprimées"},
+                  {v:"louee",      l:"Déjà louées"},
+                  {v:"vendue",     l:"Déjà vendues"},
                   {v:"",           l:"Toutes"},
                 ].map(f => (
                   <button key={f.v}
@@ -3373,6 +3382,9 @@ export default function AdminDashboard() {
         .adm-stat--amber .adm-stat__ico { background:#fffbeb; color:#d97706; }
         .adm-stat--red   .adm-stat__ico { background:#fef2f2; color:#dc2626; }
         .adm-stat--blue  .adm-stat__ico { background:#eff6ff; color:#2563eb; }
+        .adm-stat--purple .adm-stat__ico { background:#faf5ff; color:#9333ea; }
+        .adm-stat--indigo .adm-stat__ico { background:#eef2ff; color:#4338ca; }
+        .adm-stat--gray  .adm-stat__ico { background:#f1f5f9; color:#475569; }
         .adm-stat__val { font-size:22px; font-weight:800; color:#0f172a; line-height:1; }
         .adm-stat__lbl { font-size:11px; color:#94a3b8; margin-top:3px; }
 
@@ -3415,6 +3427,8 @@ export default function AdminDashboard() {
         .adm-badge--ok   { background:#f0fdf4; color:#15803d; }
         .adm-badge--warn { background:#fffbeb; color:#b45309; }
         .adm-badge--err  { background:#fef2f2; color:#b91c1c; }
+        .adm-badge--info { background:#eef2ff; color:#4338ca; }
+        .adm-badge--muted{ background:#f1f5f9; color:#475569; }
         .adm-pill {
           display:inline-block; font-size:10px; font-weight:700; text-transform:uppercase;
           letter-spacing:.04em; padding:2px 7px; border-radius:5px;

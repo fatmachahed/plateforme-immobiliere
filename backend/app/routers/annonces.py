@@ -869,7 +869,11 @@ def delete_annonce(
     if annonce.utilisateur_id != current_user.id:
         raise HTTPException(status_code=403, detail="Action interdite")
 
-    crud.delete_annonce(db, annonce_id)
+    # Soft delete : le propriétaire perd l'annonce de son tableau de bord,
+    # mais elle reste tracée côté admin (filtre "Supprimées") au lieu d'être effacée définitivement.
+    from app.enums import StatusEnum
+    annonce.status = StatusEnum.supprimee
+    db.commit()
     return {"detail": "Annonce supprimée"}
 
 

@@ -134,6 +134,8 @@ with engine.connect() as conn:
         # Ajout statuts vendue/louee dans l'enum PostgreSQL
         "ALTER TYPE statusenum ADD VALUE IF NOT EXISTS 'vendue';",
         "ALTER TYPE statusenum ADD VALUE IF NOT EXISTS 'louee';",
+        # Statut "supprimee" — suppression par le propriétaire, conservée côté admin (soft delete)
+        "ALTER TYPE statusenum ADD VALUE IF NOT EXISTS 'supprimee';",
         # Nouveau type de bien "duplex" — mêmes caractéristiques que appartement
         "ALTER TYPE typebienenum ADD VALUE IF NOT EXISTS 'duplex';",
         # Nouveau type de bien "penthouse" — mêmes caractéristiques que appartement

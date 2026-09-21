@@ -44,6 +44,9 @@ def get_stats(
     approuvees      = db.query(func.count(models.Annonce.id)).filter(models.Annonce.status == "approuvee").scalar() or 0
     en_attente      = db.query(func.count(models.Annonce.id)).filter(models.Annonce.status == "en_attente").scalar() or 0
     refusees        = db.query(func.count(models.Annonce.id)).filter(models.Annonce.status == "refusee").scalar() or 0
+    vendues         = db.query(func.count(models.Annonce.id)).filter(models.Annonce.status == "vendue").scalar() or 0
+    louees          = db.query(func.count(models.Annonce.id)).filter(models.Annonce.status == "louee").scalar() or 0
+    supprimees      = db.query(func.count(models.Annonce.id)).filter(models.Annonce.status == "supprimee").scalar() or 0
     total_users     = db.query(func.count(models.User.id)).scalar() or 0
 
     # Par type de bien
@@ -66,6 +69,9 @@ def get_stats(
         "approuvees":     approuvees,
         "en_attente":     en_attente,
         "refusees":       refusees,
+        "vendues":        vendues,
+        "louees":         louees,
+        "supprimees":     supprimees,
         "total_users":    total_users,
         "by_type":        [{"type": t, "count": c} for t, c in by_type],
         "by_categorie":   [{"categorie": cat, "count": c} for cat, c in by_cat],
