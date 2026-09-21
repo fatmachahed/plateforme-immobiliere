@@ -4,6 +4,7 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import API_URL from "../config";
 import useLocalisation from "../hooks/useLocalisation";
+import AgentsMarquee from "../components/AgentsMarquee";
 import {
   Search, Home, MapPin, Banknote, Maximize2, BedDouble,
   Phone, Mail, User, CheckCircle2, ChevronDown, Info
@@ -189,6 +190,8 @@ export default function DeposerDemande() {
             </p>
           </div>
         </div>
+
+        <AgentsMarquee/>
 
         <div className="dd-container">
           <form className="dd-form" onSubmit={handleSubmit} noValidate>
