@@ -169,7 +169,7 @@ export default function DeposerDemande() {
             <h1 className="dd-hero__title">Déposer une demande</h1>
             <p className="dd-hero__sub">
               Décrivez le bien que vous recherchez. Les agents immobiliers actifs
-              dans votre zone vous contacteront directement.
+              dans la zone recherchée vous contacteront directement.
             </p>
           </div>
         </div>
