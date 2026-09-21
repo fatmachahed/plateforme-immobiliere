@@ -118,14 +118,25 @@ export default function DeposerDemande() {
 
     setLoading(true);
     try {
+      const toNumberOrNull = (v) => (v === "" || v === null || v === undefined ? null : Number(v));
       const res = await fetch(`${API_URL}/demandes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, gouvernorats: form.gouvernorat ? [form.gouvernorat] : [] }),
+        body: JSON.stringify({
+          ...form,
+          gouvernorats: form.gouvernorat ? [form.gouvernorat] : [],
+          budget_min:  toNumberOrNull(form.budget_min),
+          budget_max:  toNumberOrNull(form.budget_max),
+          surface_min: toNumberOrNull(form.surface_min),
+          surface_max: toNumberOrNull(form.surface_max),
+        }),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        throw new Error(d.detail || "Erreur serveur");
+        const msg = Array.isArray(d.detail)
+          ? d.detail.map(e => e.msg).filter(Boolean).join(" · ")
+          : (typeof d.detail === "string" ? d.detail : "Erreur serveur");
+        throw new Error(msg || "Erreur serveur");
       }
       setDone(true);
     } catch (err) {
