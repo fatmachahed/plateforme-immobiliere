@@ -53,7 +53,7 @@ export default function GererDemande() {
         throw new Error(d.detail || "Erreur serveur");
       }
       const msgs = {
-        confirm: "Votre demande est maintenant active et visible aux agents immobiliers.",
+        confirm: "Votre demande est confirmée. Notre équipe va l'assigner à l'agent le plus adapté à votre recherche.",
         close:   "Votre demande a été clôturée. Bonne chance pour votre projet !",
         renew:   "Votre demande a été renouvelée pour 30 jours supplémentaires.",
       };

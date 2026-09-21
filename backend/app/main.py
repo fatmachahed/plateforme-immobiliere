@@ -269,6 +269,10 @@ with engine.connect() as conn:
         # Rattache une demande au compte de son auteur, s'il était connecté en la déposant
         "ALTER TABLE demandes_immo ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;",
         "CREATE INDEX IF NOT EXISTS ix_demandes_immo_user_id ON demandes_immo (user_id);",
+        # Agent/agence à qui l'admin a assigné la demande (dispatch manuel, pas de
+        # visibilité automatique par gouvernorat, pour éviter la concurrence entre agents)
+        "ALTER TABLE demandes_immo ADD COLUMN IF NOT EXISTS assigned_agent_id INTEGER REFERENCES users(id) ON DELETE SET NULL;",
+        "CREATE INDEX IF NOT EXISTS ix_demandes_immo_assigned_agent_id ON demandes_immo (assigned_agent_id);",
         # Table de traçabilité des consultations
         """
         CREATE TABLE IF NOT EXISTS demande_consultations (

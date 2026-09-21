@@ -232,6 +232,24 @@ export default function AdminDashboard() {
     } catch {}
   }
 
+  async function assignerDemande(id, agentId) {
+    try {
+      const r = await authFetch(`/demandes/admin/${id}/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agent_id: agentId || null }),
+      });
+      if (!r.ok) throw new Error();
+      const agent = agentId ? users.find(u => u.id === Number(agentId)) : null;
+      setDemandesImmo(prev => prev.map(d => d.id === id
+        ? { ...d, assigned_agent_id: agentId || null, assigned_agent_nom: agent?.username || null, assigned_agent_email: agent?.email || null }
+        : d));
+      toast(agentId ? "Demande assignée." : "Demande désassignée.");
+    } catch {
+      toast("Impossible d'assigner la demande. Réessayez.", "error");
+    }
+  }
+
   /* Conventions */
   const [conventions,      setConventions]      = useState([]);
   const [convLoading,      setConvLoading]      = useState(false);
@@ -287,7 +305,7 @@ export default function AdminDashboard() {
     if (tab === "accompagnements"){ loadAllAnnonces(); if (users.length === 0) loadUsers(); if (agencies.length === 0) loadAgencies(); loadProfessionals(); }
     if (tab === "conventions") loadConventions();
     if (tab === "parametres" && !plansLoaded) loadPlansConfig();
-    if (tab === "demandes_immo" && !demandesImmoLoaded) loadDemandesImmo();
+    if (tab === "demandes_immo") { if (!demandesImmoLoaded) loadDemandesImmo(); if (users.length === 0) loadUsers(); }
   }, [tab, filter]);
 
   async function loadPlansConfig() {
@@ -2125,6 +2143,25 @@ export default function AdminDashboard() {
                             </button>
                           )}
                         </div>
+                        {(d.statut === "active" || d.statut === "expired") && (
+                          <div style={{borderTop:"1px solid #f1f5f9",padding:"10px 20px",background:"#fff",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+                            <span style={{fontSize:12.5,fontWeight:600,color:"#374151"}}>Assigné à :</span>
+                            <select
+                              value={d.assigned_agent_id || ""}
+                              onChange={e => assignerDemande(d.id, e.target.value)}
+                              style={{padding:"6px 10px",borderRadius:8,border:"1px solid #e2e8f0",fontSize:12.5,fontFamily:"inherit",color:"#0f172a",background:"#fff",cursor:"pointer"}}>
+                              <option value="">— Aucun —</option>
+                              {users.filter(u => ["agence","agent"].includes(u.role)).map(u => (
+                                <option key={u.id} value={u.id}>{u.username} · {u.gouvernorat || "?"} ({u.role})</option>
+                              ))}
+                            </select>
+                            {d.assigned_agent_id && (
+                              <span style={{fontSize:11.5,color:"#16a34a",fontWeight:600}}>
+                                ✓ {d.assigned_agent_nom || d.assigned_agent_email}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}

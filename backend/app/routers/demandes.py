@@ -2,15 +2,21 @@
 Routeur : demandes immobilières (demande côté acheteur/locataire).
 
 Flux :
-  POST /demandes                  → crée la demande (statut pending) + envoie email confirmation
-  POST /demandes/token/{t}/confirm → confirme (active) + notifie les agents du gouvernorat
-  POST /demandes/token/{t}/close   → clôture la demande
-  POST /demandes/token/{t}/renew   → renouvelle 30 jours
-  GET  /demandes/token/{t}         → lit la demande (pour page de gestion)
-  GET  /demandes                   → liste admin (auth admin requis)
-  GET  /demandes/mes               → liste agents : demandes filtrées par gouvernorat
-  GET  /demandes/miennes           → liste des demandes déposées par l'utilisateur connecté
-  POST /demandes/{id}/consulter    → trace la consultation par un agent
+  POST /demandes                        → crée la demande (statut pending) + envoie email confirmation
+  POST /demandes/token/{t}/confirm      → confirme (active) + notifie l'admin (pas les agents)
+  POST /demandes/token/{t}/close        → clôture la demande
+  POST /demandes/token/{t}/renew        → renouvelle 30 jours
+  GET  /demandes/token/{t}              → lit la demande (pour page de gestion)
+  GET  /demandes/mes                    → liste agent/agence : demandes qui LUI ont été assignées par l'admin
+  GET  /demandes/miennes                → liste des demandes déposées par l'utilisateur connecté
+  POST /demandes/{id}/consulter         → trace la consultation par un agent
+  GET  /demandes/admin/all              → liste admin complète (toutes, tous statuts)
+  POST /demandes/admin/{id}/assign      → admin assigne (ou réassigne/désassigne) une demande à un agent
+  POST /demandes/admin/{id}/cloturer    → admin clôture
+
+Toutes les demandes remontent d'abord à l'admin (aucune visibilité automatique
+par gouvernorat pour éviter la concurrence entre agents d'une même zone) ;
+l'admin dispatche ensuite manuellement chaque demande à l'agent de son choix.
 """
 
 import html
@@ -85,8 +91,8 @@ def _send_confirmation_email(demande: dict):
         <p style="margin:0 0 8px;color:#374151">Bonjour <strong>{nom}</strong>,</p>
         <p style="margin:0 0 20px;color:#374151;line-height:1.6">
           Votre demande immobilière a bien été reçue. Cliquez sur le bouton ci-dessous
-          pour la <strong>confirmer</strong> et la rendre visible aux agents immobiliers
-          actifs dans votre zone.
+          pour la <strong>confirmer</strong>. Notre équipe l'assignera ensuite à
+          l'agent immobilier le plus adapté à votre recherche.
         </p>
         <div style="text-align:center;margin-bottom:24px">
           <a href="{lien_confirm}"
@@ -107,34 +113,18 @@ def _send_confirmation_email(demande: dict):
     send_email(demande["email"], "Confirmez votre demande immobilière — Localizi.tn", html_body)
 
 
-def _send_agent_notification(demande: dict, db: Session):
-    """Envoie un email aux agents/agences actifs dans les gouvernorats de la demande."""
-    gouvernorats = json.loads(demande["gouvernorats"]) if isinstance(demande["gouvernorats"], str) else demande["gouvernorats"]
-    if not gouvernorats:
-        return
-
-    placeholders = ", ".join(f":g{i}" for i in range(len(gouvernorats)))
-    params = {f"g{i}": g for i, g in enumerate(gouvernorats)}
-    params["roles"] = ("agence", "agent", "admin")
-
-    rows = db.execute(text(f"""
-        SELECT DISTINCT email, username, nom FROM users
-        WHERE gouvernorat IN ({placeholders})
-          AND role IN ('agence', 'agent', 'admin')
-          AND is_blocked IS NOT TRUE
-          AND email IS NOT NULL
-          AND email <> ''
-    """), params).fetchall()
-
-    if not rows:
-        return
-
-    categorie_label = {"achat": "Achat", "location": "Location", "vacances": "Vacances"}.get(demande["categorie"], demande["categorie"])
-    type_bien = html.escape(demande["type_bien"] or "")
-    gouv_str  = ", ".join(gouvernorats)
+def _demande_summary_html(demande: dict) -> str:
+    """Bloc HTML récapitulatif d'une demande, réutilisé dans plusieurs emails."""
+    gouvernorats = demande.get("gouvernorats")
+    if isinstance(gouvernorats, str):
+        gouvernorats = json.loads(gouvernorats) if gouvernorats else []
     delegations = demande.get("delegations")
     if isinstance(delegations, str):
         delegations = json.loads(delegations) if delegations else []
+
+    categorie_label = {"achat": "Achat", "location": "Location", "vacances": "Vacances"}.get(demande["categorie"], demande["categorie"])
+    type_bien = html.escape(demande["type_bien"] or "")
+    gouv_str  = ", ".join(gouvernorats or [])
     delegations_str = ""
     if delegations:
         delegations_str = f"<p style='margin:4px 0;color:#374151'><strong>Délégation(s) :</strong> {html.escape(', '.join(delegations))}</p>"
@@ -148,16 +138,7 @@ def _send_agent_notification(demande: dict, db: Session):
     if demande.get("description"):
         desc_str = f"<p style='margin:4px 0;color:#374151'><strong>Description :</strong> {html.escape(demande['description'])}</p>"
 
-    lien = f"{FRONTEND_URL}/compte?tab=demandes"
-
-    html_body = f"""
-    <div style="font-family:Arial,sans-serif;max-width:540px;margin:0 auto;background:#f8fafc;padding:24px">
-      <div style="text-align:center;padding:16px 0 24px">{LOGO_IMG_HTML}</div>
-      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:32px">
-        <h2 style="color:#0f172a;margin:0 0 16px;font-size:18px">Nouvelle demande dans votre zone</h2>
-        <p style="margin:0 0 16px;color:#374151;line-height:1.6">
-          Un acheteur/locataire recherche un bien correspondant à vos annonces.
-        </p>
+    return f"""
         <div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px;padding:16px;margin-bottom:20px">
           <p style="margin:4px 0;color:#374151"><strong>Type :</strong> {categorie_label} · {type_bien}</p>
           <p style="margin:4px 0;color:#374151"><strong>Gouvernorat(s) :</strong> {gouv_str}</p>
@@ -165,21 +146,71 @@ def _send_agent_notification(demande: dict, db: Session):
           {budget_str}
           {desc_str}
         </div>
+    """
+
+
+def _send_admin_notification(demande: dict, db: Session):
+    """Notifie uniquement les administrateurs qu'une nouvelle demande est confirmée
+    et à dispatcher — jamais directement les agents/agences, pour éviter toute
+    concurrence entre professionnels d'une même zone."""
+    rows = db.execute(text("""
+        SELECT DISTINCT email FROM users
+        WHERE role = 'admin' AND is_blocked IS NOT TRUE AND email IS NOT NULL AND email <> ''
+    """)).fetchall()
+    if not rows:
+        return
+
+    lien = f"{FRONTEND_URL}/admin"
+    html_body = f"""
+    <div style="font-family:Arial,sans-serif;max-width:540px;margin:0 auto;background:#f8fafc;padding:24px">
+      <div style="text-align:center;padding:16px 0 24px">{LOGO_IMG_HTML}</div>
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:32px">
+        <h2 style="color:#0f172a;margin:0 0 16px;font-size:18px">Nouvelle demande à dispatcher</h2>
+        <p style="margin:0 0 16px;color:#374151;line-height:1.6">
+          Un acheteur/locataire a confirmé sa demande. Choisissez l'agent ou l'agence
+          à qui l'assigner.
+        </p>
+        {_demande_summary_html(demande)}
         <div style="text-align:center">
           <a href="{lien}"
              style="display:inline-block;padding:12px 24px;background:#6366f1;color:#fff;
                     text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">
-            Voir toutes les demandes
+            Assigner cette demande
           </a>
         </div>
       </div>
       {SOCIAL_FOOTER_HTML}
     </div>
     """
-
     for row in rows:
         if row.email:
-            send_email(row.email, "Nouvelle demande immobilière dans votre zone — Localizi.tn", html_body)
+            send_email(row.email, "Nouvelle demande à dispatcher — Localizi.tn", html_body)
+
+
+def _send_assignment_notification(demande: dict, agent_email: str):
+    """Notifie l'agent/agence qu'une demande vient de lui être assignée par l'admin."""
+    lien = f"{FRONTEND_URL}/compte?tab=demandes"
+    html_body = f"""
+    <div style="font-family:Arial,sans-serif;max-width:540px;margin:0 auto;background:#f8fafc;padding:24px">
+      <div style="text-align:center;padding:16px 0 24px">{LOGO_IMG_HTML}</div>
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:32px">
+        <h2 style="color:#0f172a;margin:0 0 16px;font-size:18px">Une demande vous a été assignée</h2>
+        <p style="margin:0 0 16px;color:#374151;line-height:1.6">
+          L'administrateur vous a assigné la demande suivante :
+        </p>
+        {_demande_summary_html(demande)}
+        <div style="text-align:center">
+          <a href="{lien}"
+             style="display:inline-block;padding:12px 24px;background:#6366f1;color:#fff;
+                    text-decoration:none;border-radius:10px;font-weight:700;font-size:14px;">
+            Voir le contact
+          </a>
+        </div>
+      </div>
+      {SOCIAL_FOOTER_HTML}
+    </div>
+    """
+    send_email(agent_email, "Une demande vous a été assignée — Localizi.tn", html_body)
 
 
 def _send_expiry_email(demande: dict):
@@ -292,8 +323,8 @@ def confirmer_demande(token: str, db: Session = Depends(get_db)):
     db.commit()
     demande = dict(_get_demande_by_token(token, db))
     demande["gouvernorats"] = json.loads(demande["gouvernorats"]) if isinstance(demande["gouvernorats"], str) else demande["gouvernorats"]
-    _send_agent_notification(demande, db)
-    return {"message": "Demande confirmée et visible aux agents."}
+    _send_admin_notification(demande, db)
+    return {"message": "Demande confirmée. Notre équipe va l'assigner à un agent."}
 
 
 @router.post("/token/{token}/close")
@@ -323,34 +354,24 @@ def renouveler_demande(token: str, db: Session = Depends(get_db)):
 
 @router.get("/mes")
 def liste_demandes_agent(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    """Demandes visibles pour un agent/agence : uniquement celles que l'admin lui a
+    explicitement assignées (assigned_agent_id) — jamais par simple correspondance
+    de gouvernorat, pour éviter toute concurrence entre professionnels d'une même
+    zone. L'admin, lui, voit tout via /demandes/admin/all."""
     if current_user.role not in ("agence", "agent", "admin"):
         raise HTTPException(403, "Accès réservé aux professionnels.")
 
-    gouv = current_user.gouvernorat
-    if current_user.role == "admin":
-        rows = db.execute(text("""
-            SELECT id, nom, email, telephone, whatsapp, categorie, type_bien,
-                   gouvernorats, delegations, budget_min, budget_max, devise,
-                   surface_min, surface_max,
-                   nb_pieces, meuble, colocation, delai, description,
-                   statut, expire_at, created_at
-            FROM demandes_immo WHERE statut='active'
-            ORDER BY created_at DESC
-        """)).fetchall()
-    elif gouv:
-        rows = db.execute(text("""
-            SELECT id, nom, email, telephone, whatsapp, categorie, type_bien,
-                   gouvernorats, delegations, budget_min, budget_max, devise,
-                   surface_min, surface_max,
-                   nb_pieces, meuble, colocation, delai, description,
-                   statut, expire_at, created_at
-            FROM demandes_immo
-            WHERE statut='active'
-              AND gouvernorats::text ILIKE :gouv
-            ORDER BY created_at DESC
-        """), {"gouv": f"%{gouv}%"}).fetchall()
-    else:
-        rows = []
+    rows = db.execute(text("""
+        SELECT id, nom, email, telephone, whatsapp, categorie, type_bien,
+               gouvernorats, delegations, budget_min, budget_max, devise,
+               surface_min, surface_max,
+               nb_pieces, meuble, colocation, delai, description,
+               statut, expire_at, created_at
+        FROM demandes_immo
+        WHERE assigned_agent_id = :uid
+          AND statut IN ('active', 'expired')
+        ORDER BY created_at DESC
+    """), {"uid": current_user.id}).fetchall()
 
     result = []
     for r in rows:
@@ -408,10 +429,12 @@ def liste_demandes_admin(db: Session = Depends(get_db), current_user=Depends(get
         raise HTTPException(403, "Accès admin uniquement.")
     rows = db.execute(text("""
         SELECT d.*,
-               COUNT(c.id) as nb_consultations
+               COUNT(c.id) as nb_consultations,
+               u.username as assigned_agent_nom, u.email as assigned_agent_email
         FROM demandes_immo d
         LEFT JOIN demande_consultations c ON c.demande_id = d.id
-        GROUP BY d.id
+        LEFT JOIN users u ON u.id = d.assigned_agent_id
+        GROUP BY d.id, u.username, u.email
         ORDER BY d.created_at DESC
     """)).fetchall()
     result = []
@@ -421,6 +444,39 @@ def liste_demandes_admin(db: Session = Depends(get_db), current_user=Depends(get
         d["delegations"]  = json.loads(d["delegations"])  if isinstance(d.get("delegations"), str) else (d.get("delegations") or [])
         result.append(d)
     return result
+
+
+class AssignDemande(BaseModel):
+    agent_id: Optional[int] = None  # None → désassigne
+
+
+@router.post("/admin/{demande_id}/assign")
+def admin_assigner(demande_id: int, data: AssignDemande, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(403, "Accès admin uniquement.")
+
+    demande_row = db.execute(text("SELECT * FROM demandes_immo WHERE id=:id"), {"id": demande_id}).fetchone()
+    if not demande_row:
+        raise HTTPException(404, "Demande introuvable.")
+
+    if data.agent_id is not None:
+        agent = db.execute(text("""
+            SELECT id, email, role FROM users WHERE id=:id AND role IN ('agence','agent')
+        """), {"id": data.agent_id}).fetchone()
+        if not agent:
+            raise HTTPException(400, "Agent ou agence introuvable.")
+
+    db.execute(text("UPDATE demandes_immo SET assigned_agent_id=:aid WHERE id=:id"),
+               {"aid": data.agent_id, "id": demande_id})
+    db.commit()
+
+    if data.agent_id is not None and agent.email:
+        try:
+            _send_assignment_notification(dict(demande_row._mapping), agent.email)
+        except Exception as e:
+            print(f"[assign] email error: {e}")
+
+    return {"message": "Demande assignée." if data.agent_id else "Demande désassignée."}
 
 
 @router.post("/admin/{demande_id}/cloturer")

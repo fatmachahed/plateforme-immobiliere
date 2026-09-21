@@ -325,8 +325,8 @@ export default function DeposerDemande() {
           </div>
           <p className="dd-success-sub">
             Un email de confirmation vous a été envoyé à <strong>{form.email}</strong>.
-            Cliquez sur le lien dans cet email pour activer votre demande et la rendre
-            visible aux agents immobiliers.
+            Cliquez sur le lien dans cet email pour confirmer votre demande. Notre équipe
+            l'assignera ensuite à l'agent immobilier le plus adapté à votre recherche.
           </p>
           <div className="dd-success-tip">
             <Info size={16}/>
@@ -542,8 +542,8 @@ export default function DeposerDemande() {
               <Info size={15}/>
               <span>
                 Vos coordonnées (téléphone, WhatsApp, email) seront visibles
-                <strong> uniquement</strong> aux agents et agences immobilières
-                inscrits et actifs dans le gouvernorat et les délégations sélectionnées.
+                <strong> uniquement</strong> par l'équipe Localizi.tn et par l'agent
+                immobilier auquel votre demande sera assignée.
               </span>
             </div>
 
