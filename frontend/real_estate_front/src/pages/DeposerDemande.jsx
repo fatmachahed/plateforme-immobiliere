@@ -115,6 +115,11 @@ export default function DeposerDemande() {
     if (!form.categorie)                    return setError("Veuillez choisir une catégorie (achat / location).");
     if (!form.type_bien)                    return setError("Veuillez choisir un type de bien.");
     if (!form.gouvernorat)                  return setError("Sélectionnez un gouvernorat.");
+    if (!form.budget_min)                   return setError("Veuillez saisir un budget minimum.");
+    if (!form.budget_max)                   return setError("Veuillez saisir un budget maximum.");
+    if (!form.devise)                       return setError("Veuillez choisir une devise.");
+    if (!form.surface_min)                  return setError("Veuillez saisir une surface minimum.");
+    if (!form.surface_max)                  return setError("Veuillez saisir une surface maximum.");
 
     setLoading(true);
     try {
@@ -307,28 +312,28 @@ export default function DeposerDemande() {
                 <h2 className="dd-section__title">Budget & surface</h2>
               </div>
               <div className="dd-budget-row">
-                <Field label="Budget minimum">
+                <Field label="Budget minimum" required>
                   <input className="dd-input" type="number" min="0" value={form.budget_min}
                     onChange={e => set("budget_min", e.target.value)}
                     placeholder="ex : 150 000"/>
                 </Field>
-                <Field label="Budget maximum">
+                <Field label="Budget maximum" required>
                   <input className="dd-input" type="number" min="0" value={form.budget_max}
                     onChange={e => set("budget_max", e.target.value)}
                     placeholder="ex : 400 000"/>
                 </Field>
-                <Field label="Devise">
+                <Field label="Devise" required>
                   <Select value={form.devise} onChange={v => set("devise", v)}
                     options={DEVISES} placeholder=""/>
                 </Field>
               </div>
               <div className="dd-grid-2">
-                <Field label="Surface minimum (m²)">
+                <Field label="Surface minimum (m²)" required>
                   <input className="dd-input" type="number" min="0" value={form.surface_min}
                     onChange={e => set("surface_min", e.target.value)}
                     placeholder="ex : 80"/>
                 </Field>
-                <Field label="Surface maximum (m²)">
+                <Field label="Surface maximum (m²)" required>
                   <input className="dd-input" type="number" min="0" value={form.surface_max}
                     onChange={e => set("surface_max", e.target.value)}
                     placeholder="ex : 200"/>
