@@ -295,21 +295,23 @@ export default function DeposerDemande() {
                 <Banknote size={18} color="#6366f1"/>
                 <h2 className="dd-section__title">Budget & surface</h2>
               </div>
-              <div className="dd-grid-2">
-                <Field label="Devise">
-                  <Select value={form.devise} onChange={v => set("devise", v)}
-                    options={DEVISES} placeholder=""/>
-                </Field>
-                <Field label={`Budget minimum (${form.devise})`}>
+              <div className="dd-budget-row">
+                <Field label="Budget minimum">
                   <input className="dd-input" type="number" min="0" value={form.budget_min}
                     onChange={e => set("budget_min", e.target.value)}
                     placeholder="ex : 150 000"/>
                 </Field>
-                <Field label={`Budget maximum (${form.devise})`}>
+                <Field label="Budget maximum">
                   <input className="dd-input" type="number" min="0" value={form.budget_max}
                     onChange={e => set("budget_max", e.target.value)}
                     placeholder="ex : 400 000"/>
                 </Field>
+                <Field label="Devise">
+                  <Select value={form.devise} onChange={v => set("devise", v)}
+                    options={DEVISES} placeholder=""/>
+                </Field>
+              </div>
+              <div className="dd-grid-2">
                 <Field label="Surface minimum (m²)">
                   <input className="dd-input" type="number" min="0" value={form.surface_min}
                     onChange={e => set("surface_min", e.target.value)}
@@ -395,6 +397,11 @@ export default function DeposerDemande() {
 
         /* Grid */
         .dd-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .dd-budget-row { display: flex; gap: 16px; margin-bottom: 16px; align-items: flex-start; }
+        .dd-budget-row > .dd-field:first-child,
+        .dd-budget-row > .dd-field:nth-child(2) { flex: 1; min-width: 0; }
+        .dd-budget-row > .dd-field:last-child { flex: 0 0 auto; width: 95px; }
+        .dd-budget-row > .dd-field:last-child .dd-select { padding-left: 10px; padding-right: 26px; }
 
         /* Field */
         .dd-field { display: flex; flex-direction: column; gap: 6px; }
@@ -500,6 +507,8 @@ export default function DeposerDemande() {
           .dd-hero { padding: 40px 16px 32px; }
           .dd-hero__title { font-size: 22px; }
           .dd-grid-2 { grid-template-columns: 1fr; }
+          .dd-budget-row { flex-wrap: wrap; }
+          .dd-budget-row > .dd-field:last-child { flex: 1 0 100%; min-width: 0; }
           .dd-section { padding: 20px 16px; }
           .dd-success-card { padding: 32px 20px; }
         }
