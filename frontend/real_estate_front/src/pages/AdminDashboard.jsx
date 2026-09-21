@@ -2226,14 +2226,18 @@ export default function AdminDashboard() {
                               style={{padding:"6px 10px",borderRadius:8,border:"1px solid #e2e8f0",fontSize:12.5,fontFamily:"inherit",color:"#0f172a",background:"#fff",cursor:"pointer"}}>
                               <option value="">— Aucun —</option>
                               {users.filter(u => ["agence","agent"].includes(u.role)).map(u => (
-                                <option key={u.id} value={u.id}>{u.username} · {u.gouvernorat || "?"} ({u.role})</option>
+                                <option key={u.id} value={u.id}>{u.username}{u.gouvernorat ? ` · ${u.gouvernorat}` : ""} ({u.role})</option>
                               ))}
                             </select>
-                            {d.assigned_agent_id && (
-                              <span style={{fontSize:11.5,color:"#16a34a",fontWeight:600}}>
-                                ✓ {d.assigned_agent_nom || d.assigned_agent_email}
-                              </span>
-                            )}
+                            {d.assigned_agent_id && (() => {
+                              const agentInfo = users.find(u => u.id === d.assigned_agent_id);
+                              return (
+                                <span style={{fontSize:11.5,color:"#16a34a",fontWeight:600}}>
+                                  ✓ {d.assigned_agent_nom || d.assigned_agent_email}
+                                  {agentInfo?.gouvernorat ? `, ${agentInfo.gouvernorat}` : ""}
+                                </span>
+                              );
+                            })()}
                           </div>
                         )}
                       </div>
