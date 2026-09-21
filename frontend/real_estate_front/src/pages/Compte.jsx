@@ -2148,6 +2148,8 @@ export default function Compte() {
                     const catColor = {achat:"#6366f1",location:"#10b981",vacances:"#f59e0b"}[d.categorie] || "#6366f1";
                     const delaiLabel = {urgent:"Urgent (< 1 mois)","3mois":"Dans les 3 mois",reflexion:"En réflexion"}[d.delai] || d.delai;
                     const govs = Array.isArray(d.gouvernorats) ? d.gouvernorats : (d.gouvernorats ? JSON.parse(d.gouvernorats) : []);
+                    const dels = Array.isArray(d.delegations) ? d.delegations : (d.delegations ? JSON.parse(d.delegations) : []);
+                    const devise = d.devise || "DT";
                     return (
                       <div key={d.id} style={{...card, padding:0, overflow:"hidden"}}>
                         {/* En-tête carte */}
@@ -2170,15 +2172,15 @@ export default function Compte() {
                               {govs.length > 0 && (
                                 <span style={{display:"flex", alignItems:"center", gap:5}}>
                                   <MapPin size={13} style={{color:"#6366f1", flexShrink:0}}/>
-                                  {govs.join(", ")}
+                                  {govs.join(", ")}{dels.length > 0 ? ` (${dels.join(", ")})` : ""}
                                 </span>
                               )}
                               {(d.budget_min || d.budget_max) && (
                                 <span style={{display:"flex", alignItems:"center", gap:5}}>
                                   <Banknote size={13} style={{color:"#6366f1", flexShrink:0}}/>
-                                  {d.budget_min ? `${Number(d.budget_min).toLocaleString("fr-TN")} DT` : "—"}
+                                  {d.budget_min ? `${Number(d.budget_min).toLocaleString("fr-TN")} ${devise}` : "—"}
                                   {" → "}
-                                  {d.budget_max ? `${Number(d.budget_max).toLocaleString("fr-TN")} DT` : "—"}
+                                  {d.budget_max ? `${Number(d.budget_max).toLocaleString("fr-TN")} ${devise}` : "—"}
                                 </span>
                               )}
                               {(d.surface_min || d.surface_max) && (

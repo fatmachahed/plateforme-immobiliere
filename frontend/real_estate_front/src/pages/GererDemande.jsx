@@ -120,8 +120,15 @@ export default function GererDemande() {
                 {demande.gouvernorats?.length > 0 && (
                   <div className="gd-card__row">
                     <MapPin size={16} color="#6366f1"/>
-                    <span className="gd-card__key">Gouvernorats</span>
+                    <span className="gd-card__key">Gouvernorat</span>
                     <span className="gd-card__val">{demande.gouvernorats.join(", ")}</span>
+                  </div>
+                )}
+                {demande.delegations?.length > 0 && (
+                  <div className="gd-card__row">
+                    <MapPin size={16} color="#6366f1"/>
+                    <span className="gd-card__key">Délégation(s)</span>
+                    <span className="gd-card__val">{demande.delegations.join(", ")}</span>
                   </div>
                 )}
                 {(demande.budget_min || demande.budget_max) && (
@@ -129,9 +136,9 @@ export default function GererDemande() {
                     <Banknote size={16} color="#6366f1"/>
                     <span className="gd-card__key">Budget</span>
                     <span className="gd-card__val">
-                      {demande.budget_min ? `${Number(demande.budget_min).toLocaleString("fr-TN")} DT` : "—"}
+                      {demande.budget_min ? `${Number(demande.budget_min).toLocaleString("fr-TN")} ${demande.devise || "DT"}` : "—"}
                       {" "} → {" "}
-                      {demande.budget_max ? `${Number(demande.budget_max).toLocaleString("fr-TN")} DT` : "—"}
+                      {demande.budget_max ? `${Number(demande.budget_max).toLocaleString("fr-TN")} ${demande.devise || "DT"}` : "—"}
                     </span>
                   </div>
                 )}

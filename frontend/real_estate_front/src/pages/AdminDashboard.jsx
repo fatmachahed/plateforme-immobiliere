@@ -2076,6 +2076,8 @@ export default function AdminDashboard() {
                     const statutColor = {active:"#16a34a",pending:"#f59e0b",expired:"#9ca3af",closed:"#6b7280"}[d.statut] || "#6b7280";
                     const statutLabel = {active:"Active",pending:"En attente",expired:"Expirée",closed:"Clôturée"}[d.statut] || d.statut;
                     const govs = Array.isArray(d.gouvernorats) ? d.gouvernorats : [];
+                    const dels = Array.isArray(d.delegations) ? d.delegations : [];
+                    const devise = d.devise || "DT";
                     const isContactOpen = demandeContactOpen === d.id;
                     return (
                       <div key={d.id} style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:12,overflow:"hidden"}}>
@@ -2092,8 +2094,8 @@ export default function AdminDashboard() {
                               )}
                             </div>
                             <div style={{display:"flex",flexWrap:"wrap",gap:"4px 16px",fontSize:12.5,color:"#374151"}}>
-                              {govs.length > 0 && <span><MapPin size={12} style={{verticalAlign:"middle",color:"#6366f1"}}/> {govs.join(", ")}</span>}
-                              {d.budget_max && <span><Banknote size={12} style={{verticalAlign:"middle",color:"#6366f1"}}/> jusqu'à {Number(d.budget_max).toLocaleString("fr-TN")} DT</span>}
+                              {govs.length > 0 && <span><MapPin size={12} style={{verticalAlign:"middle",color:"#6366f1"}}/> {govs.join(", ")}{dels.length > 0 ? ` (${dels.join(", ")})` : ""}</span>}
+                              {d.budget_max && <span><Banknote size={12} style={{verticalAlign:"middle",color:"#6366f1"}}/> jusqu'à {Number(d.budget_max).toLocaleString("fr-TN")} {devise}</span>}
                               {d.surface_min && <span><Maximize2 size={12} style={{verticalAlign:"middle",color:"#6366f1"}}/> {d.surface_min} m² min</span>}
                             </div>
                             {d.description && <p style={{margin:"8px 0 0",fontSize:12.5,color:"#64748b",fontStyle:"italic"}}>« {d.description} »</p>}

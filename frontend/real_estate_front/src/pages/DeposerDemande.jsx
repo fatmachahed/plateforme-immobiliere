@@ -3,17 +3,13 @@ import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import API_URL from "../config";
+import useLocalisation from "../hooks/useLocalisation";
 import {
   Search, Home, MapPin, Banknote, Maximize2, BedDouble,
   Phone, Mail, User, CheckCircle2, ChevronDown, Info
 } from "lucide-react";
 
-const GOUVERNORATS = [
-  "Ariana","Béja","Ben Arous","Bizerte","Gabès","Gafsa","Jendouba",
-  "Kairouan","Kasserine","Kébili","Kef","Mahdia","Manouba","Médenine",
-  "Monastir","Nabeul","Sfax","Sidi Bouzid","Siliana","Sousse","Tataouine",
-  "Tozeur","Tunis","Zaghouan",
-];
+const DEVISES = ["DT", "EUR", "USD"];
 
 const TYPES_BIEN = [
   "Appartement","Villa","Duplex","Studio","Maison","Terrain",
@@ -74,9 +70,12 @@ export default function DeposerDemande() {
     whatsapp:    "",
     categorie:   "",
     type_bien:   "",
-    gouvernorats:[],
+    gouvernorat_id: "",
+    gouvernorat: "",
+    delegations: [],
     budget_min:  "",
     budget_max:  "",
+    devise:      "DT",
     surface_min: "",
     surface_max: "",
     nb_pieces:   "",
@@ -90,14 +89,21 @@ export default function DeposerDemande() {
   const [done,    setDone]      = useState(false);
   const [error,   setError]     = useState("");
 
+  const { gouvernorats, delegations, loading: locLoading } = useLocalisation({ gouvernorat: form.gouvernorat_id });
+
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  const toggleGouv = (g) => {
+  const selectGouvernorat = (id) => {
+    const g = gouvernorats.find(g => g.value === id);
+    setForm(f => ({ ...f, gouvernorat_id: id, gouvernorat: g?.label || "", delegations: [] }));
+  };
+
+  const toggleDelegation = (nom) => {
     setForm(f => ({
       ...f,
-      gouvernorats: f.gouvernorats.includes(g)
-        ? f.gouvernorats.filter(x => x !== g)
-        : [...f.gouvernorats, g],
+      delegations: f.delegations.includes(nom)
+        ? f.delegations.filter(x => x !== nom)
+        : [...f.delegations, nom],
     }));
   };
 
@@ -105,16 +111,17 @@ export default function DeposerDemande() {
     e.preventDefault();
     setError("");
     if (!form.email || !form.nom)           return setError("Nom et email sont requis.");
+    if (!form.whatsapp)                     return setError("Le numéro WhatsApp est requis.");
     if (!form.categorie)                    return setError("Veuillez choisir une catégorie (achat / location).");
     if (!form.type_bien)                    return setError("Veuillez choisir un type de bien.");
-    if (form.gouvernorats.length === 0)     return setError("Sélectionnez au moins un gouvernorat.");
+    if (!form.gouvernorat)                  return setError("Sélectionnez un gouvernorat.");
 
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/demandes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, gouvernorats: form.gouvernorat ? [form.gouvernorat] : [] }),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
@@ -187,14 +194,14 @@ export default function DeposerDemande() {
                     onChange={e => set("email", e.target.value)}
                     placeholder="votre@email.com"/>
                 </Field>
-                <Field label="Téléphone" hint="Visible uniquement aux agents inscrits">
-                  <input className="dd-input" type="tel" value={form.telephone}
-                    onChange={e => set("telephone", e.target.value)}
-                    placeholder="+216 XX XXX XXX"/>
-                </Field>
-                <Field label="WhatsApp" hint="Si différent du téléphone">
+                <Field label="WhatsApp" required hint="Visible uniquement aux agents inscrits">
                   <input className="dd-input" type="tel" value={form.whatsapp}
                     onChange={e => set("whatsapp", e.target.value)}
+                    placeholder="+216 XX XXX XXX"/>
+                </Field>
+                <Field label="Téléphone" hint="Si différent du numéro WhatsApp">
+                  <input className="dd-input" type="tel" value={form.telephone}
+                    onChange={e => set("telephone", e.target.value)}
                     placeholder="+216 XX XXX XXX"/>
                 </Field>
               </div>
@@ -249,18 +256,37 @@ export default function DeposerDemande() {
             <div className="dd-section">
               <div className="dd-section__head">
                 <MapPin size={18} color="#6366f1"/>
-                <h2 className="dd-section__title">Gouvernorats souhaités</h2>
+                <h2 className="dd-section__title">Gouvernorat souhaité</h2>
               </div>
-              <p className="dd-section__desc">Sélectionnez un ou plusieurs gouvernorats.</p>
-              <div className="dd-gouv-grid">
-                {GOUVERNORATS.map(g => (
-                  <button type="button" key={g}
-                    className={`dd-gouv-chip${form.gouvernorats.includes(g) ? " dd-gouv-chip--on" : ""}`}
-                    onClick={() => toggleGouv(g)}>
-                    {g}
-                  </button>
-                ))}
-              </div>
+              <p className="dd-section__desc">Sélectionnez un gouvernorat.</p>
+              <Field label="Gouvernorat" required>
+                <Select value={form.gouvernorat_id} onChange={selectGouvernorat}
+                  options={gouvernorats.map(g => ({ val: g.value, label: g.label }))}
+                  placeholder="Choisir un gouvernorat…"/>
+              </Field>
+
+              {form.gouvernorat_id && (
+                <div style={{ marginTop: 18 }}>
+                  <p className="dd-section__desc" style={{ margin: "0 0 10px" }}>
+                    Délégation(s) souhaitée(s) — vous pouvez en choisir plusieurs.
+                  </p>
+                  {locLoading ? (
+                    <p style={{ fontSize: 13, color: "#9ca3af" }}>Chargement des délégations…</p>
+                  ) : delegations.length === 0 ? (
+                    <p style={{ fontSize: 13, color: "#9ca3af" }}>Aucune délégation trouvée pour ce gouvernorat.</p>
+                  ) : (
+                    <div className="dd-gouv-grid">
+                      {delegations.map(d => (
+                        <button type="button" key={d.id}
+                          className={`dd-gouv-chip${form.delegations.includes(d.nom) ? " dd-gouv-chip--on" : ""}`}
+                          onClick={() => toggleDelegation(d.nom)}>
+                          {d.nom}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* ── Budget & surface ── */}
@@ -270,12 +296,16 @@ export default function DeposerDemande() {
                 <h2 className="dd-section__title">Budget & surface</h2>
               </div>
               <div className="dd-grid-2">
-                <Field label="Budget minimum (DT)">
+                <Field label="Devise">
+                  <Select value={form.devise} onChange={v => set("devise", v)}
+                    options={DEVISES} placeholder=""/>
+                </Field>
+                <Field label={`Budget minimum (${form.devise})`}>
                   <input className="dd-input" type="number" min="0" value={form.budget_min}
                     onChange={e => set("budget_min", e.target.value)}
                     placeholder="ex : 150 000"/>
                 </Field>
-                <Field label="Budget maximum (DT)">
+                <Field label={`Budget maximum (${form.devise})`}>
                   <input className="dd-input" type="number" min="0" value={form.budget_max}
                     onChange={e => set("budget_max", e.target.value)}
                     placeholder="ex : 400 000"/>

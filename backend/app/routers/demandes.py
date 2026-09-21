@@ -40,12 +40,14 @@ class DemandeCreate(BaseModel):
     nom:          str
     email:        EmailStr
     telephone:    Optional[str] = None
-    whatsapp:     Optional[str] = None
+    whatsapp:     str                    # requis : contact principal pour les agents
     categorie:    str                    # achat | location | vacances
     type_bien:    str
-    gouvernorats: List[str]              # liste gouvernorats
+    gouvernorats: List[str]              # liste gouvernorats (un seul élément actuellement)
+    delegations:  List[str] = []
     budget_min:   Optional[float] = None
     budget_max:   Optional[float] = None
+    devise:       Optional[str] = "DT"   # DT | EUR | USD
     surface_min:  Optional[float] = None
     surface_max:  Optional[float] = None
     nb_pieces:    Optional[str]  = None
@@ -128,10 +130,17 @@ def _send_agent_notification(demande: dict, db: Session):
     categorie_label = {"achat": "Achat", "location": "Location", "vacances": "Vacances"}.get(demande["categorie"], demande["categorie"])
     type_bien = html.escape(demande["type_bien"] or "")
     gouv_str  = ", ".join(gouvernorats)
+    delegations = demande.get("delegations")
+    if isinstance(delegations, str):
+        delegations = json.loads(delegations) if delegations else []
+    delegations_str = ""
+    if delegations:
+        delegations_str = f"<p style='margin:4px 0;color:#374151'><strong>Délégation(s) :</strong> {html.escape(', '.join(delegations))}</p>"
+    devise = demande.get("devise") or "DT"
     budget_str = ""
     if demande.get("budget_min") or demande.get("budget_max"):
-        bmin = f"{int(demande['budget_min']):,} DT" if demande.get("budget_min") else "—"
-        bmax = f"{int(demande['budget_max']):,} DT" if demande.get("budget_max") else "—"
+        bmin = f"{int(demande['budget_min']):,} {devise}" if demande.get("budget_min") else "—"
+        bmax = f"{int(demande['budget_max']):,} {devise}" if demande.get("budget_max") else "—"
         budget_str = f"<p style='margin:4px 0;color:#374151'><strong>Budget :</strong> {bmin} → {bmax}</p>"
     desc_str = ""
     if demande.get("description"):
@@ -150,6 +159,7 @@ def _send_agent_notification(demande: dict, db: Session):
         <div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:10px;padding:16px;margin-bottom:20px">
           <p style="margin:4px 0;color:#374151"><strong>Type :</strong> {categorie_label} · {type_bien}</p>
           <p style="margin:4px 0;color:#374151"><strong>Gouvernorat(s) :</strong> {gouv_str}</p>
+          {delegations_str}
           {budget_str}
           {desc_str}
         </div>
@@ -214,12 +224,12 @@ def creer_demande(data: DemandeCreate, db: Session = Depends(get_db)):
 
     row = db.execute(text("""
         INSERT INTO demandes_immo
-          (nom, email, telephone, whatsapp, categorie, type_bien, gouvernorats,
-           budget_min, budget_max, surface_min, surface_max, nb_pieces,
+          (nom, email, telephone, whatsapp, categorie, type_bien, gouvernorats, delegations,
+           budget_min, budget_max, devise, surface_min, surface_max, nb_pieces,
            meuble, colocation, delai, description, statut, token, expire_at)
         VALUES
-          (:nom, :email, :telephone, :whatsapp, :categorie, :type_bien, :gouvernorats,
-           :budget_min, :budget_max, :surface_min, :surface_max, :nb_pieces,
+          (:nom, :email, :telephone, :whatsapp, :categorie, :type_bien, :gouvernorats, :delegations,
+           :budget_min, :budget_max, :devise, :surface_min, :surface_max, :nb_pieces,
            :meuble, :colocation, :delai, :description, 'pending', :token, :expire_at)
         RETURNING *
     """), {
@@ -230,8 +240,10 @@ def creer_demande(data: DemandeCreate, db: Session = Depends(get_db)):
         "categorie":   data.categorie,
         "type_bien":   data.type_bien,
         "gouvernorats": json.dumps(data.gouvernorats, ensure_ascii=False),
+        "delegations":  json.dumps(data.delegations, ensure_ascii=False),
         "budget_min":  data.budget_min,
         "budget_max":  data.budget_max,
+        "devise":      data.devise or "DT",
         "surface_min": data.surface_min,
         "surface_max": data.surface_max,
         "nb_pieces":   data.nb_pieces,
@@ -253,6 +265,7 @@ def lire_demande_par_token(token: str, db: Session = Depends(get_db)):
     d = _get_demande_by_token(token, db)
     result = dict(d)
     result["gouvernorats"] = json.loads(result["gouvernorats"]) if isinstance(result["gouvernorats"], str) else result["gouvernorats"]
+    result["delegations"]  = json.loads(result["delegations"])  if isinstance(result.get("delegations"), str) else (result.get("delegations") or [])
     # Ne pas exposer les coordonnées dans ce endpoint public
     result.pop("telephone", None)
     result.pop("whatsapp",  None)
@@ -310,7 +323,8 @@ def liste_demandes_agent(db: Session = Depends(get_db), current_user=Depends(get
     if current_user.role == "admin":
         rows = db.execute(text("""
             SELECT id, nom, email, telephone, whatsapp, categorie, type_bien,
-                   gouvernorats, budget_min, budget_max, surface_min, surface_max,
+                   gouvernorats, delegations, budget_min, budget_max, devise,
+                   surface_min, surface_max,
                    nb_pieces, meuble, colocation, delai, description,
                    statut, expire_at, created_at
             FROM demandes_immo WHERE statut='active'
@@ -319,7 +333,8 @@ def liste_demandes_agent(db: Session = Depends(get_db), current_user=Depends(get
     elif gouv:
         rows = db.execute(text("""
             SELECT id, nom, email, telephone, whatsapp, categorie, type_bien,
-                   gouvernorats, budget_min, budget_max, surface_min, surface_max,
+                   gouvernorats, delegations, budget_min, budget_max, devise,
+                   surface_min, surface_max,
                    nb_pieces, meuble, colocation, delai, description,
                    statut, expire_at, created_at
             FROM demandes_immo
@@ -334,6 +349,7 @@ def liste_demandes_agent(db: Session = Depends(get_db), current_user=Depends(get
     for r in rows:
         d = dict(r._mapping)
         d["gouvernorats"] = json.loads(d["gouvernorats"]) if isinstance(d["gouvernorats"], str) else d["gouvernorats"]
+        d["delegations"]  = json.loads(d["delegations"])  if isinstance(d.get("delegations"), str) else (d.get("delegations") or [])
         result.append(d)
     return result
 
@@ -371,6 +387,7 @@ def liste_demandes_admin(db: Session = Depends(get_db), current_user=Depends(get
     for r in rows:
         d = dict(r._mapping)
         d["gouvernorats"] = json.loads(d["gouvernorats"]) if isinstance(d["gouvernorats"], str) else d["gouvernorats"]
+        d["delegations"]  = json.loads(d["delegations"])  if isinstance(d.get("delegations"), str) else (d.get("delegations") or [])
         result.append(d)
     return result
 

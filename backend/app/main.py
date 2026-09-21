@@ -263,6 +263,9 @@ with engine.connect() as conn:
         "CREATE INDEX IF NOT EXISTS ix_demandes_immo_token   ON demandes_immo (token);",
         "CREATE INDEX IF NOT EXISTS ix_demandes_immo_statut  ON demandes_immo (statut);",
         "CREATE INDEX IF NOT EXISTS ix_demandes_immo_email   ON demandes_immo (email);",
+        # Délégation(s) souhaitée(s) + devise du budget (ajoutés après coup)
+        "ALTER TABLE demandes_immo ADD COLUMN IF NOT EXISTS delegations TEXT NOT NULL DEFAULT '[]';",
+        "ALTER TABLE demandes_immo ADD COLUMN IF NOT EXISTS devise VARCHAR NOT NULL DEFAULT 'DT';",
         # Table de traçabilité des consultations
         """
         CREATE TABLE IF NOT EXISTS demande_consultations (
