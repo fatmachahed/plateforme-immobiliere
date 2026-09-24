@@ -40,7 +40,7 @@ export default function Cookies() {
           },
           {
             title: "Cookies tiers",
-            content: "Localizi.tn peut intégrer des services tiers (Google OAuth, Google Analytics — uniquement si vous acceptez tous les cookies —, cartes interactives) qui déposent leurs propres cookies. Ces cookies sont régis par la politique de confidentialité de ces tiers, indépendamment de notre politique.",
+            content: "Localizi.tn peut intégrer des services tiers (Google OAuth, Google Analytics et Microsoft Clarity — uniquement si vous acceptez tous les cookies —, cartes interactives) qui déposent leurs propres cookies. Ces cookies sont régis par la politique de confidentialité de ces tiers, indépendamment de notre politique.",
           },
           {
             title: "Contact",
