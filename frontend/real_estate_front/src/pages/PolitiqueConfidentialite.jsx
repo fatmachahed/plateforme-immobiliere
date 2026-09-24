@@ -37,6 +37,10 @@ const SECTIONS = [
         subtitle: "Communications",
         text: "Avec votre consentement, nous pouvons vous envoyer des e-mails d'information sur les nouvelles fonctionnalités, les offres d'abonnement ou des alertes immobilières correspondant à vos critères de recherche.",
       },
+      {
+        subtitle: "Suivi commercial",
+        text: "Si vous avez été en contact avec notre équipe commerciale, l'activité de votre compte (date d'inscription, dates et nombre de connexions, nombre d'annonces publiées) peut être rapprochée de nos échanges, à partir de votre adresse e-mail ou de votre numéro de téléphone, afin de mieux vous accompagner. Vous pouvez vous y opposer à tout moment (voir « Vos droits »).",
+      },
     ],
   },
   {
@@ -49,7 +53,7 @@ const SECTIONS = [
       },
       {
         subtitle: "Durée de conservation",
-        text: "Vos données sont conservées tant que votre compte est actif. En cas de suppression de compte, vos données personnelles sont effacées dans un délai de 30 jours, à l'exception des données légalement requises.",
+        text: "Vos données sont conservées tant que votre compte est actif. En cas de suppression de compte, vos données personnelles sont effacées dans un délai de 30 jours, à l'exception des données légalement requises. Le journal des connexions (date, adresse IP, appareil) est conservé 12 mois, pour la sécurité des comptes et le suivi de l'activité.",
       },
     ],
   },
@@ -157,7 +161,7 @@ export default function PolitiqueConfidentialite() {
               nous les utilisons et quels sont vos droits.
             </p>
             <div className="pc-hero__meta">
-              <span className="pc-badge"><Shield size={13}/> Dernière mise à jour : mai 2026</span>
+              <span className="pc-badge"><Shield size={13}/> Dernière mise à jour : septembre 2026</span>
             </div>
           </div>
         </section>

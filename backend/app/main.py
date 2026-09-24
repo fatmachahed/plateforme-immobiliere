@@ -31,6 +31,8 @@ async def security_headers(request: Request, call_next):
 # 2. CORS — configurable via CORS_ORIGINS (virgule-séparées)
 _cors_origins_raw = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000")
 _cors_origins = [o.strip() for o in _cors_origins_raw.split(",") if o.strip()]
+# CRM de prospection (application locale) : seule la route /crm/*, protégée par CRM_API_KEY, lui sert
+_cors_origins += [o.strip() for o in os.getenv("CRM_ORIGINS", "http://localhost:8010").split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
@@ -42,7 +44,7 @@ app.add_middleware(
 # 2. Imports après CORS
 from sqlalchemy.orm import Session
 from app.database import Base, engine, get_db
-from app.routers import users, annonces, properties, localisation, catalogue, upload, admin, auth_google, demandes
+from app.routers import users, annonces, properties, localisation, catalogue, upload, admin, auth_google, demandes, crm
 
 # Créer les tables si elles n'existent pas
 Base.metadata.create_all(bind=engine)
@@ -310,6 +312,7 @@ app.include_router(upload.router,      tags=["Upload"])
 app.include_router(admin.router,       tags=["Admin"])
 app.include_router(auth_google.router, tags=["Auth"])
 app.include_router(demandes.router,    tags=["Demandes"])
+app.include_router(crm.router,         tags=["CRM"])
 
 # 5. Tâche d'expiration des demandes (au démarrage + toutes les heures)
 import threading as _threading
