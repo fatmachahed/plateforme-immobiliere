@@ -1,25 +1,24 @@
 ﻿import React, { useState, useEffect } from "react";
-import { COOKIE_KEY, loadAnalytics } from "../utils/analytics";
+import { getConsent, setConsent } from "../utils/analytics";
 
 export default function CookieBanner() {
   const [visible, setVisible] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
-    if (!localStorage.getItem(COOKIE_KEY)) {
+    if (!getConsent()) {
       const t = setTimeout(() => setVisible(true), 800);
       return () => clearTimeout(t);
     }
   }, []);
 
   const accept = () => {
-    localStorage.setItem(COOKIE_KEY, "all");
-    loadAnalytics();
+    setConsent("all");
     setVisible(false);
   };
 
   const acceptEssential = () => {
-    localStorage.setItem(COOKIE_KEY, "essential");
+    setConsent("essential");
     setVisible(false);
   };
 

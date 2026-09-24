@@ -1,7 +1,55 @@
-﻿import React from "react";
+﻿import React, { useState } from "react";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { Cookie } from "lucide-react";
+import { Cookie, Settings, Check } from "lucide-react";
+import { getConsent, setConsent } from "../utils/analytics";
+
+const CHOIX = {
+  all:       "Tous les cookies acceptés (y compris mesure d'audience : Google Analytics, Microsoft Clarity)",
+  essential: "Cookies essentiels uniquement — aucune mesure d'audience",
+};
+
+/** Choix actuel du visiteur + bouton « Modifier mes choix » (retrait du consentement à tout moment). */
+function CookiePreferences() {
+  const [choix, setChoix] = useState(getConsent);
+  const [edition, setEdition] = useState(false);
+
+  const choisir = value => {
+    setConsent(value);          // recharge la page si le consentement est retiré
+    setChoix(value);
+    setEdition(false);
+  };
+
+  const btn = actif => ({
+    display:"inline-flex", alignItems:"center", gap:6, padding:"9px 16px", borderRadius:9, fontSize:13.5, fontWeight:600,
+    fontFamily:"inherit", cursor:"pointer", border: actif ? "1.5px solid #6366f1" : "1.5px solid #e2e8f0",
+    background: actif ? "#eef2ff" : "#fff", color: actif ? "#4338ca" : "#374151",
+  });
+
+  return (
+    <div id="preferences" style={{ background:"#fff", border:"1.5px solid #c7d2fe", borderRadius:12, padding:"18px 20px", marginBottom:36 }}>
+      <p style={{ fontSize:15, fontWeight:700, color:"#0f172a", margin:"0 0 6px" }}>Vos préférences</p>
+      <p style={{ fontSize:14, color:"#374151", margin:"0 0 14px", lineHeight:1.6 }}>
+        {CHOIX[choix] || "Vous n'avez pas encore fait de choix."}
+      </p>
+      {!edition ? (
+        <button onClick={() => setEdition(true)} style={btn(true)}>
+          <Settings size={15}/> Modifier mes choix
+        </button>
+      ) : (
+        <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
+          <button onClick={() => choisir("all")} style={btn(choix === "all")}>
+            {choix === "all" && <Check size={15}/>} Accepter tous les cookies
+          </button>
+          <button onClick={() => choisir("essential")} style={btn(choix === "essential")}>
+            {choix === "essential" && <Check size={15}/>} Essentiels uniquement
+          </button>
+          <button onClick={() => setEdition(false)} style={{ ...btn(false), border:"none", color:"#64748b" }}>Annuler</button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Cookies() {
   return (
@@ -15,6 +63,8 @@ export default function Cookies() {
         <p style={{ fontSize:14, color:"rgba(255,255,255,.5)", margin:0 }}>Dernière mise à jour : juin 2026</p>
       </div>
       <div style={{ maxWidth:820, margin:"0 auto", padding:"48px 24px 80px" }}>
+
+        <CookiePreferences />
 
         {[
           {
@@ -36,7 +86,7 @@ export default function Cookies() {
           },
           {
             title: "Gestion de vos cookies",
-            content: "Vous pouvez à tout moment modifier les paramètres de votre navigateur pour refuser les cookies ou être averti avant de les accepter. Les principaux navigateurs proposent des options de gestion des cookies dans leurs réglages :\n• Google Chrome : Paramètres → Confidentialité et sécurité → Cookies\n• Firefox : Paramètres → Vie privée et sécurité\n• Safari : Préférences → Confidentialité\n• Edge : Paramètres → Cookies et autorisations de site\n\nAttention : le refus de certains cookies peut altérer le bon fonctionnement du site.",
+            content: "Vous pouvez modifier votre choix à tout moment avec le bouton « Modifier mes choix » en haut de cette page. Vous pouvez aussi régler les paramètres de votre navigateur pour refuser les cookies ou être averti avant de les accepter. Les principaux navigateurs proposent des options de gestion des cookies dans leurs réglages :\n• Google Chrome : Paramètres → Confidentialité et sécurité → Cookies\n• Firefox : Paramètres → Vie privée et sécurité\n• Safari : Préférences → Confidentialité\n• Edge : Paramètres → Cookies et autorisations de site\n\nAttention : le refus de certains cookies peut altérer le bon fonctionnement du site.",
           },
           {
             title: "Cookies tiers",
