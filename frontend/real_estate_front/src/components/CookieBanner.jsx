@@ -1,6 +1,5 @@
 ﻿import React, { useState, useEffect } from "react";
-
-const COOKIE_KEY = "localizi_cookies_accepted";
+import { COOKIE_KEY, loadAnalytics } from "../utils/analytics";
 
 export default function CookieBanner() {
   const [visible, setVisible] = useState(false);
@@ -15,6 +14,7 @@ export default function CookieBanner() {
 
   const accept = () => {
     localStorage.setItem(COOKIE_KEY, "all");
+    loadAnalytics();
     setVisible(false);
   };
 

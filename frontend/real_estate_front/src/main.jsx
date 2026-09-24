@@ -3,6 +3,9 @@ import ReactDOM from "react-dom/client";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import App from "./App";
 import "./index.css";
+import { initAnalytics } from "./utils/analytics";
+
+initAnalytics();
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 
