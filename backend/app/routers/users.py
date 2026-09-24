@@ -36,6 +36,7 @@ def _delete_reset_token(db, token: str):
 from app import schemas, crud, database, models
 from app.utils.auth import create_access_token, get_current_user
 from app.utils.security import hash_password
+from app.utils.login_log import get_client_ip, log_login_event
 from passlib.context import CryptContext
 from pydantic import BaseModel
 
@@ -432,7 +433,7 @@ class ResendVerifyBody(BaseModel):
 
 @router.post("/resend-verify-email")
 def resend_verify_email(body: ResendVerifyBody, request: Request, db: Session = Depends(get_db)):
-    _check_rate_limit(request.client.host if request.client else "unknown")
+    _check_rate_limit(get_client_ip(request))
     user = crud.get_user_by_email(db, body.email)
     # Réponse générique pour ne pas révéler si l'email existe
     if not user or user.is_verified:
@@ -453,15 +454,21 @@ async def login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)
 ):
-    ip = request.client.host if request.client else "unknown"
+    ip = get_client_ip(request)
+    email = form_data.username
 
     # Sécurité 1 : vérifier si l'IP est bloquée
-    _check_rate_limit(ip)
+    try:
+        _check_rate_limit(ip)
+    except HTTPException:
+        log_login_event(db, request, email=email, methode="password", succes=False, motif="ip_bloquee")
+        raise
 
-    user = crud.get_user_by_email(db, form_data.username)
+    user = crud.get_user_by_email(db, email)
 
     if not user:
         _record_failed(ip)
+        log_login_event(db, request, email=email, methode="password", succes=False, motif="compte_inconnu")
         raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect.")
 
     # Vérification bcrypt dans un thread dédié (non-bloquant pour les autres workers)
@@ -473,10 +480,12 @@ async def login(
 
     if not password_ok:
         _record_failed(ip)
+        log_login_event(db, request, email=email, user=user, methode="password", succes=False, motif="mot_de_passe")
         raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect.")
 
     # Sécurité 3 : bloquer si email non vérifié
     if user.is_verified is False:
+        log_login_event(db, request, email=email, user=user, methode="password", succes=False, motif="non_verifie")
         raise HTTPException(
             status_code=403,
             detail="Veuillez vérifier votre email avant de vous connecter. Consultez votre boîte mail."
@@ -495,6 +504,7 @@ async def login(
     # Mettre à jour last_login
     user.last_login = datetime.utcnow()
     db.commit()
+    log_login_event(db, request, email=email, user=user, methode="password", succes=True)
 
     access_token = create_access_token(
         data={"sub": str(user.id)}
@@ -1049,7 +1059,7 @@ async def upload_avatar(
 # ===============================
 @router.post("/forgot-password")
 def forgot_password(body: dict, request: Request, db: Session = Depends(get_db)):
-    _check_rate_limit(request.client.host if request.client else "unknown")
+    _check_rate_limit(get_client_ip(request))
     email = body.get("email", "").strip().lower()
     user = db.query(models.User).filter(func.lower(models.User.email) == email).first()
     if not user:

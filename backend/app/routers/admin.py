@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, text
 from typing import Optional
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timedelta
 from passlib.context import CryptContext
 from app import models, database
 from app.utils.auth import get_current_admin
@@ -426,6 +426,77 @@ def list_users(
         }
         for u in users
     ]
+
+
+# ── Journal des connexions ───────────────────────────────────
+@router.get("/connexions")
+def list_connexions(
+    skip: int = 0, limit: int = 100,
+    q: Optional[str] = None,              # recherche email / username / IP
+    succes: Optional[bool] = None,
+    methode: Optional[str] = None,
+    user_id: Optional[int] = None,
+    date_from: Optional[str] = None,      # YYYY-MM-DD
+    date_to: Optional[str] = None,        # YYYY-MM-DD
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_admin),
+):
+    LE = models.LoginEvent
+    query = db.query(LE, models.User).outerjoin(models.User, LE.user_id == models.User.id)
+    if q:
+        like = f"%{q.strip().lower()}%"
+        query = query.filter(
+            func.lower(LE.email).like(like) | LE.ip.like(like) | func.lower(models.User.username).like(like)
+        )
+    if succes is not None:
+        query = query.filter(LE.succes == succes)
+    if methode:
+        query = query.filter(LE.methode == methode)
+    if user_id:
+        query = query.filter(LE.user_id == user_id)
+    if date_from:
+        query = query.filter(LE.created_at >= datetime.fromisoformat(date_from))
+    if date_to:
+        query = query.filter(LE.created_at < datetime.fromisoformat(date_to) + timedelta(days=1))
+
+    total = query.count()
+    rows = query.order_by(desc(LE.created_at)).offset(skip).limit(min(limit, 500)).all()
+
+    now = datetime.utcnow()
+    since_24h, since_7d = now - timedelta(hours=24), now - timedelta(days=7)
+    ok = db.query(LE).filter(LE.succes.is_(True))
+    stats = {
+        "connexions_24h":  ok.filter(LE.created_at >= since_24h).count(),
+        "utilisateurs_24h": ok.filter(LE.created_at >= since_24h).with_entities(func.count(func.distinct(LE.user_id))).scalar() or 0,
+        "utilisateurs_7j":  ok.filter(LE.created_at >= since_7d).with_entities(func.count(func.distinct(LE.user_id))).scalar() or 0,
+        "echecs_24h": db.query(LE).filter(LE.succes.is_(False), LE.created_at >= since_24h).count(),
+    }
+
+    return {
+        "total": total,
+        "stats": stats,
+        "items": [
+            {
+                "id": e.id,
+                "date": e.created_at.isoformat() + "Z" if e.created_at else None,  # stocké en UTC
+                "user_id": e.user_id,
+                "username": u.username if u else None,
+                "nom": " ".join(filter(None, [u.prenom, u.nom])) if u else None,
+                "role": (u.role.value if hasattr(u.role, "value") else str(u.role)) if u else None,
+                "email": e.email,
+                "methode": e.methode,
+                "succes": e.succes,
+                "motif": e.motif,
+                "ip": e.ip,
+                "pays": e.pays,
+                "appareil": e.appareil,
+                "navigateur": e.navigateur,
+                "os": e.os,
+                "user_agent": e.user_agent,
+            }
+            for e, u in rows
+        ],
+    }
 
 
 # ── Bloquer / débloquer un utilisateur ──────────────────────

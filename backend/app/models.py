@@ -242,6 +242,27 @@ class ContactClick(Base):
     annonce = relationship("Annonce")
 
 
+class LoginEvent(Base):
+    """Journal des tentatives de connexion (réussies ou non), pour le suivi admin.
+    Purgé automatiquement au-delà de 12 mois (voir main.py)."""
+    __tablename__ = "login_events"
+    id          = Column(Integer, primary_key=True, index=True)
+    user_id     = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    email       = Column(String(255), nullable=True)   # email saisi (même si le compte n'existe pas)
+    methode     = Column(String(20), nullable=False)   # password | google
+    succes      = Column(Boolean, nullable=False)
+    motif       = Column(String(40), nullable=True)    # cause d'échec : mot_de_passe | compte_inconnu | non_verifie | ip_bloquee
+    ip          = Column(String(64), nullable=True)
+    pays        = Column(String(8), nullable=True)     # code pays fourni par Cloudflare (TN, FR…)
+    appareil    = Column(String(20), nullable=True)    # Mobile | Tablette | Ordinateur | Autre
+    navigateur  = Column(String(40), nullable=True)
+    os          = Column(String(40), nullable=True)
+    user_agent  = Column(String(500), nullable=True)
+    created_at  = Column(DateTime, default=datetime.utcnow, index=True)
+
+    user = relationship("User")
+
+
 class PushSubscription(Base):
     """Abonnement Web Push (PWA installée) — un utilisateur peut avoir plusieurs
     appareils/navigateurs abonnés simultanément."""

@@ -285,6 +285,8 @@ with engine.connect() as conn:
             UNIQUE (demande_id, user_id)
         );
         """,
+        # Journal des connexions : conservation limitée à 12 mois (loi 2004-63 / INPDP)
+        "DELETE FROM login_events WHERE created_at < NOW() - INTERVAL '12 months';",
     ]
     for sql in migrations:
         try:

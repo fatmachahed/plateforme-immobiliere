@@ -6,6 +6,7 @@ import Logo from "../components/Logo";
 import { useToast } from "../components/Toast";
 import { setFeatureFlagsCache } from "../hooks/useFeatureFlags";
 import AnnonceDetailModal from "./AnnonceDetailModal";
+import AdminConnexions from "../components/AdminConnexions";
 import {
   LayoutDashboard, FileText, Users, CheckCircle, XCircle, Clock,
   Eye, Trash2, RefreshCw, Home, BarChart3, X, Check, Building, Plus,
@@ -835,6 +836,7 @@ export default function AdminDashboard() {
             { id:"annonces",       icon:<FileText size={16}/>,  label:"Annonces" },
             { id:"stats",          icon:<BarChart3 size={16}/>, label:"Statistiques" },
             { id:"users",          icon:<Users size={16}/>,     label:"Utilisateurs" },
+            { id:"connexions",     icon:<Activity size={16}/>,  label:"Connexions" },
             { id:"agences",        icon:<Building size={16}/>,  label:"Agences" },
             { id:"accompagnements",icon:<Sparkles size={16}/>,  label:"Accompagnements" },
             { id:"mandats",        icon:<Handshake size={16}/>, label:"Partage des mandats" },
@@ -864,6 +866,7 @@ export default function AdminDashboard() {
               {tab === "annonces" && "Gestion des annonces"}
               {tab === "stats"    && "Statistiques & Tendances"}
               {tab === "users"    && "Utilisateurs"}
+              {tab === "connexions" && "Journal des connexions"}
               {tab === "agences"          && "Comptes Agences"}
               {tab === "accompagnements" && "Accompagnements"}
               {tab === "mandats"         && "Partage des mandats"}
@@ -2030,6 +2033,8 @@ export default function AdminDashboard() {
           )}
 
           {/* ── Onglet Conventions ── */}
+          {tab === "connexions" && <AdminConnexions authFetch={authFetch} />}
+
           {tab === "conventions" && (()=>{
             const CONV_STATUS = {
               soumis:  { label:"Soumis",  color:"#f59e0b", bg:"#fef3c7" },

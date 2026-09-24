@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 import urllib.request
@@ -6,9 +6,11 @@ import urllib.parse
 import json
 import secrets
 import string
+from datetime import datetime
 
 from app import models, database
 from app.utils.auth import create_access_token
+from app.utils.login_log import log_login_event
 from app.enums import RoleEnum
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -40,7 +42,7 @@ def random_password(length: int = 32) -> str:
 
 
 @router.post("/google")
-def google_login(body: GoogleTokenBody, db: Session = Depends(get_db)):
+def google_login(body: GoogleTokenBody, request: Request, db: Session = Depends(get_db)):
     info = verify_google_token(body.access_token)
 
     email = info.get("email")
@@ -90,6 +92,10 @@ def google_login(body: GoogleTokenBody, db: Session = Depends(get_db)):
         db.refresh(user)
         from app.routers.users import _send_verify_email
         _send_verify_email(user.email, verify_token)
+
+    user.last_login = datetime.utcnow()
+    db.commit()
+    log_login_event(db, request, email=email, user=user, methode="google", succes=True)
 
     access_token = create_access_token(data={"sub": str(user.id)})
 
