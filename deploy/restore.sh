@@ -74,7 +74,7 @@ docker compose -f "$COMPOSE_FILE" up -d --build
 
 echo -n "    Health check backend "
 for i in $(seq 1 30); do
-  if curl -sf http://localhost:8000/health &>/dev/null; then echo " ok"; break; fi
+  if docker compose -f "$COMPOSE_FILE" exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)" &>/dev/null; then echo " ok"; break; fi
   echo -n "."; sleep 3
   [ "$i" = 30 ] && { echo " ✗ backend KO — voir : docker compose -f $COMPOSE_FILE logs --tail=40 backend"; exit 1; }
 done

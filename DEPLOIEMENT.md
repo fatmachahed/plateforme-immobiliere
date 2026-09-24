@@ -169,8 +169,8 @@ docker compose -f docker-compose.prod.yml exec db \
 docker compose -f docker-compose.prod.yml exec -T db \
   psql -U $POSTGRES_USER $POSTGRES_DB < backup_20240101.sql
 
-# Vérifier health check
-curl http://localhost:8000/health
+# Vérifier health check (via le proxy Nginx : le port 8000 n'est pas publié en prod)
+curl http://localhost/api/health
 ```
 
 ---

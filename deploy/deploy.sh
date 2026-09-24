@@ -40,7 +40,9 @@ docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up --build -d
 
 echo "--- [3/4] Attente démarrage backend (health check) ---"
 RETRIES=20
-until curl -sf http://localhost:8000/health &>/dev/null || [ $RETRIES -eq 0 ]; do
+# Test lancé DANS le conteneur : en prod le port 8000 n'est pas publié sur l'hôte
+until docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" exec -T backend \
+        python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)" &>/dev/null || [ $RETRIES -eq 0 ]; do
   sleep 3
   RETRIES=$((RETRIES - 1))
 done
