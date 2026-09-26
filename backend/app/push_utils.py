@@ -4,6 +4,7 @@ nouvelle demande de contact, nouvelle demande d'intervention, etc."""
 import os
 import json
 from pywebpush import webpush, WebPushException
+from py_vapid import Vapid
 from sqlalchemy.orm import Session
 from app import models
 
@@ -17,6 +18,14 @@ hqYL43wu/rO7sEzxbPEbyvDHqzcJTpYV5ZTOBobSnFIrfGyPupIZ5L19
 -----END PRIVATE KEY-----""")
 VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "BKsrdvThQU1AhMyWppjvV8qmj3c9ZR2GpgvjfC7-s7uwTPFs8RvK8MerNwlOlhXllM4GhtKcUit8bI-6khnkvX0")
 VAPID_CLAIMS_SUB = os.environ.get("VAPID_CONTACT_EMAIL", "mailto:contact@localizi.tn")
+
+# pywebpush passe une clé fournie en texte à Vapid.from_string(), qui ne lit pas
+# le format PEM → chaque envoi échouait. On charge donc la clé nous-mêmes.
+try:
+    _VAPID = Vapid.from_pem(VAPID_PRIVATE_KEY_PEM.encode())
+except Exception as e:
+    print(f"[push] clé VAPID invalide : {e}")
+    _VAPID = None
 
 
 def send_push_to_user(db: Session, user_id: int, title: str, body: str, url: str = "/"):
@@ -39,12 +48,13 @@ def send_push_to_user(db: Session, user_id: int, title: str, body: str, url: str
                     "keys": {"p256dh": sub.p256dh, "auth": sub.auth},
                 },
                 data=payload,
-                vapid_private_key=VAPID_PRIVATE_KEY_PEM,
+                vapid_private_key=_VAPID,
                 vapid_claims={"sub": VAPID_CLAIMS_SUB},
             )
             sent += 1
         except WebPushException as e:
             status = getattr(e.response, "status_code", None)
+            print(f"[push] refus du service push (HTTP {status}) pour l'utilisateur {user_id}")
             if status in (404, 410):
                 # Abonnement expiré/révoqué côté navigateur — on le retire.
                 try:
@@ -52,6 +62,6 @@ def send_push_to_user(db: Session, user_id: int, title: str, body: str, url: str
                     db.commit()
                 except Exception:
                     db.rollback()
-        except Exception:
-            pass  # jamais bloquant
+        except Exception as e:
+            print(f"[push] échec d'envoi à l'utilisateur {user_id} : {type(e).__name__} : {e}")  # jamais bloquant
     return sent

@@ -283,8 +283,11 @@ def notify_admins_annonce_en_attente(annonce_id: int, resoumise: bool = False):
                 # Push d'abord (gratuit) ; email seulement si aucun appareil n'a reçu le push,
                 # pour préserver le quota quotidien Brevo.
                 sent = send_push_to_user(db, admin.id, titre_notif, f"{titre} ({ref}) — par {pseudo}", "/admin")
-                if not sent and admin.email:
-                    send_email(admin.email, subject, html)
+                # ADMIN_NOTIFY_EMAIL (.env) : boîte réellement consultée, si différente
+                # de l'adresse de connexion du compte admin.
+                destinataire = os.environ.get("ADMIN_NOTIFY_EMAIL") or admin.email
+                if not sent and destinataire:
+                    send_email(destinataire, subject, html)
             except Exception as e:
                 print(f"[notify_admins] erreur pour admin {admin.id} : {e}")
     except Exception as e:
