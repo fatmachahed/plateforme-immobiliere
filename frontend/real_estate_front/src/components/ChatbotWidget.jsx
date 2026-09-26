@@ -26,6 +26,8 @@ const ENTRIES = FAQS.flatMap((section) =>
     cat: section.cat,
     q: item.q,
     a: item.a,
+    qn: strip(item.q),
+    an: strip(item.a),
     tokensQ: new Set((strip(item.q).match(/[a-z0-9]+/g) || []).map(norm)),
     tokensA: new Set((strip(item.a).match(/[a-z0-9]+/g) || []).map(norm)),
   }))
@@ -70,6 +72,69 @@ function searchFaq(query) {
   return scored.slice(0, MAX_RESULTS).map((r) => r.entry);
 }
 
+/* -- Recherche instantanée pendant la frappe : chaque fragment tapé
+   (dès 2 lettres, ex. "gra") doit apparaître tel quel dans la question ou
+   la réponse. Tous les fragments doivent correspondre (ET). Les entrées dont
+   la QUESTION contient le fragment passent devant, surtout en début de mot. -- */
+const LIVE_MIN_CHARS = 2;
+
+const liveTokens = (query) =>
+  (strip(query).match(/[a-z0-9]+/g) || []).filter(
+    (t) => t.length >= LIVE_MIN_CHARS && !STOPWORDS.has(t)
+  );
+
+function liveSearch(query) {
+  const tokens = liveTokens(query);
+  if (tokens.length === 0) return [];
+
+  return ENTRIES.map((entry) => {
+    let score = 0;
+    for (const t of tokens) {
+      const iq = entry.qn.indexOf(t);
+      if (iq !== -1) {
+        score += 3;
+        if (iq === 0 || !/[a-z0-9]/.test(entry.qn[iq - 1])) score += 2;
+      } else if (entry.an.includes(t)) {
+        score += 1;
+      } else {
+        return null; // un fragment absent => entrée écartée
+      }
+    }
+    return { entry, score };
+  })
+    .filter(Boolean)
+    .sort((a, b) => b.score - a.score)
+    .map((r) => r.entry);
+}
+
+/* -- Met en gras les fragments trouvés dans l'intitulé de la question.
+   strip() conserve la longueur caractère par caractère (accents retirés),
+   donc les positions trouvées dans le texte normalisé valent pour l'original. -- */
+function highlight(text, tokens) {
+  const n = [...text].map((c) => strip(c).charAt(0) || c).join("");
+  const marks = new Array(text.length).fill(false);
+  for (const t of tokens) {
+    let i = n.indexOf(t);
+    while (i !== -1) {
+      for (let k = i; k < i + t.length; k++) marks[k] = true;
+      i = n.indexOf(t, i + 1);
+    }
+  }
+  const out = [];
+  let buf = "", on = false;
+  [...text].forEach((c, i) => {
+    if (marks[i] !== on) {
+      if (buf) out.push(on ? <mark key={i} style={MARK_STYLE}>{buf}</mark> : buf);
+      buf = ""; on = marks[i];
+    }
+    buf += c;
+  });
+  if (buf) out.push(on ? <mark key="end" style={MARK_STYLE}>{buf}</mark> : buf);
+  return out;
+}
+
+const MARK_STYLE = { background: "#fde68a", color: "inherit", borderRadius: 3, padding: "0 1px" };
+
 const WELCOME = "Bonjour 👋 Je suis l'assistant Localizi.tn. Posez-moi une question sur la navigation du site (publier une annonce, rechercher un bien, créer un compte…) ou choisissez une suggestion ci-dessous.";
 
 export default function ChatbotWidget() {
@@ -113,7 +178,14 @@ export default function ChatbotWidget() {
      souvent plusieurs résultats à cause des mots communs "gratuit", "annonce"…). */
   const pick = (entry) => {
     setMessages((m) => [...m, { from: "user", text: entry.q }, { from: "bot", text: entry.a }]);
+    setInput("");
   };
+
+  /* Résultats instantanés recalculés à chaque frappe */
+  const liveQuery = input.trim();
+  const typing = liveQuery.length >= LIVE_MIN_CHARS;
+  const liveResults = typing ? liveSearch(liveQuery) : [];
+  const liveHl = liveTokens(liveQuery);
 
   return (
     <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9997, fontFamily: "'Poppins',system-ui,sans-serif" }}>
@@ -196,7 +268,7 @@ export default function ChatbotWidget() {
               </div>
             ))}
 
-            {messages.length === 1 && (
+            {messages.length === 1 && !typing && (
               <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 4 }}>
                 {SUGGESTIONS.map((s) => (
                   <button
@@ -216,6 +288,37 @@ export default function ChatbotWidget() {
               </div>
             )}
           </div>
+
+          {/* Résultats instantanés pendant la frappe */}
+          {typing && (
+            <div style={{
+              flexShrink: 0, maxHeight: "45%", overflowY: "auto", borderTop: "1px solid #e2e8f0",
+              background: "#f8fafc", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 6,
+            }}>
+              <div style={{ fontSize: 11.5, color: "#64748b", fontWeight: 600 }}>
+                {liveResults.length === 0
+                  ? `Aucune rubrique ne contient « ${liveQuery} »`
+                  : `${liveResults.length} rubrique${liveResults.length > 1 ? "s" : ""} contenant « ${liveQuery} »`}
+              </div>
+              {liveResults.map((r, ri) => (
+                <button
+                  key={ri}
+                  type="button"
+                  onClick={() => pick(r)}
+                  style={{
+                    textAlign: "left", background: "#fff", border: "1px solid #e2e8f0", borderRadius: 9,
+                    padding: "7px 10px", fontSize: 12.5, color: "#334155", cursor: "pointer",
+                    fontFamily: "inherit", fontWeight: 500,
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#a5b4fc"; e.currentTarget.style.background = "#eef2ff"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.background = "#fff"; }}
+                >
+                  {highlight(r.q, liveHl)}
+                  <div style={{ fontSize: 10.5, color: "#94a3b8", marginTop: 2 }}>{r.cat}</div>
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Input */}
           <form
