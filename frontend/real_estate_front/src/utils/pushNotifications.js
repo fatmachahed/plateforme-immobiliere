@@ -7,26 +7,32 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
 }
 
+/** Le navigateur sait-il recevoir des notifications push ? */
+export function isPushSupported() {
+  return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+}
+
 /** Demande la permission et abonne l'utilisateur connecté aux notifications push.
- * Ne fait rien (silencieusement) si le navigateur ne supporte pas les push, si
- * l'utilisateur refuse, ou hors PWA/HTTPS. Ne bloque jamais l'app en cas d'échec. */
+ * Retourne "granted" | "denied" | "default" | "unsupported" | "error".
+ * Ne bloque jamais l'app en cas d'échec. Pour que la demande de permission
+ * s'affiche de façon fiable, l'appeler depuis un clic de l'utilisateur. */
 export async function subscribeToPushNotifications() {
   try {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+    if (!isPushSupported()) return "unsupported";
     const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-    if (!token) return;
+    if (!token) return "error";
 
-    if (Notification.permission === "denied") return;
+    if (Notification.permission === "denied") return "denied";
     if (Notification.permission === "default") {
       const perm = await Notification.requestPermission();
-      if (perm !== "granted") return;
+      if (perm !== "granted") return perm;
     }
 
     const reg = await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
     if (!sub) {
       const keyRes = await fetch(`${API_URL}/users/push/vapid-public-key`);
-      if (!keyRes.ok) return;
+      if (!keyRes.ok) return "error";
       const { key } = await keyRes.json();
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
@@ -34,12 +40,22 @@ export async function subscribeToPushNotifications() {
       });
     }
 
-    await fetch(`${API_URL}/users/me/push-subscription`, {
+    const res = await fetch(`${API_URL}/users/me/push-subscription`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify(sub.toJSON()),
     });
-  } catch { /* best-effort, jamais bloquant */ }
+    return res.ok ? "granted" : "error";
+  } catch { return "error"; /* best-effort, jamais bloquant */ }
+}
+
+/** Si la permission est déjà accordée, ré-enregistre silencieusement l'abonnement
+ * de cet appareil pour le compte connecté (changement de compte, abonnement
+ * expiré puis recréé…). Ne demande jamais rien à l'utilisateur. */
+export function syncPushSubscriptionIfGranted() {
+  if (isPushSupported() && Notification.permission === "granted") {
+    subscribeToPushNotifications();
+  }
 }
 
 /** Marque définitivement que l'utilisateur a déjà été sollicité pour les

@@ -8,7 +8,7 @@ import ChatbotWidget    from "./components/ChatbotWidget";
 import ComparateurPopup from "./components/ComparateurPopup";
 import { useCompareShowPopup } from "./utils/compareStore";
 import { LanguageProvider } from "./contexts/LanguageContext";
-import { subscribeToPushNotifications, hasAlreadyBeenPromptedForPush, markPushPrompted } from "./utils/pushNotifications";
+import { subscribeToPushNotifications, syncPushSubscriptionIfGranted, hasAlreadyBeenPromptedForPush, markPushPrompted } from "./utils/pushNotifications";
 
 /* Pages */
 import Home             from "./pages/Home";
@@ -79,7 +79,8 @@ function App() {
      nouvelles demandes de contact/intervention…). */
   useEffect(() => {
     const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-    if (!token || hasAlreadyBeenPromptedForPush()) return;
+    if (!token) return;
+    if (hasAlreadyBeenPromptedForPush()) { syncPushSubscriptionIfGranted(); return; }
     markPushPrompted();
     subscribeToPushNotifications();
   }, []);

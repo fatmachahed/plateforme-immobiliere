@@ -7,13 +7,14 @@ import { useToast } from "../components/Toast";
 import { setFeatureFlagsCache } from "../hooks/useFeatureFlags";
 import AnnonceDetailModal from "./AnnonceDetailModal";
 import AdminConnexions from "../components/AdminConnexions";
+import { isPushSupported, subscribeToPushNotifications } from "../utils/pushNotifications";
 import {
   LayoutDashboard, FileText, Users, CheckCircle, XCircle, Clock,
   Eye, Trash2, RefreshCw, Home, BarChart3, X, Check, Building, Plus,
   CreditCard, ShieldCheck, ShieldOff, Mail, Phone,
   DollarSign, Activity, Filter, Calendar, Edit3, Pencil, Search,
   TrendingUp, MapPin, Sparkles, Handshake, Lock, Unlock,
-  Settings, Save, AlertTriangle, ShieldAlert, Layers, MessageSquare, Banknote, Maximize2,
+  Settings, Save, AlertTriangle, ShieldAlert, Layers, MessageSquare, Banknote, Maximize2, Bell, BellOff,
 } from "lucide-react";
 
 
@@ -44,6 +45,15 @@ function CatFr(c) {
 
 export default function AdminDashboard() {
   const [tab,          setTab]         = useState("annonces");
+  /* Notifications push de cet appareil (annonces en attente de validation…) */
+  const [pushState,    setPushState]   = useState(() => isPushSupported() ? Notification.permission : "unsupported");
+  const activerNotifications = async () => {
+    const r = await subscribeToPushNotifications();
+    setPushState(r === "error" ? Notification.permission : r);
+    if (r === "granted")      toast("Notifications activées sur cet appareil");
+    else if (r === "denied")  toast("Notifications bloquées : autorisez-les via le cadenas à gauche de l'adresse du site", "error");
+    else if (r === "error")   toast("Impossible d'activer les notifications sur cet appareil", "error");
+  };
 
   /* ── Quotas annonces par rôle (stockés en localStorage) ── */
   const DEFAULT_QUOTAS = { particulier: 3, agence: 50, promoteur: 30, partenaire: 50, admin: 999 };
@@ -874,7 +884,23 @@ export default function AdminDashboard() {
               {tab === "demandes_immo"  && "Demandes clients"}
               {tab === "parametres"     && "Paramètres de la plateforme"}
             </h1>
-            <button className="adm-refresh" onClick={loadAll}><RefreshCw size={15}/></button>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              {pushState !== "unsupported" && (
+                <button type="button" onClick={activerNotifications}
+                  className={`adm-push adm-push--${pushState}`}
+                  title={pushState === "granted"
+                    ? "Vous serez averti sur cet appareil des annonces en attente de validation (cliquer pour re-synchroniser)"
+                    : pushState === "denied"
+                      ? "Notifications bloquées par le navigateur : cliquez sur le cadenas à gauche de l'adresse du site pour les autoriser"
+                      : "Être averti sur cet appareil quand une annonce attend une validation"}>
+                  {pushState === "denied" ? <BellOff size={15}/> : <Bell size={15}/>}
+                  {pushState === "granted" ? "Notifications activées"
+                    : pushState === "denied" ? "Notifications bloquées"
+                    : "Activer les notifications"}
+                </button>
+              )}
+              <button className="adm-refresh" onClick={loadAll}><RefreshCw size={15}/></button>
+            </div>
           </div>
 
           {/* Global stats row — masqué sur l'onglet paramètres */}
@@ -3372,6 +3398,16 @@ export default function AdminDashboard() {
           background:#fff; cursor:pointer; color:#64748b; transition:all .15s;
         }
         .adm-refresh:hover { border-color:#6366f1; color:#6366f1; }
+        .adm-push {
+          display:inline-flex; align-items:center; gap:6px; padding:7px 12px; border-radius:8px;
+          border:1px solid #c7d2fe; background:#eef2ff; color:#4f46e5; font-size:12.5px; font-weight:700;
+          cursor:pointer; font-family:inherit; transition:all .15s;
+        }
+        .adm-push:hover { background:#e0e7ff; }
+        .adm-push--granted { border-color:#bbf7d0; background:#f0fdf4; color:#16a34a; }
+        .adm-push--granted:hover { background:#dcfce7; }
+        .adm-push--denied { border-color:#fecaca; background:#fef2f2; color:#dc2626; }
+        .adm-push--denied:hover { background:#fee2e2; }
 
         /* Global stats cards */
         .adm-stats { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:24px; }
