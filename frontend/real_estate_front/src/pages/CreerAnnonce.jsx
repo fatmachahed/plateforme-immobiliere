@@ -712,7 +712,7 @@ export const CreateListingForm = ({ editId = null }) => {
     gouvernorat: "", delegation: "", localite: "",
     address: "Tunis, Tunisie", latitude: "36.8065", longitude: "10.1815",
     titre: "", superficie: "", prix: "", devise: "TND", description: "",
-    duree_type: "", duree_valeur: "", accompagnement: false, anonyme: false,
+    duree_type: "", duree_valeur: "", accompagnement: true, anonyme: false,
     colocation: false, profil_coloc: "tous", genre_coloc: [], chambres_coloc: [],
     allImages: [], mainImageIndex: 0
   };
@@ -3867,7 +3867,9 @@ export const CreateListingForm = ({ editId = null }) => {
                   <div className="ca-anon-toggle" style={{marginTop:16}}>
                     <div className="ca-anon-toggle__inner">
                       <div className="ca-anon-toggle__text">
-                        <span className="ca-anon-toggle__title">Je souhaite être accompagné(e)</span>
+                        <span className="ca-anon-toggle__title">
+                          {formData.accompagnement ? "Je souhaite être accompagné(e)" : "Je ne souhaite pas être accompagné(e)"}
+                        </span>
                         <span className="ca-anon-toggle__sub">
                           par un professionnel de l'immobilier dans la transaction du bien immobilier (achat / vente / location)
                         </span>
