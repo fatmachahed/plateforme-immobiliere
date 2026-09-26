@@ -248,6 +248,7 @@ def notify_admins_annonce_en_attente(annonce_id: int, resoumise: bool = False):
             return
         auteur = db.query(models.User).filter(models.User.id == annonce.utilisateur_id).first()
         admins = db.query(models.User).filter(models.User.role == "admin").all()
+        print(f"[notify_admins] annonce {annonce_id} en attente → {len(admins)} admin(s) à prévenir")
 
         titre   = annonce.titre or "Sans titre"
         ref     = annonce.reference or f"#{annonce.id}"
@@ -287,7 +288,8 @@ def notify_admins_annonce_en_attente(annonce_id: int, resoumise: bool = False):
                 # de l'adresse de connexion du compte admin.
                 destinataire = os.environ.get("ADMIN_NOTIFY_EMAIL") or admin.email
                 if not sent and destinataire:
-                    send_email(destinataire, subject, html)
+                    ok = send_email(destinataire, subject, html)
+                    print(f"[notify_admins] aucun push reçu par l'admin {admin.id} → email de secours à {destinataire} : {'OK' if ok else 'ÉCHEC'}")
             except Exception as e:
                 print(f"[notify_admins] erreur pour admin {admin.id} : {e}")
     except Exception as e:

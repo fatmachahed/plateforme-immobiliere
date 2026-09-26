@@ -47,6 +47,14 @@ export async function subscribeToPushNotifications({ renouveler = false } = {}) 
     // Sur demande explicite (bouton), on repart d'un abonnement neuf : un abonnement
     // que le navigateur croit valide peut avoir été invalidé côté service push (HTTP 410).
     if (sub && renouveler) {
+      // Retirer aussi l'ancien abonnement côté serveur (sinon il y reste jusqu'au prochain refus 410)
+      try {
+        await fetch(`${API_URL}/users/me/push-subscription`, {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ endpoint: sub.endpoint }),
+        });
+      } catch { /* ignore */ }
       try { await sub.unsubscribe(); } catch { /* ignore */ }
       sub = null;
     }

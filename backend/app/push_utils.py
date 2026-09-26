@@ -50,11 +50,18 @@ def send_push_to_user(db: Session, user_id: int, title: str, body: str, url: str
                 data=payload,
                 vapid_private_key=_VAPID,
                 vapid_claims={"sub": VAPID_CLAIMS_SUB},
+                # ttl par défaut = 0 : le service push jetait le message si l'appareil
+                # n'était pas joignable à l'instant (veille, navigateur fermé).
+                # On le conserve 24 h, avec une priorité haute (livraison immédiate sur Android).
+                ttl=86400,
+                headers={"Urgency": "high"},
+                timeout=10,
             )
             sent += 1
+            print(f"[push] envoyé à l'utilisateur {user_id} (abonnement {sub.id})")
         except WebPushException as e:
             status = getattr(e.response, "status_code", None)
-            print(f"[push] refus du service push (HTTP {status}) pour l'utilisateur {user_id}")
+            print(f"[push] refus du service push (HTTP {status}) pour l'utilisateur {user_id} (abonnement {sub.id})")
             if status in (404, 410):
                 # Abonnement expiré/révoqué côté navigateur — on le retire.
                 try:
