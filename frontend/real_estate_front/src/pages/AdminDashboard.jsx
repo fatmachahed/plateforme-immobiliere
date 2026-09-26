@@ -48,7 +48,7 @@ export default function AdminDashboard() {
   /* Notifications push de cet appareil (annonces en attente de validation…) */
   const [pushState,    setPushState]   = useState(() => isPushSupported() ? Notification.permission : "unsupported");
   const activerNotifications = async () => {
-    const r = await subscribeToPushNotifications();
+    const r = await subscribeToPushNotifications({ renouveler: true });
     // En cas d'erreur on garde le bouton actif (même si la permission est accordée)
     // pour pouvoir réessayer ; l'état affiché ne passe au vert qu'après un vrai abonnement.
     setPushState(r === "error" ? "default" : r);

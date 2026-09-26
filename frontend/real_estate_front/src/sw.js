@@ -70,7 +70,9 @@ self.addEventListener("push", (event) => {
     self.registration.showNotification(data.title, {
       body: data.body,
       icon: "/icons/icon-192.png",
-      badge: "/icons/icon-96.png",
+      // Android : le badge (barre d'état) doit être blanc sur fond transparent,
+      // sinon il s'affiche en carré blanc.
+      badge: "/icons/badge-96.png",
       data: { url: data.url || "/" },
     })
   );

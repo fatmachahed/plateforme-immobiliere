@@ -24,11 +24,12 @@ function withTimeout(promise, ms, etape) {
 }
 
 /** Demande la permission et abonne l'utilisateur connecté aux notifications push.
+ * renouveler : remplace l'abonnement existant de l'appareil par un neuf.
  * Retourne "granted" | "denied" | "default" | "unsupported" | "error" ; en cas
  * d'échec, la raison est dans lastPushError. Ne bloque jamais l'app.
  * Pour que la demande de permission s'affiche de façon fiable, l'appeler
  * depuis un clic de l'utilisateur. */
-export async function subscribeToPushNotifications() {
+export async function subscribeToPushNotifications({ renouveler = false } = {}) {
   lastPushError = "";
   try {
     if (!isPushSupported()) { lastPushError = "navigateur non compatible"; return "unsupported"; }
@@ -43,6 +44,12 @@ export async function subscribeToPushNotifications() {
 
     const reg = await withTimeout(navigator.serviceWorker.ready, 10000, "service worker");
     let sub = await reg.pushManager.getSubscription();
+    // Sur demande explicite (bouton), on repart d'un abonnement neuf : un abonnement
+    // que le navigateur croit valide peut avoir été invalidé côté service push (HTTP 410).
+    if (sub && renouveler) {
+      try { await sub.unsubscribe(); } catch { /* ignore */ }
+      sub = null;
+    }
     if (!sub) {
       const keyRes = await fetch(`${API_URL}/users/push/vapid-public-key`);
       if (!keyRes.ok) { lastPushError = `clé VAPID : HTTP ${keyRes.status}`; return "error"; }
