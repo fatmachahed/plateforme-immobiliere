@@ -3845,14 +3845,15 @@ export const CreateListingForm = ({ editId = null }) => {
                           <div style={{display:"flex", alignItems:"center", gap:8, flexShrink:0}}>
                             <span style={{
                               fontSize:12.5, fontWeight:700,
-                              color: formData.anonyme ? "#16a34a" : "#94a3b8",
+                              color: formData.anonyme ? "#94a3b8" : "#16a34a",
                               transition:"color .2s", minWidth:24
                             }}>
-                              {formData.anonyme ? "Oui" : "Non"}
+                              {formData.anonyme ? "Non" : "Oui"}
                             </span>
+                            {/* Switch = « afficher mon identité » : coché ⇔ non anonyme */}
                             <label className="ca-anon-sw">
-                              <input type="checkbox" checked={formData.anonyme||false}
-                                onChange={e => handleInputChange("anonyme", e.target.checked)}/>
+                              <input type="checkbox" checked={!formData.anonyme}
+                                onChange={e => handleInputChange("anonyme", !e.target.checked)}/>
                               <span className="ca-anon-sw__track"/>
                             </label>
                           </div>
