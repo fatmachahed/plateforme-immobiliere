@@ -1,5 +1,5 @@
 from app.utils.auth import get_current_user # backend/app/routers/annonces.py
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from typing import Optional
@@ -128,14 +128,21 @@ def get_my_addresses(
 @router.post("/", response_model=schemas.AnnonceRead)
 def create_annonce(
     annonce: schemas.AnnonceCreate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    return crud.create_annonce(
+    db_annonce = crud.create_annonce(
         db=db,
         annonce=annonce,
         utilisateur_id=current_user.id
     )
+    # Prévenir les admins (email + push) qu'une annonce attend une validation
+    status = db_annonce.status.value if hasattr(db_annonce.status, "value") else db_annonce.status
+    if status == "en_attente" and current_user.role != "admin":
+        from app.email_utils import notify_admins_annonce_en_attente
+        background_tasks.add_task(notify_admins_annonce_en_attente, db_annonce.id)
+    return db_annonce
 
 # ===============================
 # PUBLIC SEARCH (no auth required, boost ordering)
@@ -581,6 +588,7 @@ def read_annonce(annonce_id: int, db: Session = Depends(get_db)):
 def update_annonce(
     annonce_id: int,
     update_data: schemas.AnnonceUpdate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
@@ -625,6 +633,8 @@ def update_annonce(
         annonce.refus_raisons = None
         annonce.refus_message = None
         db.flush()
+        from app.email_utils import notify_admins_annonce_en_attente
+        background_tasks.add_task(notify_admins_annonce_en_attente, annonce_id, True)
 
     return crud.update_annonce(db, annonce_id, data)
 

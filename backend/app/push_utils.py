@@ -22,12 +22,14 @@ VAPID_CLAIMS_SUB = os.environ.get("VAPID_CONTACT_EMAIL", "mailto:contact@localiz
 def send_push_to_user(db: Session, user_id: int, title: str, body: str, url: str = "/"):
     """Envoie une notification push à tous les appareils abonnés de cet utilisateur.
     Best-effort : ne lève jamais d'exception vers l'appelant (une notif ratée ne
-    doit jamais casser l'action métier qui la déclenche)."""
+    doit jamais casser l'action métier qui la déclenche).
+    Retourne le nombre d'appareils auxquels la notification a bien été envoyée."""
     if not user_id:
-        return
+        return 0
     subs = db.query(models.PushSubscription).filter(models.PushSubscription.user_id == user_id).all()
     if not subs:
-        return
+        return 0
+    sent = 0
     payload = json.dumps({"title": title, "body": body, "url": url})
     for sub in subs:
         try:
@@ -40,6 +42,7 @@ def send_push_to_user(db: Session, user_id: int, title: str, body: str, url: str
                 vapid_private_key=VAPID_PRIVATE_KEY_PEM,
                 vapid_claims={"sub": VAPID_CLAIMS_SUB},
             )
+            sent += 1
         except WebPushException as e:
             status = getattr(e.response, "status_code", None)
             if status in (404, 410):
@@ -51,3 +54,4 @@ def send_push_to_user(db: Session, user_id: int, title: str, body: str, url: str
                     db.rollback()
         except Exception:
             pass  # jamais bloquant
+    return sent

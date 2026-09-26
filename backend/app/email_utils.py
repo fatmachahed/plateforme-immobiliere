@@ -232,3 +232,62 @@ def notify_saved_searches_for_annonce(db, annonce):
         </div>
         """
         send_email(user.email, subject, html)
+
+
+def notify_admins_annonce_en_attente(annonce_id: int, resoumise: bool = False):
+    """Prévient tous les admins qu'une annonce attend une validation : push, ou email en secours.
+    Lancée en tâche de fond : ouvre sa propre session et ne lève jamais d'exception."""
+    from app.database import SessionLocal
+    from app import models
+    from app.push_utils import send_push_to_user
+
+    db = SessionLocal()
+    try:
+        annonce = db.query(models.Annonce).filter(models.Annonce.id == annonce_id).first()
+        if not annonce:
+            return
+        auteur = db.query(models.User).filter(models.User.id == annonce.utilisateur_id).first()
+        admins = db.query(models.User).filter(models.User.role == "admin").all()
+
+        titre   = annonce.titre or "Sans titre"
+        ref     = annonce.reference or f"#{annonce.id}"
+        pseudo  = (auteur.username if auteur else None) or "—"
+        role    = auteur.role.value if auteur and hasattr(auteur.role, "value") else (auteur.role if auteur else "")
+        prix    = f"{int(float(annonce.prix)):,}".replace(",", " ") + f" {annonce.devise or 'TND'}" if annonce.prix else "—"
+        frontend = (os.environ.get("FRONTEND_URL") or "https://www.localizi.tn").rstrip("/")
+        lien    = f"{frontend}/admin"
+
+        titre_notif = "Annonce modifiée à revalider" if resoumise else "Nouvelle annonce à valider"
+        subject = f"{titre_notif} : {titre} ({ref})"
+        html = f"""
+        <div style="font-family:sans-serif;max-width:520px;margin:0 auto;background:#f8fafc;padding:24px">
+          <div style="text-align:center;padding:16px 0 20px">{LOGO_IMG_HTML}</div>
+          <div style="background:#fff;border-radius:12px;padding:24px;border:1px solid #e5e7eb">
+            <h2 style="margin:0 0 12px;color:#0f172a;font-size:18px">{titre_notif}</h2>
+            <p style="color:#475569;font-size:14px;margin:0 0 16px">
+              {"Une annonce refusée a été corrigée par son auteur et" if resoumise else "Une nouvelle annonce"} est en attente de validation.
+            </p>
+            <table style="border-collapse:collapse;font-size:14px;margin-bottom:20px">
+              <tr><td style="padding:4px 12px 4px 0;color:#64748b">Titre</td><td style="padding:4px 0;font-weight:700;color:#0f172a">{titre}</td></tr>
+              <tr><td style="padding:4px 12px 4px 0;color:#64748b">Référence</td><td style="padding:4px 0;color:#0f172a">{ref}</td></tr>
+              <tr><td style="padding:4px 12px 4px 0;color:#64748b">Publiée par</td><td style="padding:4px 0;color:#0f172a">{pseudo} ({role})</td></tr>
+              <tr><td style="padding:4px 12px 4px 0;color:#64748b">Prix</td><td style="padding:4px 0;color:#0f172a">{prix}</td></tr>
+            </table>
+            <a href="{lien}" style="display:inline-block;padding:12px 28px;background:#6366f1;color:#fff;border-radius:8px;text-decoration:none;font-weight:700">Ouvrir le dashboard admin</a>
+          </div>
+          {SOCIAL_FOOTER_HTML}
+        </div>
+        """
+        for admin in admins:
+            try:
+                # Push d'abord (gratuit) ; email seulement si aucun appareil n'a reçu le push,
+                # pour préserver le quota quotidien Brevo.
+                sent = send_push_to_user(db, admin.id, titre_notif, f"{titre} ({ref}) — par {pseudo}", "/admin")
+                if not sent and admin.email:
+                    send_email(admin.email, subject, html)
+            except Exception as e:
+                print(f"[notify_admins] erreur pour admin {admin.id} : {e}")
+    except Exception as e:
+        print(f"[notify_admins] erreur : {e}")
+    finally:
+        db.close()
