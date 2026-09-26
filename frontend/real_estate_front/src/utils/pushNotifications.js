@@ -12,32 +12,45 @@ export function isPushSupported() {
   return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 }
 
+/** Raison du dernier échec d'abonnement (affichée à l'admin pour diagnostic). */
+export let lastPushError = "";
+
+/** Rejette la promesse si elle ne se résout pas dans le délai (évite un bouton bloqué). */
+function withTimeout(promise, ms, etape) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(`délai dépassé (${etape})`)), ms)),
+  ]);
+}
+
 /** Demande la permission et abonne l'utilisateur connecté aux notifications push.
- * Retourne "granted" | "denied" | "default" | "unsupported" | "error".
- * Ne bloque jamais l'app en cas d'échec. Pour que la demande de permission
- * s'affiche de façon fiable, l'appeler depuis un clic de l'utilisateur. */
+ * Retourne "granted" | "denied" | "default" | "unsupported" | "error" ; en cas
+ * d'échec, la raison est dans lastPushError. Ne bloque jamais l'app.
+ * Pour que la demande de permission s'affiche de façon fiable, l'appeler
+ * depuis un clic de l'utilisateur. */
 export async function subscribeToPushNotifications() {
+  lastPushError = "";
   try {
-    if (!isPushSupported()) return "unsupported";
+    if (!isPushSupported()) { lastPushError = "navigateur non compatible"; return "unsupported"; }
     const token = localStorage.getItem("token") || sessionStorage.getItem("token");
-    if (!token) return "error";
+    if (!token) { lastPushError = "non connecté"; return "error"; }
 
     if (Notification.permission === "denied") return "denied";
     if (Notification.permission === "default") {
       const perm = await Notification.requestPermission();
-      if (perm !== "granted") return perm;
+      if (perm !== "granted") { lastPushError = `permission : ${perm}`; return perm; }
     }
 
-    const reg = await navigator.serviceWorker.ready;
+    const reg = await withTimeout(navigator.serviceWorker.ready, 10000, "service worker");
     let sub = await reg.pushManager.getSubscription();
     if (!sub) {
       const keyRes = await fetch(`${API_URL}/users/push/vapid-public-key`);
-      if (!keyRes.ok) return "error";
+      if (!keyRes.ok) { lastPushError = `clé VAPID : HTTP ${keyRes.status}`; return "error"; }
       const { key } = await keyRes.json();
-      sub = await reg.pushManager.subscribe({
+      sub = await withTimeout(reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(key),
-      });
+      }), 15000, "abonnement push");
     }
 
     const res = await fetch(`${API_URL}/users/me/push-subscription`, {
@@ -45,8 +58,12 @@ export async function subscribeToPushNotifications() {
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify(sub.toJSON()),
     });
-    return res.ok ? "granted" : "error";
-  } catch { return "error"; /* best-effort, jamais bloquant */ }
+    if (!res.ok) { lastPushError = `enregistrement : HTTP ${res.status}`; return "error"; }
+    return "granted";
+  } catch (e) {
+    lastPushError = `${e?.name || "Erreur"} : ${e?.message || e}`;
+    return "error"; /* best-effort, jamais bloquant */
+  }
 }
 
 /** Si la permission est déjà accordée, ré-enregistre silencieusement l'abonnement

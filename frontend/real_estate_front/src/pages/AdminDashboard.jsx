@@ -7,7 +7,7 @@ import { useToast } from "../components/Toast";
 import { setFeatureFlagsCache } from "../hooks/useFeatureFlags";
 import AnnonceDetailModal from "./AnnonceDetailModal";
 import AdminConnexions from "../components/AdminConnexions";
-import { isPushSupported, subscribeToPushNotifications } from "../utils/pushNotifications";
+import { isPushSupported, subscribeToPushNotifications, lastPushError } from "../utils/pushNotifications";
 import {
   LayoutDashboard, FileText, Users, CheckCircle, XCircle, Clock,
   Eye, Trash2, RefreshCw, Home, BarChart3, X, Check, Building, Plus,
@@ -49,10 +49,15 @@ export default function AdminDashboard() {
   const [pushState,    setPushState]   = useState(() => isPushSupported() ? Notification.permission : "unsupported");
   const activerNotifications = async () => {
     const r = await subscribeToPushNotifications();
-    setPushState(r === "error" ? Notification.permission : r);
+    // En cas d'erreur on garde le bouton actif (même si la permission est accordée)
+    // pour pouvoir réessayer ; l'état affiché ne passe au vert qu'après un vrai abonnement.
+    setPushState(r === "error" ? "default" : r);
     if (r === "granted")      toast("Notifications activées sur cet appareil");
     else if (r === "denied")  toast("Notifications bloquées : autorisez-les via le cadenas à gauche de l'adresse du site", "error");
-    else if (r === "error")   toast("Impossible d'activer les notifications sur cet appareil", "error");
+    else window.alert(`Notifications non activées.
+
+Raison : ${lastPushError || "inconnue"}
+Permission du navigateur : ${Notification.permission}`);
   };
 
   /* ── Quotas annonces par rôle (stockés en localStorage) ── */
