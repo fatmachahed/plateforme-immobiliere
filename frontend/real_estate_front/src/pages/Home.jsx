@@ -690,7 +690,7 @@ export default function HomePage() {
             </form>
             <div className="hp-search__hint">
               <span>Populaire :</span>
-              {["Tunis", "Sousse", "Sfax", "La Marsa", "Nabeul"].map((c) => (
+              {["Tunis", "Sousse", "Sfax", "La Marsa", "Nabeul", "Bizerte"].map((c) => (
                 <button key={c} type="button" onClick={() => handleTagClick(c)} className="hp-search__tag">{c}</button>
               ))}
             </div>
