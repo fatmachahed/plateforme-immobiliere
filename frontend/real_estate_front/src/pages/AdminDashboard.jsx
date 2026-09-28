@@ -289,12 +289,15 @@ Permission du navigateur : ${Notification.permission}`);
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!r.ok) throw new Error();
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        throw new Error(typeof d.detail === "string" ? d.detail : "");
+      }
       setDemandesImmo(prev => prev.map(d => d.id === id ? { ...d, ...payload } : d));
       toast("Demande modifiée.");
       setEditDemande(null);
-    } catch {
-      toast("Impossible de modifier la demande.", "error");
+    } catch (err) {
+      toast(err.message || "Impossible de modifier la demande.", "error");
     } finally {
       setSavingDemande(false);
     }

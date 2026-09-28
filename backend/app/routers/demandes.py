@@ -67,6 +67,14 @@ class DemandeCreate(BaseModel):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+def _verifier_fourchettes(budget_min, budget_max, surface_min, surface_max):
+    """Le max doit être strictement supérieur au min (quand les deux sont renseignés)."""
+    if budget_min is not None and budget_max is not None and budget_max <= budget_min:
+        raise HTTPException(422, "Le budget maximum doit être supérieur au budget minimum.")
+    if surface_min is not None and surface_max is not None and surface_max <= surface_min:
+        raise HTTPException(422, "La surface maximum doit être supérieure à la surface minimum.")
+
+
 def _get_demande_by_token(token: str, db: Session):
     row = db.execute(
         text("SELECT * FROM demandes_immo WHERE token = :t"),
@@ -256,6 +264,7 @@ def creer_demande(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user_optional),
 ):
+    _verifier_fourchettes(data.budget_min, data.budget_max, data.surface_min, data.surface_max)
     token = secrets.token_urlsafe(32)
     expire_at = datetime.now(timezone.utc) + timedelta(days=30)
 
@@ -551,11 +560,17 @@ class DemandeUpdate(BaseModel):
 def admin_modifier(demande_id: int, data: DemandeUpdate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     if current_user.role != "admin":
         raise HTTPException(403)
-    d = db.execute(text("SELECT id FROM demandes_immo WHERE id=:id"), {"id": demande_id}).fetchone()
+    d = db.execute(
+        text("SELECT id, budget_min, budget_max, surface_min, surface_max FROM demandes_immo WHERE id=:id"),
+        {"id": demande_id},
+    ).fetchone()
     if not d:
         raise HTTPException(404, "Demande introuvable.")
 
     fields = data.dict(exclude_unset=True)
+    # Contrôle sur les valeurs finales (celles envoyées, sinon celles déjà enregistrées)
+    final = {k: fields.get(k, d._mapping[k]) for k in ("budget_min", "budget_max", "surface_min", "surface_max")}
+    _verifier_fourchettes(**{k: (float(v) if v is not None else None) for k, v in final.items()})
     if "gouvernorats" in fields:
         fields["gouvernorats"] = json.dumps(fields["gouvernorats"], ensure_ascii=False)
     if "delegations" in fields:

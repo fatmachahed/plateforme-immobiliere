@@ -32,14 +32,15 @@ const DELAIS = [
 
 const NB_PIECES = ["1","2","3","4","5","6+","Indifférent"];
 
-function Field({ label, required, children, hint }) {
+function Field({ label, required, children, hint, error }) {
   return (
-    <div className="dd-field">
+    <div className={`dd-field${error ? " dd-field--error" : ""}`}>
       <label className="dd-label">
         {label}{required && <span className="dd-req"> *</span>}
       </label>
       {hint && <p className="dd-hint">{hint}</p>}
       {children}
+      {error && <p className="dd-field-error">{error}</p>}
     </div>
   );
 }
@@ -106,6 +107,9 @@ function DdStyles() {
         .dd-label { font-size: 13px; font-weight: 600; color: #374151; }
         .dd-req   { color: #ef4444; }
         .dd-hint  { font-size: 11.5px; color: #9ca3af; margin: -3px 0 0; }
+        .dd-field-error { font-size: 12px; color: #dc2626; margin: 0; }
+        .dd-field--error .dd-input,
+        .dd-field--error .dd-input:focus { border-color: #ef4444; }
 
         /* Inputs */
         .dd-input, .dd-select, .dd-textarea {
@@ -253,6 +257,14 @@ export default function DeposerDemande() {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
+  // Le max doit être strictement supérieur au min (vérifié dès que les deux champs sont remplis)
+  const budgetError = form.budget_min !== "" && form.budget_max !== "" &&
+    Number(form.budget_max) <= Number(form.budget_min)
+    ? "Le budget maximum doit être supérieur au budget minimum." : "";
+  const surfaceError = form.surface_min !== "" && form.surface_max !== "" &&
+    Number(form.surface_max) <= Number(form.surface_min)
+    ? "La surface maximum doit être supérieure à la surface minimum." : "";
+
   const selectGouvernorat = (id) => {
     const g = gouvernorats.find(g => g.value === id);
     setForm(f => ({ ...f, gouvernorat_id: id, gouvernorat: g?.label || "", delegations: [] }));
@@ -277,9 +289,11 @@ export default function DeposerDemande() {
     if (!form.gouvernorat)                  return setError("Sélectionnez un gouvernorat.");
     if (!form.budget_min)                   return setError("Veuillez saisir un budget minimum.");
     if (!form.budget_max)                   return setError("Veuillez saisir un budget maximum.");
+    if (budgetError)                        return setError(budgetError);
     if (!form.devise)                       return setError("Veuillez choisir une devise.");
     if (!form.surface_min)                  return setError("Veuillez saisir une surface minimum.");
     if (!form.surface_max)                  return setError("Veuillez saisir une surface maximum.");
+    if (surfaceError)                       return setError(surfaceError);
 
     setLoading(true);
     try {
@@ -500,7 +514,7 @@ export default function DeposerDemande() {
                     onChange={e => set("budget_min", e.target.value)}
                     placeholder="ex : 150 000"/>
                 </Field>
-                <Field label="Budget maximum" required>
+                <Field label="Budget maximum" required error={budgetError}>
                   <input className="dd-input" type="number" min="0" value={form.budget_max}
                     onChange={e => set("budget_max", e.target.value)}
                     placeholder="ex : 400 000"/>
@@ -516,7 +530,7 @@ export default function DeposerDemande() {
                     onChange={e => set("surface_min", e.target.value)}
                     placeholder="ex : 80"/>
                 </Field>
-                <Field label="Surface maximum (m²)" required>
+                <Field label="Surface maximum (m²)" required error={surfaceError}>
                   <input className="dd-input" type="number" min="0" value={form.surface_max}
                     onChange={e => set("surface_max", e.target.value)}
                     placeholder="ex : 200"/>
