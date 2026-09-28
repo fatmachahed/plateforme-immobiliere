@@ -590,6 +590,8 @@ export const CreateListingForm = ({ editId = null }) => {
   }, []);
 
   const [typeDropOpen, setTypeDropOpen] = useState(false);
+  /* Immeuble : l'annonceur cède-t-il l'immeuble entier ("bloc") ou les appartements séparément ("detail") ? */
+  const [immeubleMode, setImmeubleMode] = useState("");
   const isMobWidth = typeof window !== "undefined" && window.innerWidth <= 860;
 
   /* -- Restore step + non-file form data from localStorage -- */
@@ -1350,6 +1352,14 @@ export const CreateListingForm = ({ editId = null }) => {
     if (currentStep === 1) {
       if (!formData.type_bien)  errors.type_bien  = true;
       if (!formData.categorie)  errors.categorie  = true;
+      /* Immeuble : préciser vente/location en bloc ou au détail (pas en édition) */
+      if (!editId && formData.type_bien === "immeuble" && ["vente","location"].includes(formData.categorie)) {
+        if (immeubleMode === "detail") {
+          toast("Pour des appartements proposés séparément, publiez une annonce par appartement.", "error");
+          return;
+        }
+        if (immeubleMode !== "bloc") errors.immeuble_mode = true;
+      }
       /* Titre foncier obligatoire pour terrain */
       if (formData.type_bien === "terrain" && !formData.titre_foncier) {
         errors.titre_foncier = true;
@@ -2871,6 +2881,51 @@ export const CreateListingForm = ({ editId = null }) => {
                             </button>
                         ))}
                       </div>
+
+                      {/* Immeuble : vente/location en bloc ou au détail */}
+                      {formData.type_bien === "immeuble" && !editId && (
+                        <div className="ca-immeuble-box">
+                          <div className="ca-immeuble-box__head">
+                            <AlertTriangle size={16}/>
+                            <span>Vous proposez les appartements séparément ?</span>
+                          </div>
+                          <p className="ca-immeuble-box__txt">
+                            Les acheteurs et locataires recherchent « Appartement S+2 à La Marsa », pas « Immeuble ».
+                            Une annonce <strong>Immeuble</strong> n'apparaît <strong>pas</strong> dans leurs recherches :
+                            publiez plutôt <strong>une annonce par appartement</strong>.
+                          </p>
+                          {["vente","location"].includes(formData.categorie) && (<>
+                            <div className="ca-section-label" style={{marginTop:10}}>
+                              {formData.categorie === "vente" ? "Vous vendez" : "Vous louez"} <span className="ca-req">*</span>
+                            </div>
+                            <div className={`ca-pill-row${validationErrors.immeuble_mode?" ca-pill-row--err":""}`} style={{flexWrap:"wrap"}}>
+                              {[
+                                {v:"bloc",   l:"L'immeuble entier (en bloc)"},
+                                {v:"detail", l:"Les appartements séparément"},
+                              ].map(o => (
+                                <button key={o.v} type="button"
+                                  className={`ca-pill${immeubleMode===o.v?" ca-pill--on":""}`}
+                                  onClick={() => { setImmeubleMode(o.v); setValidationErrors(v=>({...v,immeuble_mode:false})); }}>
+                                  {o.l}
+                                </button>
+                              ))}
+                            </div>
+                            {immeubleMode === "detail" && (
+                              <div className="ca-immeuble-box__detail">
+                                <p>Créez une annonce <strong>Appartement</strong> pour chaque lot (surface, étage, prix propres). Vous pourrez réutiliser les mêmes photos et la même description de la résidence.</p>
+                                <button type="button" className="ca-immeuble-box__cta"
+                                  onClick={() => {
+                                    handleInputChange("type_bien", "appartement");
+                                    setImmeubleMode("");
+                                    setValidationErrors(v=>({...v,immeuble_mode:false}));
+                                  }}>
+                                  <Building2 size={15}/> Publier un appartement
+                                </button>
+                              </div>
+                            )}
+                          </>)}
+                        </div>
+                      )}
 
                       {/* Durée vacances */}
                       {formData.categorie === "vacances" && (
@@ -4692,6 +4747,19 @@ export const CreateListingForm = ({ editId = null }) => {
           }
           .ca-pill:hover { border-color: #6366f1; color: #4f46e5; background: #eef2ff; }
           .ca-pill--on { background: #6366f1; color: #fff; border-color: #6366f1; box-shadow: 0 2px 8px rgba(99,102,241,.35); }
+
+          /* Immeuble : bloc ou détail */
+          .ca-immeuble-box { margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: #fffbeb; border: 1.5px solid #fcd34d; }
+          .ca-immeuble-box__head { display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 700; color: #92400e; }
+          .ca-immeuble-box__txt { margin: 6px 0 0; font-size: 12.5px; line-height: 1.5; color: #78350f; }
+          .ca-immeuble-box__detail { margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: #fff; border: 1px solid #fde68a; }
+          .ca-immeuble-box__detail p { margin: 0 0 8px; font-size: 12.5px; line-height: 1.5; color: #374151; }
+          .ca-immeuble-box__cta {
+            display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 10px;
+            border: none; background: #6366f1; color: #fff; font-size: 13px; font-weight: 600;
+            font-family: inherit; cursor: pointer;
+          }
+          .ca-immeuble-box__cta:hover { background: #4f46e5; }
 
           /* Etat cards */
           .ca-etat-row { display: flex; gap: 8px; flex-wrap: wrap; padding: 4px; border-radius: 12px; border: 1.5px solid transparent; transition: border-color .15s; }
