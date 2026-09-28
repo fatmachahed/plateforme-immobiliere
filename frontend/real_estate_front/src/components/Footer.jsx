@@ -78,7 +78,7 @@ export default function Footer() {
           <div>
             <p className="lz-footer__heading">Contact</p>
             <ul className="lz-footer__contact">
-              <li><MapPin size={15} /><span>Zaghouan, Tunisie</span></li>
+              <li><MapPin size={15} /><span>Tunis, Tunisie</span></li>
               <li><Mail size={15} /><span>contact@localizi.tn</span></li>
               <li>
                 <Phone size={15} />

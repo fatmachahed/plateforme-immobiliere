@@ -51,7 +51,7 @@ export default function Contact() {
     {
       icon: <MapPin size={18} strokeWidth={1.5}/>,
       label: "Adresse",
-      value: "Zaghouan, Tunisie",
+      value: "Tunis, Tunisie",
       sub: "Siège social"
     },
     {
