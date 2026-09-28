@@ -76,6 +76,10 @@ with engine.connect() as conn:
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS metier_artisan VARCHAR;",
         "ALTER TABLE caractere_general ADD COLUMN IF NOT EXISTS animaux_admis BOOLEAN DEFAULT FALSE;",
         "ALTER TABLE annonces ADD COLUMN IF NOT EXISTS accompagnement_agence_id INTEGER REFERENCES users(id) ON DELETE SET NULL;",
+        # Suivi admin : demande d'accompagnement clôturée
+        "ALTER TABLE annonces ADD COLUMN IF NOT EXISTS accompagnement_cloture BOOLEAN DEFAULT FALSE;",
+        # Suivi admin des accompagnements (agences A/B, étapes, remarque, commission) — JSON
+        "ALTER TABLE annonces ADD COLUMN IF NOT EXISTS accompagnement_suivi TEXT;",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS gouvernorat VARCHAR;",
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS localite VARCHAR;",
         "ALTER TABLE annonces ADD COLUMN IF NOT EXISTS hauteur_immeuble VARCHAR;",

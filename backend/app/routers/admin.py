@@ -129,6 +129,8 @@ def list_annonces(
             "views_count":    a.views_count  or 0,
             "description":    a.description,
             "accompagnement": a.accompagnement or False,
+            "accompagnement_cloture": a.accompagnement_cloture or False,
+            "accompagnement_suivi":   _load_suivi(a.accompagnement_suivi),
             "anonyme":        a.anonyme or False,
             "accompagnement_agence_id":  a.accompagnement_agence_id,
             "accompagnement_agence_nom": (
@@ -167,6 +169,41 @@ def update_annonce_reference(
     db.commit()
     db.refresh(a)
     return {"id": a.id, "reference": a.reference}
+
+
+# ── Suivi admin d'une demande d'accompagnement ──────────────
+SUIVI_KEYS = {"agence_name", "agence_b_name", "agence", "reponse", "contact", "remarque", "commission"}
+
+def _load_suivi(raw: Optional[str]) -> dict:
+    try:
+        data = _json.loads(raw) if raw else {}
+        return data if isinstance(data, dict) else {}
+    except ValueError:
+        return {}
+
+@router.patch("/annonces/{annonce_id}/accompagnement-suivi")
+def update_accompagnement_suivi(
+    annonce_id: int,
+    body: dict,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_admin),
+):
+    """Fusionne les champs envoyés dans le suivi (une valeur null retire le champ)."""
+    a = db.query(models.Annonce).filter(models.Annonce.id == annonce_id).first()
+    if not a:
+        raise HTTPException(404, "Annonce non trouvée")
+    unknown = set(body) - SUIVI_KEYS
+    if unknown:
+        raise HTTPException(400, f"Champs inconnus : {', '.join(sorted(unknown))}")
+    suivi = _load_suivi(a.accompagnement_suivi)
+    for k, v in body.items():
+        if v is None:
+            suivi.pop(k, None)
+        else:
+            suivi[k] = v
+    a.accompagnement_suivi = _json.dumps(suivi, ensure_ascii=False) if suivi else None
+    db.commit()
+    return {"id": a.id, "accompagnement_suivi": suivi}
 
 
 # ── Affecter/modifier le manager commercial d'une annonce ───

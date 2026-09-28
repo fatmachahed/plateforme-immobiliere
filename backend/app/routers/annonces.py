@@ -690,18 +690,30 @@ def update_accompagnement(
     annonce = db.query(models.Annonce).filter(models.Annonce.id == annonce_id).first()
     if not annonce:
         raise HTTPException(status_code=404, detail="Annonce non trouvée")
-    if annonce.utilisateur_id != current_user.id:
+    if annonce.utilisateur_id != current_user.id and current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Action interdite")
 
     # Si "accompagnement" fourni dans le body → set direct, sinon toggle
+    # (un body avec seulement "cloture" ou "agence_id" ne touche pas à la demande)
+    avant = annonce.accompagnement or False
     if "accompagnement" in body:
         annonce.accompagnement = bool(body["accompagnement"])
-    else:
-        annonce.accompagnement = not (annonce.accompagnement or False)
+    elif "cloture" not in body and "agence_id" not in body:
+        annonce.accompagnement = not avant
+    if annonce.accompagnement != avant:
+        annonce.accompagnement_cloture = False  # demande (re)créée ou retirée → non clôturée
+        if not annonce.accompagnement and current_user.role == "admin":
+            annonce.accompagnement_suivi = None  # demande supprimée par l'admin → suivi effacé
 
     # Agence choisie (optionnel)
     if "agence_id" in body:
         annonce.accompagnement_agence_id = body["agence_id"] or None
+
+    # Clôture de la demande (admin uniquement)
+    if "cloture" in body:
+        if current_user.role != "admin":
+            raise HTTPException(status_code=403, detail="Action réservée à l'administrateur")
+        annonce.accompagnement_cloture = bool(body["cloture"])
 
     db.commit()
     db.refresh(annonce)
@@ -711,6 +723,7 @@ def update_accompagnement(
         "accompagnement": annonce.accompagnement,
         "accompagnement_agence_id": annonce.accompagnement_agence_id,
         "accompagnement_agence_nom": agence_nom,
+        "accompagnement_cloture": annonce.accompagnement_cloture or False,
     }
 
 

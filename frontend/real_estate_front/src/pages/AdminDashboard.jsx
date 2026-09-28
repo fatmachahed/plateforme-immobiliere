@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import API_URL, { fmtDevise, NO_IMAGE_PLACEHOLDER } from "../config";
 import Navbar from "../components/Navbar";
@@ -202,15 +202,68 @@ Permission du navigateur : ${Notification.permission}`);
   /* Liste unifiée des professionnels (agences + inscrits) pour accompagnements */
   const [professionals, setProfessionals]  = useState([]);
 
-  /* Accompagnements tracking (stocké en localStorage) */
-  const [accomTracking, setAccomTracking] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("adm_accom_tracking")||"{}"); } catch { return {}; }
-  });
+  /* Accompagnements tracking (enregistré en base : annonce.accompagnement_suivi) */
+  const accomTracking = useMemo(() => {
+    const map = {};
+    allAnnonces.forEach(a => { if (a.accompagnement_suivi) map[a.id] = a.accompagnement_suivi; });
+    return map;
+  }, [allAnnonces]);
+  const accomPending = useRef({});  // { annonceId: { champ: valeur } } en attente d'envoi
+  const accomTimers  = useRef({});
   const updateAccomTracking = (id, key, val) => {
-    const next = {...accomTracking, [id]: {...(accomTracking[id]||{}), [key]: val}};
-    setAccomTracking(next);
-    localStorage.setItem("adm_accom_tracking", JSON.stringify(next));
+    setAllAnnonces(prev => prev.map(a => a.id === id
+      ? { ...a, accompagnement_suivi: { ...(a.accompagnement_suivi || {}), [key]: val } } : a));
+    accomPending.current[id] = { ...(accomPending.current[id] || {}), [key]: val };
+    clearTimeout(accomTimers.current[id]);
+    accomTimers.current[id] = setTimeout(() => flushAccomTracking(id), 600);
   };
+  async function flushAccomTracking(id) {
+    clearTimeout(accomTimers.current[id]);
+    const changes = accomPending.current[id];
+    if (!changes) return true;
+    delete accomPending.current[id];
+    try {
+      const res = await authFetch(`/admin/annonces/${id}/accompagnement-suivi`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(changes),
+      });
+      if (!res.ok) throw new Error();
+      return true;
+    } catch {
+      toast("Suivi non enregistré, réessayez.", "error");
+      return false;
+    }
+  }
+  async function flushAllAccomTracking() {
+    const results = await Promise.all(Object.keys(accomPending.current).map(id => flushAccomTracking(Number(id))));
+    if (results.every(Boolean)) toast("Modifications sauvegardées !");
+  }
+  /* Reprise unique de l'ancien suivi stocké dans le navigateur (localStorage) */
+  const accomLegacyDone = useRef(false);
+  useEffect(() => {
+    if (accomLegacyDone.current || allAnnonces.length === 0) return;
+    accomLegacyDone.current = true;
+    let legacy;
+    try { legacy = JSON.parse(localStorage.getItem("adm_accom_tracking") || "null"); } catch { legacy = null; }
+    if (!legacy) return;
+    const KEYS = ["agence_name","agence_b_name","agence","reponse","contact","remarque","commission"];
+    const jobs = Object.entries(legacy).map(([id, t]) => {
+      const a = allAnnonces.find(x => x.id === Number(id));
+      if (!a || !a.accompagnement || Object.keys(a.accompagnement_suivi || {}).length) return null;
+      const fields = Object.fromEntries(KEYS.filter(k => t?.[k] !== undefined && t[k] !== "").map(k => [k, t[k]]));
+      if (!Object.keys(fields).length) return null;
+      setAllAnnonces(prev => prev.map(x => x.id === a.id ? { ...x, accompagnement_suivi: fields } : x));
+      accomPending.current[a.id] = fields;
+      return flushAccomTracking(a.id);
+    }).filter(Boolean);
+    Promise.all(jobs).then(r => {
+      if (r.every(Boolean)) {
+        try { localStorage.removeItem("adm_accom_tracking"); } catch {}
+        if (r.length) toast(`Suivi de ${r.length} accompagnement(s) transféré en base.`);
+      }
+    });
+  }, [allAnnonces]); // eslint-disable-line react-hooks/exhaustive-deps
   const TrackSwitch = ({ val, onChange }) => (
     <div style={{display:"flex",alignItems:"center",gap:6}}>
       <span style={{fontSize:11,fontWeight:700,color:val?"#16a34a":"#94a3b8",minWidth:22}}>{val?"Oui":"Non"}</span>
@@ -660,6 +713,48 @@ Permission du navigateur : ${Notification.permission}`);
 
   function openPreview(a) {
     setPreviewAnnonce(a);
+  }
+
+  /* Accompagnements : clôturer / rouvrir (enregistré en base) */
+  async function toggleCloturerAccom(a) {
+    const closed = !!a.accompagnement_cloture;
+    if (!closed && !window.confirm(`Clôturer la demande d'accompagnement « ${a.titre} » ?`)) return;
+    try {
+      const res = await authFetch(`/annonces/${a.id}/accompagnement`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cloture: !closed }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast(err.detail || "Impossible de modifier la demande.", "error");
+        return;
+      }
+      const data = await res.json();
+      setAllAnnonces(prev => prev.map(x => x.id === a.id ? { ...x, accompagnement_cloture: data.accompagnement_cloture } : x));
+      toast(closed ? "Demande rouverte." : "Demande clôturée.");
+    } catch { toast("Erreur.", "error"); }
+  }
+
+  /* Accompagnements : retire la demande (l'annonce elle-même est conservée) */
+  async function deleteAccompagnement(a) {
+    if (!window.confirm(`Supprimer la demande d'accompagnement « ${a.titre} » ?\nL'annonce restera publiée, seule la demande est retirée.`)) return;
+    try {
+      const res = await authFetch(`/annonces/${a.id}/accompagnement`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accompagnement: false }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast(err.detail || "Impossible de supprimer la demande.", "error");
+        return;
+      }
+      clearTimeout(accomTimers.current[a.id]);
+      delete accomPending.current[a.id];
+      setAllAnnonces(prev => prev.map(x => x.id === a.id ? { ...x, accompagnement: false, accompagnement_cloture: false, accompagnement_suivi: null } : x));
+      toast("Demande d'accompagnement supprimée.");
+    } catch { toast("Erreur.", "error"); }
   }
 
   async function deleteAnnonce(id) {
@@ -1810,7 +1905,7 @@ Permission du navigateur : ${Notification.permission}`);
                   </p>
                 </div>
                 <button
-                  onClick={() => toast("Modifications sauvegardées !")}
+                  onClick={flushAllAccomTracking}
                   style={{
                     padding:"9px 18px", borderRadius:9, border:"none",
                     background:"#16a34a", color:"#fff", fontSize:13,
@@ -1856,7 +1951,7 @@ Permission du navigateur : ${Notification.permission}`);
                     <thead>
                       <tr style={{borderBottom:"2px solid #e5e7eb",background:"#f8fafc"}}>
                         <th style={{padding:"10px 14px",width:64}}></th>
-                        {["Annonce","Propriétaire","Type","Agence A","Agence B","Agence contactée","Réponse reçue","Accompagné","Remarques"].map(h => (
+                        {["Annonce","Propriétaire","Type","Agence A","Agence B","Agence contactée","Réponse reçue","Accompagné","Remarques","Actions"].map(h => (
                           <th key={h} style={{padding:"10px 14px",textAlign:"left",fontWeight:700,color:"#374151",fontSize:11.5,textTransform:"uppercase",letterSpacing:".05em",whiteSpace:"nowrap"}}>{h}</th>
                         ))}
                       </tr>
@@ -1875,9 +1970,9 @@ Permission du navigateur : ${Notification.permission}`);
                           ? t.agence_name
                           : (a.accompagnement_agence_nom || "");
                         return (
-                          <tr key={a.id} style={{borderBottom:"1px solid #f1f5f9"}}
+                          <tr key={a.id} style={{borderBottom:"1px solid #f1f5f9",opacity:a.accompagnement_cloture?0.55:1,background:a.accompagnement_cloture?"#f8fafc":"#fff"}}
                             onMouseEnter={e=>e.currentTarget.style.background="#f8fafc"}
-                            onMouseLeave={e=>e.currentTarget.style.background="#fff"}>
+                            onMouseLeave={e=>e.currentTarget.style.background=a.accompagnement_cloture?"#f8fafc":"#fff"}>
                             <td style={{padding:"8px 8px 8px 12px",width:64,verticalAlign:"middle"}}>
                               <img
                                 src={a.image_principale ? (a.image_principale.startsWith("http") ? a.image_principale : `${import.meta.env.VITE_API_URL||""}${a.image_principale}`) : NO_IMAGE_PLACEHOLDER}
@@ -1893,6 +1988,9 @@ Permission du navigateur : ${Notification.permission}`);
                                 {a.titre}
                               </a>
                               <div style={{fontSize:11,color:"#94a3b8"}}>{a.date_creation ? new Date(a.date_creation).toLocaleDateString("fr-TN",{day:"2-digit",month:"short",year:"numeric"}) : ""}</div>
+                              {a.accompagnement_cloture && (
+                                <span style={{display:"inline-block",marginTop:3,fontSize:10,fontWeight:700,color:"#b91c1c",background:"#fef2f2",border:"1px solid #fecaca",padding:"1px 6px",borderRadius:4}}>Clôturée</span>
+                              )}
                             </td>
                             <td style={{padding:"12px 14px",verticalAlign:"middle",whiteSpace:"nowrap",fontSize:12,color:"#374151"}}>
                               {u?.username || a.user_name || `ID ${a.utilisateur_id}`}
@@ -1952,6 +2050,29 @@ Permission du navigateur : ${Notification.permission}`);
                               <input type="text" value={t.remarque||""} onChange={e=>updateAccomTracking(a.id,"remarque",e.target.value)}
                                 placeholder="Ajouter une remarque…"
                                 style={{width:"100%",padding:"6px 10px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:12.5,fontFamily:"inherit",outline:"none",background:"#f8fafc",boxSizing:"border-box"}}/>
+                            </td>
+                            <td style={{padding:"12px 14px",verticalAlign:"middle"}}>
+                              <div className="adm-actions">
+                                <button className="adm-action adm-action--view" title="Voir" onClick={() => openPreview(a)}>
+                                  <Eye size={14}/>
+                                </button>
+                                <button className="adm-action" title="Modifier l'annonce" style={{borderColor:"#e2e8f0"}}
+                                  onClick={() => navigate(`/modifier_annonce/${a.id}`)}>
+                                  <Pencil size={13}/>
+                                </button>
+                                {a.accompagnement_cloture ? (
+                                  <button className="adm-action adm-action--ok" title="Rouvrir la demande" onClick={() => toggleCloturerAccom(a)}>
+                                    <RefreshCw size={13}/>
+                                  </button>
+                                ) : (
+                                  <button className="adm-action adm-action--reject" title="Clôturer la demande" onClick={() => toggleCloturerAccom(a)}>
+                                    <X size={14}/>
+                                  </button>
+                                )}
+                                <button className="adm-action adm-action--del" title="Supprimer la demande" onClick={() => deleteAccompagnement(a)}>
+                                  <Trash2 size={14}/>
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );

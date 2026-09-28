@@ -129,6 +129,8 @@ class Annonce(Base):
     anonyme = Column(Boolean, default=False)         # publication anonyme
     accompagnement = Column(Boolean, default=False)  # demande d'accompagnement professionnel
     accompagnement_agence_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # professionnel choisi
+    accompagnement_cloture = Column(Boolean, default=False)  # demande clôturée par l'admin
+    accompagnement_suivi   = Column(String, nullable=True)   # JSON : suivi admin (agences, étapes, remarque, commission)
     # Immeuble
     hauteur_immeuble    = Column(String,  nullable=True)  # ex: "R+5"
     nb_appartements     = Column(Integer, nullable=True)  # nombre d'appartements
