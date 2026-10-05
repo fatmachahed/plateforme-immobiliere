@@ -3075,9 +3075,8 @@ export default function CartePage() {
 
   /* Fetch total count once (lightweight — just IDs/count, no pins) */
   useEffect(() => {
-    fetch(`${API_URL}/annonces/public?limit=500&fields=id`)
-      .then(r => { const c = r.headers.get("X-Total-Count"); if (c) { setTotalCount(+c); return null; } return r.json(); })
-      .then(data => { if (data && Array.isArray(data)) setTotalCount(data.length); })
+    fetch(`${API_URL}/annonces/public?limit=1`)
+      .then(r => { const c = r.headers.get("X-Total-Count"); if (c) setTotalCount(+c); })
       .catch(() => {});
   }, []); // eslint-disable-line
 
@@ -3089,17 +3088,29 @@ export default function CartePage() {
   useEffect(() => {
     if (!filters.govId && regionRequiredForPins) { setApiProps([]); return; }
     setListLoading(true);
-    const params = new URLSearchParams({ limit: "500" });
-    if (filters.govId) params.set("gouvernorat_id", filters.govId);
-    if (filters.delId) params.set("delegation_id", filters.delId);
-    fetch(`${API_URL}/annonces/public?${params}`)
-      .then(r => r.json())
-      .then(data => {
-        const transformed = (Array.isArray(data) ? data : []).map(transformApiAnnonce);
-        setApiProps(transformed);
-      })
-      .catch(() => {})
-      .finally(() => setListLoading(false));
+    /* Chargement par pages de 500 : la 1re page s'affiche tout de suite, les suivantes
+       s'ajoutent à la carte au fil de l'eau (plus de plafond à 500 annonces). */
+    const PAGE = 500;
+    let cancelled = false;
+    (async () => {
+      const byId = new Map();
+      try {
+        for (let skip = 0; skip < 20000; skip += PAGE) {
+          const params = new URLSearchParams({ limit: String(PAGE), skip: String(skip) });
+          if (filters.govId) params.set("gouvernorat_id", filters.govId);
+          if (filters.delId) params.set("delegation_id", filters.delId);
+          const data = await fetch(`${API_URL}/annonces/public?${params}`).then(r => r.json());
+          if (cancelled) return;
+          const page = Array.isArray(data) ? data : [];
+          page.forEach(a => byId.set(a.id, transformApiAnnonce(a)));
+          setApiProps(Array.from(byId.values()));
+          if (skip === 0) setListLoading(false);
+          if (page.length < PAGE) break;
+        }
+      } catch { /* on garde ce qui est déjà chargé */ }
+      if (!cancelled) setListLoading(false);
+    })();
+    return () => { cancelled = true; };
   }, [filters.govId, filters.delId, regionRequiredForPins]); // eslint-disable-line
 
   /* Sync favoris API ? localStorage au montage (si connect�) */

@@ -1,5 +1,5 @@
 from app.utils.auth import get_current_user # backend/app/routers/annonces.py
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from typing import Optional
@@ -149,6 +149,7 @@ def create_annonce(
 # ===============================
 @router.get("/public", response_model=list[schemas.AnnoncePublic])
 def search_annonces_public(
+    response: Response,
     categorie: Optional[str] = None,
     type_bien: Optional[str] = None,
     gouvernorat_id: Optional[int] = None,
@@ -175,11 +176,15 @@ def search_annonces_public(
     if prix_max is not None:
         query = query.filter(models.Annonce.prix <= prix_max)
 
+    # Total (avant pagination) : permet au client de charger par pages et d'afficher le compteur
+    response.headers["X-Total-Count"] = str(query.count())
+
     # Boost d'abord, puis date de refresh/modification décroissante
     annonces = query.order_by(
         desc(models.Annonce.boost_level),
         desc(models.Annonce.date_mise_a_jour),
-        desc(models.Annonce.date_creation)
+        desc(models.Annonce.date_creation),
+        desc(models.Annonce.id)          # ordre stable pour la pagination
     ).offset(skip).limit(limit).all()
 
     # Même mapping que get_annonce_detail
