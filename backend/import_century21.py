@@ -467,11 +467,15 @@ def main():
     sys.stdout.reconfigure(encoding="utf-8")
 
     xml = fetch(args.file)
-    if args.apply:
+    db = None
+    try:                      # référentiel réel (lecture seule en simulation)
         from app.database import SessionLocal
         db = SessionLocal()
         geo = Geo.from_db(db)
-    else:
+    except Exception as e:
+        if args.apply:
+            raise
+        print(f"Base inaccessible ({e.__class__.__name__}) : référentiel lu dans data/tunisie.xlsx")
         db, geo = None, Geo.from_excel()
     items = build(xml, geo)
     rep = report(items)
@@ -483,6 +487,8 @@ def main():
         apply(items, geo, db)
         db.close()
     else:
+        if db:
+            db.close()
         print("\nSIMULATION — rien n'a été écrit en base (utiliser --apply).")
 
 
