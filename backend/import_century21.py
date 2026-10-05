@@ -34,6 +34,7 @@ SOURCE = "century21"
 
 # Agences prises en charge : une par compte. Les autres (ex. Blue Lagoon, ou sans agence)
 # sont ignorées et listées dans le rapport.
+AGENCE_DEFAUT = "CENTURY 21 Blue Lagoon"
 AGENCES = [
     "CENTURY 21 Invest", "CENTURY 21 Barros", "CENTURY 21 Prestige", "CENTURY 21 Infinity",
     "CENTURY 21 Excellence", "CENTURY 21 Challenge", "CENTURY 21 Karaouli", "CENTURY 21 Masters",
@@ -265,7 +266,8 @@ def transform(el):
     return {
         "source_id": sid,
         "reference": f"C21-{sid}",
-        "agence": txt(el, "agent_company"),
+        # annonce sans agence dans le flux -> rattachée à Blue Lagoon (décision client)
+        "agence": txt(el, "agent_company") or AGENCE_DEFAUT,
         "titre": titre[:250],
         "description": corps,
         "categorie": categorie, "categorie_src": cat_src,
