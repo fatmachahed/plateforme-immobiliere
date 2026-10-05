@@ -32,6 +32,7 @@ import { useToast } from "../components/Toast";
 import { useLanguage } from "../contexts/LanguageContext";
 import { getEvalLevel, statsKey, getPrixM2, getSurfaceTotale } from "../utils/priceEval";
 import LocalisationExacteBadge from "../components/LocalisationExacteBadge";
+import PositionNonRenseignee from "../components/PositionNonRenseignee";
 
 
 /* -- Haversine distance in km -- */
@@ -91,6 +92,7 @@ function normalizeApi(a) {
     annee:       a.annee_construction,
     description: a.description || "Aucune description disponible.",
     features:    a.features || [],
+    sans_position: !(a.latitude && a.longitude),
     lat:         a.latitude  || 36.8065,
     lng:         a.longitude || 10.1815,
     images:      (a.images || []).length > 0
@@ -882,6 +884,7 @@ export default function AnnonceDetail() {
             {/* -- Adresse complète -- */}
             <div className="ad-addr">
               {prop.localisation_exacte && <LocalisationExacteBadge style={{marginBottom:6}} />}
+              {prop.sans_position && <PositionNonRenseignee style={{marginBottom:6}} />}
               {prop.address && (
                 <p className="ad-addr__street">
                   <MapPin size={13} className="ad-addr__ico"/>
@@ -1164,9 +1167,11 @@ export default function AnnonceDetail() {
             <MapPin size={16} strokeWidth={2} style={{color:"#6366f1"}}/>
             <span style={{fontSize:15,fontWeight:800,color:"#0f172a"}}>Position / Emplacement du bien</span>
           </div>
-          <div style={{height:440}}>
-            <BigMap lat={prop.lat} lng={prop.lng} />
-          </div>
+          {prop.sans_position
+            ? <div style={{height:440,display:"flex",alignItems:"center",justifyContent:"center",background:"#f8fafc"}}><PositionNonRenseignee size={14} style={{fontSize:13,padding:"6px 14px"}}/></div>
+            : <div style={{height:440}}>
+                <BigMap lat={prop.lat} lng={prop.lng} />
+              </div>}
         </div>
       </div>
 

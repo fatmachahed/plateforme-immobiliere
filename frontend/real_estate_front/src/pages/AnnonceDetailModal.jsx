@@ -57,6 +57,7 @@ import Footer from "../components/Footer";
 import { useToast } from "../components/Toast";
 import { useLanguage } from "../contexts/LanguageContext";
 import LocalisationExacteBadge from "../components/LocalisationExacteBadge";
+import PositionNonRenseignee from "../components/PositionNonRenseignee";
 
 function haversine(lat1, lng1, lat2, lng2) {
   const R = 6371;
@@ -100,6 +101,7 @@ function normalizeApi(a) {
     annee: a.annee_construction,
     description: a.description || "Aucune description disponible.",
     features: a.features || [],
+    sans_position: !(a.latitude && a.longitude),
     lat: a.latitude || 36.8065, lng: a.longitude || 10.1815,
     anonyme: a.anonyme || false,
     contact: { nom: a.user?.username || "Propriétaire", tel: a.user?.phone_number || "", tels: [...new Set([a.user?.phone_number, ...(a.user?.phone_numbers || [])].filter(Boolean))], email: a.user?.email || "" },
@@ -776,6 +778,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
               <h1 className="det-card__titre">{prop.titre}</h1>
               <div className="det-addr">
                 {prop.localisation_exacte&&<LocalisationExacteBadge style={{marginBottom:6}} />}
+                {prop.sans_position&&<PositionNonRenseignee style={{marginBottom:6}} />}
                 {prop.address&&<p className="det-addr__street"><MapPin size={13} className="det-addr__ico"/>{prop.address}</p>}
                 <div className="det-addr__hier">
                   {prop.localite&&<span className="det-addr__chip det-addr__chip--loc">{prop.localite}</span>}
@@ -853,7 +856,9 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
               <span className="adm-map-title-full" style={{fontSize:15,fontWeight:800,color:"#0f172a"}}>Position / Emplacement du bien</span>
               <span className="adm-map-title-short" style={{display:"none",fontSize:14,fontWeight:800,color:"#0f172a"}}>Position du bien</span>
             </div>
-            <div style={{height:440}}><BigMap lat={prop.lat} lng={prop.lng}/></div>
+            {prop.sans_position
+              ? <div style={{height:440,display:"flex",alignItems:"center",justifyContent:"center",background:"#f8fafc"}}><PositionNonRenseignee size={14} style={{fontSize:13,padding:"6px 14px"}}/></div>
+              : <div style={{height:440}}><BigMap lat={prop.lat} lng={prop.lng}/></div>}
           </div>
         </div>
 

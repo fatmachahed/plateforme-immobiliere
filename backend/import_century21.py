@@ -213,6 +213,15 @@ def detect_type(property_type, titre):
     return "immobiliers_divers", "defaut"
 
 
+def detect_agence(desc):
+    """Agence citée dans la description ("Century 21 Alliance vous propose…"), sinon None."""
+    d = norm(desc)
+    for nom in AGENCES:
+        if norm(nom) in d:
+            return nom
+    return None
+
+
 def extract_phone(desc):
     m = PHONE_RE.search(desc or "")
     if not m:
@@ -227,7 +236,9 @@ def clean_int(s, lo=0, hi=30):
 
 
 def transform(el):
-    sid = txt(el, "home_listing_id")
+    # Identifiant manquant dans le flux : on en dérive un, stable, de l'URL de la fiche
+    sid = txt(el, "home_listing_id") or (
+        "u" + hashlib.sha1(txt(el, "url").encode()).hexdigest()[:10] if txt(el, "url") else "")
     titre = txt(el, "name") or "Annonce Century 21"
     desc = txt(el, "description")
     prix_flux = to_num(txt(el, "price"), 0) or 0
@@ -266,8 +277,8 @@ def transform(el):
     return {
         "source_id": sid,
         "reference": f"C21-{sid}",
-        # annonce sans agence dans le flux -> rattachée à Blue Lagoon (décision client)
-        "agence": txt(el, "agent_company") or AGENCE_DEFAUT,
+        # sans agence dans le flux : celle citée dans la description, à défaut Blue Lagoon (décision client)
+        "agence": txt(el, "agent_company") or detect_agence(desc) or AGENCE_DEFAUT,
         "titre": titre[:250],
         "description": corps,
         "categorie": categorie, "categorie_src": cat_src,
@@ -292,6 +303,7 @@ def transform(el):
 def build(xml_bytes, geo):
     root = ET.fromstring(xml_bytes)
     items = [transform(e) for e in root.findall("listing")]
+    items = [i for i in items if i["source_id"]]      # ni identifiant ni URL : inutilisable
 
     # coordonnées de repli : médiane des annonces du même quartier/ville
     by_place = collections.defaultdict(list)
@@ -443,7 +455,9 @@ def apply(items, geo_db, db):
 
         prop = a.property or m.Property(annonce_id=a.id)
         prop.address = it["address"]
-        prop.latitude, prop.longitude = it["lat_pub"], it["lng_pub"]
+        # Flux sans position : on ne remplace pas une position déjà saisie à la main
+        if it["lat_pub"] or not (prop.latitude and prop.longitude):
+            prop.latitude, prop.longitude = it["lat_pub"], it["lng_pub"]
         prop.image_principale = it["images"][0] if it["images"] else None
         db.add(prop)
         db.flush()
