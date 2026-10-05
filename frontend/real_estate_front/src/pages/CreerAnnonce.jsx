@@ -3377,8 +3377,14 @@ export const CreateListingForm = ({ editId = null }) => {
                       {/* Badge « Localisation exacte » affiché sur la photo de l'annonce */}
                       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginTop:16,padding:"12px 14px",background:"#f8f9ff",border:"1px solid #e0e7ff",borderRadius:12}}>
                         <div style={{minWidth:0}}>
-                          <div style={{fontSize:13.5,fontWeight:700,color:"#0f172a"}}>Localisation exacte</div>
-                          <div style={{fontSize:12,color:"#94a3b8"}}>Le repère de la carte correspond bien à l'emplacement du bien · badge affiché sur la photo</div>
+                          <div style={{fontSize:13.5,fontWeight:700,color:"#0f172a"}}>
+                            {formData.localisation_exacte ? "Localisation exacte" : "Localisation approximative"}
+                          </div>
+                          <div style={{fontSize:12,color:"#94a3b8"}}>
+                            {formData.localisation_exacte
+                              ? "Le repère de la carte correspond bien à l'emplacement du bien · badge affiché sur la photo"
+                              : "Pour des raisons de confidentialité, le repère de la carte indique la zone géographique du bien et non son adresse précise"}
+                          </div>
                         </div>
                         <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
                           <span style={{fontSize:12.5,fontWeight:700,color: formData.localisation_exacte ? "#16a34a" : "#94a3b8",transition:"color .2s",minWidth:24}}>
