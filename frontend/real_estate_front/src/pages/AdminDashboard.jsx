@@ -696,6 +696,45 @@ Permission du navigateur : ${Notification.permission}`);
     } catch { toast("Erreur.", "error"); }
   }
 
+  /* ── Validation par lot des annonces importées (Century 21…) ── */
+  const [bulkOpen, setBulkOpen]       = useState(false);
+  const [bulkSources, setBulkSources] = useState([]);
+  const [bulkUser, setBulkUser]       = useState("");
+  const [bulkExcl, setBulkExcl]       = useState(true);
+  const [bulkInfo, setBulkInfo]       = useState(null);
+  const [bulkBusy, setBulkBusy]       = useState(false);
+
+  async function bulkCall(dry_run) {
+    const res = await authFetch("/admin/annonces-bulk/approve", {
+      method: "POST",
+      body: JSON.stringify({ user_id: bulkUser ? parseInt(bulkUser) : null, exclude_suspect_prices: bulkExcl, dry_run }),
+    });
+    if (!res.ok) throw new Error();
+    return res.json();
+  }
+
+  useEffect(() => {
+    if (!bulkOpen) return;
+    authFetch("/admin/import-sources").then(r => r.ok ? r.json() : []).then(setBulkSources).catch(() => {});
+  }, [bulkOpen]);
+
+  useEffect(() => {
+    if (!bulkOpen) return;
+    setBulkInfo(null);
+    bulkCall(true).then(setBulkInfo).catch(() => toast("Erreur de calcul.", "error"));
+  }, [bulkOpen, bulkUser, bulkExcl]);
+
+  async function confirmBulk() {
+    setBulkBusy(true);
+    try {
+      const r = await bulkCall(false);
+      toast(`${r.approuvees} annonce${r.approuvees > 1 ? "s" : ""} approuvée${r.approuvees > 1 ? "s" : ""}.`);
+      setBulkOpen(false);
+      loadAll();
+    } catch { toast("Erreur lors de la validation par lot.", "error"); }
+    setBulkBusy(false);
+  }
+
   async function updateStatus(id, status, message = null, raisons = []) {
     try {
       const res = await authFetch(`/admin/annonces/${id}/status`, {
@@ -1047,7 +1086,52 @@ Permission du navigateur : ${Notification.permission}`);
                     )}
                   </button>
                 ))}
+                <button className="adm-filter-btn" style={{marginLeft:"auto",background:"#4f46e5",color:"#fff",borderColor:"#4f46e5"}}
+                  onClick={() => setBulkOpen(true)}>
+                  <CheckCircle size={14}/> Valider par lot
+                </button>
               </div>
+
+              {bulkOpen && (
+                <div className="adm-modal-bg" onClick={() => !bulkBusy && setBulkOpen(false)}>
+                  <div className="adm-modal" style={{maxWidth:480}} onClick={e => e.stopPropagation()}>
+                    <div className="adm-modal__head"><h3>Valider par lot</h3></div>
+                    <div className="adm-modal__body" style={{padding:"18px 22px"}}>
+                      <p style={{fontSize:13,color:"#64748b",margin:"0 0 14px"}}>
+                        Concerne uniquement les annonces <strong>importées</strong> (Century 21…) en attente et ayant une photo.
+                        Aucune notification ni alerte de recherche n'est envoyée.
+                      </p>
+                      <label style={{fontSize:12.5,fontWeight:700,color:"#0f172a"}}>Agence</label>
+                      <select value={bulkUser} onChange={e => setBulkUser(e.target.value)}
+                        style={{width:"100%",border:"1.5px solid #e2e8f0",borderRadius:8,padding:"8px 12px",fontSize:13,fontFamily:"inherit",background:"#fff",margin:"6px 0 14px"}}>
+                        <option value="">Toutes les agences importées</option>
+                        {bulkSources.map(s => <option key={s.user_id} value={s.user_id}>{s.nom} ({s.en_attente} en attente)</option>)}
+                      </select>
+                      <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,cursor:"pointer"}}>
+                        <input type="checkbox" checked={bulkExcl} onChange={e => setBulkExcl(e.target.checked)}/>
+                        Exclure les prix suspects
+                      </label>
+                      <p style={{fontSize:11.5,color:"#94a3b8",margin:"4px 0 14px 24px"}}>
+                        Vente &lt; 30 000 ou &gt; 20 M · location &gt; 20 000 (les annonces à 1 DT ne sont pas concernées).
+                      </p>
+                      <div style={{background:"#f8f9ff",border:"1px solid #e0e7ff",borderRadius:10,padding:"12px 14px",fontSize:13,lineHeight:1.7}}>
+                        {bulkInfo ? (<>
+                          <div>En attente : <strong>{bulkInfo.en_attente}</strong></div>
+                          <div>Sans photo (non validables) : <strong>{bulkInfo.sans_photo}</strong></div>
+                          <div>Prix suspects{bulkExcl ? " (exclus)" : " (inclus)"} : <strong>{bulkInfo.prix_suspects}</strong></div>
+                          <div style={{marginTop:4,color:"#16a34a",fontWeight:700}}>À approuver : {bulkInfo.a_approuver}</div>
+                        </>) : "Calcul…"}
+                      </div>
+                    </div>
+                    <div className="adm-modal__foot">
+                      <button className="adm-modal__cancel" disabled={bulkBusy} onClick={() => setBulkOpen(false)}>Annuler</button>
+                      <button className="adm-modal__save" disabled={bulkBusy || !bulkInfo || bulkInfo.a_approuver === 0} onClick={confirmBulk}>
+                        {bulkBusy ? "Validation…" : `Approuver ${bulkInfo ? bulkInfo.a_approuver : ""} annonce${bulkInfo && bulkInfo.a_approuver > 1 ? "s" : ""}`}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* ─── Filtres avancés ─── */}
               <div style={{display:"flex",flexWrap:"wrap",gap:10,margin:"12px 0 4px",alignItems:"center"}}>

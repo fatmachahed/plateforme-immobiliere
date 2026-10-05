@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func, desc, text
+from sqlalchemy import func, desc, text, and_, or_
 from typing import Optional
 from pydantic import BaseModel
 from datetime import datetime, timedelta
@@ -341,6 +341,63 @@ def update_annonce_status(
             import traceback; traceback.print_exc()
             print(f"[REFUS EMAIL ERROR] {_e}")
     return {"id": a.id, "status": body.status}
+
+
+# ── Validation par lot des annonces importées (flux partenaires) ──
+class BulkApprove(BaseModel):
+    user_id: Optional[int] = None            # None = toutes les agences importées
+    exclude_suspect_prices: bool = True
+    dry_run: bool = True                     # True = simple décompte, rien n'est modifié
+
+
+def _prix_suspect():
+    """Vente < 30 000 ou > 20 M (hors 1 DT « sur demande »), location > 20 000."""
+    A = models.Annonce
+    return or_(
+        and_(A.categorie == "vente", A.prix != 1, or_(A.prix < 30000, A.prix > 20000000)),
+        and_(A.categorie == "location", A.prix > 20000),
+    )
+
+
+@router.get("/import-sources")
+def import_sources(db: Session = Depends(get_db), _: models.User = Depends(get_current_admin)):
+    """Agences ayant des annonces importées en attente (filtre de la validation par lot)."""
+    A, U = models.Annonce, models.User
+    rows = (db.query(U.id, U.nom_entreprise, U.username, func.count(A.id))
+              .join(A, A.utilisateur_id == U.id)
+              .filter(A.source.isnot(None), A.status == "en_attente")
+              .group_by(U.id, U.nom_entreprise, U.username)
+              .order_by(U.nom_entreprise).all())
+    return [{"user_id": r[0], "nom": r[1] or r[2], "en_attente": r[3]} for r in rows]
+
+
+@router.post("/annonces-bulk/approve")
+def bulk_approve(
+    body: BulkApprove,
+    db: Session = Depends(get_db),
+    _: models.User = Depends(get_current_admin),
+):
+    """Approuve en lot les annonces importées en attente (avec photo). Aucune notification ni alerte
+    de recherche enregistrée n'est envoyée (volume trop important)."""
+    A, P = models.Annonce, models.Property
+    base = db.query(A).filter(A.source.isnot(None), A.status == "en_attente")
+    if body.user_id:
+        base = base.filter(A.utilisateur_id == body.user_id)
+    has_photo = A.property.has(P.image_principale.isnot(None))
+    total = base.count()
+    sans_photo = base.filter(~has_photo).count()
+    q = base.filter(has_photo)
+    prix_suspects = q.filter(_prix_suspect()).count()
+    if body.exclude_suspect_prices:
+        q = q.filter(~_prix_suspect())
+    ids = [i for (i,) in q.with_entities(A.id).all()]
+    result = {"en_attente": total, "sans_photo": sans_photo, "prix_suspects": prix_suspects,
+              "a_approuver": len(ids), "approuvees": 0}
+    if not body.dry_run and ids:
+        db.query(A).filter(A.id.in_(ids)).update({"status": "approuvee"}, synchronize_session=False)
+        db.commit()
+        result["approuvees"] = len(ids)
+    return result
 
 
 # ── Supprimer une annonce (admin) ────────────────────────────
