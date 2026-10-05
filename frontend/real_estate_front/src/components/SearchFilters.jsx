@@ -20,6 +20,7 @@ const toggleAdvanced = () => setIsAdvancedOpen(!isAdvancedOpen);
     { value: "", label: "Tous", icon: "🏠" },
     { value: "appartement", label: "Appartement", icon: "🏢" },
     { value: "duplex", label: "Duplex", icon: "🏢" },
+    { value: "triplex", label: "Triplex", icon: "🏢" },
     { value: "penthouse", label: "Penthouse", icon: "🏢" },
     { value: "villa", label: "Villa", icon: "🏡" },
     { value: "terrain", label: "Terrain", icon: "🌱" },

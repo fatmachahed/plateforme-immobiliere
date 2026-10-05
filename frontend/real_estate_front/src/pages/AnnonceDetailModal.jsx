@@ -56,6 +56,7 @@ import Logo from "../components/Logo";
 import Footer from "../components/Footer";
 import { useToast } from "../components/Toast";
 import { useLanguage } from "../contexts/LanguageContext";
+import LocalisationExacteBadge from "../components/LocalisationExacteBadge";
 
 function haversine(lat1, lng1, lat2, lng2) {
   const R = 6371;
@@ -71,7 +72,7 @@ const DEMO = [
   { id:2, titre:"Appartement S+3 — Lac 2", prix:320000, devise:"TND", location:"Berges du Lac, Tunis", beds:3, baths:2, area:145, type:"Appartement", categorie:"Vente", etat:"Neuf", annee:2023, description:"Appartement neuf S+3 dans résidence sécurisée avec ascenseur et parking.", features:["Ascenseur","Parking","Gardien","Double vitrage"], lat:36.838, lng:10.235, images:["https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=900&q=80"], contact:{nom:"Sonia Trabelsi",tel:"+216 22 987 654",email:"sonia@immo.tn"} },
 ];
 
-const TYPE_FR  = { appartement:"Appartement", duplex:"Duplex", penthouse:"Penthouse", villa:"Villa", maison:"Maison", terrain:"Terrain", bureau:"Bureau", local_commercial:"Local commercial", ferme:"Ferme agricole", ferme_agricole:"Ferme agricole", garage_parking:"Garage / Parking", depot_stockage:"Dépôt de stockage", batiment_industriel:"Bâtiment industriel", immobiliers_divers:"Immobiliers divers" };
+const TYPE_FR  = { appartement:"Appartement", duplex:"Duplex", triplex:"Triplex", penthouse:"Penthouse", villa:"Villa", maison:"Maison", terrain:"Terrain", bureau:"Bureau", local_commercial:"Local commercial", ferme:"Ferme agricole", ferme_agricole:"Ferme agricole", garage_parking:"Garage / Parking", depot_stockage:"Dépôt de stockage", batiment_industriel:"Bâtiment industriel", immobiliers_divers:"Immobiliers divers" };
 const CAT_FR   = { vente:"Achat", location:"Location", vacances:"Vacances" };
 const ETAT_FR  = { nouveau:"Neuf", bon_etat:"Bon état", a_renover:"À rénover", cours_construction:"En construction" };
 
@@ -88,7 +89,7 @@ function fmtMoisAnnee(ym) {
 function normalizeApi(a) {
   const loc = [a.localite, a.delegation, a.gouvernorat].filter(Boolean).join(", ");
   return {
-    id: a.id, titre: a.titre, prix: a.prix, prix_ancien: a.prix_ancien || null, devise: a.devise,
+    id: a.id, localisation_exacte: a.localisation_exacte !== false, titre: a.titre, prix: a.prix, prix_ancien: a.prix_ancien || null, devise: a.devise,
     location: loc || "Tunisie",
     address: a.address || null, gouvernorat: a.gouvernorat || null,
     delegation: a.delegation || null, localite: a.localite || null,
@@ -774,6 +775,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
               </div>
               <h1 className="det-card__titre">{prop.titre}</h1>
               <div className="det-addr">
+                {prop.localisation_exacte&&<LocalisationExacteBadge style={{marginBottom:6}} />}
                 {prop.address&&<p className="det-addr__street"><MapPin size={13} className="det-addr__ico"/>{prop.address}</p>}
                 <div className="det-addr__hier">
                   {prop.localite&&<span className="det-addr__chip det-addr__chip--loc">{prop.localite}</span>}
@@ -902,7 +904,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
                   <tbody>
                     {samePointList.map(a => {
                       const isActive = String(a.id) === String(activeId);
-                      const typeFr = { appartement:"Appt.", duplex:"Duplex", penthouse:"Penthouse", villa:"Villa", villa_maison:"Villa", terrain:"Terrain", bureau:"Bureau", local_commercial:"Local com.", ferme:"Ferme", immeuble:"Immeuble", garage_parking:"Garage" };
+                      const typeFr = { appartement:"Appt.", duplex:"Duplex", triplex:"Triplex", penthouse:"Penthouse", villa:"Villa", villa_maison:"Villa", terrain:"Terrain", bureau:"Bureau", local_commercial:"Local com.", ferme:"Ferme", immeuble:"Immeuble", garage_parking:"Garage" };
                       const catFr  = { vente:"Achat", location:"Location", vacances:"Vacances" };
                       const imgSrc = a.image_principale ? (a.image_principale.startsWith("http") ? a.image_principale : `${API_URL}${a.image_principale}`) : null;
                       return (

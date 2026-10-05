@@ -384,6 +384,9 @@ class AnnoncePublic(BaseModel):
     etat_bien: Optional[str] = None
     titre_foncier: Optional[bool] = None
     prix_ancien: Optional[float] = None
+    localisation_exacte: bool = True   # False = annonce importée (position approximative)
+    source: Optional[str] = None
+    source_url: Optional[str] = None
     # Superficie du jardin (m²), si le bien en a un — s'ajoute à la superficie
     # habitable pour le calcul du prix/m² (voir utils/priceEval.js côté front).
     surface_jardin: Optional[float] = None

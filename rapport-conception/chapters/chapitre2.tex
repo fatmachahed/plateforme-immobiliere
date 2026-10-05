@@ -1,0 +1,122 @@
+% ===================== CHAPITRE 1 : CONTEXTE GÉNÉRAL =====================
+
+\section*{Introduction}
+Ce chapitre situe le projet~: présentation de l'organisme d'accueil, analyse de
+l'existant, formulation de la problématique et des objectifs, puis cahier des
+charges.
+
+\section{Présentation de l'organisme d'accueil}
+\label{sec:organisme}
+
+\begin{tcolorbox}[colback=codebg,colframe=subtitle,title=À compléter]
+Section à rédiger avec les informations officielles de \rapportEntreprise\
+(dénomination, forme juridique, création, effectif, activité, organigramme).
+Le tableau ci-dessous sert de trame.
+\end{tcolorbox}
+
+\begin{table}[H]
+\centering
+\renewcommand{\arraystretch}{1.25}
+\begin{tabularx}{\linewidth}{>{\bfseries}p{4cm} X}
+\toprule
+Raison sociale     & \rapportEntreprise \\
+Forme juridique    & [SARL / SUARL / SA] \\
+Date de création   & [\ldots] \\
+Siège social       & [Adresse, gouvernorat] \\
+Activité           & Édition de logiciels / services numériques \\
+Effectif           & [\ldots] \\
+\bottomrule
+\end{tabularx}
+\caption{Fiche d'identité de l'organisme d'accueil}
+\label{tab:fiche-entreprise}
+\end{table}
+
+\section{Étude de l'existant}
+\label{sec:existant}
+
+La diffusion d'annonces immobilières en Tunisie repose sur des portails de
+petites annonces généralistes, des sites d'agences et des réseaux sociaux.
+L'analyse de ces solutions fait ressortir les limites suivantes~:
+
+\begin{table}[H]
+\centering
+\renewcommand{\arraystretch}{1.25}
+\begin{tabularx}{\linewidth}{>{\bfseries}p{4.2cm} X}
+\toprule
+Localisation approximative & Champ « ville » ou « quartier » en texte libre, sans position sur carte. \\
+Recherche peu ergonomique  & Filtres limités, pas de recherche « autour de moi » ni par zone. \\
+Découpage territorial ignoré & Le triplet gouvernorat / délégation / localité n'est pas exploité de façon structurée. \\
+Qualité des annonces        & Doublons, annonces obsolètes, peu de modération. \\
+Expérience mobile           & Interfaces non pensées « mobile-first ». \\
+\bottomrule
+\end{tabularx}
+\caption{Limites des solutions existantes}
+\label{tab:limites-existant}
+\end{table}
+
+\section{Problématique et objectifs}
+\label{sec:problematique}
+
+Il s'agit de concevoir une plateforme permettant de \emph{publier, géolocaliser
+et rechercher} des biens immobiliers en Tunisie, en s'appuyant sur le découpage
+territorial national et sur une carte interactive. Les objectifs sont~:
+
+\begin{itemize}[label=\textbullet,itemsep=1pt]
+  \item offrir une \textbf{recherche cartographique} fluide (déplacement, zoom,
+        regroupement de marqueurs, recherche par zone)~;
+  \item permettre la \textbf{publication géolocalisée} d'une annonce par
+        placement d'un point sur la carte et géocodage inverse de l'adresse~;
+  \item structurer les données autour du référentiel
+        \textbf{gouvernorat $\rightarrow$ délégation $\rightarrow$ localité}~;
+  \item gérer plusieurs \textbf{profils d'utilisateurs} et leurs droits~;
+  \item proposer une expérience \textbf{responsive}, pensée pour le mobile.
+\end{itemize}
+
+\section{Cahier des charges}
+\label{sec:cahier-des-charges}
+
+\begin{table}[H]
+\centering
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\linewidth}{>{\bfseries}p{1.3cm} p{3.2cm} X}
+\toprule
+Réf. & Module & Description \\
+\midrule
+BF-01 & Comptes         & Inscription, connexion, profil, rôles. \\
+BF-02 & Annonces        & Création, modification, suppression, publication. \\
+BF-03 & Géolocalisation & Placement sur carte, latitude/longitude, géocodage inverse. \\
+BF-04 & Référentiel géo. & Sélection gouvernorat / délégation / localité, recherche de lieu. \\
+BF-05 & Recherche       & Filtres (catégorie, type, prix, surface, pièces\ldots), recherche sur carte. \\
+BF-06 & Détail bien     & Fiche complète, galerie photos, carte de situation, contact. \\
+BF-07 & Favoris \& alertes & Enregistrer un bien, sauvegarder une recherche, alerte de prix. \\
+BF-08 & Comparateur     & Comparer plusieurs biens. \\
+BF-09 & Espace agence   & Portefeuille d'annonces, agents, tableau de bord. \\
+BF-10 & Modération      & Validation / refus des annonces, gestion des comptes (admin). \\
+\bottomrule
+\end{tabularx}
+\caption{Besoins fonctionnels}
+\label{tab:besoins-fonctionnels}
+\end{table}
+
+\begin{table}[H]
+\centering
+\renewcommand{\arraystretch}{1.2}
+\begin{tabularx}{\linewidth}{>{\bfseries}p{3cm} X}
+\toprule
+Exigence & Description \\
+\midrule
+Ergonomie     & Interface claire, « mobile-first », conforme aux heuristiques de Nielsen. \\
+Performance   & Affichage carte et résultats $<$ 2~s~; regroupement des marqueurs. \\
+Portabilité   & Application web responsive, navigateurs récents. \\
+Sécurité      & Authentification, contrôle d'accès par rôle. \\
+Maintenabilité & Architecture en couches, modèle de données extensible. \\
+Conformité    & Respect des principes du RGPD. \\
+\bottomrule
+\end{tabularx}
+\caption{Besoins non fonctionnels}
+\label{tab:besoins-non-fonctionnels}
+\end{table}
+
+\section*{Conclusion}
+Le cadre du projet est posé~: contexte, existant, problématique et cahier des
+charges. Le chapitre suivant présente la solution proposée.

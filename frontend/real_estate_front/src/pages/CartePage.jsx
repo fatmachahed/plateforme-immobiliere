@@ -26,6 +26,7 @@ import Logo from "../components/Logo";
 import useLocalisation from "../hooks/useLocalisation";
 import { getDelegations } from "../api/localisation.api";
 import AnnonceDetailModal from "./AnnonceDetailModal";
+import LocalisationExacteBadge from "../components/LocalisationExacteBadge";
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
@@ -262,10 +263,11 @@ const GRAND_SURFACES = [
   { id:"gs27",nom:"MG Manouba",                        lat:36.812, lng:10.100, gov:"Manouba"    },
 ];
 
-const TYPES    = ["appartement","duplex","penthouse","villa_maison","immeuble","terrain","local_commercial","bureau","ferme_agricole","garage_parking","depot_stockage","batiment_industriel","immobiliers_divers"];
+const TYPES    = ["appartement","duplex","triplex","penthouse","villa_maison","immeuble","terrain","local_commercial","bureau","ferme_agricole","garage_parking","depot_stockage","batiment_industriel","immobiliers_divers"];
 const TYPE_LBL = {
   appartement:       "Appartement",
   duplex:            "Duplex",
+  triplex:           "Triplex",
   penthouse:         "Penthouse",
   villa_maison:      "Villa/Maison",
   immeuble:          "Immeuble",
@@ -484,6 +486,9 @@ function PropCard({ p, active, onHover, onClick, govMarketStats, compact }) {
           <span className={`pc__cat-badge pc__cat-badge--${p.categorie}`}>
             {p.categorie === "location" ? "Location" : "Vacances"}
           </span>
+        )}
+        {p.localisation_exacte && (
+          <LocalisationExacteBadge style={{position:"absolute",bottom:8,left:8,zIndex:10,backdropFilter:"blur(4px)"}} />
         )}
         {(() => {
           const isNeuf = p.etat === "nouveau" && p.categorie === "vente";
@@ -1884,7 +1889,7 @@ function FilterPanel({ filters, onChange, onSaveSearch, showSchools, showMosques
             }}>
               <option value="">Tous</option>
               {(local.categories?.length === 1 && local.categories[0] === "vacances"
-                ? ["appartement","duplex","penthouse","villa_maison","immobiliers_divers"]
+                ? ["appartement","duplex","triplex","penthouse","villa_maison","immobiliers_divers"]
                 : TYPES
               ).map(t=><option key={t} value={t}>{TYPE_LBL[t] || ucFirst(t)}</option>)}
             </select>
@@ -1959,7 +1964,7 @@ function FilterPanel({ filters, onChange, onSaveSearch, showSchools, showMosques
             </div>
           )}
           {/* ── APPARTEMENT ── */}
-          {["appartement","duplex","penthouse"].includes(local.type) && (<>
+          {["appartement","duplex","triplex","penthouse"].includes(local.type) && (<>
             <div className="fp__adv-group">
               <label className="fp__adv-label">Type de logement</label>
               <select className="fp__adv-sel" value={local.type_appartement||""} onChange={e=>set("type_appartement",e.target.value)}>
@@ -2137,7 +2142,7 @@ function FilterPanel({ filters, onChange, onSaveSearch, showSchools, showMosques
           </div>
 
           {/* Niveau de standing � pour types résidentiels/commerciaux */}
-          {["appartement","duplex","penthouse","villa","villa_maison","immeuble","local_commercial","bureau"].includes(local.type) && (
+          {["appartement","duplex","triplex","penthouse","villa","villa_maison","immeuble","local_commercial","bureau"].includes(local.type) && (
             <div className="fp__adv-group">
               <label className="fp__adv-label">Standing</label>
               <select className="fp__adv-sel" value={local.standing||""} onChange={e=>set("standing",e.target.value)}>
@@ -2150,7 +2155,7 @@ function FilterPanel({ filters, onChange, onSaveSearch, showSchools, showMosques
           )}
 
           {/* Colocation */}
-          {(local.type === "" || local.type === "appartement" || local.type === "duplex" || local.type === "penthouse" || local.type === "villa" || local.type === "villa_maison") && (
+          {(local.type === "" || local.type === "appartement" || local.type === "duplex" || local.type === "triplex" || local.type === "penthouse" || local.type === "villa" || local.type === "villa_maison") && (
             <div className="fp__adv-group fp__adv-group--full" style={{alignSelf:"flex-end",flex:"none"}}>
               <label className="fp__adv-label">Colocation</label>
               <label style={{
@@ -2355,6 +2360,7 @@ function computeScore(p) {
 function transformApiAnnonce(a) {
   return {
     id:            `api_${a.id}`,
+    localisation_exacte: a.localisation_exacte !== false,
     _realId:       a.id,
     titre:         a.titre,
     prix:          a.prix,
@@ -3262,7 +3268,7 @@ export default function CartePage() {
     filters.standing         && { label: ({economique:"Économique",moyen_standing:"Moyen standing",haut_standing:"Haut standing"})[filters.standing] || filters.standing, key:"standing", color:"#0e7490" },
     filters.anciennete       && { label: ({1:"Aujourd'hui",7:"7 derniers jours",30:"30 derniers jours",60:"60 derniers jours",90:"3 derniers mois",180:"6 derniers mois"})[filters.anciennete] || `${filters.anciennete} jours`, key:"anciennete", color:"#0f766e" },
     filters.etage_min        && { label: filters.etage_min==="0"?"RDC":`Étage ≥ ${filters.etage_min}`, key:"etage_min", color:"#4338ca" },
-    filters.type_appartement && { label: ({studio:"Studio",s0:"S0","s+1":"S+1","s+2":"S+2","s+3":"S+3","s+4":"S+4",duplex:"Duplex",penthouse:"Penthouse"})[filters.type_appartement] || filters.type_appartement, key:"type_appartement", color:"#be185d" },
+    filters.type_appartement && { label: ({studio:"Studio",s0:"S0","s+1":"S+1","s+2":"S+2","s+3":"S+3","s+4":"S+4",duplex:"Duplex", triplex:"Triplex",penthouse:"Penthouse"})[filters.type_appartement] || filters.type_appartement, key:"type_appartement", color:"#be185d" },
     filters.titre_foncier && { label:"Titre foncier",     key:"titre_foncier", color:"#15803d" },
     filters.colocation    && { label:"Colocation",         key:"colocation",    color:"#6366f1" },
     ...(filters.features||[]).map(k => ({ label: k.replace(/_/g," "), key:`feat_${k}`, color:"#7c3aed" })),

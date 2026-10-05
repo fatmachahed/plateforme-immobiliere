@@ -1,0 +1,137 @@
+@startuml uc-global
+' Diagramme de cas d'utilisation global
+' Plateforme de géolocalisation des biens immobiliers en Tunisie
+' Rendu : PlantUML (https://www.plantuml.com/plantuml) ou extension VS Code
+
+left to right direction
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+
+' ---------- ACTEURS ----------
+actor "Visiteur"        as Visiteur
+actor "Particulier"     as Particulier
+actor "Professionnel\n(agent / agence / promoteur)" as Pro
+actor "Administrateur"  as Admin
+
+actor "Service de\ncartographie / géocodage" as GEO
+actor "Service de\nmessagerie (e-mail / WhatsApp)" as MSG
+
+' Généralisations : un Particulier est un Visiteur authentifié, etc.
+Particulier --|> Visiteur
+Pro         --|> Particulier
+Admin       --|> Particulier
+
+rectangle "Plateforme de géolocalisation des biens immobiliers" {
+
+  ' ---------- CONSULTATION (Visiteur) ----------
+  usecase "S'inscrire"                       as UC_Inscr
+  usecase "Consulter la liste des annonces"  as UC_Liste
+  usecase "Consulter la carte"               as UC_Carte
+  usecase "Rechercher / filtrer les annonces" as UC_Rech
+  usecase "Consulter le détail d'une annonce" as UC_Detail
+  usecase "Localiser une annonce sur la carte" as UC_Situ
+  usecase "Contacter l'annonceur"            as UC_Contact
+  usecase "Comparer des biens"               as UC_Compare
+  usecase "Consulter un agent / une agence"  as UC_Agent
+
+  ' ---------- MEMBRE ----------
+  usecase "S'authentifier"                   as UC_Auth
+  usecase "Gérer son profil"                 as UC_Profil
+  usecase "Publier une annonce"              as UC_Publier
+  usecase "Localiser le bien sur la carte"   as UC_GeoBien
+  usecase "Ajouter des photos"               as UC_Photos
+  usecase "Gérer ses annonces"               as UC_MesAnn
+  usecase "Modifier une annonce"             as UC_ModAnn
+  usecase "Supprimer une annonce"            as UC_SupAnn
+  usecase "Marquer le bien vendu / loué"     as UC_Vendu
+  usecase "Gérer ses favoris"                as UC_Fav
+  usecase "Gérer ses alertes\n(recherches sauvegardées)" as UC_Alert
+
+  ' ---------- PROFESSIONNEL ----------
+  usecase "Gérer le portefeuille de l'agence" as UC_Portef
+  usecase "Gérer les agents"                  as UC_Agents
+  usecase "Consulter le tableau de bord"      as UC_Dash
+  usecase "Souscrire un abonnement / booster" as UC_Abo
+
+  ' ---------- ADMINISTRATION ----------
+  usecase "Modérer les annonces"             as UC_Moder
+  usecase "Valider une annonce"              as UC_Valider
+  usecase "Refuser une annonce (avec motif)" as UC_Refuser
+  usecase "Gérer les comptes"                as UC_Comptes
+  usecase "Créer un compte"                  as UC_CrCompte
+  usecase "Modifier un compte"               as UC_ModCompte
+  usecase "Bloquer / débloquer un compte"    as UC_BlkCompte
+  usecase "Supprimer un compte"              as UC_SupCompte
+  usecase "Gérer le référentiel géographique" as UC_Ref
+  usecase "Consulter les statistiques globales" as UC_StatsG
+}
+
+' ---------- ASSOCIATIONS : Visiteur ----------
+Visiteur -- UC_Inscr
+Visiteur -- UC_Liste
+Visiteur -- UC_Carte
+Visiteur -- UC_Detail
+Visiteur -- UC_Compare
+Visiteur -- UC_Agent
+Visiteur -- UC_Contact
+
+' ---------- ASSOCIATIONS : Particulier ----------
+Particulier -- UC_Profil
+Particulier -- UC_Publier
+Particulier -- UC_MesAnn
+Particulier -- UC_Fav
+Particulier -- UC_Alert
+
+' ---------- ASSOCIATIONS : Professionnel ----------
+Pro -- UC_Portef
+Pro -- UC_Agents
+Pro -- UC_Dash
+Pro -- UC_Abo
+
+' ---------- ASSOCIATIONS : Administrateur ----------
+Admin -- UC_Moder
+Admin -- UC_Comptes
+Admin -- UC_Ref
+Admin -- UC_StatsG
+
+' ---------- ACTEURS SECONDAIRES ----------
+UC_Carte   -- GEO
+UC_Situ    -- GEO
+UC_GeoBien -- GEO
+UC_Contact -- MSG
+UC_Abo     -- MSG
+
+' ---------- INCLUDE ----------
+UC_Liste  ..> UC_Rech   : <<include>>
+UC_Carte  ..> UC_Rech   : <<include>>
+UC_Detail ..> UC_Situ   : <<include>>
+UC_Publier ..> UC_Auth  : <<include>>
+UC_Publier ..> UC_GeoBien : <<include>>
+UC_Publier ..> UC_Photos : <<include>>
+UC_Profil ..> UC_Auth   : <<include>>
+UC_MesAnn ..> UC_Auth   : <<include>>
+UC_Fav    ..> UC_Auth   : <<include>>
+UC_Alert  ..> UC_Auth   : <<include>>
+UC_Portef ..> UC_Auth   : <<include>>
+UC_Dash   ..> UC_Auth   : <<include>>
+UC_Abo    ..> UC_Auth   : <<include>>
+UC_Moder  ..> UC_Auth   : <<include>>
+UC_Comptes ..> UC_Auth  : <<include>>
+UC_Ref    ..> UC_Auth   : <<include>>
+UC_StatsG ..> UC_Auth   : <<include>>
+
+' ---------- EXTEND ----------
+UC_Contact ..> UC_Detail : <<extend>>
+UC_Compare ..> UC_Liste  : <<extend>>
+UC_Alert   ..> UC_Rech   : <<extend>>
+UC_ModAnn  ..> UC_MesAnn : <<extend>>
+UC_SupAnn  ..> UC_MesAnn : <<extend>>
+UC_Vendu   ..> UC_MesAnn : <<extend>>
+UC_Valider ..> UC_Moder  : <<extend>>
+UC_Refuser ..> UC_Moder  : <<extend>>
+UC_CrCompte  ..> UC_Comptes : <<extend>>
+UC_ModCompte ..> UC_Comptes : <<extend>>
+UC_BlkCompte ..> UC_Comptes : <<extend>>
+UC_SupCompte ..> UC_Comptes : <<extend>>
+
+@enduml

@@ -1,0 +1,349 @@
+\documentclass[a4paper, 12pt]{report}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage[table]{xcolor}
+\usepackage{tabularx}
+\usepackage[utf8]{inputenc}
+\usepackage{multirow} % Pour fusionner les cellules sur plusieurs lignes
+\usepackage[french]{babel}
+\usepackage{underscore}
+\usepackage[T1]{fontenc}
+\usepackage{tikz}
+\usepackage{graphicx} % Package pour gérer les images
+% Préambule (packages, configurations, etc.)
+\usepackage[utf8]{inputenc} % Encodage du texte en UTF-8
+\usepackage[T1]{fontenc}    % Encodage des polices en T1 (accents, etc.)
+\usepackage{tcolorbox}
+\usepackage{xcolor} % Pour la gestion des couleurs
+\usepackage{titlesec} % Pour personnaliser le style des sections
+\usepackage{ragged2e}
+\usepackage{geometry}
+\usepackage{fancyhdr}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage[
+    hidelinks
+]{hyperref}
+\geometry{
+    a4paper,
+    total={170mm,257mm},
+    left=25mm,
+    top=30mm,
+     bottom=25mm % Ajuster la marge inférieure
+}
+\setlength{\parskip}{1ex plus 0.5ex minus 0.2ex}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{enumitem}
+\usepackage{caption}
+\usepackage{longtable}
+\usepackage[french, capitalise, nameinlink]{cleveref}
+%\counterwithin{figure}{part} % Numéroter les figures selon la section
+%\counterwithin{table}{part}
+% Définition du format des titres de partie
+
+% Définition du format des titres de partie
+\titleformat{\part}[display]
+  {\normalfont\huge\bfseries\color{subtitle}}
+  {\partformat}
+  {0pt}
+  {\Huge}
+
+\newcommand{\rapportEntreprise}{[Nom de l'organisme d'accueil]} % À ADAPTER
+% Format pour le numéro de partie
+\newcommand{\partformat}{Chapitre \thepart}
+
+% Changer la numérotation des parties
+\renewcommand{\thepart}{\arabic{part}}
+
+
+
+
+\DeclareCaptionFormat{customformat}{\textbf{{#1#2}}#3}
+\captionsetup[figure]{format=customformat}
+
+\DeclareCaptionFormat{tablecustomformat}{\textbf{{#1#2}}#3}
+\captionsetup[table]{format=tablecustomformat}
+
+% Définition des couleurs personnalisées
+\definecolor{customcolor}{HTML}{ED6E0A}
+\definecolor{subtitle}{HTML}{047F64}
+\definecolor{subtitle1}{HTML}{0077b6}
+\definecolor{tablegray}{gray}{0.7}
+
+% Personnalisation du style des titres de section
+\titleformat*{\section}{\fontsize{20}{25}\selectfont\bfseries}
+\titleformat*{\subsection}{\Large\bfseries}
+\titleformat*{\subsubsection}{\large\bfseries}
+\setcounter{secnumdepth}{3}
+
+\usepackage{listings}
+
+\definecolor{codebg}{HTML}{F5F5F5}
+\definecolor{codekeyword}{HTML}{0057AE}
+\definecolor{codecomment}{HTML}{6A9955}
+\definecolor{codestring}{HTML}{A31515}
+
+\lstdefinestyle{monstyle}{
+    backgroundcolor=\color{codebg},
+    commentstyle=\color{codecomment}\itshape,
+    keywordstyle=\color{codekeyword}\bfseries,
+    stringstyle=\color{codestring},
+    basicstyle=\ttfamily\small,
+    breaklines=true,
+    frame=single,
+    rulecolor=\color{gray!50},
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    numbersep=8pt,
+    showstringspaces=false,
+    xleftmargin=15pt,
+    framexleftmargin=15pt,
+}
+\lstset{style=monstyle}
+
+\usepackage{graphicx} % Assurez-vous que ce package est inclus dans le préambule
+\usetikzlibrary{positioning}
+% Configuration du format des titres de chapitre
+\usepackage{titlesec}
+\titleformat{\chapter}[display]{\normalfont\huge\bfseries}{Chapitre \thechapter}{20pt}{\Huge}
+\usepackage{graphicx} % Assurez-vous que ce package est inclus dans le préambule
+\titlespacing*{\chapter}{0pt}{2.52pt}{2.52pt}
+% Informations sur le document
+\title{\textbf{Rapport de Projet de Fin d'Études}}
+
+\author{Réalisé par: \\
+        Fatma Chahed  }
+\date{ Date: \today}
+% ===================== MÉTADONNÉES ===================== % À ADAPTER
+\newcommand{\Universite}{Université de Tunis El Manar} % À ADAPTER
+\newcommand{\Departement}{Département Informatique} % À ADAPTER
+\newcommand{\Matiere}{Génie logiciel / Systèmes d'information géographique}
+\newcommand{\Intitule}{Conception et modélisation d'une plateforme de géolocalisation des biens immobiliers en Tunisie}
+\newcommand{\SousIntitule}{}
+\newcommand{\SousTitre}{Rapport de Projet de Fin d'Études}
+\newcommand{\Etudiante}{Fatma CHAHED} % À ADAPTER
+\newcommand{\Encadranted}{Mme./M. [Encadrant académique]} % À ADAPTER
+\newcommand{\Encadrantew}{Mme./M. [Encadrant professionnel]} % À ADAPTER
+\newcommand{\Annee}{2025--2026}
+\newcommand{\titreintro}[1]{%
+    \vspace{1em}
+    \noindent
+    {\LARGE\bfseries #1}
+    \vspace{0.5em}
+}
+
+\begin{document}
+% ----------- PAGE DE GARDE -----------
+\thispagestyle{empty}
+\begin{center}
+    \noindent
+    \begin{minipage}{0.48\textwidth}
+        \raggedright
+            \includegraphics[height=3.5cm]{images/logo-universite.png} % À FOURNIR
+    \end{minipage}
+    \hfill
+    \begin{minipage}{0.4\textwidth}
+        \raggedleft
+            \includegraphics[height=1.8cm]{images/logo-entreprise.png} % À FOURNIR
+    \end{minipage}
+
+    \vspace{0.8cm}
+    {\Large \textbf{Projet de Fin d'Études pour l'obtention du diplôme de [Licence / Mastère] en Informatique}}\\[0.25cm]
+    {\large \Universite}\\[1cm]
+    {\large\textbf{Année universitaire :} \Annee\\[6pt]}
+\end{center}
+
+% ----------- TITRE ENTRE DEUX FILETS HORIZONTAUX (sans cadre) -----------
+\vspace{0.2cm}
+\begin{center}
+    {\rule{\linewidth}{1.2pt}}\\[0.9cm]
+    {\huge\bfseries\Intitule\par}
+    \vspace{0.35cm}
+    {\huge\bfseries\SousIntitule\par}
+    \vspace{0.9cm}
+    {\Large\bfseries \SousTitre\par}
+    \vspace{0.9cm}
+    {\rule{\linewidth}{1.2pt}}
+\end{center}
+
+% ----------- BLOC INFOS : Étudiante à gauche, Encadrantes à droite -----------
+\vspace{1.2cm}
+\noindent\makebox[\linewidth]{%
+  \begin{minipage}[t]{0.42\linewidth}
+    \raggedright
+    {\large\textbf{Élaboré par :}}\\[8pt]
+    {\large \Etudiante}\\[15pt]
+    {\large\textbf{Au sein de :}}\\[8pt]
+    {\large \rapportEntreprise}\\[15pt]
+    % {\large\textbf{Année universitaire :}}\\[8pt]
+    % {\large 2025 / 2026}
+  \end{minipage}%
+  \hspace{0.14\linewidth}% <-- espace entre l'étudiante et les enseignantes
+  \begin{minipage}[t]{0.42\linewidth}
+    \raggedleft
+    {\large\textbf{Encadrant académique  :}}\\[8pt]
+    {\large \Encadranted}\\[15pt]
+    {\large\textbf{Encadrant professionnel :}}\\[8pt]
+    {\large \Encadrantew}
+  \end{minipage}%
+}
+
+
+% ----------- LIMINAIRES -----------
+\pagenumbering{roman}
+\section*{ \centering Dédicaces }
+
+
+À ma \textbf{chère mère}, qui m'a toujours encouragée et poussée à atteindre mes objectifs, je suis infiniment reconnaissante pour ta présence aimante et ton soutien indéfectible.
+\vspace{0.5cm}
+
+À mon \textbf{cher père}, qui a toujours été là pour m'aider à surmonter les difficultés, je suis profondément reconnaissante pour ta présence rassurante et ton soutien inébranlable.
+\vspace{0.5cm}
+
+À ma \textbf{famille} et à mes \textbf{amis les plus proches}, pour leur soutien constant et leurs encouragements tout au long de ce parcours.
+\vspace{0.5cm}
+
+À toutes les personnes qui, de près ou de loin, ont contribué à la réussite de ce travail.
+
+
+Avec toute ma reconnaissance,
+
+
+\begin{flushright}
+\textbf{\Etudiante}
+\end{flushright}
+
+\newpage
+\section* {\centering Remerciements }
+Ce travail n'aurait pas été mené à bien sans l'aide et le soutien de plusieurs personnes auxquelles je tiens à exprimer ma plus profonde gratitude.
+
+Je remercie tout d'abord mon encadrant académique, \textbf{\Encadranted}, pour sa disponibilité, ses conseils avisés et son accompagnement rigoureux tout au long de ce projet.
+
+Je remercie également mon encadrant professionnel, \textbf{\Encadrantew}, ainsi que l'ensemble de l'équipe de \textbf{\rapportEntreprise}, pour leur accueil, leur confiance et les moyens mis à ma disposition durant la période de stage.
+
+Mes remerciements s'adressent aussi aux membres du jury qui ont accepté d'évaluer ce travail, ainsi qu'à tout le corps enseignant de \Universite\ pour la qualité de la formation dispensée.
+
+Enfin, je remercie ma famille et mes amis pour leur soutien indéfectible.
+\vspace{1cm}
+
+\begin{flushright}
+\textbf{\Etudiante}
+\end{flushright}
+
+% --- Table des matières ---
+\renewcommand{\contentsname}{Table des matières}
+\tableofcontents
+
+\renewcommand{\listfigurename}{Table des figures}
+\listoffigures
+
+\renewcommand{\listtablename}{Liste des tableaux}
+\listoftables
+
+\newpage
+\section*{ \centering Liste des acronymes}
+\begin{itemize}
+    \item[--] \textbf{UML :} Unified Modeling Language
+    \item[--] \textbf{UI :} User Interface (interface utilisateur)
+    \item[--] \textbf{UX :} User Experience (expérience utilisateur)
+    \item[--] \textbf{MCD :} Modèle Conceptuel de Données
+    \item[--] \textbf{MLD :} Modèle Logique de Données
+    \item[--] \textbf{SGBD :} Système de Gestion de Base de Données
+    \item[--] \textbf{SIG :} Système d'Information Géographique
+    \item[--] \textbf{GPS :} Global Positioning System
+    \item[--] \textbf{OSM :} OpenStreetMap
+    \item[--] \textbf{API :} Application Programming Interface
+    \item[--] \textbf{CU :} Cas d'Utilisation
+    \item[--] \textbf{RGPD :} Règlement Général sur la Protection des Données
+    \item[--] \textbf{WCAG :} Web Content Accessibility Guidelines
+\end{itemize}
+\newpage
+
+% --- Résumé (page à part, avec un vrai titre) ---
+\newpage
+\section*{\centering Résumé}
+Ce rapport porte sur la \textbf{conception et la modélisation} d'une plateforme web
+de \textbf{géolocalisation des biens immobiliers en Tunisie}, destinée à mettre en
+relation particuliers, agences et promoteurs autour d'annonces immobilières
+localisées sur une carte interactive.
+
+Le travail couvre exclusivement la phase amont~: étude du contexte et des besoins,
+formalisation du cahier des charges, \textbf{modélisation UML} (diagrammes de cas
+d'utilisation, de classes et de séquence), \textbf{conception de la base de
+données} (modèle conceptuel, modèle logique et dictionnaire de données), puis
+\textbf{conception des interfaces utilisateur} selon une démarche UX/UI sous Figma
+(arborescence, wireframes, charte graphique, maquettes et prototype interactif).
+
+La contribution principale réside dans la définition d'un modèle de données
+structuré autour du découpage administratif tunisien (gouvernorat, délégation,
+localité) couplé à des coordonnées géographiques précises (latitude, longitude),
+et dans la conception d'un parcours utilisateur centré sur la recherche
+cartographique.
+
+\vspace{1.5em}
+\noindent\textbf{Mots-clés~:} géolocalisation, biens immobiliers, Tunisie, conception, modélisation UML, base de données, SIG, cartographie, UX/UI, Figma, maquettage.
+\clearpage
+
+\pagenumbering{arabic}
+
+% =================== CORPS DU RAPPORT ===================
+
+\chapter{Introduction générale}
+\label{chap:intro}
+\input{chapters/chapitre1}
+
+\chapter{Contexte général}
+\label{chap:contexte}
+\input{chapters/chapitre2}
+
+\chapter{Solution proposée}
+\label{chap:solution}
+\input{chapters/chapitre3}
+
+\chapter{Conception et modélisation}
+\label{chap:conception}
+\input{chapters/chapitre4}
+
+\chapter{Conception des interfaces utilisateur}
+\label{chap:uxui}
+\input{chapters/chapitre5}
+
+\chapter{Conclusion générale et perspectives}
+\label{chap:conclusion}
+\input{chapters/chapitre8}
+
+% =================== BIBLIOGRAPHIE ===================
+\begin{thebibliography}{99}
+\setlength{\itemsep}{10pt}
+
+\bibitem{ref:entreprise} Site de l'organisme d'accueil \rapportEntreprise, \url{https://exemple.tn/}, consulté en 2026. % À ADAPTER
+
+\bibitem{ref:uml} OMG, \emph{Unified Modeling Language (UML) Specification}, version 2.5.1, Object Management Group, \url{https://www.omg.org/spec/UML/}.
+
+\bibitem{ref:roques} P.~Roques, \emph{UML 2 par la pratique : études de cas et exercices corrigés}, Eyrolles.
+
+\bibitem{ref:merise} D.~Nanci, B.~Espinasse, \emph{Ingénierie des systèmes d'information : Merise}, Vuibert.
+
+\bibitem{ref:postgres} \emph{PostgreSQL Documentation}, The PostgreSQL Global Development Group, \url{https://www.postgresql.org/docs/}.
+
+\bibitem{ref:postgis} \emph{PostGIS -- Spatial and Geographic Objects for PostgreSQL}, \url{https://postgis.net/}.
+
+\bibitem{ref:leaflet} V.~Agafonkin, \emph{Leaflet -- an open-source JavaScript library for interactive maps}, \url{https://leafletjs.com/}.
+
+\bibitem{ref:osm} \emph{OpenStreetMap}, \url{https://www.openstreetmap.org/}.
+
+\bibitem{ref:nominatim} \emph{Nominatim -- Geocoding with OpenStreetMap data}, \url{https://nominatim.org/}.
+
+\bibitem{ref:ins} Institut National de la Statistique (Tunisie), \emph{Découpage administratif : gouvernorats, délégations, secteurs}, \url{https://www.ins.tn/}.
+
+\bibitem{ref:nielsen} J.~Nielsen, \emph{10 Usability Heuristics for User Interface Design}, Nielsen Norman Group, \url{https://www.nngroup.com/articles/ten-usability-heuristics/}.
+
+\bibitem{ref:wcag} W3C, \emph{Web Content Accessibility Guidelines (WCAG) 2.1}, \url{https://www.w3.org/TR/WCAG21/}.
+
+\bibitem{ref:figma} \emph{Figma -- The collaborative interface design tool}, \url{https://www.figma.com/}.
+
+\end{thebibliography}
+
+\end{document}

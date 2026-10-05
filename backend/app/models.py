@@ -176,6 +176,11 @@ class Annonce(Base):
     views_count = Column(Integer, default=0)
     prix_ancien = Column(Numeric(12, 2), nullable=True)
 
+    # Import flux partenaire (ex: "century21"). source NULL = annonce publiée sur Localizi
+    source     = Column(String, nullable=True)
+    source_id  = Column(String, nullable=True)   # identifiant de l'annonce chez le partenaire
+    source_url = Column(String, nullable=True)   # fiche d'origine chez le partenaire
+
     date_creation = Column(DateTime, default=datetime.utcnow)
     date_mise_a_jour = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

@@ -144,6 +144,22 @@ with engine.connect() as conn:
         "ALTER TYPE statusenum ADD VALUE IF NOT EXISTS 'supprimee';",
         # Nouveau type de bien "duplex" — mêmes caractéristiques que appartement
         "ALTER TYPE typebienenum ADD VALUE IF NOT EXISTS 'duplex';",
+        # Localité mal orthographiée dans le référentiel : "Berge du Lac" -> "Berges du Lac" (La Marsa, Tunis)
+        """
+        UPDATE localites SET nom = 'Berges Du Lac'
+        WHERE lower(nom) = 'berge du lac'
+          AND delegation_id IN (
+            SELECT d.id FROM delegations d JOIN gouvernorats g ON g.id = d.gouvernorat_id
+            WHERE lower(d.nom) = 'la marsa' AND lower(g.nom) = 'tunis');
+        """,
+        # Nouveau type de bien "triplex" — mêmes caractéristiques que duplex
+        "ALTER TYPE typebienenum ADD VALUE IF NOT EXISTS 'triplex';",
+        # Annonces importées d'un flux partenaire (ex: Century 21) : source NULL = annonce
+        # publiée sur Localizi (localisation exacte), sinon localisation approximative
+        "ALTER TABLE annonces ADD COLUMN IF NOT EXISTS source VARCHAR;",
+        "ALTER TABLE annonces ADD COLUMN IF NOT EXISTS source_id VARCHAR;",
+        "ALTER TABLE annonces ADD COLUMN IF NOT EXISTS source_url VARCHAR;",
+        "CREATE UNIQUE INDEX IF NOT EXISTS ux_annonces_source ON annonces (source, source_id);",
         # Nouveau type de bien "penthouse" — mêmes caractéristiques que appartement
         "ALTER TYPE typebienenum ADD VALUE IF NOT EXISTS 'penthouse';",
         # Rôle interne "manager commercial" — suivi de l'apport de leads
@@ -359,7 +375,7 @@ import unicodedata as _unicodedata
 from fastapi.responses import Response as _XmlResponse
 
 _SITEMAP_TYPE_LBL = {
-    "appartement": "appartement", "duplex": "duplex", "penthouse": "penthouse", "villa": "villa-maison",
+    "appartement": "appartement", "duplex": "duplex", "triplex": "triplex", "penthouse": "penthouse", "villa": "villa-maison",
     "villa_maison": "villa-maison", "maison": "villa-maison", "immeuble": "immeuble",
     "terrain": "terrain", "local_commercial": "local-commercial", "bureau": "bureau",
     "ferme_agricole": "ferme-agricole", "ferme": "ferme-agricole",
