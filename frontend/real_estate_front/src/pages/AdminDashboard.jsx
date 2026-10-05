@@ -1125,7 +1125,7 @@ Permission du navigateur : ${Notification.permission}`);
                     </div>
                     <div className="adm-modal__foot">
                       <button className="adm-modal__cancel" disabled={bulkBusy} onClick={() => setBulkOpen(false)}>Annuler</button>
-                      <button className="adm-modal__save" disabled={bulkBusy || !bulkInfo || bulkInfo.a_approuver === 0} onClick={confirmBulk}>
+                      <button className="adm-modal__save" style={{background:"#16a34a"}} disabled={bulkBusy || !bulkInfo || bulkInfo.a_approuver === 0} onClick={confirmBulk}>
                         {bulkBusy ? "Validation…" : `Approuver ${bulkInfo ? bulkInfo.a_approuver : ""} annonce${bulkInfo && bulkInfo.a_approuver > 1 ? "s" : ""}`}
                       </button>
                     </div>
