@@ -478,6 +478,7 @@ function buildPrefill(a) {
     standing:          a.standing || "",
     accompagnement:    a.accompagnement || false,
     anonyme:           a.anonyme || false,
+    localisation_exacte: a.localisation_exacte !== false,
     jardin:            featHas("Jardin"),
     terrasse:          featHas("Terrasse"),
     balcon:            feat.includes("Balcon"),
@@ -714,7 +715,7 @@ export const CreateListingForm = ({ editId = null }) => {
     gouvernorat: "", delegation: "", localite: "",
     address: "Tunis, Tunisie", latitude: "36.8065", longitude: "10.1815",
     titre: "", superficie: "", prix: "", devise: "TND", description: "",
-    duree_type: "", duree_valeur: "", accompagnement: true, anonyme: false,
+    duree_type: "", duree_valeur: "", accompagnement: true, anonyme: false, localisation_exacte: true,
     colocation: false, profil_coloc: "tous", genre_coloc: [], chambres_coloc: [],
     allImages: [], mainImageIndex: 0
   };
@@ -1578,6 +1579,7 @@ export const CreateListingForm = ({ editId = null }) => {
         duree_type:        formData.duree_type  || null,
         duree_valeur:      formData.duree_valeur || null,
         anonyme:                   formData.anonyme || false,
+        localisation_exacte:       formData.localisation_exacte !== false,
         accompagnement:            formData.accompagnement || false,
         accompagnement_agence_id:  agenceChoisie ? parseInt(agenceChoisie) : null,
         commercial_id:             commercialChoisi ? parseInt(commercialChoisi) : null,
@@ -3369,6 +3371,24 @@ export const CreateListingForm = ({ editId = null }) => {
                           <input type="text" className="ca-input ca-input--sm"
                             placeholder="10.1815" value={formData.longitude}
                             onChange={e => handleInputChange("longitude", e.target.value)}/>
+                        </div>
+                      </div>
+
+                      {/* Badge « Localisation exacte » affiché sur la photo de l'annonce */}
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,marginTop:16,padding:"12px 14px",background:"#f8f9ff",border:"1px solid #e0e7ff",borderRadius:12}}>
+                        <div style={{minWidth:0}}>
+                          <div style={{fontSize:13.5,fontWeight:700,color:"#0f172a"}}>Localisation exacte</div>
+                          <div style={{fontSize:12,color:"#94a3b8"}}>Le repère de la carte correspond bien à l'emplacement du bien · badge affiché sur la photo</div>
+                        </div>
+                        <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+                          <span style={{fontSize:12.5,fontWeight:700,color: formData.localisation_exacte ? "#16a34a" : "#94a3b8",transition:"color .2s",minWidth:24}}>
+                            {formData.localisation_exacte ? "Oui" : "Non"}
+                          </span>
+                          <label className="ca-anon-sw">
+                            <input type="checkbox" checked={!!formData.localisation_exacte}
+                              onChange={e => handleInputChange("localisation_exacte", e.target.checked)}/>
+                            <span className="ca-anon-sw__track"/>
+                          </label>
                         </div>
                       </div>
                     </div>

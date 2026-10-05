@@ -263,7 +263,7 @@ def search_annonces_public(
             etat_bien=a.etat_bien.value if a.etat_bien and hasattr(a.etat_bien, "value") else (str(a.etat_bien) if a.etat_bien else None),
             titre_foncier=bool(a.titre_foncier) if a.titre_foncier is not None else None,
             prix_ancien=float(a.prix_ancien) if a.prix_ancien else None,
-            localisation_exacte=a.source is None,
+            localisation_exacte=a.source is None and a.localisation_exacte is not False,
             source=a.source, source_url=a.source_url,
             surface_jardin=a.caractere_general.surface_jardin if a.caractere_general else None,
         ))
@@ -346,7 +346,7 @@ def get_map_pins(
                 "devise": a.devise.value if hasattr(a.devise, 'value') else str(a.devise),
                 "type_bien": a.type_bien.value if hasattr(a.type_bien, 'value') else str(a.type_bien),
                 "boost_level": a.boost_level or 0,
-                "localisation_exacte": a.source is None,
+                "localisation_exacte": a.source is None and a.localisation_exacte is not False,
                 "latitude": a.property.latitude,
                 "longitude": a.property.longitude,
             })
@@ -543,7 +543,7 @@ def get_annonce_detail(annonce_id: int, db: Session = Depends(get_db)):
         "spotlight_active":     a.spotlight_active or False,
         "spotlight_expires_at": a.spotlight_expires_at.isoformat() if a.spotlight_expires_at else None,
         "prix_ancien":          float(a.prix_ancien) if a.prix_ancien else None,
-        "localisation_exacte":  a.source is None,
+        "localisation_exacte":  a.source is None and a.localisation_exacte is not False,
         "source":               a.source,
         "source_url":           a.source_url,
         "caractere_general": {k: getattr(a.caractere_general, k, False) for k in ["jardin","terrasse","balcon","parking","garage","ascenseur","vue_mer","vue_montagne","vue_foret","piscine","concierge","cellier","meuble","facade_exterieure","digicode","interphone","gardien","travaux_prevoir","relie_onas","animaux_admis"]} if a.caractere_general else None,

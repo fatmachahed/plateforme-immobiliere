@@ -123,6 +123,7 @@ class AnnonceCreate(AnnonceBase):
     telephone: Optional[str] = None
     annee_construction: Optional[int] = None
     anonyme: Optional[bool] = False
+    localisation_exacte: Optional[bool] = True
     accompagnement: Optional[bool] = False
     accompagnement_agence_id: Optional[int] = None
     commercial_id: Optional[int] = None  # manager commercial ayant apporté ce lead (traçabilité)
@@ -214,6 +215,7 @@ class AnnonceUpdate(BaseModel):
     standing:             Optional[str] = None
     reference:            Optional[str] = None
     anonyme: Optional[bool] = None
+    localisation_exacte: Optional[bool] = None
     accompagnement: Optional[bool] = None
     duree_type:       Optional[str] = None
     duree_valeur:     Optional[str] = None

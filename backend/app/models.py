@@ -177,6 +177,8 @@ class Annonce(Base):
     prix_ancien = Column(Numeric(12, 2), nullable=True)
 
     # Import flux partenaire (ex: "century21"). source NULL = annonce publiée sur Localizi
+    # Annonceur : la position saisie est celle du bien (badge "Localisation exacte"), activé par défaut
+    localisation_exacte = Column(Boolean, default=True, server_default="true")
     source     = Column(String, nullable=True)
     source_id  = Column(String, nullable=True)   # identifiant de l'annonce chez le partenaire
     source_url = Column(String, nullable=True)   # fiche d'origine chez le partenaire

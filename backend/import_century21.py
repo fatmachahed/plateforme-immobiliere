@@ -424,7 +424,7 @@ def apply(items, geo_db, db):
             gouvernorat_id=gov[1] if gov else None,
             delegation_id=deleg[1] if deleg else None,
             localite_id=loc[1] if loc else None,
-            source_url=it["source_url"],
+            source_url=it["source_url"], localisation_exacte=False,
         )
         if a is None:
             a = m.Annonce(source=SOURCE, source_id=it["source_id"], reference=it["reference"],

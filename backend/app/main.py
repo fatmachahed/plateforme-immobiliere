@@ -156,6 +156,8 @@ with engine.connect() as conn:
         "ALTER TYPE typebienenum ADD VALUE IF NOT EXISTS 'triplex';",
         # Annonces importées d'un flux partenaire (ex: Century 21) : source NULL = annonce
         # publiée sur Localizi (localisation exacte), sinon localisation approximative
+        # Badge "Localisation exacte" : choix de l'annonceur (oui par défaut, y compris pour l'existant)
+        "ALTER TABLE annonces ADD COLUMN IF NOT EXISTS localisation_exacte BOOLEAN DEFAULT TRUE;",
         "ALTER TABLE annonces ADD COLUMN IF NOT EXISTS source VARCHAR;",
         "ALTER TABLE annonces ADD COLUMN IF NOT EXISTS source_id VARCHAR;",
         "ALTER TABLE annonces ADD COLUMN IF NOT EXISTS source_url VARCHAR;",
