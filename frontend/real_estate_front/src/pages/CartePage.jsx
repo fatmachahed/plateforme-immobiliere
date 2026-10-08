@@ -893,7 +893,7 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
         const catCls = isClosedStatus(p.status) ? "pin-dot--closed" : p.categorie ? `pin-dot--${p.categorie}` : "pin-dot--std";
         const cls    = `pin-dot ${catCls}${isA ? " pin-dot--active" : ""}`;
         const icon   = L.divIcon({ className:"", html:`<div class="${cls}"></div>`, iconSize:[null,null], iconAnchor:[10,10] });
-        const m      = L.marker([p.lat, p.lng], { icon, bienCount: 1, categorie: p.categorie });
+        const m      = L.marker([p.lat, p.lng], { icon, bienCount: 1, categorie: isClosedStatus(p.status) ? "closed" : p.categorie });
         m.on("click", (e) => { if (drawModeRef.current) return; L.DomEvent.stopPropagation(e); onPinHoverRef.current?.({ ...p, _px: e.containerPoint.x, _py: e.containerPoint.y }); });
         markersRef.current[p.id] = m;
         clusterGroup.addLayer(m);
@@ -903,10 +903,11 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
         const catCount = {};
         group.forEach(p => { catCount[p.categorie||"std"] = (catCount[p.categorie||"std"]||0)+1; });
         const dom = Object.entries(catCount).sort((a,b)=>b[1]-a[1])[0][0];
-        const col = dom === "vente" ? "#166534" : dom === "location" ? "#1e40af" : dom === "vacances" ? "#d97706" : "#9b1c2e";
+        const allClosed = group.every(p => isClosedStatus(p.status));
+        const col = allClosed ? "#9ca3af" : dom === "vente" ? "#166534" : dom === "location" ? "#1e40af" : dom === "vacances" ? "#d97706" : "#9b1c2e";
         const pillHtml = `<div style="display:inline-flex;align-items:center;gap:5px;background:${col};color:#fff;border-radius:20px;padding:6px 13px 6px 9px;border:2.5px solid #fff;box-shadow:0 4px 14px rgba(0,0,0,.35);white-space:nowrap;cursor:pointer;font-family:system-ui,sans-serif;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><rect x="2" y="2" width="20" height="22" rx="1" fill="rgba(255,255,255,.2)"/><line x1="2" y1="8" x2="22" y2="8"/><line x1="9" y1="22" x2="9" y2="8"/></svg><span style="font-size:13px;font-weight:800;line-height:1;">${cnt}</span></div>`;
         const pillIcon = L.divIcon({ className:"", html:pillHtml, iconSize:null, iconAnchor:[0,0] });
-        const m = L.marker([rep.lat, rep.lng], { icon: pillIcon, bienCount: cnt, dominantCategorie: dom });
+        const m = L.marker([rep.lat, rep.lng], { icon: pillIcon, bienCount: cnt, dominantCategorie: allClosed ? "closed" : dom });
         bindStackedPopup(m, group);
         markersRef.current[`stack_${rep.lat}_${rep.lng}`] = m;
         clusterGroup.addLayer(m);
@@ -1498,6 +1499,7 @@ const INIT_F = {
   anciennete:"",
   standing:"",
   colocation: false,
+  cloturees: "",
   datePubliMin:"",
 };
 
@@ -1525,6 +1527,7 @@ function countActiveFilters(f) {
   if (f.etage_min)               n++;
   if (f.type_appartement)        n++;
   if (f.colocation)              n++;
+  if (f.cloturees)               n++;
   n += (f.features||[]).length;
   return n;
 }
@@ -2157,6 +2160,18 @@ function FilterPanel({ filters, onChange, onSaveSearch, showSchools, showMosques
             </div>
           )}
 
+          {/* Biens deja loues / vendus */}
+          <div className="fp__adv-group">
+            <label className="fp__adv-label">Loués / vendus</label>
+            <select className="fp__adv-sel" value={local.cloturees || ""} onChange={e => set("cloturees", e.target.value)}>
+              <option value="">Afficher</option>
+              <option value="masquer">Masquer</option>
+              <option value="loues">Déjà loués uniquement</option>
+              <option value="vendus">Déjà vendus uniquement</option>
+              <option value="seulement">Loués + vendus uniquement</option>
+            </select>
+          </div>
+
           {/* Colocation */}
           {(local.type === "" || local.type === "appartement" || local.type === "duplex" || local.type === "triplex" || local.type === "penthouse" || local.type === "villa" || local.type === "villa_maison") && (
             <div className="fp__adv-group fp__adv-group--full" style={{alignSelf:"flex-end",flex:"none"}}>
@@ -2654,6 +2669,7 @@ export default function CartePage() {
     etage_min:       sp.get("etage_min")  || "",
     type_appartement:sp.get("type_appt")  || "",
     colocation:      sp.get("colocation") === "1",
+    cloturees:       sp.get("clot") || "",
   }), []);
 
   /* -- �tat initial : URL d'abord, sessionStorage en fallback -- */
@@ -2775,6 +2791,7 @@ export default function CartePage() {
     if (f.etage_min)         sp.set("etage_min",      f.etage_min);
     if (f.type_appartement)  sp.set("type_appt",      f.type_appartement);
     if (f.colocation)        sp.set("colocation",     "1");
+    if (f.cloturees)         sp.set("clot",           f.cloturees);
     /* setSearchParams déclenche le useEffect ci-dessus qui met à jour filters */
     setSearchParams(sp, { replace: true });
   }, [setSearchParams]);
@@ -3236,6 +3253,10 @@ export default function CartePage() {
         if (!hasAll) return false;
       }
       if (filters.colocation && !p.colocation) return false;
+      if (filters.cloturees === "masquer"    &&  isClosedStatus(p.status)) return false;
+      if (filters.cloturees === "seulement"  && !isClosedStatus(p.status)) return false;
+      if (filters.cloturees === "loues"      && p.status !== "louee")  return false;
+      if (filters.cloturees === "vendus"     && p.status !== "vendue") return false;
       return true;
     })
     .sort((a, b) => computeScore(b) - computeScore(a));
@@ -3287,6 +3308,7 @@ export default function CartePage() {
     filters.type_appartement && { label: ({studio:"Studio",s0:"S0","s+1":"S+1","s+2":"S+2","s+3":"S+3","s+4":"S+4",duplex:"Duplex", triplex:"Triplex",penthouse:"Penthouse"})[filters.type_appartement] || filters.type_appartement, key:"type_appartement", color:"#be185d" },
     filters.titre_foncier && { label:"Titre foncier",     key:"titre_foncier", color:"#15803d" },
     filters.colocation    && { label:"Colocation",         key:"colocation",    color:"#6366f1" },
+    filters.cloturees     && { label: ({masquer:"Sans loués/vendus",loues:"Déjà loués",vendus:"Déjà vendus",seulement:"Loués/vendus seulement"})[filters.cloturees], key:"cloturees", color:"#6b7280" },
     ...(filters.features||[]).map(k => ({ label: k.replace(/_/g," "), key:`feat_${k}`, color:"#7c3aed" })),
   ].filter(Boolean);
 
