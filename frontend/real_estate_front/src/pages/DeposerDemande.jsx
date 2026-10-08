@@ -378,8 +378,12 @@ export default function DeposerDemande() {
               <div className="dd-hero__ico"><Search size={28} color="#fff"/></div>
               <h1 className="dd-hero__title">Déposer une demande</h1>
               <p className="dd-hero__sub">
-                Décrivez le bien que vous recherchez. Les agents immobiliers actifs
-                dans la zone recherchée vous contacteront directement.
+                Vous n'avez pas trouvé votre bonheur parmi les milliers de biens que nous
+                proposons sur notre plateforme, pas de soucis, décrivez le bien que vous
+                recherchez en remplissant la demande ci-dessous et nous la partagerons avec
+                nos agents immobiliers /conseillers en immobilier partenaires. Les agents
+                immobiliers /conseillers en immobilier actifs dans la zone recherchée vous
+                contacteront directement.
               </p>
             </div>
           </div>
