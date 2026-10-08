@@ -381,8 +381,7 @@ export default function DeposerDemande() {
                 Vous n'avez pas trouvé votre bonheur parmi les milliers de biens que nous
                 proposons sur notre plateforme, pas de soucis, décrivez le bien que vous
                 recherchez en remplissant la demande ci-dessous et nous la partagerons avec
-                nos agents immobiliers /conseillers en immobilier partenaires. Les agents
-                immobiliers /conseillers en immobilier actifs dans la zone recherchée vous
+                nos agents immobiliers /conseillers en immobilier partenaires qui vous
                 contacteront directement.
               </p>
             </div>
