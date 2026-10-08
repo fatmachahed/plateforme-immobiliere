@@ -3,6 +3,7 @@ import ReactDOM from "react-dom";
 import API_URL, { fmtDevise, convertPrice, fmtPriceApprox, NO_IMAGE_PLACEHOLDER, MAP_TILE_URL, MAP_TILE_ATTRIBUTION, MAP_TILE_OPTIONS } from '../config';
 import { useNavigate, useSearchParams, useParams, useLocation, Link } from "react-router-dom";
 import { useToast } from "../components/Toast";
+import SoldStamp, { soldStampHtml, isClosedStatus } from "../components/SoldStamp";
 import { useFeatureFlags } from "../hooks/useFeatureFlags";
 import {
   getCompareIds, useIsInCompare, useCompareMeta, useCompareCount,
@@ -290,7 +291,7 @@ function fmtFull(p) { const n = Number(p); return (!p || isNaN(n)) ? "Prix sur d
 function ucFirst(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g," ") : ""; }
 
 /* --- Carrousel --- */
-function Carousel({ images, h = 190 }) {
+function Carousel({ images, h = 190, status }) {
   const [idx, setIdx]       = useState(0);
   const [prev2, setPrev2]   = useState(null); // index de l'image sortante
   const [dir, setDir]       = useState(1);    // 1 = gauche→droite, -1 = droite→gauche
@@ -336,6 +337,7 @@ function Carousel({ images, h = 190 }) {
           : "none",
         zIndex:2,
       }} loading="lazy"/>
+      <SoldStamp status={status} />
       {/* Filigrane logo */}
       <div style={{
         position:"absolute", inset:0, zIndex:3,
@@ -481,7 +483,7 @@ function PropCard({ p, active, onHover, onClick, govMarketStats, compact }) {
       style={{position:"relative"}}
     >
       <div style={{ position:"relative" }}>
-        <Carousel images={p.images} h={compact ? 130 : 190} />
+        <Carousel images={p.images} h={compact ? 130 : 190} status={p.status} />
         {(p.categorie === "location" || p.categorie === "vacances") && (
           <span className={`pc__cat-badge pc__cat-badge--${p.categorie}`}>
             {p.categorie === "location" ? "Location" : "Vacances"}
@@ -846,6 +848,7 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
         return `<div style="width:min(460px,calc(100vw - 32px));max-width:calc(100vw - 32px);font-family:'Inter',system-ui,sans-serif;overflow:hidden;border-radius:2px;cursor:pointer;" onclick="if(window.__openAnnonceModal){window.__openAnnonceModal('${rid}');}else{window.location.href='/annonce/${rid}';}event.stopPropagation();">
           <div style="position:relative;height:190px;overflow:hidden;background:#f1f5f9;">
             ${img ? `<img src="${img}" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.src='${NO_IMAGE_PLACEHOLDER}'"/>` : `<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:48px;color:#cbd5e1;">&#127968;</div>`}
+            ${soldStampHtml(pin.status)}
             ${pin.spotlight ? `<span style="position:absolute;bottom:8px;left:8px;background:rgba(234,88,12,.92);color:#fff;border-radius:7px;padding:3px 8px;font-size:10px;font-weight:800;backdrop-filter:blur(4px);">&#11088; &Agrave; ne pas manquer</span>` : ""}
           </div>
           <div style="padding:14px 16px 12px;border-top:2px solid ${bg2};">
@@ -887,7 +890,7 @@ function PropertyMap({ properties, activeId, selectedGov, onGovSelect, selectedD
       const isA = group.some(p => p.id === active);
       if (group.length === 1) {
         const p      = group[0];
-        const catCls = p.categorie ? `pin-dot--${p.categorie}` : "pin-dot--std";
+        const catCls = isClosedStatus(p.status) ? "pin-dot--closed" : p.categorie ? `pin-dot--${p.categorie}` : "pin-dot--std";
         const cls    = `pin-dot ${catCls}${isA ? " pin-dot--active" : ""}`;
         const icon   = L.divIcon({ className:"", html:`<div class="${cls}"></div>`, iconSize:[null,null], iconAnchor:[10,10] });
         const m      = L.marker([p.lat, p.lng], { icon, bienCount: 1, categorie: p.categorie });
@@ -2377,6 +2380,7 @@ function transformApiAnnonce(a) {
     surface_jardin: a.surface_jardin || 0,
     type:          a.type_bien === "maison" ? "villa_maison" : (a.type_bien || ""),
     categorie:     a.categorie,
+    status:        a.status || "approuvee",
     duree_type:       a.duree_type       || null,
     duree_valeur:     a.duree_valeur     || null,
     capacite_accueil: a.capacite_accueil || null,
@@ -2499,6 +2503,7 @@ function HoverCard({ pin, sharedHoverTimer, onOpen, onLeave }) {
             }} onError={e=>{ e.currentTarget.style.display="none"; }}/>
           </>
         )}
+        <SoldStamp status={pin.status} />
         {/* Fermer */}
         <button
           onClick={e => { e.stopPropagation(); onLeave(); }}
@@ -3096,7 +3101,7 @@ export default function CartePage() {
       const byId = new Map();
       try {
         for (let skip = 0; skip < 20000; skip += PAGE) {
-          const params = new URLSearchParams({ limit: String(PAGE), skip: String(skip) });
+          const params = new URLSearchParams({ limit: String(PAGE), skip: String(skip), inclure_cloturees: "true" });
           if (filters.govId) params.set("gouvernorat_id", filters.govId);
           if (filters.delId) params.set("delegation_id", filters.delId);
           const data = await fetch(`${API_URL}/annonces/public?${params}`).then(r => r.json());
@@ -4642,6 +4647,16 @@ export default function CartePage() {
         .pin-dot--vacances:hover, .pin-dot--vacances.pin-dot--active {
           background: #b45309;
           box-shadow: 0 3px 14px rgba(217,119,6,.70);
+        }
+        /* -- Bien deja loue / vendu : gris -- */
+        .pin-dot--closed {
+          width: 20px; height: 20px;
+          background: #9ca3af;
+          box-shadow: 0 2px 8px rgba(107,114,128,.45);
+        }
+        .pin-dot--closed:hover, .pin-dot--closed.pin-dot--active {
+          background: #6b7280;
+          box-shadow: 0 3px 14px rgba(107,114,128,.65);
         }
         /* -- Fallback bordeaux -- */
         .pin-dot--std {

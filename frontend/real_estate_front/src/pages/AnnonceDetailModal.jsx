@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom";
+import SoldStamp from "../components/SoldStamp";
 import API_URL, { fmtDevise, fmtPriceApprox, NO_IMAGE_PLACEHOLDER, MAP_TILE_URL, MAP_TILE_ATTRIBUTION, MAP_TILE_OPTIONS } from '../config';
 import { useFeatureFlags } from "../hooks/useFeatureFlags";
 import {
@@ -97,6 +98,7 @@ function normalizeApi(a) {
     beds: a.nb_chambres, baths: a.nb_salles_bain, area: a.superficie,
     type: TYPE_FR[a.type_bien] || a.type_bien,
     categorie: CAT_FR[a.categorie] || a.categorie,
+    status: a.status || "approuvee",
     etat: ETAT_FR[a.etat_bien] || a.etat_bien || null,
     annee: a.annee_construction,
     description: a.description || "Aucune description disponible.",
@@ -537,6 +539,7 @@ export default function AnnonceDetailModal({ annonceId, onClose, adminActions })
           <div className="adm-gallery-main" style={{position:"relative",width:"100%",height:"100%",overflow:"hidden"}}>
             <img src={images[imgIdx]} alt={prop.titre}
               style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+            <SoldStamp status={prop.status} size="lg" />
             {/* Filigrane */}
             <div style={{position:"absolute",inset:0,zIndex:3,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}>
               <span style={{fontSize:26,fontWeight:900,letterSpacing:"-0.5px",fontFamily:"Arial,sans-serif",color:"rgba(255,255,255,0.20)",textShadow:"0 1px 4px rgba(0,0,0,0.15)",userSelect:"none",transform:"rotate(-15deg)"}}>

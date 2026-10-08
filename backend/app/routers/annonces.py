@@ -157,10 +157,13 @@ def search_annonces_public(
     prix_max: Optional[float] = None,
     skip: int = 0,
     limit: int = 50,
+    inclure_cloturees: bool = False,
     db: Session = Depends(get_db)
 ):
+    # inclure_cloturees : la carte garde aussi les biens déjà loués / vendus
+    statuts_visibles = ["approuvee", "louee", "vendue"] if inclure_cloturees else ["approuvee"]
     query = db.query(models.Annonce).filter(
-        models.Annonce.status == "approuvee"
+        models.Annonce.status.in_(statuts_visibles)
     )
     if categorie:
         query = query.filter(models.Annonce.categorie == categorie)
@@ -245,6 +248,7 @@ def search_annonces_public(
             boost_level=a.boost_level or 0, spotlight_active=a.spotlight_active or False, views_count=a.views_count or 0,
             date_creation=a.date_creation, latitude=lat, longitude=lng,
             image_principale=img, gouvernorat=gov, delegation=dele,
+            status=a.status.value if hasattr(a.status, "value") else str(a.status),
             localite=loc, address=addr,
             nb_pieces=a.nb_pieces, nb_chambres=a.nb_chambres, nb_salles_bain=a.nb_salles_bain,
             type_appartement=str(a.type_appartement.value) if a.type_appartement else None,

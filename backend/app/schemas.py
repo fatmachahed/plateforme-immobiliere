@@ -354,6 +354,7 @@ class AnnoncePublic(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     image_principale: Optional[str] = None
+    status: Optional[str] = None
     gouvernorat: Optional[str] = None
     delegation: Optional[str] = None
     localite: Optional[str] = None
